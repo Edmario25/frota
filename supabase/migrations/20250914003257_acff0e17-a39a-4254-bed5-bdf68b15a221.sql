@@ -1,0 +1,1 @@
+-- Inserção de vínculos obra_funcionarios de teste ignorada em produção.

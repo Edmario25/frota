@@ -1,0 +1,2 @@
+-- Migração de usuário de teste ignorada em produção.
+-- O usuário admin deve ser criado via Supabase Auth (painel ou edge function create-user).

@@ -1,0 +1,136 @@
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+interface ObraDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  obra: any;
+}
+
+export function ObraDetailModal({ isOpen, onClose, obra }: ObraDetailModalProps) {
+  if (!obra) return null;
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "planejada": return "secondary";
+      case "em_andamento": return "default";
+      case "pausada": return "destructive";
+      case "concluida": return "outline";
+      default: return "secondary";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "planejada": return "Planejada";
+      case "em_andamento": return "Em Andamento";
+      case "pausada": return "Pausada";
+      case "concluida": return "Concluída";
+      default: return status;
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Detalhes da Obra</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Nome da Obra</label>
+              <p className="text-sm mt-1">{obra.nome}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Código Interno</label>
+              <p className="text-sm mt-1">{obra.codigo_interno || "-"}</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Endereço Completo</label>
+            <p className="text-sm mt-1">
+              {[obra.endereco, obra.cidade, obra.estado].filter(Boolean).join(", ") || "-"}
+            </p>
+          </div>
+
+          {obra.coordenadas_gps && (
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Coordenadas GPS</label>
+              <p className="text-sm mt-1">{obra.coordenadas_gps}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Cliente/Contratante</label>
+              <p className="text-sm mt-1">{obra.cliente_nome}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">CNPJ do Cliente</label>
+              <p className="text-sm mt-1">{obra.cliente_cnpj || "-"}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Data de Início Prevista</label>
+              <p className="text-sm mt-1">
+                {obra.data_inicio_prevista 
+                  ? format(new Date(obra.data_inicio_prevista), "dd/MM/yyyy", { locale: ptBR })
+                  : "-"
+                }
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Data de Término Prevista</label>
+              <p className="text-sm mt-1">
+                {obra.data_termino_prevista 
+                  ? format(new Date(obra.data_termino_prevista), "dd/MM/yyyy", { locale: ptBR })
+                  : "-"
+                }
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Status</label>
+              <div className="mt-1">
+                <Badge variant={getStatusBadgeVariant(obra.status)}>
+                  {getStatusLabel(obra.status)}
+                </Badge>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Responsável Técnico</label>
+              <p className="text-sm mt-1">{obra.responsavel_tecnico || "-"}</p>
+            </div>
+          </div>
+
+          {obra.observacoes && (
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Observações</label>
+              <p className="text-sm mt-1 whitespace-pre-wrap">{obra.observacoes}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
+            <div>
+              <label className="font-medium">Criado em</label>
+              <p>{format(new Date(obra.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+            </div>
+            <div>
+              <label className="font-medium">Última atualização</label>
+              <p>{format(new Date(obra.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

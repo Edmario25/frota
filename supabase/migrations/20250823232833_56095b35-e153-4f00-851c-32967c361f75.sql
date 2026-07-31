@@ -1,0 +1,2 @@
+-- Migração de atribuição de roles para usuários de teste ignorada em produção.
+-- Usuários e roles devem ser criados via painel Supabase Auth ou edge function create-user.

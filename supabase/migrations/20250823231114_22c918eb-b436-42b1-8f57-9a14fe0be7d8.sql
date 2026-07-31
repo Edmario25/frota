@@ -1,0 +1,1 @@
+-- Inserção de perfil/role de administrador de teste ignorada em produção.
