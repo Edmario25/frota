@@ -1246,6 +1246,7 @@ export type Database = {
           responsavel: string | null
           tipo_servico: string
           updated_at: string
+          valor_servico: number | null
           vehicle_id: string
         }
         Insert: {
@@ -1260,6 +1261,7 @@ export type Database = {
           responsavel?: string | null
           tipo_servico: string
           updated_at?: string
+          valor_servico?: number | null
           vehicle_id: string
         }
         Update: {
@@ -1273,6 +1275,7 @@ export type Database = {
           quantidade_pneus?: number | null
           responsavel?: string | null
           tipo_servico?: string
+          valor_servico?: number | null
           updated_at?: string
           vehicle_id?: string
         }
@@ -1354,6 +1357,7 @@ export type Database = {
           observacoes: string | null
           tipo_acessorio: string
           updated_at: string
+          valor: number | null
           vehicle_id: string
         }
         Insert: {
@@ -1365,6 +1369,7 @@ export type Database = {
           observacoes?: string | null
           tipo_acessorio: string
           updated_at?: string
+          valor?: number | null
           vehicle_id: string
         }
         Update: {
@@ -1376,6 +1381,7 @@ export type Database = {
           observacoes?: string | null
           tipo_acessorio?: string
           updated_at?: string
+          valor?: number | null
           vehicle_id?: string
         }
         Relationships: []

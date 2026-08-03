@@ -137,3 +137,107 @@
     @apply opacity-100;
   }
 }
+
+@media print {
+  /* Esconde tudo exceto a área de impressão */
+  body > * { display: none !important; }
+  #print-area { display: block !important; }
+
+  #print-area {
+    font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+    color: #111;
+    background: #fff;
+    padding: 24px;
+  }
+
+  #print-area .print-header {
+    border-bottom: 2px solid #1e40af;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+
+  #print-area .print-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1e40af;
+    margin: 0 0 4px;
+  }
+
+  #print-area .print-subtitle {
+    font-size: 11px;
+    color: #64748b;
+    margin: 0;
+  }
+
+  #print-area .print-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  #print-area .print-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 12px;
+  }
+
+  #print-area .print-card-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin: 0 0 2px;
+  }
+
+  #print-area .print-card-value {
+    font-size: 14px;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  #print-area table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+
+  #print-area thead th {
+    background: #1e40af;
+    color: #fff;
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  #print-area thead th.text-right { text-align: right; }
+
+  #print-area tbody td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #1e293b;
+  }
+
+  #print-area tbody td.text-right { text-align: right; }
+
+  #print-area tbody tr:nth-child(even) td { background: #f8fafc; }
+
+  #print-area .print-total td {
+    background: #1e3a8a !important;
+    color: #fff !important;
+    font-weight: 700;
+    padding: 6px 8px;
+  }
+
+  #print-area .print-total td.text-right { text-align: right; }
+
+  #print-area .print-footer {
+    margin-top: 20px;
+    font-size: 9px;
+    color: #94a3b8;
+    text-align: right;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 8px;
+  }
+}

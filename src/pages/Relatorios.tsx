@@ -15,7 +15,7 @@ import {
 import {
   Users, Car, AlertTriangle, DollarSign, BarChart3,
   Download, Search, TrendingDown, Fuel, Wrench, Wallet,
-  FileText, Building2, RefreshCw,
+  FileText, Building2, RefreshCw, Printer,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -128,7 +128,6 @@ export default function Relatorios() {
         <Tabs defaultValue="efetivo" className="space-y-4">
           <TabsList className="h-10">
             <TabsTrigger value="efetivo"    className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Efetivo</TabsTrigger>
-            <TabsTrigger value="veiculos"   className="gap-1.5 text-xs"><Car className="h-3.5 w-3.5" />Veículos</TabsTrigger>
             <TabsTrigger value="avarias"    className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" />Avarias</TabsTrigger>
             <TabsTrigger value="custo-obra" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" />Custo por Obra</TabsTrigger>
             <TabsTrigger value="custo-frota" className="gap-1.5 text-xs"><DollarSign className="h-3.5 w-3.5" />Custo de Frota</TabsTrigger>
@@ -136,9 +135,6 @@ export default function Relatorios() {
 
           <TabsContent value="efetivo">
             <RelatorioEfetivo filters={filters} hasFullAccess={hasFullAccess} userObraId={userObraId} />
-          </TabsContent>
-          <TabsContent value="veiculos">
-            <RelatorioVeiculos filters={filters} hasFullAccess={hasFullAccess} userObraId={userObraId} />
           </TabsContent>
           <TabsContent value="avarias">
             <RelatorioAvarias filters={filters} hasFullAccess={hasFullAccess} userObraId={userObraId} />
@@ -689,79 +685,83 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
       const { data: obras } = await obrasQ;
       if (!obras?.length) { setRows([]); setFetched(true); setLoading(false); return; }
 
-      // 2. para cada obra: funcionários vinculados
+      const obraIds = obras.map((o: any) => o.id);
+
+      // 2. funcionários vinculados às obras
       const { data: obraFuncs } = await (supabase as any)
         .from("obra_funcionarios")
         .select("obra_id, employee_id")
-        .in("obra_id", obras.map((o: any) => o.id))
+        .in("obra_id", obraIds)
         .eq("status", true);
 
-      // 3. veículos dos funcionários
-      const { data: veiculos } = await (supabase as any)
-        .from("vehicles")
-        .select("id, responsavel_id");
+      // 3. veículos vinculados diretamente às obras + veículos dos funcionários
+      const [{ data: veiculos }, { data: obraVeics }] = await Promise.all([
+        (supabase as any).from("vehicles").select("id, responsavel_id, valor_aluguel_mensal"),
+        (supabase as any).from("obra_veiculos").select("obra_id, vehicle_id").in("obra_id", obraIds).eq("status", true),
+      ]);
 
-      // 4. manutenções no período
-      const { data: manuts } = await (supabase as any)
-        .from("maintenance_records")
-        .select("vehicle_id, custo")
-        .gte("data_realizada", filters.dataInicio)
-        .lte("data_realizada", filters.dataFim)
-        .eq("status", "concluida");
+      // 4–10. todos os custos no período
+      const [mRes, fRes, wRes, tRes, aRes, mulRes, fundoRes, lancRes] = await Promise.all([
+        (supabase as any).from("maintenance_records").select("vehicle_id, custo")
+          .gte("data_realizada", filters.dataInicio).lte("data_realizada", filters.dataFim).eq("status", "concluida"),
+        (supabase as any).from("vehicle_fuel_logs").select("vehicle_id, valor_total")
+          .gte("data_abastecimento", filters.dataInicio).lte("data_abastecimento", filters.dataFim),
+        (supabase as any).from("wash_records").select("vehicle_id, valor")
+          .gte("data_lavagem", filters.dataInicio).lte("data_lavagem", filters.dataFim),
+        (supabase as any).from("tire_services").select("vehicle_id, valor_servico")
+          .gte("data_servico", filters.dataInicio).lte("data_servico", filters.dataFim),
+        (supabase as any).from("vehicle_accessories").select("vehicle_id, valor")
+          .gte("data_instalacao", filters.dataInicio).lte("data_instalacao", filters.dataFim),
+        (supabase as any).from("traffic_fines").select("vehicle_id, valor")
+          .gte("data_multa", filters.dataInicio).lte("data_multa", filters.dataFim),
+        (supabase as any).from("fundo_fixo").select("id, obra_id"),
+        (supabase as any).from("fundo_fixo_lancamentos").select("fundo_fixo_id, valor, tipo")
+          .gte("data_lancamento", filters.dataInicio).lte("data_lancamento", filters.dataFim).eq("tipo", "saida"),
+      ]);
 
-      // 5. combustível no período
-      const { data: fuels } = await (supabase as any)
-        .from("vehicle_fuel_logs")
-        .select("vehicle_id, valor_total")
-        .gte("data_abastecimento", filters.dataInicio)
-        .lte("data_abastecimento", filters.dataFim);
+      const manuts   = mRes.data   ?? [];
+      const fuels    = fRes.data   ?? [];
+      const washes   = wRes.data   ?? [];
+      const tires    = tRes.data   ?? [];
+      const acess    = aRes.data   ?? [];
+      const multas   = mulRes.data ?? [];
+      const fundos   = fundoRes.data  ?? [];
+      const lancs    = lancRes.data   ?? [];
 
-      // 6. fundo fixo saídas no período
-      const { data: fundos } = await (supabase as any)
-        .from("fundo_fixo")
-        .select("id, obra_id");
+      const sum = (arr: any[], vid: string, field: string) =>
+        arr.filter(x => x.vehicle_id === vid).reduce((s, x) => s + (x[field] ?? 0), 0);
 
-      const { data: lancamentos } = await (supabase as any)
-        .from("fundo_fixo_lancamentos")
-        .select("fundo_fixo_id, valor, tipo")
-        .gte("data_lancamento", filters.dataInicio)
-        .lte("data_lancamento", filters.dataFim)
-        .eq("tipo", "saida");
-
-      // 7. montar resultado por obra
+      // 11. montar resultado por obra
       const resultado = (obras as any[]).map((obra: any) => {
         const empIds = (obraFuncs ?? [])
           .filter((of: any) => of.obra_id === obra.id)
           .map((of: any) => of.employee_id);
 
-        const vIds = (veiculos ?? [])
-          .filter((v: any) => empIds.includes(v.responsavel_id))
-          .map((v: any) => v.id);
+        // veículos: dos funcionários + diretamente vinculados à obra (sem duplicatas)
+        const vByEmp  = (veiculos ?? []).filter((v: any) => empIds.includes(v.responsavel_id)).map((v: any) => v.id);
+        const vByObra = (obraVeics ?? []).filter((ov: any) => ov.obra_id === obra.id).map((ov: any) => ov.vehicle_id);
+        const vIds    = [...new Set([...vByEmp, ...vByObra])];
 
-        const custoManut = (manuts ?? [])
-          .filter((m: any) => vIds.includes(m.vehicle_id))
-          .reduce((s: number, m: any) => s + (m.custo ?? 0), 0);
+        const custoManut  = vIds.reduce((s, vid) => s + sum(manuts, vid, "custo"), 0);
+        const custoComb   = vIds.reduce((s, vid) => s + sum(fuels, vid, "valor_total"), 0);
+        const custoLav    = vIds.reduce((s, vid) => s + sum(washes, vid, "valor"), 0);
+        const custoBorr   = vIds.reduce((s, vid) => s + sum(tires, vid, "valor_servico"), 0);
+        const custoAcess  = vIds.reduce((s, vid) => s + sum(acess, vid, "valor"), 0);
+        const custoMultas = vIds.reduce((s, vid) => s + sum(multas, vid, "valor"), 0);
+        const custoAlug   = vIds.reduce((s, vid) => {
+          const v = (veiculos ?? []).find((vv: any) => vv.id === vid);
+          return s + (v?.valor_aluguel_mensal ?? 0);
+        }, 0);
 
-        const custoComb = (fuels ?? [])
-          .filter((f: any) => vIds.includes(f.vehicle_id))
-          .reduce((s: number, f: any) => s + (f.valor_total ?? 0), 0);
-
-        const fundoIds = (fundos ?? [])
-          .filter((ff: any) => ff.obra_id === obra.id)
-          .map((ff: any) => ff.id);
-
-        const custoFundo = (lancamentos ?? [])
-          .filter((l: any) => fundoIds.includes(l.fundo_fixo_id))
+        const fundoIds  = fundos.filter((ff: any) => ff.obra_id === obra.id).map((ff: any) => ff.id);
+        const custoFundo = lancs.filter((l: any) => fundoIds.includes(l.fundo_fixo_id))
           .reduce((s: number, l: any) => s + (l.valor ?? 0), 0);
 
+        const total = custoManut + custoComb + custoLav + custoBorr + custoAcess + custoMultas + custoAlug + custoFundo;
+
         return {
-          ...obra,
-          empCount:   empIds.length,
-          vCount:     vIds.length,
-          custoManut,
-          custoComb,
-          custoFundo,
-          total:      custoManut + custoComb + custoFundo,
+          ...obra, empCount: empIds.length, vCount: vIds.length,
+          custoManut, custoComb, custoLav, custoBorr, custoAcess, custoMultas, custoAlug, custoFundo, total,
         };
       }).sort((a: any, b: any) => b.total - a.total);
 
@@ -770,13 +770,23 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
     } finally { setLoading(false); }
   }, [filters, hasFullAccess, userObraId]);
 
-  const totalGeral = rows.reduce((s, r) => s + r.total, 0);
+  const totalGeral    = rows.reduce((s, r) => s + r.total, 0);
+  const totalManut    = rows.reduce((s, r) => s + r.custoManut, 0);
+  const totalComb     = rows.reduce((s, r) => s + r.custoComb, 0);
+  const totalLav      = rows.reduce((s, r) => s + r.custoLav, 0);
+  const totalBorr     = rows.reduce((s, r) => s + r.custoBorr, 0);
+  const totalAcess    = rows.reduce((s, r) => s + r.custoAcess, 0);
+  const totalMultas   = rows.reduce((s, r) => s + r.custoMultas, 0);
+  const totalAlug     = rows.reduce((s, r) => s + r.custoAlug, 0);
+  const totalFundo    = rows.reduce((s, r) => s + r.custoFundo, 0);
 
   const exportCSV = () => {
-    const header = ["Obra","Status","Funcionários","Veículos","Custo Manutenção","Custo Combustível","Fundo Fixo","Total"];
+    const header = ["Obra","Status","Func.","Veíc.","Manutenção","Combustível","Lavagem","Borracharia","Acessórios","Multas","Aluguel","Fundo Fixo","Total"];
     const data = rows.map(r => [
       r.nome, r.status, r.empCount, r.vCount,
-      fmt(r.custoManut), fmt(r.custoComb), fmt(r.custoFundo), fmt(r.total),
+      fmt(r.custoManut), fmt(r.custoComb), fmt(r.custoLav),
+      fmt(r.custoBorr), fmt(r.custoAcess), fmt(r.custoMultas),
+      fmt(r.custoAlug), fmt(r.custoFundo), fmt(r.total),
     ]);
     downloadCSV([header, ...data], `custo_obra_${filters.dataInicio}_${filters.dataFim}.csv`);
   };
@@ -796,48 +806,30 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
       </div>
 
       {fetched && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="pt-3 pb-2">
-              <p className="text-xs text-muted-foreground">Custo Total</p>
-              <p className="text-xl font-extrabold text-foreground">{fmt(totalGeral)}</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm">
-            <CardContent className="pt-3 pb-2">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Wrench className="h-3 w-3" />Manutenção
-              </p>
-              <p className="text-xl font-extrabold text-amber-600">
-                {fmt(rows.reduce((s, r) => s + r.custoManut, 0))}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm">
-            <CardContent className="pt-3 pb-2">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Fuel className="h-3 w-3" />Combustível
-              </p>
-              <p className="text-xl font-extrabold text-blue-600">
-                {fmt(rows.reduce((s, r) => s + r.custoComb, 0))}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 shadow-sm">
-            <CardContent className="pt-3 pb-2">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Wallet className="h-3 w-3" />Fundo Fixo
-              </p>
-              <p className="text-xl font-extrabold text-violet-600">
-                {fmt(rows.reduce((s, r) => s + r.custoFundo, 0))}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { label: "Custo Total",  val: totalGeral,  color: "text-foreground"  },
+            { label: "Manutenção",   val: totalManut,  color: "text-amber-600"   },
+            { label: "Combustível",  val: totalComb,   color: "text-blue-600"    },
+            { label: "Lavagem",      val: totalLav,    color: "text-teal-600"    },
+            { label: "Borracharia",  val: totalBorr,   color: "text-orange-600"  },
+            { label: "Acessórios",   val: totalAcess,  color: "text-indigo-600"  },
+            { label: "Multas",       val: totalMultas, color: "text-red-600"     },
+            { label: "Aluguel",      val: totalAlug,   color: "text-violet-600"  },
+            { label: "Fundo Fixo",   val: totalFundo,  color: "text-purple-600"  },
+          ].map(item => (
+            <Card key={item.label} className="border-0 shadow-sm">
+              <CardContent className="pt-3 pb-2">
+                <p className="text-xs text-muted-foreground">{item.label}</p>
+                <p className={cn("text-lg font-extrabold", item.color)}>{fmt(item.val)}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
       {fetched && (
-        <Card className="border-0 shadow-sm">
+        <Card className="border-0 shadow-sm overflow-x-auto">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -845,8 +837,13 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                   <TableHead>Obra</TableHead>
                   <TableHead className="text-right">Func.</TableHead>
                   <TableHead className="text-right">Veíc.</TableHead>
-                  <TableHead className="text-right">Manutenção</TableHead>
-                  <TableHead className="text-right">Combustível</TableHead>
+                  <TableHead className="text-right">Manut.</TableHead>
+                  <TableHead className="text-right">Comb.</TableHead>
+                  <TableHead className="text-right">Lav.</TableHead>
+                  <TableHead className="text-right">Borr.</TableHead>
+                  <TableHead className="text-right">Acess.</TableHead>
+                  <TableHead className="text-right">Multas</TableHead>
+                  <TableHead className="text-right">Aluguel</TableHead>
                   <TableHead className="text-right">Fundo Fixo</TableHead>
                   <TableHead className="text-right font-bold">Total</TableHead>
                 </TableRow>
@@ -859,13 +856,32 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                     <TableCell className="text-right text-sm">{r.vCount}</TableCell>
                     <TableCell className="text-right text-sm text-amber-700">{fmt(r.custoManut)}</TableCell>
                     <TableCell className="text-right text-sm text-blue-700">{fmt(r.custoComb)}</TableCell>
-                    <TableCell className="text-right text-sm text-violet-700">{fmt(r.custoFundo)}</TableCell>
+                    <TableCell className="text-right text-sm text-teal-700">{fmt(r.custoLav)}</TableCell>
+                    <TableCell className="text-right text-sm text-orange-700">{fmt(r.custoBorr)}</TableCell>
+                    <TableCell className="text-right text-sm text-indigo-700">{fmt(r.custoAcess)}</TableCell>
+                    <TableCell className="text-right text-sm text-red-700">{fmt(r.custoMultas)}</TableCell>
+                    <TableCell className="text-right text-sm text-violet-700">{fmt(r.custoAlug)}</TableCell>
+                    <TableCell className="text-right text-sm text-purple-700">{fmt(r.custoFundo)}</TableCell>
                     <TableCell className="text-right font-bold text-sm">{fmt(r.total)}</TableCell>
                   </TableRow>
                 ))}
+                {rows.length > 0 && (
+                  <TableRow className="bg-muted/40 font-semibold">
+                    <TableCell colSpan={3} className="text-sm">TOTAL</TableCell>
+                    <TableCell className="text-right text-sm text-amber-700">{fmt(totalManut)}</TableCell>
+                    <TableCell className="text-right text-sm text-blue-700">{fmt(totalComb)}</TableCell>
+                    <TableCell className="text-right text-sm text-teal-700">{fmt(totalLav)}</TableCell>
+                    <TableCell className="text-right text-sm text-orange-700">{fmt(totalBorr)}</TableCell>
+                    <TableCell className="text-right text-sm text-indigo-700">{fmt(totalAcess)}</TableCell>
+                    <TableCell className="text-right text-sm text-red-700">{fmt(totalMultas)}</TableCell>
+                    <TableCell className="text-right text-sm text-violet-700">{fmt(totalAlug)}</TableCell>
+                    <TableCell className="text-right text-sm text-purple-700">{fmt(totalFundo)}</TableCell>
+                    <TableCell className="text-right font-bold text-sm">{fmt(totalGeral)}</TableCell>
+                  </TableRow>
+                )}
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-10 text-muted-foreground">
                       <Building2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       Nenhum dado encontrado para o período
                     </TableCell>
@@ -897,29 +913,44 @@ function RelatorioCustoFrota({ filters, hasFullAccess, userObraId }: ReportProps
   const fetch = useCallback(async () => {
     setLoading(true);
     try {
-      const [vRes, mRes, fRes, wRes] = await Promise.all([
+      const [vRes, mRes, fRes, wRes, tRes, aRes, mulRes] = await Promise.all([
         (supabase as any).from("vehicles")
           .select("id, placa, modelo, marca, tipo, valor_aluguel_mensal, responsavel_id, employees(nome)")
           .order("placa"),
         (supabase as any).from("maintenance_records")
-          .select("vehicle_id, custo, tipo")
+          .select("vehicle_id, custo")
           .gte("data_realizada", filters.dataInicio)
           .lte("data_realizada", filters.dataFim)
           .eq("status", "concluida"),
         (supabase as any).from("vehicle_fuel_logs")
-          .select("vehicle_id, valor_total, litros")
+          .select("vehicle_id, valor_total")
           .gte("data_abastecimento", filters.dataInicio)
           .lte("data_abastecimento", filters.dataFim),
         (supabase as any).from("wash_records")
           .select("vehicle_id, valor")
           .gte("data_lavagem", filters.dataInicio)
           .lte("data_lavagem", filters.dataFim),
+        (supabase as any).from("tire_services")
+          .select("vehicle_id, valor_servico")
+          .gte("data_servico", filters.dataInicio)
+          .lte("data_servico", filters.dataFim),
+        (supabase as any).from("vehicle_accessories")
+          .select("vehicle_id, valor")
+          .gte("data_instalacao", filters.dataInicio)
+          .lte("data_instalacao", filters.dataFim),
+        (supabase as any).from("traffic_fines")
+          .select("vehicle_id, valor")
+          .gte("data_multa", filters.dataInicio)
+          .lte("data_multa", filters.dataFim),
       ]);
 
-      const manuts  = mRes.data ?? [];
-      const fuels   = fRes.data ?? [];
-      const washes  = wRes.data ?? [];
-      let veiculos  = vRes.data ?? [];
+      const manuts    = mRes.data ?? [];
+      const fuels     = fRes.data ?? [];
+      const washes    = wRes.data ?? [];
+      const tires     = tRes.data ?? [];
+      const acess     = aRes.data ?? [];
+      const multas    = mulRes.data ?? [];
+      let veiculos    = vRes.data ?? [];
 
       if (!hasFullAccess && userObraId) {
         const [{ data: ofData }, { data: ovData }] = await Promise.all([
@@ -934,14 +965,17 @@ function RelatorioCustoFrota({ filters, hasFullAccess, userObraId }: ReportProps
       }
 
       const enriched = veiculos.map((v: any) => {
-        const custoManut  = manuts.filter((m: any) => m.vehicle_id === v.id).reduce((s: number, m: any) => s + (m.custo ?? 0), 0);
-        const custoComb   = fuels.filter((f: any) => f.vehicle_id === v.id).reduce((s: number, f: any) => s + (f.valor_total ?? 0), 0);
-        const custoLav    = washes.filter((w: any) => w.vehicle_id === v.id).reduce((s: number, w: any) => s + (w.valor ?? 0), 0);
-        const aluguel     = v.valor_aluguel_mensal ?? 0;
+        const custoManut    = manuts.filter((m: any) => m.vehicle_id === v.id).reduce((s: number, m: any) => s + (m.custo ?? 0), 0);
+        const custoComb     = fuels.filter((f: any) => f.vehicle_id === v.id).reduce((s: number, f: any) => s + (f.valor_total ?? 0), 0);
+        const custoLav      = washes.filter((w: any) => w.vehicle_id === v.id).reduce((s: number, w: any) => s + (w.valor ?? 0), 0);
+        const custoBorr     = tires.filter((t: any) => t.vehicle_id === v.id).reduce((s: number, t: any) => s + (t.valor_servico ?? 0), 0);
+        const custoAcess    = acess.filter((a: any) => a.vehicle_id === v.id).reduce((s: number, a: any) => s + (a.valor ?? 0), 0);
+        const custoMultas   = multas.filter((m: any) => m.vehicle_id === v.id).reduce((s: number, m: any) => s + (m.valor ?? 0), 0);
+        const aluguel       = v.valor_aluguel_mensal ?? 0;
         return {
           ...v,
-          custoManut, custoComb, custoLav, aluguel,
-          total: custoManut + custoComb + custoLav + aluguel,
+          custoManut, custoComb, custoLav, custoBorr, custoAcess, custoMultas, aluguel,
+          total: custoManut + custoComb + custoLav + custoBorr + custoAcess + custoMultas + aluguel,
         };
       }).sort((a: any, b: any) => b.total - a.total);
 
@@ -950,24 +984,129 @@ function RelatorioCustoFrota({ filters, hasFullAccess, userObraId }: ReportProps
     } finally { setLoading(false); }
   }, [filters, hasFullAccess, userObraId]);
 
-  const filtered  = filtroTipo === "todos" ? rows : rows.filter(r => r.tipo === filtroTipo);
-  const totalManut  = filtered.reduce((s, r) => s + r.custoManut, 0);
-  const totalComb   = filtered.reduce((s, r) => s + r.custoComb, 0);
-  const totalLav    = filtered.reduce((s, r) => s + r.custoLav, 0);
-  const totalAlug   = filtered.reduce((s, r) => s + r.aluguel, 0);
-  const totalGeral  = filtered.reduce((s, r) => s + r.total, 0);
+  const filtered      = filtroTipo === "todos" ? rows : rows.filter(r => r.tipo === filtroTipo);
+  const totalManut    = filtered.reduce((s, r) => s + r.custoManut, 0);
+  const totalComb     = filtered.reduce((s, r) => s + r.custoComb, 0);
+  const totalLav      = filtered.reduce((s, r) => s + r.custoLav, 0);
+  const totalBorr     = filtered.reduce((s, r) => s + r.custoBorr, 0);
+  const totalAcess    = filtered.reduce((s, r) => s + r.custoAcess, 0);
+  const totalMultas   = filtered.reduce((s, r) => s + r.custoMultas, 0);
+  const totalAlug     = filtered.reduce((s, r) => s + r.aluguel, 0);
+  const totalGeral    = filtered.reduce((s, r) => s + r.total, 0);
 
   const exportCSV = () => {
-    const header = ["Placa","Modelo","Tipo","Responsável","Custo Manutenção","Custo Combustível","Custo Lavagem","Aluguel/Mês","Total"];
+    const header = ["Placa","Modelo","Tipo","Responsável","Manutenção","Combustível","Lavagem","Borracharia","Acessórios","Multas","Aluguel/Mês","Total"];
     const data = filtered.map(r => [
       r.placa, `${r.marca} ${r.modelo}`, r.tipo, r.employees?.nome ?? "",
-      fmt(r.custoManut), fmt(r.custoComb), fmt(r.custoLav), fmt(r.aluguel), fmt(r.total),
+      fmt(r.custoManut), fmt(r.custoComb), fmt(r.custoLav),
+      fmt(r.custoBorr), fmt(r.custoAcess), fmt(r.custoMultas),
+      fmt(r.aluguel), fmt(r.total),
     ]);
     downloadCSV([header, ...data], `custo_frota_${filters.dataInicio}_${filters.dataFim}.csv`);
   };
 
+  const handlePrint = () => {
+    const cards = [
+      { label: "Custo Total",  val: totalGeral,  color: "#1e40af" },
+      { label: "Manutenção",   val: totalManut,  color: "#d97706" },
+      { label: "Combustível",  val: totalComb,   color: "#2563eb" },
+      { label: "Lavagem",      val: totalLav,    color: "#0d9488" },
+      { label: "Borracharia",  val: totalBorr,   color: "#ea580c" },
+      { label: "Acessórios",   val: totalAcess,  color: "#4f46e5" },
+      { label: "Multas",       val: totalMultas, color: "#dc2626" },
+      { label: "Aluguel",      val: totalAlug,   color: "#7c3aed" },
+    ];
+
+    const cardsHtml = cards.map(c => `
+      <div class="print-card">
+        <p class="print-card-label">${c.label}</p>
+        <p class="print-card-value" style="color:${c.color}">${fmt(c.val)}</p>
+      </div>`).join('');
+
+    const rowsHtml = filtered.map(r => `
+      <tr>
+        <td><b>${r.placa}</b></td>
+        <td>${r.marca} ${r.modelo}</td>
+        <td>${r.tipo}</td>
+        <td>${r.employees?.nome ?? '—'}</td>
+        <td class="text-right">${fmt(r.custoManut)}</td>
+        <td class="text-right">${fmt(r.custoComb)}</td>
+        <td class="text-right">${fmt(r.custoLav)}</td>
+        <td class="text-right">${fmt(r.custoBorr)}</td>
+        <td class="text-right">${fmt(r.custoAcess)}</td>
+        <td class="text-right">${fmt(r.custoMultas)}</td>
+        <td class="text-right">${fmt(r.aluguel)}</td>
+        <td class="text-right"><b>${fmt(r.total)}</b></td>
+      </tr>`).join('');
+
+    const w = window.open('', '_blank', 'width=1100,height=800');
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="UTF-8">
+      <title>Relatório de Custo de Frota</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; color: #111; background: #fff; padding: 28px 32px; }
+        .print-header { border-bottom: 3px solid #1e40af; padding-bottom: 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .print-title { font-size: 20px; font-weight: 800; color: #1e40af; }
+        .print-subtitle { font-size: 11px; color: #64748b; margin-top: 3px; }
+        .print-meta { font-size: 10px; color: #64748b; text-align: right; line-height: 1.6; }
+        .print-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .print-card { border: 1px solid #e2e8f0; border-radius: 6px; padding: 9px 12px; }
+        .print-card-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 2px; }
+        .print-card-value { font-size: 15px; font-weight: 800; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; }
+        thead th { background: #1e40af; color: #fff; padding: 7px 8px; text-align: left; font-weight: 600; white-space: nowrap; }
+        .text-right { text-align: right; }
+        tbody td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; }
+        tbody tr:nth-child(even) td { background: #f8fafc; }
+        .total-row td { background: #1e3a8a !important; color: #fff !important; font-weight: 700; padding: 7px 8px; }
+        .print-footer { font-size: 9px; color: #94a3b8; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+        @media print { @page { margin: 15mm; size: A4 landscape; } }
+      </style>
+    </head><body>
+      <div class="print-header">
+        <div>
+          <div class="print-title">Relatório de Custo de Frota</div>
+          <div class="print-subtitle">Período: ${filters.dataInicio} a ${filters.dataFim}</div>
+        </div>
+        <div class="print-meta">
+          Emitido em: ${new Date().toLocaleString('pt-BR')}<br>
+          Tipo de veículo: ${filtroTipo === 'todos' ? 'Todos' : filtroTipo}
+        </div>
+      </div>
+      <div class="print-cards">${cardsHtml}</div>
+      <table>
+        <thead><tr>
+          <th>Placa</th><th>Modelo</th><th>Tipo</th><th>Responsável</th>
+          <th class="text-right">Manut.</th><th class="text-right">Comb.</th>
+          <th class="text-right">Lavagem</th><th class="text-right">Borracharia</th>
+          <th class="text-right">Acessórios</th><th class="text-right">Multas</th>
+          <th class="text-right">Aluguel</th><th class="text-right">Total</th>
+        </tr></thead>
+        <tbody>
+          ${rowsHtml}
+          <tr class="total-row">
+            <td colspan="4">TOTAL GERAL</td>
+            <td class="text-right">${fmt(totalManut)}</td>
+            <td class="text-right">${fmt(totalComb)}</td>
+            <td class="text-right">${fmt(totalLav)}</td>
+            <td class="text-right">${fmt(totalBorr)}</td>
+            <td class="text-right">${fmt(totalAcess)}</td>
+            <td class="text-right">${fmt(totalMultas)}</td>
+            <td class="text-right">${fmt(totalAlug)}</td>
+            <td class="text-right">${fmt(totalGeral)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="print-footer">Sistema de Gestão de Frota — gerado em ${new Date().toLocaleString('pt-BR')}</div>
+      <script>window.onload = () => { window.print(); }<\/script>
+    </body></html>`);
+    w.document.close();
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 print:space-y-3">
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <div className="flex gap-2">
           <Select value={filtroTipo} onValueChange={setFiltroTipo}>
@@ -984,22 +1123,30 @@ function RelatorioCustoFrota({ filters, hasFullAccess, userObraId }: ReportProps
           </Button>
         </div>
         {fetched && (
-          <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={exportCSV}>
-            <Download className="h-3.5 w-3.5" />Exportar CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={exportCSV}>
+              <Download className="h-3.5 w-3.5" />Exportar CSV
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={handlePrint}>
+              <Printer className="h-3.5 w-3.5" />Imprimir
+            </Button>
+          </div>
         )}
       </div>
 
       {fetched && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:grid-cols-4">
           {[
-            { label: "Custo Total",     val: totalGeral, color: "text-foreground"  },
-            { label: "Manutenção",      val: totalManut, color: "text-amber-600"   },
-            { label: "Combustível",     val: totalComb,  color: "text-blue-600"    },
-            { label: "Lavagem",         val: totalLav,   color: "text-teal-600"    },
-            { label: "Aluguel",         val: totalAlug,  color: "text-violet-600"  },
+            { label: "Custo Total",  val: totalGeral,  color: "text-foreground"  },
+            { label: "Manutenção",   val: totalManut,  color: "text-amber-600"   },
+            { label: "Combustível",  val: totalComb,   color: "text-blue-600"    },
+            { label: "Lavagem",      val: totalLav,    color: "text-teal-600"    },
+            { label: "Borracharia",  val: totalBorr,   color: "text-orange-600"  },
+            { label: "Acessórios",   val: totalAcess,  color: "text-indigo-600"  },
+            { label: "Multas",       val: totalMultas, color: "text-red-600"     },
+            { label: "Aluguel",      val: totalAlug,   color: "text-violet-600"  },
           ].map(item => (
-            <Card key={item.label} className="border-0 shadow-sm">
+            <Card key={item.label} className="border-0 shadow-sm print:shadow-none print:border">
               <CardContent className="pt-3 pb-2">
                 <p className="text-xs text-muted-foreground">{item.label}</p>
                 <p className={cn("text-lg font-extrabold", item.color)}>{fmt(item.val)}</p>
@@ -1010,7 +1157,7 @@ function RelatorioCustoFrota({ filters, hasFullAccess, userObraId }: ReportProps
       )}
 
       {fetched && (
-        <Card className="border-0 shadow-sm">
+        <Card className="border-0 shadow-sm print:shadow-none print:border">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -1019,9 +1166,12 @@ function RelatorioCustoFrota({ filters, hasFullAccess, userObraId }: ReportProps
                   <TableHead>Modelo</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Responsável</TableHead>
-                  <TableHead className="text-right">Manutenção</TableHead>
-                  <TableHead className="text-right">Combustível</TableHead>
-                  <TableHead className="text-right">Lavagem</TableHead>
+                  <TableHead className="text-right">Manut.</TableHead>
+                  <TableHead className="text-right">Comb.</TableHead>
+                  <TableHead className="text-right">Lav.</TableHead>
+                  <TableHead className="text-right">Borr.</TableHead>
+                  <TableHead className="text-right">Acess.</TableHead>
+                  <TableHead className="text-right">Multas</TableHead>
                   <TableHead className="text-right">Aluguel</TableHead>
                   <TableHead className="text-right font-bold">Total</TableHead>
                 </TableRow>
@@ -1038,24 +1188,29 @@ function RelatorioCustoFrota({ filters, hasFullAccess, userObraId }: ReportProps
                     <TableCell className="text-right text-sm text-amber-700">{fmt(r.custoManut)}</TableCell>
                     <TableCell className="text-right text-sm text-blue-700">{fmt(r.custoComb)}</TableCell>
                     <TableCell className="text-right text-sm text-teal-700">{fmt(r.custoLav)}</TableCell>
+                    <TableCell className="text-right text-sm text-orange-700">{fmt(r.custoBorr)}</TableCell>
+                    <TableCell className="text-right text-sm text-indigo-700">{fmt(r.custoAcess)}</TableCell>
+                    <TableCell className="text-right text-sm text-red-700">{fmt(r.custoMultas)}</TableCell>
                     <TableCell className="text-right text-sm text-violet-700">{fmt(r.aluguel)}</TableCell>
                     <TableCell className="text-right font-bold text-sm">{fmt(r.total)}</TableCell>
                   </TableRow>
                 ))}
-                {/* Linha de totais */}
                 {filtered.length > 0 && (
                   <TableRow className="bg-muted/40 font-semibold">
                     <TableCell colSpan={4} className="text-sm">TOTAL</TableCell>
                     <TableCell className="text-right text-sm text-amber-700">{fmt(totalManut)}</TableCell>
                     <TableCell className="text-right text-sm text-blue-700">{fmt(totalComb)}</TableCell>
                     <TableCell className="text-right text-sm text-teal-700">{fmt(totalLav)}</TableCell>
+                    <TableCell className="text-right text-sm text-orange-700">{fmt(totalBorr)}</TableCell>
+                    <TableCell className="text-right text-sm text-indigo-700">{fmt(totalAcess)}</TableCell>
+                    <TableCell className="text-right text-sm text-red-700">{fmt(totalMultas)}</TableCell>
                     <TableCell className="text-right text-sm text-violet-700">{fmt(totalAlug)}</TableCell>
                     <TableCell className="text-right font-bold text-sm">{fmt(totalGeral)}</TableCell>
                   </TableRow>
                 )}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={12} className="text-center py-10 text-muted-foreground">
                       <TrendingDown className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       Nenhum custo registrado no período
                     </TableCell>

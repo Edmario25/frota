@@ -18,11 +18,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PhotoUpload } from "@/components/ui/photo-upload";
-import { ShieldCheck, Shield, User, Info } from "lucide-react";
+import { ShieldCheck, Shield, User, Info, KeyRound, ChevronDown, ChevronUp } from "lucide-react";
 import { useCargos } from "@/hooks/useCargos";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
 import { useEscalas } from "@/hooks/useEscalas";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
 type Employee    = Database['public']['Tables']['employees']['Row'];
@@ -56,10 +57,16 @@ interface Props {
 }
 
 export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Props) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [photoUrl, setPhotoUrl]         = useState("");
-  const [obras, setObras]               = useState<any[]>([]);
-  const [cargoAcesso, setCargoAcesso]   = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting]     = useState(false);
+  const [photoUrl, setPhotoUrl]             = useState("");
+  const [obras, setObras]                   = useState<any[]>([]);
+  const [cargoAcesso, setCargoAcesso]       = useState<string | null>(null);
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [newPassword, setNewPassword]       = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError]   = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const { toast } = useToast();
 
   const { cargos }       = useCargos();
   const { departamentos } = useDepartamentos();
@@ -89,6 +96,49 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
     supabase.from("obras" as any).select("id, nome, status").order("nome")
       .then(({ data }) => setObras(data || []));
   }, [open]);
+
+  // Reseta campos de senha ao abrir/fechar
+  useEffect(() => {
+    if (!open) {
+      setShowPasswordSection(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordError("");
+    }
+  }, [open]);
+
+  const handleChangePassword = async () => {
+    setPasswordError("");
+    if (newPassword.length < 6) {
+      setPasswordError("A senha deve ter pelo menos 6 caracteres");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("As senhas não coincidem");
+      return;
+    }
+    if (!employee?.user_id) {
+      setPasswordError("Funcionário sem conta de acesso vinculada");
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      const { data, error } = await supabase.rpc('update_user_password' as any, {
+        p_user_id: employee.user_id,
+        p_new_password: newPassword,
+      });
+      if (error) throw error;
+      if (data && !(data as any).success) throw new Error((data as any).error || "Erro ao alterar senha");
+      toast({ title: "Senha alterada com sucesso" });
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowPasswordSection(false);
+    } catch (err: any) {
+      setPasswordError(err.message || "Erro ao alterar senha");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   // Preenche form ao editar
   useEffect(() => {
@@ -256,6 +306,62 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
                 )}
               </div>
             </div>
+
+            {/* Seção: Alterar Senha (somente edição) */}
+            {isEdit && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => { setShowPasswordSection(v => !v); setPasswordError(""); }}
+                  className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                  Alterar Senha de Login
+                  {showPasswordSection ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+
+                {showPasswordSection && (
+                  <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-4 space-y-3">
+                    {!employee?.user_id && (
+                      <p className="text-xs text-amber-600">Este funcionário não possui conta de acesso vinculada.</p>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium">Nova Senha</label>
+                        <Input
+                          type="password"
+                          placeholder="Mínimo 6 caracteres"
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          disabled={!employee?.user_id || isChangingPassword}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium">Confirmar Nova Senha</label>
+                        <Input
+                          type="password"
+                          placeholder="Repita a nova senha"
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          disabled={!employee?.user_id || isChangingPassword}
+                        />
+                      </div>
+                    </div>
+                    {passwordError && (
+                      <p className="text-xs text-destructive">{passwordError}</p>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleChangePassword}
+                      disabled={!employee?.user_id || isChangingPassword || !newPassword}
+                    >
+                      {isChangingPassword ? "Alterando..." : "Confirmar Nova Senha"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Seção: Cargo e Departamento */}
             <div>

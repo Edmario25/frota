@@ -133,6 +133,10 @@ export function VehicleDetailModal({
   const [isWashFormModalOpen, setIsWashFormModalOpen] = useState(false);
   const [selectedWash, setSelectedWash] = useState<any>(null);
 
+  const [selectedCostMonth, setSelectedCostMonth] = useState<string>(
+    new Date().toISOString().slice(0, 7)
+  );
+
   const [isFuelFormModalOpen, setIsFuelFormModalOpen] = useState(false);
   const [selectedFuelLog, setSelectedFuelLog] = useState<any>(null);
 
@@ -977,36 +981,71 @@ export function VehicleDetailModal({
   };
 
   const renderCostCenterTab = () => {
-    const now = new Date();
-    const mesAtual = now.toISOString().slice(0, 7);
+    const mes = selectedCostMonth;
+    const [year, month] = mes.split('-').map(Number);
+    const mesLabel = new Date(year, month - 1, 1).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
 
     const combustivelMes = vehicleFuelLogs
-      .filter(f => f.data_abastecimento.slice(0, 7) === mesAtual)
+      .filter(f => f.data_abastecimento.slice(0, 7) === mes)
       .reduce((sum, f) => sum + (f.valor_total || 0), 0);
 
     const lavagensMes = vehicleWashRecords
-      .filter(w => w.data_lavagem.slice(0, 7) === mesAtual)
+      .filter(w => w.data_lavagem.slice(0, 7) === mes)
       .reduce((sum, w) => sum + ((w as any).valor || 0), 0);
 
     const manutencaoMes = vehicleMaintenanceRecords
-      .filter(m => m.data_agendada.slice(0, 7) === mesAtual && m.status === 'concluida')
+      .filter(m => (m.data_realizada || m.data_agendada).slice(0, 7) === mes && m.status === 'concluida')
       .reduce((sum, m) => sum + ((m.custo as number) || 0), 0);
 
+    const borrachariaMes = vehicleTireServices
+      .filter(s => s.data_servico.slice(0, 7) === mes)
+      .reduce((sum, s) => sum + ((s as any).valor_servico || 0), 0);
+
+    const acessoriosMes = vehicleAccessories
+      .filter(a => a.data_instalacao && a.data_instalacao.slice(0, 7) === mes)
+      .reduce((sum, a) => sum + ((a as any).valor || 0), 0);
+
+    const multasMes = vehicleTrafficFines
+      .filter(f => f.data_multa.slice(0, 7) === mes)
+      .reduce((sum, f) => sum + (f.valor || 0), 0);
+
     const aluguel = (vehicle as any).valor_aluguel_mensal || 0;
-    const total = combustivelMes + lavagensMes + manutencaoMes + aluguel;
+    const total = aluguel + combustivelMes + lavagensMes + manutencaoMes + borrachariaMes + acessoriosMes + multasMes;
 
     const itens = [
       { label: "Aluguel / Depreciação", valor: aluguel, icon: Car },
-      { label: "Combustível (mês atual)", valor: combustivelMes, icon: Fuel },
-      { label: "Lavagens (mês atual)", valor: lavagensMes, icon: Droplets },
-      { label: "Manutenção (mês atual)", valor: manutencaoMes, icon: Wrench },
+      { label: "Combustível", valor: combustivelMes, icon: Fuel },
+      { label: "Lavagens", valor: lavagensMes, icon: Droplets },
+      { label: "Manutenção", valor: manutencaoMes, icon: Wrench },
+      { label: "Borracharia", valor: borrachariaMes, icon: Wrench },
+      { label: "Acessórios", valor: acessoriosMes, icon: Car },
+      { label: "Multas", valor: multasMes, icon: TrendingUp },
     ];
+
+    const prevMonth = () => {
+      const d = new Date(year, month - 2, 1);
+      setSelectedCostMonth(d.toISOString().slice(0, 7));
+    };
+    const nextMonth = () => {
+      const d = new Date(year, month, 1);
+      if (d <= new Date()) setSelectedCostMonth(d.toISOString().slice(0, 7));
+    };
 
     return (
       <div className="space-y-4">
-        <p className="text-xs text-muted-foreground">
-          Custos do mês: <strong>{now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</strong>
-        </p>
+        {/* Seletor de mês */}
+        <div className="flex items-center justify-between">
+          <button type="button" onClick={prevMonth}
+            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted transition-colors">
+            ‹ Anterior
+          </button>
+          <span className="text-sm font-semibold capitalize">{mesLabel}</span>
+          <button type="button" onClick={nextMonth}
+            disabled={new Date(year, month, 1) > new Date()}
+            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            Próximo ›
+          </button>
+        </div>
 
         <div className="space-y-2">
           {itens.map((item) => (
@@ -1015,7 +1054,9 @@ export function VehicleDetailModal({
                 <item.icon className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">{item.label}</span>
               </div>
-              <span className="font-semibold">R$ {item.valor.toFixed(2)}</span>
+              <span className={`font-semibold ${item.valor === 0 ? 'text-muted-foreground' : ''}`}>
+                R$ {item.valor.toFixed(2)}
+              </span>
             </div>
           ))}
         </div>
@@ -1029,8 +1070,7 @@ export function VehicleDetailModal({
         </div>
 
         <p className="text-xs text-muted-foreground italic">
-          * O valor de aluguel/depreciação é definido no cadastro do veículo.
-          Para veículos próprios, inclua um valor representativo do custo operacional.
+          * O valor de aluguel/depreciação é fixo (cadastro do veículo). Os demais valores são somados pelos registros do mês selecionado.
         </p>
       </div>
     );

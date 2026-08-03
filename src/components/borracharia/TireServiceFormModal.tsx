@@ -55,6 +55,7 @@ const formSchema = z.object({
   }),
   tipo_servico: z.string().min(1, "Selecione pelo menos um tipo de serviço"),
   quantidade_pneus: z.number().min(1, "Quantidade deve ser pelo menos 1").optional(),
+  valor_servico: z.number().min(0, "Valor não pode ser negativo").optional(),
   local_servico: z.string().optional(),
   foto_pneus_url: z.string().optional(),
   responsavel: z.string().optional(),
@@ -85,12 +86,8 @@ export const TireServiceFormModal = ({
   const { employee } = useCurrentEmployee();
   const { fornecedores } = useFornecedores();
 
-  // Filtrar fornecedores de serviços (borracharias, oficinas, etc.)
   const availableFornecedores = React.useMemo(() => {
-    return fornecedores.filter(f => 
-      f.status === 'ativo' && 
-      (f.categoria === 'servicos' || f.categoria === 'geral' || f.tipo_fornecedor === 'servicos')
-    );
+    return fornecedores.filter(f => f.status === 'ativo');
   }, [fornecedores]);
   // Para funcionários, filtrar apenas veículos atribuídos a eles
   // Para tipo específico, filtrar por tipo de veículo
@@ -118,6 +115,7 @@ export const TireServiceFormModal = ({
       data_servico: new Date(),
       tipo_servico: "",
       quantidade_pneus: 1,
+      valor_servico: undefined,
       local_servico: "",
       foto_pneus_url: "",
       responsavel: "",
@@ -133,6 +131,7 @@ export const TireServiceFormModal = ({
         data_servico: new Date(service.data_servico),
         tipo_servico: service.tipo_servico,
         quantidade_pneus: service.quantidade_pneus || 1,
+        valor_servico: service.valor_servico ?? undefined,
         local_servico: service.local_servico || "",
         foto_pneus_url: service.foto_pneus_url || "",
         responsavel: service.responsavel || "",
@@ -151,6 +150,7 @@ export const TireServiceFormModal = ({
         data_servico: data.data_servico.toISOString().split('T')[0],
         tipo_servico: data.tipo_servico,
         quantidade_pneus: data.quantidade_pneus || null,
+        valor_servico: data.valor_servico ?? null,
         local_servico: data.local_servico || null,
         foto_pneus_url: data.foto_pneus_url || null,
         responsavel: data.responsavel || null,
@@ -318,6 +318,32 @@ export const TireServiceFormModal = ({
 
             <FormField
               control={form.control}
+              name="valor_servico"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Valor do Serviço <span className="text-muted-foreground font-normal">(opcional)</span></FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0,00"
+                        className="pl-10"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="local_servico"
               render={({ field }) => (
                 <FormItem>
@@ -341,19 +367,6 @@ export const TireServiceFormModal = ({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="responsavel"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Responsável</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nome do responsável" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}

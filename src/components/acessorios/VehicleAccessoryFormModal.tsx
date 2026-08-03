@@ -51,6 +51,7 @@ const formSchema = z.object({
   vehicle_id: z.string().min(1, "Selecione um veículo"),
   data_instalacao: z.date().optional(),
   tipo_acessorio: z.string().min(1, "Selecione pelo menos um tipo de acessório"),
+  valor: z.number().min(0, "Valor não pode ser negativo").optional(),
   fornecedor_empresa: z.string().optional(),
   foto_comprovante_url: z.string().optional(),
   observacoes: z.string().optional(),
@@ -103,6 +104,7 @@ export const VehicleAccessoryFormModal = ({
       vehicle_id: "",
       data_instalacao: undefined,
       tipo_acessorio: "",
+      valor: undefined,
       fornecedor_empresa: "",
       foto_comprovante_url: "",
       observacoes: "",
@@ -115,6 +117,7 @@ export const VehicleAccessoryFormModal = ({
         vehicle_id: accessory.vehicle_id,
         data_instalacao: accessory.data_instalacao ? new Date(accessory.data_instalacao) : undefined,
         tipo_acessorio: accessory.tipo_acessorio,
+        valor: accessory.valor ?? undefined,
         fornecedor_empresa: accessory.fornecedor_empresa || "",
         foto_comprovante_url: accessory.foto_comprovante_url || "",
         observacoes: accessory.observacoes || "",
@@ -136,6 +139,7 @@ export const VehicleAccessoryFormModal = ({
         vehicle_id: data.vehicle_id,
         tipo_acessorio: selectedTypes.join(", "),
         data_instalacao: data.data_instalacao ? data.data_instalacao.toISOString().split('T')[0] : null,
+        valor: data.valor ?? null,
         fornecedor_empresa: data.fornecedor_empresa || null,
         foto_comprovante_url: data.foto_comprovante_url || null,
         observacoes: data.observacoes || null,
@@ -266,6 +270,32 @@ export const VehicleAccessoryFormModal = ({
                       </div>
                     ))}
                   </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="valor"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Valor do Serviço <span className="text-muted-foreground font-normal">(opcional)</span></FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0,00"
+                        className="pl-10"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                      />
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

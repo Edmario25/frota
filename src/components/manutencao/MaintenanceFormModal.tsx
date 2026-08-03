@@ -81,16 +81,16 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
         created_by: maintenance.created_by || ""
       });
     } else {
-      // Para novo registro, auto-selecionar veículo se for funcionário ou se vehicleId foi passado
       const defaultVehicleId = vehicleId || ((isFuncionario && employeeVehicle) ? employeeVehicle.id : "");
-      
+      const defaultVehicle = vehicles.find(v => v.id === defaultVehicleId);
+
       setFormData({
         vehicle_id: defaultVehicleId,
         tipo: "",
         descricao: "",
         data_agendada: new Date(),
         data_realizada: null,
-        quilometragem: (isFuncionario && employeeVehicle) ? employeeVehicle.quilometragem_atual?.toString() || "" : "",
+        quilometragem: defaultVehicle?.quilometragem_atual?.toString() || "",
         custo: "",
         responsavel: "",
         oficina: "",
@@ -99,7 +99,16 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
         created_by: ""
       });
     }
-  }, [maintenance, isFuncionario, employeeVehicle, vehicleId]);
+  }, [maintenance, isFuncionario, employeeVehicle, vehicleId, vehicles]);
+
+  // Quando o veículo muda (novo registro), atualiza o KM com o valor do banco
+  useEffect(() => {
+    if (maintenance) return;
+    const selected = vehicles.find(v => v.id === formData.vehicle_id);
+    if (selected) {
+      setFormData(prev => ({ ...prev, quilometragem: selected.quilometragem_atual?.toString() || "" }));
+    }
+  }, [formData.vehicle_id, vehicles, maintenance]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,60 +299,67 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
           </div>
 
           {formData.status === 'concluida' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Data Realizada</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.data_realizada && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.data_realizada ? format(formData.data_realizada, "PPP", { locale: ptBR }) : "Selecionar data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.data_realizada}
-                      onSelect={(date) => setFormData(prev => ({ ...prev, data_realizada: date }))}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="custo">Custo (R$)</Label>
-                <Input
-                  id="custo"
-                  type="number"
-                  step="0.01"
-                  value={formData.custo}
-                  onChange={(e) => setFormData(prev => ({ ...prev, custo: e.target.value }))}
-                  placeholder="0,00"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Data Realizada</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.data_realizada && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.data_realizada ? format(formData.data_realizada, "PPP", { locale: ptBR }) : "Selecionar data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.data_realizada}
+                    onSelect={(date) => setFormData(prev => ({ ...prev, data_realizada: date }))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="quilometragem">Quilometragem</Label>
+              <Label htmlFor="quilometragem">Quilometragem Atual</Label>
               <Input
                 id="quilometragem"
                 type="number"
                 value={formData.quilometragem}
-                onChange={(e) => setFormData(prev => ({ ...prev, quilometragem: e.target.value }))}
-                placeholder="KM atual"
+                readOnly
+                className="bg-muted cursor-not-allowed"
+                placeholder="Preenchido automaticamente"
               />
+              <p className="text-xs text-muted-foreground">Preenchido automaticamente pelo sistema</p>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="custo">Valor do Serviço (R$)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                <Input
+                  id="custo"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.custo}
+                  onChange={(e) => setFormData(prev => ({ ...prev, custo: e.target.value }))}
+                  placeholder="0,00"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label htmlFor="responsavel">Responsável</Label>
               <Input

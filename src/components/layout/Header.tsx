@@ -105,11 +105,17 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="rounded-lg cursor-pointer text-sm">
+              <DropdownMenuItem
+                onClick={() => navigate("/minhas-informacoes")}
+                className="rounded-lg cursor-pointer text-sm"
+              >
                 <User className="mr-2 h-3.5 w-3.5" />
                 Perfil
               </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg cursor-pointer text-sm">
+              <DropdownMenuItem
+                onClick={() => navigate("/configuracoes")}
+                className="rounded-lg cursor-pointer text-sm"
+              >
                 <Settings className="mr-2 h-3.5 w-3.5" />
                 Configurações
               </DropdownMenuItem>

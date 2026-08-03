@@ -171,9 +171,7 @@ const App = () => (
             } />
             <Route path="/minhas-informacoes" element={
               <ProtectedRoute>
-                <RoleProtectedRoute allowedRoles={['funcionario']}>
-                  <MinhasInformacoes />
-                </RoleProtectedRoute>
+                <MinhasInformacoes />
               </ProtectedRoute>
             } />
             <Route path="/consultas" element={
