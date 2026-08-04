@@ -16,7 +16,7 @@ import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useObras } from "@/hooks/useObras";
 import { useMaintenance } from "@/hooks/useMaintenance";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Users, Car, HardHat, Wrench, Truck, AlertTriangle, CheckCircle, Link2, ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 const Index = () => {
+  const navigate = useNavigate();
   const { role, isFuncionario, hasAdminAccess, shouldFilterByObra, hasObraManagement, isGestorObra, hasFullAccess } = useUserRole();
   const { employee } = useCurrentEmployee();
   const { vehicles, getVehicleStats } = useVehicles();
@@ -31,6 +32,11 @@ const Index = () => {
   const { obras, getObraStats } = useObras();
   const { maintenanceRecords } = useMaintenance();
   const { user } = useAuth();
+
+  // Funcionários usam o app mobile
+  useEffect(() => {
+    if (isFuncionario) navigate("/app", { replace: true });
+  }, [isFuncionario, navigate]);
   const [vehicleStats, setVehicleStats] = useState({ disponivel: 0, em_uso: 0, manutencao: 0, alertas_km: 0 });
 
   const hour = new Date().getHours();

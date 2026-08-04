@@ -15,6 +15,7 @@ import {
   Gauge,
   Network,
   Wallet,
+  Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -77,7 +78,8 @@ const menuGroups = [
   {
     group: "Conta",
     items: [
-      { title: "Meu Perfil", icon: User, url: "/minhas-informacoes", roles: ALL_ROLES },
+      { title: "Meu Perfil",  icon: User,       url: "/minhas-informacoes", roles: ALL_ROLES },
+      { title: "App Motorista", icon: Smartphone, url: "/app",              roles: ALL_ROLES },
     ]
   },
 ];

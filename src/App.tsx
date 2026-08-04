@@ -28,6 +28,7 @@ import Configuracoes from "./pages/Configuracoes";
 import Departamentos from "./pages/Departamentos";
 import FundoFixo from "./pages/FundoFixo";
 import Relatorios from "./pages/Relatorios";
+import MobileApp from "./pages/app/MobileApp";
 import { loadBrandingFromDB } from "./hooks/useSystemSettings";
 
 const queryClient = new QueryClient({
@@ -207,6 +208,11 @@ const App = () => (
                 <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'funcionario']}>
                   <FundoFixo />
                 </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/app" element={
+              <ProtectedRoute>
+                <MobileApp />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
