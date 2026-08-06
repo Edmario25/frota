@@ -1,7 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -31,18 +30,6 @@ import Relatorios from "./pages/Relatorios";
 import MobileApp from "./pages/app/MobileApp";
 import { loadBrandingFromDB } from "./hooks/useSystemSettings";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 2,      // 2 min — reutiliza cache sem refetch
-      gcTime: 1000 * 60 * 10,        // 10 min — mantém dados inativos na memória
-      retry: 1,                       // 1 tentativa após falha (padrão: 3)
-      refetchOnWindowFocus: false,    // não refetch ao voltar de outra aba
-      refetchOnReconnect: true,       // refetch ao reconectar (rede caiu)
-    },
-  },
-});
-
 // 1. Aplica favicon do localStorage imediatamente (sem esperar rede)
 try {
   const raw = localStorage.getItem("fleet_settings");
@@ -66,12 +53,11 @@ loadBrandingFromDB().then((s) => {
 });
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+  <AuthProvider>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={
@@ -219,9 +205,8 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+    </TooltipProvider>
+  </AuthProvider>
 );
 
 export default App;

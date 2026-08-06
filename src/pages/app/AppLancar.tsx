@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Fuel, Wrench, Truck, Droplets, AlertTriangle, ShieldAlert,
-  ChevronLeft, Check, X,
+  ChevronLeft, Check, WifiOff,
 } from "lucide-react";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
@@ -11,6 +11,8 @@ import { useTireServices } from "@/hooks/useTireServices";
 import { useWashRecords } from "@/hooks/useWashRecords";
 import { useTrafficFines } from "@/hooks/useTrafficFines";
 import { useDamageReports } from "@/hooks/useDamageReports";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { enqueue } from "@/lib/offlineQueue";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -92,17 +94,43 @@ function MobileTextarea({ label, value, onChange, placeholder }: {
   );
 }
 
+function SubmitButton({ label, onSave, saving, offline }: { label: string; onSave: () => void; saving: boolean; offline?: boolean }) {
+  return (
+    <button
+      onClick={onSave}
+      disabled={saving}
+      className={cn(
+        "w-full h-12 font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors",
+        offline
+          ? "bg-amber-500 hover:bg-amber-600 text-white"
+          : "bg-blue-600 hover:bg-blue-700 text-white",
+        saving && "opacity-60"
+      )}
+    >
+      {saving ? (
+        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      ) : offline ? (
+        <WifiOff className="h-5 w-5" />
+      ) : (
+        <Check className="h-5 w-5" />
+      )}
+      {saving ? "Salvando..." : offline ? "Salvar offline (sincronizar depois)" : label}
+    </button>
+  );
+}
+
 // ── Sub-forms ──────────────────────────────────────────────────────────────────
 function FormAbastecimento({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
   const { createFuelLog } = useFuelLogs();
+  const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
-  const [litros, setLitros]     = useState("");
+  const [litros, setLitros]         = useState("");
   const [valorLitro, setValorLitro] = useState("");
-  const [km, setKm]             = useState("");
-  const [tipo, setTipo]         = useState("");
-  const [posto, setPosto]       = useState("");
-  const [obs, setObs]           = useState("");
-  const [saving, setSaving]     = useState(false);
+  const [km, setKm]                 = useState("");
+  const [tipo, setTipo]             = useState("");
+  const [posto, setPosto]           = useState("");
+  const [obs, setObs]               = useState("");
+  const [saving, setSaving]         = useState(false);
 
   const total = litros && valorLitro
     ? (parseFloat(litros) * parseFloat(valorLitro)).toFixed(2)
@@ -111,17 +139,27 @@ function FormAbastecimento({ vehicleId, employeeId, onClose }: { vehicleId: stri
   const handleSave = async () => {
     if (!litros || !valorLitro) { toast({ title: "Preencha litros e valor/litro", variant: "destructive" }); return; }
     setSaving(true);
+
+    const payload = {
+      vehicle_id: vehicleId,
+      litros: parseFloat(litros),
+      valor_litro: parseFloat(valorLitro),
+      km_no_abastecimento: km ? parseFloat(km) : null,
+      tipo_combustivel: tipo || null,
+      posto_nome: posto || null,
+      observacoes: obs || null,
+      created_by: employeeId,
+    };
+
     try {
-      await createFuelLog({
-        vehicle_id: vehicleId,
-        litros: parseFloat(litros),
-        valor_litro: parseFloat(valorLitro),
-        km_no_abastecimento: km ? parseFloat(km) : null,
-        tipo_combustivel: tipo || null,
-        posto_nome: posto || null,
-        observacoes: obs || null,
-        created_by: employeeId,
-      });
+      if (!isOnline) {
+        enqueue({ table: "fuel_logs", action: "insert", payload });
+        refreshCount();
+        toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
+        onClose();
+        return;
+      }
+      await createFuelLog(payload);
       onClose();
     } catch { /* toast handled by hook */ } finally { setSaving(false); }
   };
@@ -148,19 +186,20 @@ function FormAbastecimento({ vehicleId, employeeId, onClose }: { vehicleId: stri
       ]} />
       <MobileInput label="Nome do posto" type="text" value={posto} onChange={setPosto} placeholder="Ex: Posto Shell" />
       <MobileTextarea label="Observações" value={obs} onChange={setObs} />
-      <SubmitButton label="Registrar Abastecimento" onSave={handleSave} saving={saving} />
+      <SubmitButton label="Registrar Abastecimento" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>
   );
 }
 
 function FormManutencao({ vehicleId, employeeId, km, onClose }: { vehicleId: string; employeeId: string; km: number | null; onClose: () => void }) {
   const { createMaintenanceRecord } = useMaintenance();
+  const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
-  const [tipo, setTipo]         = useState<"preventiva" | "corretiva" | "emergencial" | "">("");
+  const [tipo, setTipo]           = useState<"preventiva" | "corretiva" | "emergencial" | "">("");
   const [descricao, setDescricao] = useState("");
-  const [valor, setValor]       = useState("");
-  const [obs, setObs]           = useState("");
-  const [saving, setSaving]     = useState(false);
+  const [valor, setValor]         = useState("");
+  const [obs, setObs]             = useState("");
+  const [saving, setSaving]       = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -168,20 +207,30 @@ function FormManutencao({ vehicleId, employeeId, km, onClose }: { vehicleId: str
     if (!tipo) { toast({ title: "Selecione o tipo de manutenção", variant: "destructive" }); return; }
     if (!descricao) { toast({ title: "Descreva o serviço realizado", variant: "destructive" }); return; }
     setSaving(true);
+
+    const payload = {
+      vehicle_id: vehicleId,
+      tipo,
+      descricao,
+      custo: valor ? parseFloat(valor) : null,
+      quilometragem: km ?? undefined,
+      status: "concluida",
+      data_agendada: today,
+      data_realizada: today,
+      responsavel: employeeId,
+      observacoes: obs || null,
+      created_by: employeeId,
+    };
+
     try {
-      await createMaintenanceRecord({
-        vehicle_id: vehicleId,
-        tipo: tipo as "preventiva" | "corretiva" | "emergencial",
-        descricao,
-        custo: valor ? parseFloat(valor) : null,
-        quilometragem: km ?? undefined,
-        status: "concluida",
-        data_agendada: today,
-        data_realizada: today,
-        responsavel: employeeId,
-        observacoes: obs || null,
-        created_by: employeeId,
-      });
+      if (!isOnline) {
+        enqueue({ table: "maintenance_records", action: "insert", payload });
+        refreshCount();
+        toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
+        onClose();
+        return;
+      }
+      await createMaintenanceRecord(payload as any);
       onClose();
     } catch { } finally { setSaving(false); }
   };
@@ -196,35 +245,46 @@ function FormManutencao({ vehicleId, employeeId, km, onClose }: { vehicleId: str
       <MobileTextarea label="Descrição do serviço *" value={descricao} onChange={setDescricao} placeholder="Descreva o serviço realizado..." />
       <MobileInput label="Valor (R$)" type="number" value={valor} onChange={setValor} placeholder="0,00" step="0.01" prefix="R$" />
       <MobileTextarea label="Observações" value={obs} onChange={setObs} />
-      <SubmitButton label="Registrar Manutenção" onSave={handleSave} saving={saving} />
+      <SubmitButton label="Registrar Manutenção" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>
   );
 }
 
 function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
   const { createTireService } = useTireServices();
+  const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
-  const [tipo, setTipo]         = useState("");
-  const [qtd, setQtd]           = useState("1");
-  const [valor, setValor]       = useState("");
-  const [local, setLocal]       = useState("");
-  const [obs, setObs]           = useState("");
-  const [saving, setSaving]     = useState(false);
+  const [tipo, setTipo]     = useState("");
+  const [qtd, setQtd]       = useState("1");
+  const [valor, setValor]   = useState("");
+  const [local, setLocal]   = useState("");
+  const [obs, setObs]       = useState("");
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!tipo) { toast({ title: "Selecione o tipo de serviço", variant: "destructive" }); return; }
     setSaving(true);
+
+    const payload = {
+      vehicle_id: vehicleId,
+      employee_id: employeeId,
+      data_servico: new Date().toISOString().split("T")[0],
+      tipo_servico: tipo,
+      quantidade_pneus: parseInt(qtd),
+      valor_servico: valor ? parseFloat(valor) : null,
+      local_servico: local || null,
+      observacoes: obs || null,
+    };
+
     try {
-      await createTireService({
-        vehicle_id: vehicleId,
-        employee_id: employeeId,
-        data_servico: new Date().toISOString().split("T")[0],
-        tipo_servico: tipo,
-        quantidade_pneus: parseInt(qtd),
-        valor_servico: valor ? parseFloat(valor) : null,
-        local_servico: local || null,
-        observacoes: obs || null,
-      } as any);
+      if (!isOnline) {
+        enqueue({ table: "tire_services", action: "insert", payload });
+        refreshCount();
+        toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
+        onClose();
+        return;
+      }
+      await createTireService(payload as any);
       onClose();
     } catch { } finally { setSaving(false); }
   };
@@ -241,13 +301,14 @@ function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string
       <MobileInput label="Valor (R$)" type="number" value={valor} onChange={setValor} placeholder="0,00" step="0.01" prefix="R$" />
       <MobileInput label="Local / Borracharia" type="text" value={local} onChange={setLocal} placeholder="Nome do estabelecimento" />
       <MobileTextarea label="Observações" value={obs} onChange={setObs} />
-      <SubmitButton label="Registrar Borracharia" onSave={handleSave} saving={saving} />
+      <SubmitButton label="Registrar Borracharia" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>
   );
 }
 
 function FormLavagem({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
   const { createWashRecord } = useWashRecords();
+  const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
   const [tipo, setTipo]     = useState("");
   const [valor, setValor]   = useState("");
@@ -258,16 +319,26 @@ function FormLavagem({ vehicleId, employeeId, onClose }: { vehicleId: string; em
   const handleSave = async () => {
     if (!tipo) { toast({ title: "Selecione o tipo de lavagem", variant: "destructive" }); return; }
     setSaving(true);
+
+    const payload = {
+      vehicle_id: vehicleId,
+      employee_id: employeeId,
+      data_lavagem: new Date().toISOString().split("T")[0],
+      tipo_lavagem: tipo,
+      valor: valor ? parseFloat(valor) : null,
+      fornecedor: local || null,
+      observacoes: obs || null,
+    };
+
     try {
-      await createWashRecord({
-        vehicle_id: vehicleId,
-        employee_id: employeeId,
-        data_lavagem: new Date().toISOString().split("T")[0],
-        tipo_lavagem: tipo,
-        valor: valor ? parseFloat(valor) : null,
-        fornecedor: local || null,
-        observacoes: obs || null,
-      });
+      if (!isOnline) {
+        enqueue({ table: "wash_records", action: "insert", payload });
+        refreshCount();
+        toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
+        onClose();
+        return;
+      }
+      await createWashRecord(payload);
       onClose();
     } catch { } finally { setSaving(false); }
   };
@@ -283,13 +354,14 @@ function FormLavagem({ vehicleId, employeeId, onClose }: { vehicleId: string; em
       <MobileInput label="Valor (R$)" type="number" value={valor} onChange={setValor} placeholder="0,00" step="0.01" prefix="R$" />
       <MobileInput label="Lava-rápido / Local" type="text" value={local} onChange={setLocal} placeholder="Nome do estabelecimento" />
       <MobileTextarea label="Observações" value={obs} onChange={setObs} />
-      <SubmitButton label="Registrar Lavagem" onSave={handleSave} saving={saving} />
+      <SubmitButton label="Registrar Lavagem" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>
   );
 }
 
 function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
   const { createTrafficFine } = useTrafficFines();
+  const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
   const [tipo, setTipo]     = useState("");
   const [valor, setValor]   = useState("");
@@ -300,17 +372,27 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
   const handleSave = async () => {
     if (!tipo || !valor || !local) { toast({ title: "Preencha tipo, valor e local", variant: "destructive" }); return; }
     setSaving(true);
+
+    const payload = {
+      vehicle_id: vehicleId,
+      employee_id: employeeId,
+      data_multa: new Date().toISOString().split("T")[0],
+      tipo_infracao: tipo,
+      valor: parseFloat(valor),
+      local_infracao: local,
+      situacao: "pendente",
+      observacoes: obs || null,
+    };
+
     try {
-      await createTrafficFine({
-        vehicle_id: vehicleId,
-        employee_id: employeeId,
-        data_multa: new Date().toISOString().split("T")[0],
-        tipo_infracao: tipo,
-        valor: parseFloat(valor),
-        local_infracao: local,
-        situacao: "pendente",
-        observacoes: obs || null,
-      });
+      if (!isOnline) {
+        enqueue({ table: "traffic_fines", action: "insert", payload });
+        refreshCount();
+        toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
+        onClose();
+        return;
+      }
+      await createTrafficFine(payload);
       onClose();
     } catch { } finally { setSaving(false); }
   };
@@ -328,13 +410,14 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
       <MobileInput label="Valor da multa (R$)" type="number" value={valor} onChange={setValor} placeholder="0,00" step="0.01" prefix="R$" />
       <MobileInput label="Local da infração" type="text" value={local} onChange={setLocal} placeholder="Ex: Av. Paulista, 1000" />
       <MobileTextarea label="Observações" value={obs} onChange={setObs} />
-      <SubmitButton label="Registrar Multa" onSave={handleSave} saving={saving} />
+      <SubmitButton label="Registrar Multa" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>
   );
 }
 
 function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
   const { createDamageReport } = useDamageReports();
+  const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
   const [descricao, setDescricao] = useState("");
   const [local, setLocal]         = useState("");
@@ -344,15 +427,25 @@ function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; emp
   const handleSave = async () => {
     if (!descricao) { toast({ title: "Descreva a avaria", variant: "destructive" }); return; }
     setSaving(true);
+
+    const payload = {
+      vehicle_id: vehicleId,
+      employee_id: employeeId,
+      data_avaria: new Date().toISOString().split("T")[0],
+      descricao_avaria: descricao,
+      local_ocorrencia: local || null,
+      observacoes: obs || null,
+    };
+
     try {
-      await createDamageReport({
-        vehicle_id: vehicleId,
-        employee_id: employeeId,
-        data_avaria: new Date().toISOString().split("T")[0],
-        descricao_avaria: descricao,
-        local_ocorrencia: local || null,
-        observacoes: obs || null,
-      } as any);
+      if (!isOnline) {
+        enqueue({ table: "damage_reports", action: "insert", payload });
+        refreshCount();
+        toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
+        onClose();
+        return;
+      }
+      await createDamageReport(payload as any);
       onClose();
     } catch { } finally { setSaving(false); }
   };
@@ -362,25 +455,8 @@ function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; emp
       <MobileTextarea label="Descrição da avaria *" value={descricao} onChange={setDescricao} placeholder="Descreva o que aconteceu..." />
       <MobileInput label="Local da ocorrência" type="text" value={local} onChange={setLocal} placeholder="Ex: Rodovia SP-330, km 120" />
       <MobileTextarea label="Observações adicionais" value={obs} onChange={setObs} />
-      <SubmitButton label="Registrar Avaria" onSave={handleSave} saving={saving} />
+      <SubmitButton label="Registrar Avaria" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>
-  );
-}
-
-function SubmitButton({ label, onSave, saving }: { label: string; onSave: () => void; saving: boolean }) {
-  return (
-    <button
-      onClick={onSave}
-      disabled={saving}
-      className="w-full h-12 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
-    >
-      {saving ? (
-        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-      ) : (
-        <Check className="h-5 w-5" />
-      )}
-      {saving ? "Salvando..." : label}
-    </button>
   );
 }
 
@@ -451,7 +527,7 @@ export function AppLancar() {
       </div>
 
       <div className="p-4 -mt-2 space-y-3">
-        {opcoes.map(({ id, label, Icon, color, bg, text }) => (
+        {opcoes.map(({ id, label, Icon, color }) => (
           <button
             key={id}
             onClick={() => setSelected(id)}

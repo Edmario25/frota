@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User } from "lucide-react";
+import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { cn } from "@/lib/utils";
 import { AppHome } from "./AppHome";
 import { AppLancar } from "./AppLancar";
@@ -25,6 +26,7 @@ export default function MobileApp() {
   const [active, setActive] = useState<Tab>("home");
   const { isFuncionario, loading } = useUserRole();
   const navigate = useNavigate();
+  const { isOnline, queueCount, syncQueue } = useOnlineStatus();
 
   // Gestores não precisam do app mobile — redireciona para dashboard
   useEffect(() => {
@@ -54,6 +56,31 @@ export default function MobileApp() {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
+
+      {/* Barra offline */}
+      {!isOnline && (
+        <div className="flex-shrink-0 bg-amber-500 text-white px-4 py-2 flex items-center gap-2 text-sm font-medium">
+          <WifiOff className="h-4 w-4 flex-shrink-0" />
+          <span className="flex-1">
+            Sem conexão — lançamentos serão salvos e enviados quando voltar
+            {queueCount > 0 && ` (${queueCount} na fila)`}
+          </span>
+        </div>
+      )}
+
+      {/* Barra de pendentes quando voltar online */}
+      {isOnline && queueCount > 0 && (
+        <button
+          onClick={syncQueue}
+          className="flex-shrink-0 bg-blue-600 text-white px-4 py-2 flex items-center gap-2 text-sm font-medium active:bg-blue-700 transition-colors"
+        >
+          <RefreshCw className="h-4 w-4 flex-shrink-0 animate-spin" />
+          <span className="flex-1">
+            {queueCount} lançamento{queueCount > 1 ? "s" : ""} aguardando sincronização — toque para enviar
+          </span>
+        </button>
+      )}
+
       {/* Content area */}
       <div className="flex-1 overflow-y-auto overscroll-contain">
         {renderTab()}
