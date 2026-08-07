@@ -16,9 +16,9 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Wallet, Plus, ArrowDownCircle, ArrowUpCircle, TrendingUp,
-  TrendingDown, DollarSign, Edit, Trash2, MoreHorizontal,
-  Eye, Receipt, FileText, Settings2, AlertTriangle,
+  Wallet, Plus, ArrowDownCircle, ArrowUpCircle,
+  DollarSign, Edit, Trash2, MoreHorizontal,
+  Eye, Receipt, FileText, Settings2, AlertTriangle, ChevronLeft, ExternalLink,
 } from "lucide-react";
 import { useFundoFixo } from "@/hooks/useFundoFixo";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -60,7 +60,11 @@ export default function FundoFixo() {
   const {
     fundo, lancamentos, allFundos, loading,
     createFundo, updateFundo, createLancamento, updateLancamento, deleteLancamento,
+    selectFundo, clearFundo,
   } = useFundoFixo();
+
+  // Admin navegou para dentro de um fundo específico?
+  const isAdminDrillDown = hasFullAccess && !!fundo && !isFuncionario && !isGestorObra;
 
   // Para admin sem obra vinculada: obra selecionada no seletor
   const [adminObraId, setAdminObraId] = useState<string>("");
@@ -121,17 +125,37 @@ export default function FundoFixo() {
 
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-primary" />
-              Fundo Fixo
-              {obraNome && (
-                <Badge variant="outline" className="text-xs font-normal ml-1">{obraNome}</Badge>
-              )}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Caixa para despesas emergenciais da obra
-            </p>
+          <div className="flex items-start gap-3">
+            {/* Botão voltar — só aparece quando admin entrou num fundo específico */}
+            {isAdminDrillDown && (
+              <button
+                onClick={clearFundo}
+                className="mt-0.5 h-8 w-8 rounded-lg border border-border/60 flex items-center justify-center hover:bg-muted transition-colors flex-shrink-0"
+                title="Voltar para lista de fundos"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-primary" />
+                {isAdminDrillDown && fundo
+                  ? fundo.nome
+                  : "Fundo Fixo"
+                }
+                {obraNome && !isAdminDrillDown && (
+                  <Badge variant="outline" className="text-xs font-normal ml-1">{obraNome}</Badge>
+                )}
+                {isAdminDrillDown && (fundo as any)?.obras?.nome && (
+                  <Badge variant="outline" className="text-xs font-normal ml-1">{(fundo as any).obras.nome}</Badge>
+                )}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {isAdminDrillDown
+                  ? "Gerenciar lançamentos e saldo do fundo"
+                  : "Caixa para despesas emergenciais da obra"}
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-2">
@@ -211,30 +235,52 @@ export default function FundoFixo() {
               </Card>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {allFundos.map((f: any) => (
-                  <Card key={f.id} className={cn("border-l-4",
-                    f.saldo_atual < 0 ? "border-l-red-500" :
-                    f.saldo_atual < f.saldo_inicial * 0.2 ? "border-l-amber-500" :
-                    "border-l-green-500"
-                  )}>
-                    <CardContent className="pt-4 pb-3 space-y-1">
-                      <p className="font-semibold text-sm">{f.nome}</p>
-                      <p className="text-xs text-muted-foreground">{f.obras?.nome ?? "—"}</p>
-                      <p className={cn("text-xl font-extrabold",
-                        f.saldo_atual < 0 ? "text-red-600" :
-                        f.saldo_atual < f.saldo_inicial * 0.2 ? "text-amber-600" :
-                        "text-green-600"
-                      )}>
-                        R$ {Number(f.saldo_atual).toFixed(2)}
-                      </p>
-                      {f.saldo_atual < f.saldo_inicial * 0.2 && f.saldo_atual >= 0 && (
-                        <p className="text-xs text-amber-600 flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3" />Saldo baixo
-                        </p>
+                {allFundos.map((f: any) => {
+                  const saldoBaixo = f.saldo_atual >= 0 && f.saldo_atual < f.saldo_inicial * 0.2;
+                  return (
+                    <Card
+                      key={f.id}
+                      onClick={() => selectFundo(f)}
+                      className={cn(
+                        "border-l-4 cursor-pointer hover:shadow-md transition-shadow group",
+                        f.saldo_atual < 0 ? "border-l-red-500" :
+                        saldoBaixo ? "border-l-amber-500" :
+                        "border-l-green-500"
                       )}
-                    </CardContent>
-                  </Card>
-                ))}
+                    >
+                      <CardContent className="pt-4 pb-3 space-y-1">
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm truncate">{f.nome}</p>
+                            <p className="text-xs text-muted-foreground truncate">{f.obras?.nome ?? "—"}</p>
+                          </div>
+                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5 ml-2" />
+                        </div>
+                        <p className={cn("text-xl font-extrabold",
+                          f.saldo_atual < 0 ? "text-red-600" :
+                          saldoBaixo ? "text-amber-600" :
+                          "text-green-600"
+                        )}>
+                          R$ {Number(f.saldo_atual).toFixed(2)}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          {saldoBaixo ? (
+                            <p className="text-xs text-amber-600 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" />Saldo baixo
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Inicial: R$ {Number(f.saldo_inicial).toFixed(2)}
+                            </p>
+                          )}
+                          <p className="text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                            Abrir →
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>

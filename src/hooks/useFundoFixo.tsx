@@ -74,6 +74,30 @@ export const useFundoFixo = () => {
     }
   };
 
+  /** Permite que o admin selecione manualmente um fundo da lista para gerenciá-lo */
+  const selectFundo = async (f: any) => {
+    // Recarrega o fundo com dados atualizados do banco antes de abrir
+    try {
+      const { data, error } = await (supabase as any)
+        .from('fundo_fixo')
+        .select('*, obras(nome)')
+        .eq('id', f.id)
+        .single();
+      if (!error && data) {
+        setFundo(data);
+        await fetchLancamentos(data.id);
+        return;
+      }
+    } catch { /* fallback */ }
+    setFundo(f);
+    await fetchLancamentos(f.id);
+  };
+
+  const clearFundo = () => {
+    setFundo(null);
+    setLancamentos([]);
+  };
+
   const createFundo = async (data: FundoFixoInsert) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -209,5 +233,7 @@ export const useFundoFixo = () => {
     deleteLancamento,
     refetch: fetchFundo,
     refetchLancamentos: () => fundo ? fetchLancamentos(fundo.id) : Promise.resolve(),
+    selectFundo,
+    clearFundo,
   };
 };
