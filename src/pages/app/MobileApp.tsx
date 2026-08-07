@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw } from "lucide-react";
+import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw, Truck } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { cn } from "@/lib/utils";
 import { AppHome } from "./AppHome";
@@ -24,21 +25,50 @@ const tabs = [
 
 export default function MobileApp() {
   const [active, setActive] = useState<Tab>("home");
-  const { isFuncionario, loading } = useUserRole();
   const navigate = useNavigate();
+
+  const { isFuncionario, loading: loadingRole } = useUserRole();
+  const { vehicle, loading: loadingVehicle } = useEmployeeVehicle();
   const { isOnline, queueCount, syncQueue } = useOnlineStatus();
 
-  // Gestores não precisam do app mobile — redireciona para dashboard
+  const loading = loadingRole || loadingVehicle;
+
+  /**
+   * Regra de acesso ao /app:
+   *  - Qualquer cargo pode acessar, desde que tenha um veículo vinculado.
+   *  - Se não tiver veículo E for gestor/admin → volta para o dashboard gerencial.
+   *  - Se for funcionário sem veículo → fica na tela (mostra mensagem "sem veículo").
+   */
   useEffect(() => {
-    if (!loading && !isFuncionario) {
+    if (loading) return;
+    if (!vehicle && !isFuncionario) {
+      // Admin/gestor sem veículo — não precisa do app, volta ao dashboard
       navigate("/", { replace: true });
     }
-  }, [isFuncionario, loading, navigate]);
+  }, [loading, vehicle, isFuncionario, navigate]);
 
+  // Tela de carregamento
   if (loading) {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-slate-900">
         <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Funcionário sem veículo vinculado — mostra mensagem (não redireciona)
+  if (!vehicle && isFuncionario) {
+    return (
+      <div className="h-[100dvh] flex flex-col items-center justify-center bg-slate-900 px-6 text-center gap-4">
+        <div className="h-20 w-20 rounded-2xl bg-slate-700 flex items-center justify-center">
+          <Truck className="h-10 w-10 text-slate-400" />
+        </div>
+        <div>
+          <p className="text-white font-bold text-lg">Sem veículo atribuído</p>
+          <p className="text-slate-400 text-sm mt-1">
+            Você ainda não possui um veículo vinculado. Fale com o gestor para que um veículo seja atribuído ao seu cadastro.
+          </p>
+        </div>
       </div>
     );
   }
@@ -81,12 +111,12 @@ export default function MobileApp() {
         </button>
       )}
 
-      {/* Content area */}
+      {/* Conteúdo */}
       <div className="flex-1 overflow-y-auto overscroll-contain">
         {renderTab()}
       </div>
 
-      {/* Bottom navigation */}
+      {/* Nav inferior */}
       <nav className="flex-shrink-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 safe-area-bottom">
         <div className="flex items-stretch h-16">
           {tabs.map(({ id, label, Icon }) => (
