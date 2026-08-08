@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw, Smartphone } from "lucide-react";
+import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw } from "lucide-react";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { AppHome } from "./AppHome";
 import { AppLancar } from "./AppLancar";
@@ -11,6 +12,7 @@ import { AppChecklist } from "./AppChecklist";
 import { AppFumaca } from "./AppFumaca";
 import { AppEscala } from "./AppEscala";
 import { AppPerfil } from "./AppPerfil";
+import { AppLogin } from "./AppLogin";
 
 type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "perfil";
 
@@ -27,26 +29,33 @@ export default function MobileApp() {
   const [active, setActive] = useState<Tab>("home");
   const navigate = useNavigate();
 
-  const { isFuncionario, loading: loadingRole } = useUserRole();
+  const { user, loading: loadingAuth }           = useAuth();
+  const { isFuncionario, loading: loadingRole }  = useUserRole();
   const { employee, loading: loadingEmployee }   = useCurrentEmployee();
   const { isOnline, queueCount, syncQueue }      = useOnlineStatus();
 
-  const loading = loadingRole || loadingEmployee;
+  const loading = loadingAuth || loadingRole || loadingEmployee;
 
   /**
    * Regra de acesso ao /app:
+   *  - Não autenticado → mostra tela de login própria do app
    *  - Funcionário (tipo_acesso = 'funcionario'): sempre tem acesso
    *  - Qualquer outro cargo: só tem acesso se acesso_app_motorista = true no cadastro
-   *  - Se não tem acesso → volta ao dashboard
+   *  - Admins sem flag → redireciona ao dashboard gerencial
    */
   const temAcesso = isFuncionario || (employee?.acesso_app_motorista === true);
 
   useEffect(() => {
-    if (loading) return;
-    if (!temAcesso) {
+    // Só redireciona ao dashboard se estiver logado E não tiver acesso ao app
+    if (!loadingAuth && !loadingRole && !loadingEmployee && user && !temAcesso) {
       navigate("/", { replace: true });
     }
-  }, [loading, temAcesso, navigate]);
+  }, [loadingAuth, loadingRole, loadingEmployee, user, temAcesso, navigate]);
+
+  // Não logado → mostra login próprio do app
+  if (!loadingAuth && !user) {
+    return <AppLogin onSuccess={() => {/* auth state atualiza via listener */}} />;
+  }
 
   if (loading) {
     return (

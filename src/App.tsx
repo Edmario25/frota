@@ -196,11 +196,8 @@ const App = () => (
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />
-            <Route path="/app" element={
-              <ProtectedRoute>
-                <MobileApp />
-              </ProtectedRoute>
-            } />
+            {/* /app gerencia seu próprio auth — não usa ProtectedRoute */}
+            <Route path="/app" element={<MobileApp />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
