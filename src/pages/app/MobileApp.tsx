@@ -40,10 +40,12 @@ export default function MobileApp() {
    * Regra de acesso ao /app:
    *  - Não autenticado → mostra tela de login própria do app
    *  - Funcionário (tipo_acesso = 'funcionario'): sempre tem acesso
-   *  - Qualquer outro cargo: só tem acesso se acesso_app_motorista = true no cadastro
+   *  - Qualquer outro cargo: só tem acesso se acesso_app_motorista = true
+   *    (verificado via user_metadata — sincronizado por trigger no DB)
    *  - Admins sem flag → redireciona ao dashboard gerencial
    */
-  const temAcesso = isFuncionario || (employee?.acesso_app_motorista === true);
+  const metaAccess = user?.user_metadata?.acesso_app_motorista === true;
+  const temAcesso  = isFuncionario || metaAccess || (employee?.acesso_app_motorista === true);
 
   useEffect(() => {
     // Só redireciona ao dashboard se estiver logado E não tiver acesso ao app

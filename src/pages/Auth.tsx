@@ -40,21 +40,17 @@ const Auth = () => {
       return;
     }
 
-    // Após login, verificar se o usuário deve ir ao app do motorista
-    // Usa RPC para bypass do cache de schema do PostgREST
+    // Após login, verificar destino pelo user_metadata (sincronizado via trigger DB)
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: hasAppAccess } = await supabase.rpc(
-          'check_user_app_access' as any,
-          { p_user_id: session.user.id }
-        );
+      const meta = session?.user?.user_metadata ?? {};
+      const tipo  = session?.user?.user_metadata?.tipo_acesso ?? "";
+      const deveIrParaApp =
+        tipo === "funcionario" ||
+        meta.acesso_app_motorista === true;
 
-        toast({ title: "Login realizado", description: "Bem-vindo!" });
-        navigate(hasAppAccess === true ? "/app" : "/", { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
+      toast({ title: "Login realizado", description: "Bem-vindo!" });
+      navigate(deveIrParaApp ? "/app" : "/", { replace: true });
     } catch {
       navigate("/", { replace: true });
     }
