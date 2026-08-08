@@ -141,10 +141,14 @@ function FormAbastecimento({ vehicleId, employeeId, userId, onClose }: { vehicle
     if (!litros || !valorLitro) { toast({ title: "Preencha litros e valor/litro", variant: "destructive" }); return; }
     setSaving(true);
 
+    const litrosNum    = parseFloat(litros);
+    const valorLitroNum = parseFloat(valorLitro);
     const payload = {
       vehicle_id: vehicleId,
-      litros: parseFloat(litros),
-      valor_litro: parseFloat(valorLitro),
+      data_abastecimento: new Date().toISOString().split("T")[0],
+      litros: litrosNum,
+      valor_litro: valorLitroNum,
+      valor_total: litrosNum * valorLitroNum,
       km_no_abastecimento: km ? parseFloat(km) : null,
       tipo_combustivel: tipo || null,
       posto_nome: posto || null,
