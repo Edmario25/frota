@@ -19,7 +19,16 @@ export const useCurrentEmployee = () => {
         console.error('Erro ao buscar funcionário atual:', error);
         return null;
       }
-      return data;
+      if (!data) return null;
+
+      // Usa RPC para garantir o valor correto de acesso_app_motorista
+      // (bypass do cache de schema do PostgREST)
+      const { data: appAccess } = await supabase.rpc(
+        'check_user_app_access' as any,
+        { p_user_id: user!.id }
+      );
+
+      return { ...data, acesso_app_motorista: appAccess === true };
     },
     enabled: !!user,
   });
