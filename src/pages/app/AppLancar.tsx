@@ -121,13 +121,13 @@ function SubmitButton({ label, onSave, saving, offline }: { label: string; onSav
 }
 
 // ── Sub-forms ──────────────────────────────────────────────────────────────────
-function FormAbastecimento({ vehicleId, employeeId, userId, onClose }: { vehicleId: string; employeeId: string; userId: string; onClose: () => void }) {
+function FormAbastecimento({ vehicleId, employeeId, userId, kmAtual, onClose }: { vehicleId: string; employeeId: string; userId: string; kmAtual: number | null; onClose: () => void }) {
   const { createFuelLog } = useFuelLogs();
   const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
   const [litros, setLitros]         = useState("");
   const [valorLitro, setValorLitro] = useState("");
-  const [km, setKm]                 = useState("");
+  const [km, setKm]                 = useState(kmAtual != null ? String(kmAtual) : "");
   const [tipo, setTipo]             = useState("");
   const [posto, setPosto]           = useState("");
   const [obs, setObs]               = useState("");
@@ -512,7 +512,7 @@ export function AppLancar() {
         {/* Form */}
         <div className="p-4 space-y-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm">
-            {selected === "abastecimento" && <FormAbastecimento vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} onClose={() => setSelected(null)} />}
+            {selected === "abastecimento" && <FormAbastecimento vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} kmAtual={vehicle.quilometragem_atual ?? null} onClose={() => setSelected(null)} />}
             {selected === "manutencao"   && <FormManutencao    vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} km={vehicle.quilometragem_atual} onClose={() => setSelected(null)} />}
             {selected === "borracharia"  && <FormBorracharia   vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
             {selected === "lavagem"      && <FormLavagem       vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
