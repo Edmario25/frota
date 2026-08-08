@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFuelLogs } from "@/hooks/useFuelLogs";
 import { useMaintenance } from "@/hooks/useMaintenance";
 import { useTireServices } from "@/hooks/useTireServices";
@@ -120,7 +121,7 @@ function SubmitButton({ label, onSave, saving, offline }: { label: string; onSav
 }
 
 // ── Sub-forms ──────────────────────────────────────────────────────────────────
-function FormAbastecimento({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
+function FormAbastecimento({ vehicleId, employeeId, userId, onClose }: { vehicleId: string; employeeId: string; userId: string; onClose: () => void }) {
   const { createFuelLog } = useFuelLogs();
   const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
@@ -148,7 +149,7 @@ function FormAbastecimento({ vehicleId, employeeId, onClose }: { vehicleId: stri
       tipo_combustivel: tipo || null,
       posto_nome: posto || null,
       observacoes: obs || null,
-      created_by: employeeId,
+      created_by: userId,   // FK referencia auth.users.id, nao employees.id
     };
 
     try {
@@ -191,7 +192,7 @@ function FormAbastecimento({ vehicleId, employeeId, onClose }: { vehicleId: stri
   );
 }
 
-function FormManutencao({ vehicleId, employeeId, km, onClose }: { vehicleId: string; employeeId: string; km: number | null; onClose: () => void }) {
+function FormManutencao({ vehicleId, employeeId, userId, km, onClose }: { vehicleId: string; employeeId: string; userId: string; km: number | null; onClose: () => void }) {
   const { createMaintenanceRecord } = useMaintenance();
   const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
@@ -217,9 +218,9 @@ function FormManutencao({ vehicleId, employeeId, km, onClose }: { vehicleId: str
       status: "concluida",
       data_agendada: today,
       data_realizada: today,
-      responsavel: employeeId,
+      responsavel: employeeId,   // FK referencia employees.id
       observacoes: obs || null,
-      created_by: employeeId,
+      created_by: userId,        // FK referencia auth.users.id
     };
 
     try {
@@ -465,6 +466,7 @@ export function AppLancar() {
   const [selected, setSelected] = useState<LancarType>(null);
   const { vehicle, loading } = useEmployeeVehicle();
   const { employee } = useCurrentEmployee();
+  const { user } = useAuth();
 
   if (loading) {
     return (
@@ -506,8 +508,8 @@ export function AppLancar() {
         {/* Form */}
         <div className="p-4 space-y-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm">
-            {selected === "abastecimento" && <FormAbastecimento vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
-            {selected === "manutencao"   && <FormManutencao    vehicleId={vehicle.id} employeeId={employee?.id ?? ""} km={vehicle.quilometragem_atual} onClose={() => setSelected(null)} />}
+            {selected === "abastecimento" && <FormAbastecimento vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} onClose={() => setSelected(null)} />}
+            {selected === "manutencao"   && <FormManutencao    vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} km={vehicle.quilometragem_atual} onClose={() => setSelected(null)} />}
             {selected === "borracharia"  && <FormBorracharia   vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
             {selected === "lavagem"      && <FormLavagem       vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
             {selected === "multa"        && <FormMulta         vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
