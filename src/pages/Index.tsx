@@ -86,14 +86,14 @@ const Index = () => {
   const { user } = useAuth();
   const [vehicleStats, setVehicleStats] = useState({ disponivel: 0, em_uso: 0, manutencao: 0, alertas_km: 0 });
 
-  // Funcionários e usuários com acesso ao app → redireciona ao /app
-  // Aguarda dados carregarem antes de decidir
+  // Apenas funcionários puros (cargo funcionario) são redirecionados ao /app
+  // Usuários com acesso_app_motorista podem usar ambas as interfaces
   useEffect(() => {
-    if (loadingRole || loadingEmployee) return;
-    if (isFuncionario || employee?.acesso_app_motorista === true) {
+    if (loadingRole) return;
+    if (isFuncionario) {
       navigate("/app", { replace: true });
     }
-  }, [loadingRole, loadingEmployee, isFuncionario, employee?.acesso_app_motorista, navigate]);
+  }, [loadingRole, isFuncionario, navigate]);
 
   useEffect(() => {
     if (vehicles.length > 0) {

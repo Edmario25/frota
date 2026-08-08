@@ -40,20 +40,9 @@ const Auth = () => {
       return;
     }
 
-    // Após login, verificar destino pelo user_metadata (sincronizado via trigger DB)
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const meta = session?.user?.user_metadata ?? {};
-      const tipo  = session?.user?.user_metadata?.tipo_acesso ?? "";
-      const deveIrParaApp =
-        tipo === "funcionario" ||
-        meta.acesso_app_motorista === true;
-
-      toast({ title: "Login realizado", description: "Bem-vindo!" });
-      navigate(deveIrParaApp ? "/app" : "/", { replace: true });
-    } catch {
-      navigate("/", { replace: true });
-    }
+    // Login do sistema gerencial → sempre vai ao dashboard
+    toast({ title: "Login realizado", description: "Bem-vindo ao sistema!" });
+    navigate("/", { replace: true });
     setIsLoading(false);
   };
 
