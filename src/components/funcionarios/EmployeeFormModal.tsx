@@ -18,7 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PhotoUpload } from "@/components/ui/photo-upload";
-import { ShieldCheck, Shield, User, Info, KeyRound, ChevronDown, ChevronUp } from "lucide-react";
+import { ShieldCheck, Shield, User, Info, KeyRound, ChevronDown, ChevronUp, Smartphone } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCargos } from "@/hooks/useCargos";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
 import { useEscalas } from "@/hooks/useEscalas";
@@ -36,17 +37,18 @@ const nivelAcessoConfig: Record<string, { label: string; color: string; icon: Re
 };
 
 const schema = z.object({
-  nome:            z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-  cpf:             z.string().min(11, "CPF inválido"),
-  email:           z.string().email("E-mail inválido"),
-  senha:           z.string().min(6, "Mínimo 6 caracteres").or(z.literal("")),
-  telefone:        z.string().optional(),
-  cargo_id:        z.string().min(1, "Cargo é obrigatório"),
-  departamento_id: z.string().min(1, "Departamento é obrigatório"),
-  data_admissao:   z.string().optional(),
-  status:          z.enum(["ativo", "inativo", "ferias", "licenca"]),
-  obra_id:         z.string().optional(),
-  escala_tipo_id:  z.string().optional(),
+  nome:                  z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  cpf:                   z.string().min(11, "CPF inválido"),
+  email:                 z.string().email("E-mail inválido"),
+  senha:                 z.string().min(6, "Mínimo 6 caracteres").or(z.literal("")),
+  telefone:              z.string().optional(),
+  cargo_id:              z.string().min(1, "Cargo é obrigatório"),
+  departamento_id:       z.string().min(1, "Departamento é obrigatório"),
+  data_admissao:         z.string().optional(),
+  status:                z.enum(["ativo", "inativo", "ferias", "licenca"]),
+  obra_id:               z.string().optional(),
+  escala_tipo_id:        z.string().optional(),
+  acesso_app_motorista:  z.boolean().default(false),
 });
 
 interface Props {
@@ -78,6 +80,7 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
       nome: "", cpf: "", email: "", senha: "", telefone: "",
       cargo_id: "", departamento_id: "", data_admissao: "",
       status: "ativo", obra_id: "", escala_tipo_id: "",
+      acesso_app_motorista: false,
     },
   });
 
@@ -155,17 +158,18 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
         if (data) activeObraId = data.obra_id;
 
         form.reset({
-          nome:            employee.nome ?? "",
-          cpf:             employee.cpf ?? "",
-          email:           employee.email ?? "",
-          senha:           "",
-          telefone:        employee.telefone ?? "",
-          cargo_id:        employee.cargo_id ?? "",
-          departamento_id: employee.departamento_id ?? "",
-          data_admissao:   employee.data_admissao ?? "",
-          status:          employee.status as any,
-          obra_id:         activeObraId,
-          escala_tipo_id:  employee.escala_tipo_id ?? "",
+          nome:                 employee.nome ?? "",
+          cpf:                  employee.cpf ?? "",
+          email:                employee.email ?? "",
+          senha:                "",
+          telefone:             employee.telefone ?? "",
+          cargo_id:             employee.cargo_id ?? "",
+          departamento_id:      employee.departamento_id ?? "",
+          data_admissao:        employee.data_admissao ?? "",
+          status:               employee.status as any,
+          obra_id:              activeObraId,
+          escala_tipo_id:       employee.escala_tipo_id ?? "",
+          acesso_app_motorista: employee.acesso_app_motorista ?? false,
         });
         setPhotoUrl(employee.foto_url ?? "");
       } else {
@@ -184,17 +188,18 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
     setIsSubmitting(true);
     try {
       const base: EmployeeInsert = {
-        nome:            values.nome,
-        cpf:             values.cpf,
-        email:           values.email,
-        telefone:        values.telefone || null,
-        cargo_id:        values.cargo_id,
-        departamento_id: values.departamento_id,
-        data_admissao:   values.data_admissao || null,
-        status:          values.status,
-        tipo_acesso:     cargoAcesso || "colaborador", // derivado do cargo
-        escala_tipo_id:  values.escala_tipo_id || null,
-        foto_url:        photoUrl || null,
+        nome:                 values.nome,
+        cpf:                  values.cpf,
+        email:                values.email,
+        telefone:             values.telefone || null,
+        cargo_id:             values.cargo_id,
+        departamento_id:      values.departamento_id,
+        data_admissao:        values.data_admissao || null,
+        status:               values.status,
+        tipo_acesso:          cargoAcesso || "colaborador",
+        escala_tipo_id:       values.escala_tipo_id || null,
+        foto_url:             photoUrl || null,
+        acesso_app_motorista: values.acesso_app_motorista ?? false,
       };
 
       const submitData = employee
@@ -306,6 +311,39 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
                 )}
               </div>
             </div>
+
+            {/* Acesso ao App do Motorista */}
+            <FormField
+              control={form.control}
+              name="acesso_app_motorista"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        id="acesso_app_motorista"
+                        className="mt-0.5"
+                      />
+                    </FormControl>
+                    <div className="flex-1">
+                      <label
+                        htmlFor="acesso_app_motorista"
+                        className="text-sm font-semibold cursor-pointer flex items-center gap-2"
+                      >
+                        <Smartphone className="h-4 w-4 text-blue-600" />
+                        Acesso ao App do Motorista
+                      </label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Permite que este funcionário acesse o app mobile para lançar abastecimentos,
+                        manutenções, checklists e consultar a escala de trabalho.
+                      </p>
+                    </div>
+                  </div>
+                </FormItem>
+              )}
+            />
 
             {/* Seção: Alterar Senha (somente edição) */}
             {isEdit && (

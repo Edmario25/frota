@@ -86,10 +86,12 @@ const Index = () => {
   const { user } = useAuth();
   const [vehicleStats, setVehicleStats] = useState({ disponivel: 0, em_uso: 0, manutencao: 0, alertas_km: 0 });
 
-  // Funcionários → app mobile
+  // Funcionários e usuários com acesso ao app → redireciona ao /app
   useEffect(() => {
-    if (isFuncionario) navigate("/app", { replace: true });
-  }, [isFuncionario, navigate]);
+    if (isFuncionario || employee?.acesso_app_motorista) {
+      navigate("/app", { replace: true });
+    }
+  }, [isFuncionario, employee?.acesso_app_motorista, navigate]);
 
   useEffect(() => {
     if (vehicles.length > 0) {

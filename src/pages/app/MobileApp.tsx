@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw, Truck } from "lucide-react";
+import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw, Smartphone } from "lucide-react";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { cn } from "@/lib/utils";
 import { AppHome } from "./AppHome";
@@ -28,26 +28,26 @@ export default function MobileApp() {
   const navigate = useNavigate();
 
   const { isFuncionario, loading: loadingRole } = useUserRole();
-  const { vehicle, loading: loadingVehicle } = useEmployeeVehicle();
-  const { isOnline, queueCount, syncQueue } = useOnlineStatus();
+  const { employee, loading: loadingEmployee }   = useCurrentEmployee();
+  const { isOnline, queueCount, syncQueue }      = useOnlineStatus();
 
-  const loading = loadingRole || loadingVehicle;
+  const loading = loadingRole || loadingEmployee;
 
   /**
    * Regra de acesso ao /app:
-   *  - Qualquer cargo pode acessar, desde que tenha um veículo vinculado.
-   *  - Se não tiver veículo E for gestor/admin → volta para o dashboard gerencial.
-   *  - Se for funcionário sem veículo → fica na tela (mostra mensagem "sem veículo").
+   *  - Funcionário (tipo_acesso = 'funcionario'): sempre tem acesso
+   *  - Qualquer outro cargo: só tem acesso se acesso_app_motorista = true no cadastro
+   *  - Se não tem acesso → volta ao dashboard
    */
+  const temAcesso = isFuncionario || (employee?.acesso_app_motorista === true);
+
   useEffect(() => {
     if (loading) return;
-    if (!vehicle && !isFuncionario) {
-      // Admin/gestor sem veículo — não precisa do app, volta ao dashboard
+    if (!temAcesso) {
       navigate("/", { replace: true });
     }
-  }, [loading, vehicle, isFuncionario, navigate]);
+  }, [loading, temAcesso, navigate]);
 
-  // Tela de carregamento
   if (loading) {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-slate-900">
@@ -56,22 +56,7 @@ export default function MobileApp() {
     );
   }
 
-  // Funcionário sem veículo vinculado — mostra mensagem (não redireciona)
-  if (!vehicle && isFuncionario) {
-    return (
-      <div className="h-[100dvh] flex flex-col items-center justify-center bg-slate-900 px-6 text-center gap-4">
-        <div className="h-20 w-20 rounded-2xl bg-slate-700 flex items-center justify-center">
-          <Truck className="h-10 w-10 text-slate-400" />
-        </div>
-        <div>
-          <p className="text-white font-bold text-lg">Sem veículo atribuído</p>
-          <p className="text-slate-400 text-sm mt-1">
-            Você ainda não possui um veículo vinculado. Fale com o gestor para que um veículo seja atribuído ao seu cadastro.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (!temAcesso) return null;
 
   const renderTab = () => {
     switch (active) {
