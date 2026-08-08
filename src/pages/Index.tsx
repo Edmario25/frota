@@ -77,8 +77,8 @@ function QuickLink({ to, icon: Icon, color, label, sub }: {
 // ── Main ──────────────────────────────────────────────────────────────────────
 const Index = () => {
   const navigate = useNavigate();
-  const { isFuncionario, hasAdminAccess, shouldFilterByObra, isGestorObra, hasFullAccess } = useUserRole();
-  const { employee } = useCurrentEmployee();
+  const { isFuncionario, hasAdminAccess, shouldFilterByObra, isGestorObra, hasFullAccess, loading: loadingRole } = useUserRole();
+  const { employee, loading: loadingEmployee } = useCurrentEmployee();
   const { vehicles, getVehicleStats } = useVehicles();
   const { employees } = useEmployees();
   const { obras, getObraStats } = useObras();
@@ -87,11 +87,13 @@ const Index = () => {
   const [vehicleStats, setVehicleStats] = useState({ disponivel: 0, em_uso: 0, manutencao: 0, alertas_km: 0 });
 
   // Funcionários e usuários com acesso ao app → redireciona ao /app
+  // Aguarda dados carregarem antes de decidir
   useEffect(() => {
-    if (isFuncionario || employee?.acesso_app_motorista) {
+    if (loadingRole || loadingEmployee) return;
+    if (isFuncionario || employee?.acesso_app_motorista === true) {
       navigate("/app", { replace: true });
     }
-  }, [isFuncionario, employee?.acesso_app_motorista, navigate]);
+  }, [loadingRole, loadingEmployee, isFuncionario, employee?.acesso_app_motorista, navigate]);
 
   useEffect(() => {
     if (vehicles.length > 0) {

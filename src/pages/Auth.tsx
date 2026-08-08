@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, Lock, Mail, Truck, Car, MapPin, Settings, ClipboardList, Gauge } from "lucide-react";
 
 const Auth = () => {
@@ -26,21 +27,40 @@ const Auth = () => {
     }
 
     setIsLoading(true);
-    
+
     const { error } = await signIn(email, password);
-    
+
     if (error) {
       toast({
         title: "Erro no login",
         description: "Credenciais inválidas. Verifique seu email e senha.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Login realizado",
-        description: "Bem-vindo ao sistema!",
-      });
-      navigate("/");
+      setIsLoading(false);
+      return;
+    }
+
+    // Após login, verificar se o usuário deve ir ao app do motorista
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: emp } = await supabase
+          .from('employees')
+          .select('acesso_app_motorista, tipo_acesso')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        const deveIrParaApp =
+          emp?.tipo_acesso === 'funcionario' ||
+          emp?.acesso_app_motorista === true;
+
+        toast({ title: "Login realizado", description: "Bem-vindo!" });
+        navigate(deveIrParaApp ? "/app" : "/", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    } catch {
+      navigate("/", { replace: true });
     }
     setIsLoading(false);
   };
