@@ -23,6 +23,8 @@ export default defineConfig(({ mode }) => ({
         enabled: false,
       },
       workbox: {
+        // Importa handler de push notifications
+        importScripts: ["/sw-push.js"],
         // Faz precache de todos os assets do build
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff,woff2}"],
         // Estratégia para navegação: sempre tenta a rede, cai no cache

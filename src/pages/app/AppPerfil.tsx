@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { LogOut, KeyRound, Eye, EyeOff, User, Loader2 } from "lucide-react";
+import { LogOut, KeyRound, Eye, EyeOff, User, Loader2, Bell, BellOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
 
 function getInitials(name: string) {
   return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -17,12 +18,46 @@ export function AppPerfil() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const { ativarPush, desativarPush, verificarPushAtivo } = useEscalaNotificacoes();
+
   const [showPwd, setShowPwd]         = useState(false);
   const [newPwd, setNewPwd]           = useState("");
   const [confirmPwd, setConfirmPwd]   = useState("");
   const [showNew, setShowNew]         = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving]           = useState(false);
+  const [pushAtivo, setPushAtivo]     = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
+  // Verifica se push já está ativo neste dispositivo
+  useEffect(() => {
+    verificarPushAtivo().then(setPushAtivo);
+  }, []);
+
+  const handleTogglePush = async () => {
+    setPushLoading(true);
+    try {
+      if (pushAtivo) {
+        await desativarPush();
+        setPushAtivo(false);
+        toast({ title: "Notificações desativadas" });
+      } else {
+        const result = await ativarPush();
+        if (result === "ok") {
+          setPushAtivo(true);
+          toast({ title: "Notificações ativadas ✅", description: "Você receberá alertas de escala neste dispositivo." });
+        } else if (result === "negado") {
+          toast({ title: "Permissão negada", description: "Ative as notificações nas configurações do seu navegador.", variant: "destructive" });
+        } else if (result === "sem-sw") {
+          toast({ title: "Não suportado", description: "Este navegador não suporta notificações push.", variant: "destructive" });
+        } else {
+          toast({ title: "Erro ao ativar notificações", variant: "destructive" });
+        }
+      }
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   const displayName  = employee?.nome ?? user?.user_metadata?.full_name ?? user?.email?.split("@")[0] ?? "Usuário";
   const displayEmail = employee?.email ?? user?.email ?? "—";
@@ -83,6 +118,42 @@ export function AppPerfil() {
             />
           )}
         </div>
+
+        {/* Notificações push */}
+        {"Notification" in window && (
+          <button
+            onClick={handleTogglePush}
+            disabled={pushLoading}
+            className="w-full flex items-center gap-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm px-4 py-4"
+          >
+            <div className={cn(
+              "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0",
+              pushAtivo ? "bg-green-100 dark:bg-green-900/30" : "bg-slate-100 dark:bg-slate-700"
+            )}>
+              {pushLoading
+                ? <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+                : pushAtivo
+                ? <Bell className="h-5 w-5 text-green-600" />
+                : <BellOff className="h-5 w-5 text-slate-500" />}
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-slate-700 dark:text-slate-200">
+                Notificações push
+              </p>
+              <p className="text-xs text-slate-400">
+                {pushAtivo ? "Ativadas neste dispositivo" : "Toque para receber alertas de escala"}
+              </p>
+            </div>
+            <span className={cn(
+              "text-xs font-semibold px-2 py-1 rounded-full",
+              pushAtivo
+                ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+            )}>
+              {pushAtivo ? "Ativo" : "Inativo"}
+            </span>
+          </button>
+        )}
 
         {/* Alterar senha */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">

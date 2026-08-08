@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,19 +10,40 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Plus, Edit, Trash2, Settings, AlertTriangle, CheckCircle, Briefcase, Coffee } from "lucide-react";
-import { format, isWithinInterval, parseISO } from "date-fns";
+import {
+  Calendar, Clock, Plus, Edit, Trash2, Settings,
+  AlertTriangle, CheckCircle, Briefcase, Coffee,
+  Bell, CalendarRange, MoreHorizontal, X,
+} from "lucide-react";
+import { format, isWithinInterval, parseISO, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEscalas, EscalaTipo, EscalaPeriodo } from "@/hooks/useEscalas";
+import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
 import { EscalaTipoFormModal } from "@/components/escalas/EscalaTipoFormModal";
 import { EscalaPeriodoFormModal } from "@/components/escalas/EscalaPeriodoFormModal";
 import { ConfirmDeleteModal } from "@/components/escalas/ConfirmDeleteModal";
+
+/** Lê diasAvisoFolga do localStorage (padrão: 5) */
+function getDiasAviso(): number {
+  try {
+    const raw = localStorage.getItem("fleet_settings");
+    const saved = raw ? JSON.parse(raw) : {};
+    return typeof saved.diasAvisoFolga === "number" ? saved.diasAvisoFolga : 5;
+  } catch { return 5; }
+}
 
 // ─── View do funcionário: mostra apenas os próprios períodos ───────────────
 const MinhaEscalaView = () => {
@@ -239,7 +260,8 @@ const MinhaEscalaView = () => {
 // ─── View do gestor: visão completa ────────────────────────────────────────
 const Escalas = () => {
   const { hasEscalaManagement, isFuncionario } = useUserRole();
-  const { escalaTipos, escalaPeriodos, loading, deleteEscalaTipo, deleteEscalaPeriodo } = useEscalas();
+  const { escalaTipos, escalaPeriodos, loading, deleteEscalaTipo, deleteEscalaPeriodo, updateEscalaPeriodo } = useEscalas();
+  const { criarNotificacao, enviarPush } = useEscalaNotificacoes();
 
   // Funcionário vê apenas a própria escala
   if (isFuncionario) {
@@ -249,14 +271,42 @@ const Escalas = () => {
       </Layout>
     );
   }
-  
+
   const [activeTab, setActiveTab] = useState("periodos");
   const [tipoModalOpen, setTipoModalOpen] = useState(false);
   const [periodoModalOpen, setPeriodoModalOpen] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<EscalaTipo | null>(null);
   const [selectedPeriodo, setSelectedPeriodo] = useState<EscalaPeriodo | null>(null);
+  const [isRemarcando, setIsRemarcando] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'tipo' | 'periodo'; id: string; name: string } | null>(null);
+  const [alertasDismissed, setAlertasDismissed] = useState<string[]>([]);
+  const [autorizando, setAutorizando] = useState<string | null>(null);
+
+  const diasAviso = useMemo(getDiasAviso, []);
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  /** Folgas próximas (dentro de N dias) que ainda não foram dispensadas */
+  const alertasFolgaProxima = useMemo(() => {
+    return escalaPeriodos.filter(p => {
+      if (alertasDismissed.includes(p.id)) return false;
+      const inicioFolga = new Date(p.data_inicio_folga);
+      inicioFolga.setHours(0, 0, 0, 0);
+      const diff = differenceInDays(inicioFolga, hoje);
+      return diff >= 0 && diff <= diasAviso;
+    });
+  }, [escalaPeriodos, diasAviso, alertasDismissed, hoje]);
+
+  /** Folgas atrasadas: data_fim_folga já passou mas período ainda está como 'agendado' */
+  const alertasFolgaAtrasada = useMemo(() => {
+    return escalaPeriodos.filter(p => {
+      if (alertasDismissed.includes(`late-${p.id}`)) return false;
+      const fimFolga = new Date(p.data_fim_folga);
+      fimFolga.setHours(0, 0, 0, 0);
+      return fimFolga < hoje && p.status === 'agendado';
+    });
+  }, [escalaPeriodos, alertasDismissed, hoje]);
 
   const handleEditTipo = (tipo: EscalaTipo) => {
     setSelectedTipo(tipo);
@@ -264,8 +314,58 @@ const Escalas = () => {
   };
 
   const handleEditPeriodo = (periodo: EscalaPeriodo) => {
+    setIsRemarcando(false);
     setSelectedPeriodo(periodo);
     setPeriodoModalOpen(true);
+  };
+
+  const handleRemarcar = (periodo: EscalaPeriodo) => {
+    setIsRemarcando(true);
+    setSelectedPeriodo(periodo);
+    setPeriodoModalOpen(true);
+  };
+
+  const handlePeriodoSaved = async (saved: EscalaPeriodo) => {
+    if (!isRemarcando) return;
+    const nome = saved.employee?.nome ?? "Funcionário";
+    const dataFolga = format(new Date(saved.data_inicio_folga), "dd/MM/yyyy", { locale: ptBR });
+    await criarNotificacao({
+      employee_id: saved.employee_id,
+      periodo_id: saved.id,
+      tipo: "escala_remarcada",
+      titulo: "Escala remarcada",
+      mensagem: `Sua folga foi remarcada para ${dataFolga}.`,
+    });
+    await enviarPush(
+      saved.employee_id,
+      "Escala remarcada",
+      `${nome}, sua folga foi remarcada para ${dataFolga}.`
+    );
+  };
+
+  const handleAutorizar = async (periodo: EscalaPeriodo) => {
+    setAutorizando(periodo.id);
+    try {
+      const updated = await updateEscalaPeriodo(periodo.id, { conflito_autorizado: true });
+      const nome = periodo.employee?.nome ?? "Funcionário";
+      const dataFolga = format(new Date(periodo.data_inicio_folga), "dd/MM/yyyy", { locale: ptBR });
+      await criarNotificacao({
+        employee_id: periodo.employee_id,
+        periodo_id: periodo.id,
+        tipo: "conflito_autorizado",
+        titulo: "Conflito de escala autorizado",
+        mensagem: `Seu conflito de folga para ${dataFolga} foi autorizado pelo gestor.`,
+      });
+      await enviarPush(
+        periodo.employee_id,
+        "Folga autorizada ✅",
+        `${nome}, o conflito na sua folga de ${dataFolga} foi autorizado.`
+      );
+    } catch (e) {
+      console.error("Erro ao autorizar:", e);
+    } finally {
+      setAutorizando(null);
+    }
   };
 
   const handleDeleteClick = (type: 'tipo' | 'periodo', id: string, name: string) => {
@@ -275,7 +375,6 @@ const Escalas = () => {
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    
     try {
       if (deleteTarget.type === 'tipo') {
         await deleteEscalaTipo(deleteTarget.id);
@@ -338,6 +437,85 @@ const Escalas = () => {
             </div>
           )}
         </div>
+
+        {/* ── Painel de alertas de folgas ─────────────────────────────── */}
+        {(alertasFolgaAtrasada.length > 0 || alertasFolgaProxima.length > 0) && (
+          <div className="space-y-2">
+            {/* Folgas atrasadas — crítico */}
+            {alertasFolgaAtrasada.map(p => {
+              const dias = differenceInDays(hoje, new Date(p.data_fim_folga));
+              return (
+                <div
+                  key={`late-${p.id}`}
+                  className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-800 px-4 py-3"
+                >
+                  <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+                      Folga atrasada — {p.employee?.nome ?? "—"}
+                    </p>
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      Deveria ter saído em{" "}
+                      {format(new Date(p.data_inicio_folga), "dd/MM/yyyy")} e retornado em{" "}
+                      {format(new Date(p.data_fim_folga), "dd/MM/yyyy")} · há {dias} dia{dias !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-red-700 hover:bg-red-100"
+                      onClick={() => handleRemarcar(p)}
+                    >
+                      <CalendarRange className="h-3 w-3 mr-1" />
+                      Remarcar
+                    </Button>
+                    <button
+                      onClick={() => setAlertasDismissed(d => [...d, `late-${p.id}`])}
+                      className="h-7 w-7 rounded flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-100"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Folgas próximas — aviso */}
+            {alertasFolgaProxima.map(p => {
+              const dias = differenceInDays(new Date(p.data_inicio_folga), hoje);
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-4 py-3"
+                >
+                  <Bell className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                      Folga próxima — {p.employee?.nome ?? "—"}
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      {dias === 0
+                        ? "Começa hoje"
+                        : dias === 1
+                        ? "Começa amanhã"
+                        : `Começa em ${dias} dias`}
+                      {" "}({format(new Date(p.data_inicio_folga), "dd/MM")} –{" "}
+                      {format(new Date(p.data_fim_folga), "dd/MM/yyyy")}) · Escala{" "}
+                      {p.escala_tipo?.nome ?? "—"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setAlertasDismissed(d => [...d, p.id])}
+                    className="h-7 w-7 rounded flex items-center justify-center text-amber-400 hover:text-amber-600 hover:bg-amber-100 flex-shrink-0"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -442,16 +620,40 @@ const Escalas = () => {
                           <TableCell>{getStatusBadge(periodo)}</TableCell>
                           {hasEscalaManagement && (
                             <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" onClick={() => handleEditPeriodo(periodo)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleDeleteClick('periodo', periodo.id, periodo.employee?.nome || '')}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleRemarcar(periodo)}>
+                                    <CalendarRange className="mr-2 h-4 w-4 text-blue-600" />
+                                    Remarcar
+                                  </DropdownMenuItem>
+                                  {periodo.conflito_detectado && !periodo.conflito_autorizado && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleAutorizar(periodo)}
+                                      disabled={autorizando === periodo.id}
+                                    >
+                                      <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                                      {autorizando === periodo.id ? "Autorizando..." : "Autorizar conflito"}
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem onClick={() => handleEditPeriodo(periodo)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => handleDeleteClick('periodo', periodo.id, periodo.employee?.nome || '')}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           )}
                         </TableRow>
@@ -552,8 +754,9 @@ const Escalas = () => {
 
       <EscalaPeriodoFormModal
         isOpen={periodoModalOpen}
-        onClose={() => { setPeriodoModalOpen(false); setSelectedPeriodo(null); }}
+        onClose={() => { setPeriodoModalOpen(false); setSelectedPeriodo(null); setIsRemarcando(false); }}
         periodo={selectedPeriodo}
+        onSaved={handlePeriodoSaved}
       />
 
       <ConfirmDeleteModal

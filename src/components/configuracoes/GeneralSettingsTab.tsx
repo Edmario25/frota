@@ -116,6 +116,7 @@ export function GeneralSettingsTab() {
   const [notifyKmLimit, setNotifyKmLimit] = useState(saved.notifyKmLimit ?? true);
   const [notifyDocExpiry, setNotifyDocExpiry] = useState(saved.notifyDocExpiry ?? true);
   const [notifyScheduleConflict, setNotifyScheduleConflict] = useState(saved.notifyScheduleConflict ?? true);
+  const [diasAvisoFolga, setDiasAvisoFolga] = useState<number>(saved.diasAvisoFolga ?? 5);
 
   const handleSave = async () => {
     const settings = {
@@ -128,6 +129,7 @@ export function GeneralSettingsTab() {
       notifyKmLimit,
       notifyDocExpiry,
       notifyScheduleConflict,
+      diasAvisoFolga,
     };
 
     // 1. Salva no localStorage imediatamente
@@ -323,6 +325,29 @@ export function GeneralSettingsTab() {
               {i < 3 && <Separator className="mt-4" />}
             </div>
           ))}
+
+          <Separator />
+
+          {/* Aviso de folga próxima */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Aviso antecipado de folgas</p>
+              <p className="text-xs text-muted-foreground">
+                Exibir alerta quando a folga de um funcionário estiver a X dias
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={diasAvisoFolga}
+                onChange={e => setDiasAvisoFolga(Math.max(1, Math.min(30, parseInt(e.target.value) || 5)))}
+                className="w-16 h-9 border border-input rounded-lg text-center text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">dias antes</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

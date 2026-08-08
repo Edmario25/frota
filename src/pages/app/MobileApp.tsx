@@ -13,6 +13,7 @@ import { AppFumaca } from "./AppFumaca";
 import { AppEscala } from "./AppEscala";
 import { AppPerfil } from "./AppPerfil";
 import { AppLogin } from "./AppLogin";
+import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
 
 type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "perfil";
 
@@ -33,6 +34,7 @@ export default function MobileApp() {
   const { isFuncionario, loading: loadingRole }  = useUserRole();
   const { employee, loading: loadingEmployee }   = useCurrentEmployee();
   const { isOnline, queueCount, syncQueue }      = useOnlineStatus();
+  const { unreadCount }                          = useEscalaNotificacoes();
 
   const loading = loadingAuth || loadingRole || loadingEmployee;
 
@@ -120,13 +122,21 @@ export default function MobileApp() {
               key={id}
               onClick={() => setActive(id as Tab)}
               className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors",
+                "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative",
                 active === id
                   ? "text-blue-600 dark:text-blue-400"
                   : "text-slate-400 dark:text-slate-500"
               )}
             >
-              <Icon className={cn("h-5 w-5", active === id && "scale-110 transition-transform")} />
+              <div className="relative">
+                <Icon className={cn("h-5 w-5", active === id && "scale-110 transition-transform")} />
+                {/* Badge de notificações na aba Escala */}
+                {id === "escala" && unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] font-medium leading-none">{label}</span>
             </button>
           ))}

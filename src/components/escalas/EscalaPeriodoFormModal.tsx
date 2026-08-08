@@ -60,12 +60,15 @@ interface EscalaPeriodoFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   periodo?: EscalaPeriodo | null;
+  /** Chamado após salvar com sucesso — útil para disparar notificações após "Remarcar" */
+  onSaved?: (periodo: EscalaPeriodo) => void;
 }
 
 export const EscalaPeriodoFormModal = ({
   isOpen,
   onClose,
   periodo,
+  onSaved,
 }: EscalaPeriodoFormModalProps) => {
   const { 
     escalaTipos, 
@@ -196,12 +199,14 @@ export const EscalaPeriodoFormModal = ({
         observacoes: data.observacoes || null,
       };
 
+      let saved: EscalaPeriodo;
       if (periodo) {
-        await updateEscalaPeriodo(periodo.id, periodoData);
+        saved = await updateEscalaPeriodo(periodo.id, periodoData);
       } else {
-        await createEscalaPeriodo(periodoData);
+        saved = await createEscalaPeriodo(periodoData);
       }
-      
+
+      onSaved?.(saved);
       onClose();
       form.reset();
       setConflictInfo({ hasConflict: false, conflicts: [], allowOverlap: false });

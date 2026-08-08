@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, CalendarDays, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Loader2, Bell, X, CheckCheck } from "lucide-react";
 import { useEscalas } from "@/hooks/useEscalas";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
+import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   parseISO, isWithinInterval, isSameMonth, isToday,
@@ -28,6 +29,7 @@ const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 export function AppEscala() {
   const { employee, loading: eLoading } = useCurrentEmployee();
   const { escalaPeriodos, escalaTipos, loading: esLoading } = useEscalas();
+  const { notificacoes, marcarComoLida, marcarTodasComoLidas } = useEscalaNotificacoes();
   const [mes, setMes] = useState(new Date());
 
   const loading = eLoading || esLoading;
@@ -88,6 +90,54 @@ export function AppEscala() {
       </div>
 
       <div className="p-4 space-y-4 pb-8">
+
+        {/* ── Notificações de escala ──────────────────────────────── */}
+        {notificacoes.length > 0 && (
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-blue-600" />
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">
+                  Notificações ({notificacoes.length})
+                </p>
+              </div>
+              <button
+                onClick={marcarTodasComoLidas}
+                className="flex items-center gap-1 text-xs text-blue-600 font-medium"
+              >
+                <CheckCheck className="h-3.5 w-3.5" />
+                Marcar todas
+              </button>
+            </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-700">
+              {notificacoes.map(n => (
+                <div key={n.id} className="flex items-start gap-3 px-4 py-3">
+                  <div className={cn(
+                    "h-2 w-2 rounded-full mt-1.5 flex-shrink-0",
+                    n.tipo === "conflito_autorizado" ? "bg-green-500"
+                    : n.tipo === "escala_remarcada"  ? "bg-blue-500"
+                    : n.tipo === "folga_atrasada"     ? "bg-red-500"
+                    : "bg-amber-500"
+                  )} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{n.titulo}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{n.mensagem}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {format(new Date(n.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => marcarComoLida(n.id)}
+                    className="h-7 w-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 flex-shrink-0"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Stats do mês */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm text-center">
