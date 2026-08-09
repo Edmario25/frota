@@ -18,6 +18,7 @@ import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
 import { useChatMotoristaBadge } from "@/hooks/useChat";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { playNotifSound } from "@/lib/notifSound";
 
 type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "chat" | "perfil";
 type LancarType = "abastecimento" | "manutencao" | "borracharia" | "lavagem" | "multa" | "avaria" | null;
@@ -32,9 +33,21 @@ const tabs = [
 ] as const;
 
 export default function MobileApp() {
-  const [active, setActive]       = useState<Tab>("home");
+  const [active, setActive]         = useState<Tab>("home");
   const [lancarType, setLancarType] = useState<LancarType>(null);
-  const navigate                  = useNavigate();
+  const [viewportH, setViewportH]   = useState("100dvh");
+  const navigate                    = useNavigate();
+
+  // ── Ajuste de altura pelo teclado virtual (iOS Safari) ──────────────────────
+  // No iOS o teclado NÃO redimensiona o viewport; usamos visualViewport para isso.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setViewportH(`${vv.height}px`);
+    vv.addEventListener("resize", update);
+    update();
+    return () => vv.removeEventListener("resize", update);
+  }, []);
 
   const handleNavigate = (tab: Tab, subType?: string) => {
     if (tab === "lancar" && subType) {
@@ -94,6 +107,7 @@ export default function MobileApp() {
 
           // Só notifica se nao_lidas aumentou E não está na aba chat
           if (novasNaoLidas > prevNaoLidas && activeRef.current !== "chat") {
+            playNotifSound();
             toast({
               title: "💬 Mensagem do Gestor",
               description: updated.ultima_mensagem
@@ -145,7 +159,7 @@ export default function MobileApp() {
   };
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
+    <div style={{ height: viewportH }} className="flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
 
       {/* Barra offline */}
       {!isOnline && (

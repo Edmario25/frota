@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { playNotifSound } from "@/lib/notifSound";
 
 export interface ChatConversa {
   id: string;
@@ -305,6 +306,7 @@ export function useChatGestor() {
             (updated.nao_lidas_gestor ?? 0) > (prev?.nao_lidas_gestor ?? 0) &&
             selecionadaRef.current?.id !== updated.id
           ) {
+            playNotifSound();
             const nome = prev?.motorista?.nome ?? "Motorista";
             toast({
               title: `💬 ${nome}`,

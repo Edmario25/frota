@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Send, MessageSquare, ChevronLeft } from "lucide-react";
+import { Send, MessageSquare } from "lucide-react";
 import { useChatMotorista } from "@/hooks/useChat";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,19 +21,39 @@ export function AppChat() {
     mensagens, loading, sending, enviarMensagem,
   } = useChatMotorista(employee?.id);
 
-  const [texto, setTexto]         = useState("");
-  const bottomRef                 = useRef<HTMLDivElement>(null);
-  const textareaRef               = useRef<HTMLTextAreaElement>(null);
+  const [texto, setTexto]   = useState("");
+  const bottomRef           = useRef<HTMLDivElement>(null);
+  const textareaRef         = useRef<HTMLTextAreaElement>(null);
+  const messagesRef         = useRef<HTMLDivElement>(null);
 
   // Auto-scroll ao fundo quando chegam mensagens novas
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens]);
 
+  // Quando o teclado abre no mobile, rola para baixo para manter
+  // o input visível (o MobileApp já ajusta a altura via visualViewport)
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      // Pequeno delay para o layout estabilizar
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "instant" });
+      }, 60);
+    };
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
+
   const handleSend = async () => {
     const t = texto.trim();
     if (!t || sending) return;
     setTexto("");
+    // Reseta altura do textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
     await enviarMensagem(t);
   };
 
@@ -44,7 +64,7 @@ export function AppChat() {
     }
   };
 
-  // Ajusta altura do textarea dinamicamente
+  // Ajusta altura do textarea dinamicamente (máx 5 linhas)
   const handleTextoChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTexto(e.target.value);
     const el = e.target;
@@ -61,9 +81,12 @@ export function AppChat() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900">
+    // h-full preenche o flex-1 do MobileApp; o MobileApp já ajusta sua própria
+    // altura via visualViewport para excluir o teclado virtual no iOS.
+    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 overflow-hidden">
+
       {/* Header */}
-      <div className="flex-shrink-0 bg-gradient-to-r from-blue-700 to-blue-600 px-4 pt-10 pb-4 flex items-center gap-3">
+      <div className="flex-shrink-0 bg-gradient-to-r from-blue-700 to-blue-600 px-4 pt-6 pb-4 flex items-center gap-3">
         <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center">
           <MessageSquare className="h-5 w-5 text-white" />
         </div>
@@ -73,8 +96,8 @@ export function AppChat() {
         </div>
       </div>
 
-      {/* Área de mensagens */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      {/* Área de mensagens — flex-1 com scroll interno */}
+      <div ref={messagesRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {mensagens.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-6">
             <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -130,7 +153,7 @@ export function AppChat() {
         )}
       </div>
 
-      {/* Input */}
+      {/* Input — flex-shrink-0 garante que nunca suma do layout */}
       <div className="flex-shrink-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 px-3 py-3 safe-area-bottom">
         <div className="flex items-end gap-2">
           <textarea
@@ -140,13 +163,14 @@ export function AppChat() {
             onKeyDown={handleKeyDown}
             placeholder="Escreva sua mensagem..."
             rows={1}
+            // font-size: 16px impede o zoom automático do iOS ao focar no campo
+            style={{ height: "auto", fontSize: "16px" }}
             className={cn(
               "flex-1 resize-none rounded-2xl border border-slate-200 dark:border-slate-600",
               "bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100",
-              "px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+              "px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500",
               "max-h-[120px] overflow-y-auto leading-relaxed"
             )}
-            style={{ height: "auto" }}
           />
           <button
             onClick={handleSend}
