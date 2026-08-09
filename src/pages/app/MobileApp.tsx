@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw, MessageSquare } from "lucide-react";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
@@ -16,6 +16,8 @@ import { AppChat } from "./AppChat";
 import { AppLogin } from "./AppLogin";
 import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
 import { useChatMotoristaBadge } from "@/hooks/useChat";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "chat" | "perfil";
 type LancarType = "abastecimento" | "manutencao" | "borracharia" | "lavagem" | "multa" | "avaria" | null;
@@ -40,6 +42,7 @@ export default function MobileApp() {
     } else {
       setLancarType(null);
     }
+    activeRef.current = tab;
     setActive(tab);
   };
 
@@ -49,11 +52,57 @@ export default function MobileApp() {
   const { isOnline, queueCount, syncQueue }     = useOnlineStatus();
   const { unreadCount: escalaUnread }           = useEscalaNotificacoes();
   const chatUnread                              = useChatMotoristaBadge(employee?.id);
+  const { toast }                               = useToast();
+  const activeRef                               = useRef<Tab>("home");
 
   const loading = loadingAuth || loadingRole || loadingEmployee;
 
   const metaAccess = user?.user_metadata?.acesso_app_motorista === true;
   const temAcesso  = isFuncionario || metaAccess || (employee?.acesso_app_motorista === true);
+
+  // ── Notificação global: toast quando gestor envia msg e motorista não está na aba chat ──
+  useEffect(() => {
+    if (!employee?.id) return;
+
+    // Primeiro encontra o id da conversa deste motorista
+    let conversaId: string | null = null;
+    (supabase as any)
+      .from("chat_conversas")
+      .select("id")
+      .eq("motorista_id", employee.id)
+      .maybeSingle()
+      .then(({ data }: { data: { id: string } | null }) => {
+        if (!data) return;
+        conversaId = data.id;
+      });
+
+    const channel = supabase
+      .channel(`app-chat-global-${employee.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_mensagens" },
+        (payload) => {
+          const nova = payload.new as { tipo_autor: string; mensagem: string; conversa_id: string };
+          // Só mostra toast se: é msg do gestor, é da minha conversa, e NÃO estou na aba chat
+          if (
+            nova.tipo_autor === "gestor" &&
+            nova.conversa_id === conversaId &&
+            activeRef.current !== "chat"
+          ) {
+            toast({
+              title: "💬 Mensagem do Gestor",
+              description: nova.mensagem.length > 60
+                ? nova.mensagem.slice(0, 60) + "…"
+                : nova.mensagem,
+              duration: 6000,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [employee?.id]);
 
   useEffect(() => {
     if (!loadingAuth && !loadingRole && !loadingEmployee && user && !temAcesso) {

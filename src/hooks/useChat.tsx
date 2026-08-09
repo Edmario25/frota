@@ -23,21 +23,47 @@ export interface ChatMensagem {
   criada_em: string;
 }
 
+// ── Utilitário: envia push via edge function (reutilizado pelo chat) ──────────
+export async function enviarPushChat(employeeId: string, titulo: string, mensagem: string) {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) return;
+    const supabaseUrl = (supabase as any).supabaseUrl as string;
+    await fetch(`${supabaseUrl}/functions/v1/send-escala-push`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        apikey: (supabase as any).supabaseKey as string,
+      },
+      body: JSON.stringify({ employeeId, titulo, mensagem }),
+    });
+  } catch (e) {
+    console.warn("enviarPushChat:", e);
+  }
+}
+
+// ── Limite de histórico: 30 dias ──────────────────────────────────────────────
+function getLimite30Dias() {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d.toISOString();
+}
+
 // ── Hook para o MOTORISTA ──────────────────────────────────────────────────────
 export function useChatMotorista(motoristaId: string | undefined) {
-  const [conversa, setConversa]     = useState<ChatConversa | null>(null);
-  const [mensagens, setMensagens]   = useState<ChatMensagem[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [sending, setSending]       = useState(false);
-  const { toast }                   = useToast();
-  const channelRef                  = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [conversa, setConversa]   = useState<ChatConversa | null>(null);
+  const [mensagens, setMensagens] = useState<ChatMensagem[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [sending, setSending]     = useState(false);
+  const { toast }                 = useToast();
+  const channelRef                = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Busca ou cria a conversa do motorista
   const loadConversa = useCallback(async () => {
     if (!motoristaId) return;
     setLoading(true);
     try {
-      // Tenta encontrar conversa existente
       const { data: existing } = await (supabase as any)
         .from("chat_conversas")
         .select("*")
@@ -46,9 +72,19 @@ export function useChatMotorista(motoristaId: string | undefined) {
 
       if (existing) {
         setConversa(existing);
-        await loadMensagens(existing.id);
+        const { data } = await (supabase as any)
+          .from("chat_mensagens")
+          .select("*")
+          .eq("conversa_id", existing.id)
+          .gte("criada_em", getLimite30Dias())
+          .order("criada_em", { ascending: true });
+        setMensagens((data as ChatMensagem[]) ?? []);
+        // Zera não lidas ao abrir
+        await (supabase as any)
+          .from("chat_conversas")
+          .update({ nao_lidas_motorista: 0 })
+          .eq("id", existing.id);
       } else {
-        // Cria nova conversa
         const { data: nova, error } = await (supabase as any)
           .from("chat_conversas")
           .insert({ motorista_id: motoristaId })
@@ -65,56 +101,62 @@ export function useChatMotorista(motoristaId: string | undefined) {
     }
   }, [motoristaId]);
 
-  const loadMensagens = async (conversaId: string) => {
-    const limite = new Date();
-    limite.setDate(limite.getDate() - 30);
-
-    const { data, error } = await (supabase as any)
-      .from("chat_mensagens")
-      .select("*")
-      .eq("conversa_id", conversaId)
-      .gte("criada_em", limite.toISOString())
-      .order("criada_em", { ascending: true });
-
-    if (!error) setMensagens((data as ChatMensagem[]) ?? []);
-  };
-
-  // Zera contador de não lidas do motorista
-  const marcarLido = useCallback(async (conversaId: string) => {
-    await (supabase as any)
-      .from("chat_conversas")
-      .update({ nao_lidas_motorista: 0 })
-      .eq("id", conversaId);
-  }, []);
-
-  // Inscreve no Realtime para receber mensagens novas
+  // Realtime: escuta TODAS as mensagens desta conversa
   useEffect(() => {
     if (!conversa?.id) return;
 
-    marcarLido(conversa.id);
+    channelRef.current?.unsubscribe();
 
     channelRef.current = supabase
-      .channel(`chat-motorista-${conversa.id}`)
+      .channel(`chat-motorista-${conversa.id}-${Date.now()}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_mensagens", filter: `conversa_id=eq.${conversa.id}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_mensagens",
+          filter: `conversa_id=eq.${conversa.id}`,
+        },
         (payload) => {
+          const nova = payload.new as ChatMensagem;
+
           setMensagens(prev => {
-            if (prev.some(m => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new as ChatMensagem];
+            if (prev.some(m => m.id === nova.id)) return prev;
+            return [...prev, nova];
           });
-          // Zera não lidas quando a mensagem do gestor chega e o chat está aberto
-          if ((payload.new as ChatMensagem).tipo_autor === "gestor") {
-            marcarLido(conversa.id);
+
+          // Notifica visualmente quando a mensagem vem do gestor
+          if (nova.tipo_autor === "gestor") {
+            toast({
+              title: "💬 Mensagem do Gestor",
+              description: nova.mensagem.length > 60
+                ? nova.mensagem.slice(0, 60) + "…"
+                : nova.mensagem,
+              duration: 5000,
+            });
+            // Zera contador imediatamente pois o chat está aberto
+            (supabase as any)
+              .from("chat_conversas")
+              .update({ nao_lidas_motorista: 0 })
+              .eq("id", conversa.id);
           }
         }
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "chat_conversas", filter: `id=eq.${conversa.id}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_conversas",
+          filter: `id=eq.${conversa.id}`,
+        },
         (payload) => setConversa(payload.new as ChatConversa)
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIPTION_ERROR") {
+          console.warn("Realtime chat motorista: erro na subscription");
+        }
+      });
 
     return () => {
       channelRef.current?.unsubscribe();
@@ -125,11 +167,12 @@ export function useChatMotorista(motoristaId: string | undefined) {
     if (!conversa?.id || !texto.trim()) return;
     setSending(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await (supabase as any)
         .from("chat_mensagens")
         .insert({
           conversa_id: conversa.id,
-          autor_id:    (await supabase.auth.getUser()).data.user?.id,
+          autor_id:    user?.id,
           tipo_autor:  "motorista",
           mensagem:    texto.trim(),
         });
@@ -143,13 +186,7 @@ export function useChatMotorista(motoristaId: string | undefined) {
 
   useEffect(() => { loadConversa(); }, [loadConversa]);
 
-  return {
-    conversa,
-    mensagens,
-    loading,
-    sending,
-    enviarMensagem,
-  };
+  return { conversa, mensagens, loading, sending, enviarMensagem };
 }
 
 // ── Hook para o GESTOR ─────────────────────────────────────────────────────────
@@ -161,10 +198,20 @@ export function useChatGestor() {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [sending, setSending]         = useState(false);
   const { toast }                     = useToast();
-  const channelConversas              = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const channelMensagens              = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Carrega todas as conversas
+  // Refs para os canais Realtime
+  const chConversas = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const chGlobal    = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const chMensagens = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Mantém ref atualizada com as conversas (para evitar closure stale)
+  const conversasRef = useRef<ChatConversa[]>([]);
+  conversasRef.current = conversas;
+
+  // Mantém ref atualizada com a conversa selecionada
+  const selecionadaRef = useRef<ChatConversa | null>(null);
+  selecionadaRef.current = selecionada;
+
   const loadConversas = useCallback(async () => {
     setLoading(true);
     try {
@@ -181,46 +228,48 @@ export function useChatGestor() {
     }
   }, []);
 
-  // Carrega mensagens de uma conversa
   const abrirConversa = useCallback(async (cv: ChatConversa) => {
     setSelecionada(cv);
     setLoadingMsgs(true);
-
-    const limite = new Date();
-    limite.setDate(limite.getDate() - 30);
 
     const { data, error } = await (supabase as any)
       .from("chat_mensagens")
       .select("*")
       .eq("conversa_id", cv.id)
-      .gte("criada_em", limite.toISOString())
+      .gte("criada_em", getLimite30Dias())
       .order("criada_em", { ascending: true });
 
     if (!error) setMensagens((data as ChatMensagem[]) ?? []);
     setLoadingMsgs(false);
 
-    // Zera contador de não lidas para o gestor
+    // Zera não lidas desta conversa para o gestor
     await (supabase as any)
       .from("chat_conversas")
       .update({ nao_lidas_gestor: 0 })
       .eq("id", cv.id);
 
-    // Atualiza local
     setConversas(prev => prev.map(c => c.id === cv.id ? { ...c, nao_lidas_gestor: 0 } : c));
 
-    // Inscreve Realtime nas mensagens desta conversa
-    channelMensagens.current?.unsubscribe();
-    channelMensagens.current = supabase
-      .channel(`chat-gestor-msgs-${cv.id}`)
+    // ── Realtime: mensagens da conversa selecionada ──
+    chMensagens.current?.unsubscribe();
+    chMensagens.current = supabase
+      .channel(`chat-gestor-msgs-${cv.id}-${Date.now()}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_mensagens", filter: `conversa_id=eq.${cv.id}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_mensagens",
+          filter: `conversa_id=eq.${cv.id}`,
+        },
         (payload) => {
+          const nova = payload.new as ChatMensagem;
           setMensagens(prev => {
-            if (prev.some(m => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new as ChatMensagem];
+            if (prev.some(m => m.id === nova.id)) return prev;
+            return [...prev, nova];
           });
-          if ((payload.new as ChatMensagem).tipo_autor === "motorista") {
+          // Se motorista mandou enquanto tínhamos a conversa aberta, zera contador
+          if (nova.tipo_autor === "motorista") {
             (supabase as any)
               .from("chat_conversas")
               .update({ nao_lidas_gestor: 0 })
@@ -231,11 +280,12 @@ export function useChatGestor() {
       .subscribe();
   }, []);
 
-  // Realtime nas conversas (novos registros e updates)
+  // ── Realtime GLOBAL: escuta TODAS as msgs do motorista (para notificação) ──
   useEffect(() => {
     loadConversas();
 
-    channelConversas.current = supabase
+    // Canal 1: mudanças nas conversas (UPDATEs de ultima_mensagem, badges, INSERTs de novas)
+    chConversas.current = supabase
       .channel("chat-gestor-conversas")
       .on(
         "postgres_changes",
@@ -249,21 +299,61 @@ export function useChatGestor() {
           const updated = payload.new as ChatConversa;
           setConversas(prev =>
             prev
-              .map(c => c.id === updated.id ? { ...c, ...updated, motorista: c.motorista } : c)
+              .map(c => c.id === updated.id
+                ? { ...c, ...updated, motorista: c.motorista }
+                : c
+              )
               .sort((a, b) => {
                 const ta = a.ultima_mensagem_em ?? a.criada_em;
                 const tb = b.ultima_mensagem_em ?? b.criada_em;
                 return tb.localeCompare(ta);
               })
           );
-          setSelecionada(prev => prev?.id === updated.id ? { ...prev, ...updated } : prev);
+          setSelecionada(prev =>
+            prev?.id === updated.id ? { ...prev, ...updated } : prev
+          );
         }
       )
       .subscribe();
 
+    // Canal 2: TODAS as mensagens novas (sem filtro) → toast quando motorista escreve
+    chGlobal.current = supabase
+      .channel("chat-gestor-global-msgs")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_mensagens" },
+        (payload) => {
+          const nova = payload.new as ChatMensagem;
+
+          // Só notifica quando a msg é do motorista E não é da conversa atualmente aberta
+          if (
+            nova.tipo_autor === "motorista" &&
+            nova.conversa_id !== selecionadaRef.current?.id
+          ) {
+            // Encontra nome do motorista no estado atual
+            const cv = conversasRef.current.find(c => c.id === nova.conversa_id);
+            const nome = cv?.motorista?.nome ?? "Motorista";
+
+            toast({
+              title: `💬 ${nome}`,
+              description: nova.mensagem.length > 60
+                ? nova.mensagem.slice(0, 60) + "…"
+                : nova.mensagem,
+              duration: 6000,
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIPTION_ERROR") {
+          console.warn("Realtime chat gestor global: erro na subscription");
+        }
+      });
+
     return () => {
-      channelConversas.current?.unsubscribe();
-      channelMensagens.current?.unsubscribe();
+      chConversas.current?.unsubscribe();
+      chGlobal.current?.unsubscribe();
+      chMensagens.current?.unsubscribe();
     };
   }, [loadConversas]);
 
@@ -271,23 +361,33 @@ export function useChatGestor() {
     if (!selecionada?.id || !texto.trim()) return;
     setSending(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await (supabase as any)
         .from("chat_mensagens")
         .insert({
           conversa_id: selecionada.id,
-          autor_id:    (await supabase.auth.getUser()).data.user?.id,
+          autor_id:    user?.id,
           tipo_autor:  "gestor",
           mensagem:    texto.trim(),
         });
       if (error) throw error;
+
+      // ── Envia push para o motorista ─────────────────────────────────────
+      // Usa o employee_id do motorista para notificar via VAPID
+      if (selecionada.motorista_id) {
+        enviarPushChat(
+          selecionada.motorista_id,
+          "💬 Mensagem do Gestor",
+          texto.trim().length > 100 ? texto.trim().slice(0, 100) + "…" : texto.trim()
+        );
+      }
     } catch (err: any) {
       toast({ title: "Erro ao enviar mensagem", description: err.message, variant: "destructive" });
     } finally {
       setSending(false);
     }
-  }, [selecionada?.id]);
+  }, [selecionada]);
 
-  // Total de não lidas para badge no menu
   const totalNaoLidas = conversas.reduce((s, c) => s + (c.nao_lidas_gestor ?? 0), 0);
 
   return {
@@ -303,7 +403,7 @@ export function useChatGestor() {
   };
 }
 
-// ── Hook leve apenas para o badge no Sidebar ───────────────────────────────────
+// ── Hook leve para o badge no Sidebar ─────────────────────────────────────────
 export function useChatGestorBadge() {
   const [total, setTotal] = useState(0);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -312,7 +412,9 @@ export function useChatGestorBadge() {
     const { data } = await (supabase as any)
       .from("chat_conversas")
       .select("nao_lidas_gestor");
-    if (data) setTotal((data as any[]).reduce((s, c) => s + (c.nao_lidas_gestor ?? 0), 0));
+    if (data) {
+      setTotal((data as any[]).reduce((s, c) => s + (c.nao_lidas_gestor ?? 0), 0));
+    }
   }, []);
 
   useEffect(() => {
@@ -332,7 +434,7 @@ export function useChatGestorBadge() {
   return total;
 }
 
-// Hook leve para badge da aba Chat no app do motorista
+// ── Hook leve para o badge da aba Chat no app do motorista ────────────────────
 export function useChatMotoristaBadge(motoristaId: string | undefined) {
   const [total, setTotal] = useState(0);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -353,9 +455,16 @@ export function useChatMotoristaBadge(motoristaId: string | undefined) {
 
     channelRef.current = supabase
       .channel(`chat-badge-motorista-${motoristaId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "chat_conversas",
-          filter: `motorista_id=eq.${motoristaId}` },
-        () => fetchTotal())
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chat_conversas",
+          filter: `motorista_id=eq.${motoristaId}`,
+        },
+        () => fetchTotal()
+      )
       .subscribe();
 
     return () => { channelRef.current?.unsubscribe(); };
