@@ -61,42 +61,50 @@ export default function MobileApp() {
   const temAcesso  = isFuncionario || metaAccess || (employee?.acesso_app_motorista === true);
 
   // ── Notificação global: toast quando gestor envia msg e motorista não está na aba chat ──
+  // Observa chat_conversas (com filtro por motorista_id) em vez de chat_mensagens sem filtro.
+  // O trigger do banco já atualiza nao_lidas_motorista e ultima_mensagem, então é mais confiável.
   useEffect(() => {
     if (!employee?.id) return;
 
-    // Primeiro encontra o id da conversa deste motorista
-    let conversaId: string | null = null;
+    let prevNaoLidas = 0;
+
+    // Lê o valor inicial de nao_lidas para comparar depois
     (supabase as any)
       .from("chat_conversas")
-      .select("id")
+      .select("nao_lidas_motorista")
       .eq("motorista_id", employee.id)
       .maybeSingle()
-      .then(({ data }: { data: { id: string } | null }) => {
-        if (!data) return;
-        conversaId = data.id;
+      .then(({ data }: { data: { nao_lidas_motorista: number } | null }) => {
+        if (data) prevNaoLidas = data.nao_lidas_motorista ?? 0;
       });
 
     const channel = supabase
-      .channel(`app-chat-global-${employee.id}`)
+      .channel(`app-notif-conv-${employee.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_mensagens" },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_conversas",
+          filter: `motorista_id=eq.${employee.id}`,
+        },
         (payload) => {
-          const nova = payload.new as { tipo_autor: string; mensagem: string; conversa_id: string };
-          // Só mostra toast se: é msg do gestor, é da minha conversa, e NÃO estou na aba chat
-          if (
-            nova.tipo_autor === "gestor" &&
-            nova.conversa_id === conversaId &&
-            activeRef.current !== "chat"
-          ) {
+          const updated = payload.new as { nao_lidas_motorista: number; ultima_mensagem: string | null };
+          const novasNaoLidas = updated.nao_lidas_motorista ?? 0;
+
+          // Só notifica se nao_lidas aumentou E não está na aba chat
+          if (novasNaoLidas > prevNaoLidas && activeRef.current !== "chat") {
             toast({
               title: "💬 Mensagem do Gestor",
-              description: nova.mensagem.length > 60
-                ? nova.mensagem.slice(0, 60) + "…"
-                : nova.mensagem,
+              description: updated.ultima_mensagem
+                ? (updated.ultima_mensagem.length > 60
+                    ? updated.ultima_mensagem.slice(0, 60) + "…"
+                    : updated.ultima_mensagem)
+                : "Nova mensagem",
               duration: 6000,
             });
           }
+          prevNaoLidas = novasNaoLidas;
         }
       )
       .subscribe();

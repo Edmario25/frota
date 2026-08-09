@@ -201,7 +201,6 @@ export function useChatGestor() {
 
   // Refs para os canais Realtime
   const chConversas = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const chGlobal    = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const chMensagens = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Mantém ref atualizada com as conversas (para evitar closure stale)
@@ -285,6 +284,8 @@ export function useChatGestor() {
     loadConversas();
 
     // Canal 1: mudanças nas conversas (UPDATEs de ultima_mensagem, badges, INSERTs de novas)
+    // O trigger do banco atualiza nao_lidas_gestor e ultima_mensagem em chat_conversas →
+    // usamos isso para notificar o gestor em vez de ouvir chat_mensagens sem filtro.
     chConversas.current = supabase
       .channel("chat-gestor-conversas")
       .on(
@@ -297,6 +298,26 @@ export function useChatGestor() {
         { event: "UPDATE", schema: "public", table: "chat_conversas" },
         (payload) => {
           const updated = payload.new as ChatConversa;
+
+          // Notifica se nao_lidas_gestor aumentou para uma conversa não selecionada
+          const prev = conversasRef.current.find(c => c.id === updated.id);
+          if (
+            (updated.nao_lidas_gestor ?? 0) > (prev?.nao_lidas_gestor ?? 0) &&
+            selecionadaRef.current?.id !== updated.id
+          ) {
+            const nome = prev?.motorista?.nome ?? "Motorista";
+            toast({
+              title: `💬 ${nome}`,
+              description: updated.ultima_mensagem
+                ? (updated.ultima_mensagem.length > 60
+                    ? updated.ultima_mensagem.slice(0, 60) + "…"
+                    : updated.ultima_mensagem)
+                : "Nova mensagem",
+              duration: 6000,
+            });
+          }
+
+          // Atualiza estado da lista
           setConversas(prev =>
             prev
               .map(c => c.id === updated.id
@@ -316,43 +337,8 @@ export function useChatGestor() {
       )
       .subscribe();
 
-    // Canal 2: TODAS as mensagens novas (sem filtro) → toast quando motorista escreve
-    chGlobal.current = supabase
-      .channel("chat-gestor-global-msgs")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_mensagens" },
-        (payload) => {
-          const nova = payload.new as ChatMensagem;
-
-          // Só notifica quando a msg é do motorista E não é da conversa atualmente aberta
-          if (
-            nova.tipo_autor === "motorista" &&
-            nova.conversa_id !== selecionadaRef.current?.id
-          ) {
-            // Encontra nome do motorista no estado atual
-            const cv = conversasRef.current.find(c => c.id === nova.conversa_id);
-            const nome = cv?.motorista?.nome ?? "Motorista";
-
-            toast({
-              title: `💬 ${nome}`,
-              description: nova.mensagem.length > 60
-                ? nova.mensagem.slice(0, 60) + "…"
-                : nova.mensagem,
-              duration: 6000,
-            });
-          }
-        }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIPTION_ERROR") {
-          console.warn("Realtime chat gestor global: erro na subscription");
-        }
-      });
-
     return () => {
       chConversas.current?.unsubscribe();
-      chGlobal.current?.unsubscribe();
       chMensagens.current?.unsubscribe();
     };
   }, [loadConversas]);
