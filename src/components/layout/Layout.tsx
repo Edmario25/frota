@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { AlertasImportantesModal } from "./AlertasImportantesModal";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -39,6 +40,9 @@ export function Layout({ children }: LayoutProps) {
           {children}
         </main>
       </div>
+
+      {/* Modal de avisos importantes (folgas atrasadas / próximas) */}
+      <AlertasImportantesModal />
     </div>
   );
 }
