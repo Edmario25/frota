@@ -37,22 +37,33 @@ function getDiasAviso(): number {
   } catch { return 5; }
 }
 
-export function AlertasImportantesModal() {
+interface Props {
+  /** Controlado externamente (ex: botão do header) */
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  /** Callback com contagem de alertas encontrados */
+  onAlertsFound?: (count: number) => void;
+}
+
+export function AlertasImportantesModal({ open: externalOpen, onOpenChange, onAlertsFound }: Props = {}) {
   const { hasEscalaManagement, loading: loadingRole } = useUserRole();
   const navigate = useNavigate();
 
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
+
+  // Usa controle externo se fornecido, senão usa interno
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    setInternalOpen(v);
+    onOpenChange?.(v);
+  };
 
   useEffect(() => {
     if (loadingRole) return;
     if (!hasEscalaManagement) return;
-
-    // Só mostra uma vez por dia
-    if (localStorage.getItem(getDismissKey())) return;
-
     carregarAlertas();
-  }, [loadingRole, isAdmin, isGestor]);
+  }, [loadingRole, hasEscalaManagement]);
 
   async function carregarAlertas() {
     const hoje = new Date();
@@ -108,14 +119,20 @@ export function AlertasImportantesModal() {
       }
     }
 
+    // Ordenar: atrasadas primeiro, depois proximas por dias
+    lista.sort((a, b) => {
+      if (a.tipo !== b.tipo) return a.tipo === "atrasada" ? -1 : 1;
+      return a.diasRestantes - b.diasRestantes;
+    });
+
+    setAlertas(lista);
+    onAlertsFound?.(lista.length);
+
     if (lista.length > 0) {
-      // Ordenar: atrasadas primeiro, depois proximas por dias
-      lista.sort((a, b) => {
-        if (a.tipo !== b.tipo) return a.tipo === "atrasada" ? -1 : 1;
-        return a.diasRestantes - b.diasRestantes;
-      });
-      setAlertas(lista);
-      setOpen(true);
+      // Auto-abre só uma vez por dia (a menos que seja abertura manual via externalOpen)
+      if (externalOpen === undefined && !localStorage.getItem(getDismissKey())) {
+        setInternalOpen(true);
+      }
     }
   }
 

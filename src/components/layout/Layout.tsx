@@ -11,6 +11,8 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [alertasOpen, setAlertasOpen] = useState(false);
+  const [alertCount, setAlertCount] = useState(0);
 
   return (
     <div className="min-h-screen bg-background flex w-full">
@@ -35,14 +37,22 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <Header onMenuClick={() => setMobileOpen(true)} />
+        <Header
+          onMenuClick={() => setMobileOpen(true)}
+          alertCount={alertCount}
+          onBellClick={() => setAlertasOpen(true)}
+        />
         <main className="flex-1 p-5 overflow-auto animate-fade-in">
           {children}
         </main>
       </div>
 
-      {/* Modal de avisos importantes (folgas atrasadas / próximas) */}
-      <AlertasImportantesModal />
+      {/* Modal de avisos importantes */}
+      <AlertasImportantesModal
+        open={alertasOpen}
+        onOpenChange={setAlertasOpen}
+        onAlertsFound={setAlertCount}
+      />
     </div>
   );
 }

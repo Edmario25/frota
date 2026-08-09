@@ -30,9 +30,11 @@ const routeLabels: Record<string, string> = {
 
 interface HeaderProps {
   onMenuClick: () => void;
+  alertCount?: number;
+  onBellClick?: () => void;
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick, alertCount = 0, onBellClick }: HeaderProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,15 +73,19 @@ export function Header({ onMenuClick }: HeaderProps) {
             variant="ghost"
             size="icon"
             className="h-8 w-8 rounded-lg"
+            onClick={onBellClick}
+            title={alertCount > 0 ? `${alertCount} alerta${alertCount > 1 ? "s" : ""} de escala` : "Alertas"}
           >
-            <Bell className="h-4 w-4 text-muted-foreground" />
+            <Bell className={alertCount > 0 ? "h-4 w-4 text-amber-500" : "h-4 w-4 text-muted-foreground"} />
           </Button>
-          <Badge
-            variant="destructive"
-            className="absolute -top-1 -right-1 h-4 min-w-4 text-[10px] px-1 flex items-center justify-center rounded-full"
-          >
-            3
-          </Badge>
+          {alertCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-1 -right-1 h-4 min-w-4 text-[10px] px-1 flex items-center justify-center rounded-full pointer-events-none"
+            >
+              {alertCount > 9 ? "9+" : alertCount}
+            </Badge>
+          )}
         </div>
 
         {/* User menu */}

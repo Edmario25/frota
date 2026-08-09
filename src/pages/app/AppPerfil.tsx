@@ -119,12 +119,14 @@ export function AppPerfil() {
           )}
         </div>
 
-        {/* Notificações push */}
-        {"Notification" in window && (
+        {/* Notificações push — sempre visível, desabilitado se não suportado */}
+        {(() => {
+          const suportado = "Notification" in window && "serviceWorker" in navigator;
+          return (
           <button
-            onClick={handleTogglePush}
-            disabled={pushLoading}
-            className="w-full flex items-center gap-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm px-4 py-4"
+            onClick={suportado ? handleTogglePush : undefined}
+            disabled={pushLoading || !suportado}
+            className="w-full flex items-center gap-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm px-4 py-4 disabled:opacity-60"
           >
             <div className={cn(
               "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0",
@@ -141,7 +143,9 @@ export function AppPerfil() {
                 Notificações push
               </p>
               <p className="text-xs text-slate-400">
-                {pushAtivo ? "Ativadas neste dispositivo" : "Toque para receber alertas de escala"}
+                {!suportado
+                  ? "Não suportado neste navegador"
+                  : pushAtivo ? "Ativadas neste dispositivo" : "Toque para receber alertas de escala"}
               </p>
             </div>
             <span className={cn(
@@ -153,7 +157,8 @@ export function AppPerfil() {
               {pushAtivo ? "Ativo" : "Inativo"}
             </span>
           </button>
-        )}
+          );
+        })()}
 
         {/* Alterar senha */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">
