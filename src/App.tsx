@@ -199,7 +199,8 @@ const App = () => (
             } />
             <Route path="/chat" element={
               <ProtectedRoute>
-                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                {/* Chat restrito a gestor_obra (por obra) e admin — gestor_contrato sem acesso */}
+                <RoleProtectedRoute allowedRoles={['gestor_obra', 'admin']}>
                   <Chat />
                 </RoleProtectedRoute>
               </ProtectedRoute>

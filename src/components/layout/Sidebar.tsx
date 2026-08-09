@@ -32,6 +32,8 @@ import {
 const FULL_ACCESS = ['gestor_contrato', 'admin', 'gestor_frota'];
 const OBRA_ACCESS = [...FULL_ACCESS, 'gestor_obra'];
 const ALL_ROLES   = [...OBRA_ACCESS, 'funcionario'];
+// Chat: apenas gestor_obra (por obra) e admin — gestor_contrato e gestor_frota sem acesso
+const CHAT_ACCESS = ['gestor_obra', 'admin'];
 
 const menuGroups = [
   {
@@ -71,7 +73,7 @@ const menuGroups = [
   {
     group: "Comunicação",
     items: [
-      { title: "Chat", icon: MessageSquare, url: "/chat", roles: OBRA_ACCESS, badge: "chat" as const },
+      { title: "Chat", icon: MessageSquare, url: "/chat", roles: CHAT_ACCESS, badge: "chat" as const },
     ]
   },
   {
