@@ -70,9 +70,10 @@ export function AppEscala() {
       )
     : undefined;
 
-  // Dias de trabalho e folga no mês
-  const diasTrabalho = days.filter(d => getDayType(d, myPeriodos, employee?.id ?? "") === "trabalho").length;
-  const diasFolga    = days.filter(d => getDayType(d, myPeriodos, employee?.id ?? "") === "folga").length;
+  // Referência para as stats: período em folga > período atual > próxima folga > primeiro período
+  const periodoRef = periodoEmFolga ?? currentPeriodo ?? nextFolga ?? myPeriodos[0];
+  const diasTrabalho = periodoRef?.escala_tipo?.dias_trabalho ?? 0;
+  const diasFolga    = periodoRef?.escala_tipo?.dias_folga ?? 0;
 
   if (loading) {
     return (
@@ -173,15 +174,17 @@ export function AppEscala() {
           </div>
         )}
 
-        {/* Stats do mês */}
+        {/* Stats da escala */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm text-center">
             <p className="text-2xl font-extrabold text-blue-600">{diasTrabalho}</p>
             <p className="text-xs text-slate-500 mt-0.5">Dias de trabalho</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">por ciclo</p>
           </div>
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm text-center">
             <p className="text-2xl font-extrabold text-green-600">{diasFolga}</p>
             <p className="text-xs text-slate-500 mt-0.5">Dias de folga</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">por ciclo</p>
           </div>
         </div>
 
@@ -288,7 +291,7 @@ export function AppEscala() {
           </div>
         </div>
 
-        {/* Períodos do mês */}
+        {/* Períodos Registrados */}
         {myPeriodos.length > 0 && (
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
@@ -296,18 +299,41 @@ export function AppEscala() {
             </div>
             <div className="divide-y divide-slate-100 dark:divide-slate-700">
               {myPeriodos.slice(0, 5).map(p => (
-                <div key={p.id} className="px-4 py-3">
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    {p.escala_tipo?.nome ?? "—"}
-                  </p>
-                  <div className="flex gap-3 mt-1">
-                    <span className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
-                      Trab: {format(parseISO(p.data_inicio_trabalho), "dd/MM")} – {format(parseISO(p.data_fim_trabalho), "dd/MM")}
-                    </span>
-                    <span className="text-xs text-green-600 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                      Folga: {format(parseISO(p.data_inicio_folga), "dd/MM")} – {format(parseISO(p.data_fim_folga), "dd/MM")}
+                <div key={p.id} className="px-4 py-3 flex items-center gap-3">
+                  {/* Tipo de escala */}
+                  <div className="h-9 w-9 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
+                    <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400">
+                      {p.escala_tipo?.nome?.replace(/[^0-9x×]/gi, "") ?? "—"}
                     </span>
                   </div>
+                  {/* Datas de folga */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-slate-400 mb-1">{p.escala_tipo?.nome ?? "—"}</p>
+                    <div className="flex items-center gap-2">
+                      <div className="text-center">
+                        <p className="text-[10px] text-slate-400 leading-none">Saída</p>
+                        <p className="text-sm font-bold text-green-600 dark:text-green-400 mt-0.5">
+                          {format(parseISO(p.data_inicio_folga), "dd/MM/yy")}
+                        </p>
+                      </div>
+                      <div className="flex-1 h-px bg-slate-200 dark:bg-slate-600 mx-1" />
+                      <div className="text-center">
+                        <p className="text-[10px] text-slate-400 leading-none">Retorno</p>
+                        <p className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                          {format(parseISO(p.data_fim_folga), "dd/MM/yy")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Status badge */}
+                  <span className={cn(
+                    "text-[10px] font-semibold px-2 py-1 rounded-full flex-shrink-0",
+                    p.status === 'em_folga'  ? "bg-green-100 text-green-700" :
+                    p.status === 'concluido' ? "bg-slate-100 text-slate-500" :
+                    "bg-blue-50 text-blue-600"
+                  )}>
+                    {p.status === 'em_folga' ? "Em folga" : p.status === 'concluido' ? "Concluído" : "Agendado"}
+                  </span>
                 </div>
               ))}
             </div>
