@@ -16,6 +16,7 @@ import { AppLogin } from "./AppLogin";
 import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
 
 type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "perfil";
+type LancarType = "abastecimento" | "manutencao" | "borracharia" | "lavagem" | "multa" | "avaria" | null;
 
 const tabs = [
   { id: "home",      label: "Início",    Icon: Home },
@@ -28,7 +29,17 @@ const tabs = [
 
 export default function MobileApp() {
   const [active, setActive] = useState<Tab>("home");
+  const [lancarType, setLancarType] = useState<LancarType>(null);
   const navigate = useNavigate();
+
+  const handleNavigate = (tab: Tab, subType?: string) => {
+    if (tab === "lancar" && subType) {
+      setLancarType(subType as LancarType);
+    } else {
+      setLancarType(null);
+    }
+    setActive(tab);
+  };
 
   const { user, loading: loadingAuth }           = useAuth();
   const { isFuncionario, loading: loadingRole }  = useUserRole();
@@ -73,8 +84,8 @@ export default function MobileApp() {
 
   const renderTab = () => {
     switch (active) {
-      case "home":      return <AppHome onNavigate={setActive} />;
-      case "lancar":    return <AppLancar />;
+      case "home":      return <AppHome onNavigate={handleNavigate} />;
+      case "lancar":    return <AppLancar initialType={lancarType} />;
       case "checklist": return <AppChecklist />;
       case "fumaca":    return <AppFumaca />;
       case "escala":    return <AppEscala />;
@@ -120,7 +131,7 @@ export default function MobileApp() {
           {tabs.map(({ id, label, Icon }) => (
             <button
               key={id}
-              onClick={() => setActive(id as Tab)}
+              onClick={() => handleNavigate(id as Tab)}
               className={cn(
                 "flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative",
                 active === id

@@ -15,7 +15,7 @@ function getInitials(name: string) {
   return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-export function AppHome({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
+export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: string) => void }) {
   const { vehicle, kmCycle, loading: vLoading } = useEmployeeVehicle();
   const { employee, loading: eLoading } = useCurrentEmployee();
   const { escalaPeriodos, loading: esLoading } = useEscalas();
@@ -173,14 +173,14 @@ export function AppHome({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Ações Rápidas</p>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { icon: Fuel, label: "Abastecer",  color: "bg-blue-500",  tab: "lancar" },
-              { icon: Wrench, label: "Manutenção", color: "bg-amber-500", tab: "lancar" },
-              { icon: ClipboardListIcon, label: "Checklist",  color: "bg-violet-500", tab: "checklist" },
-              { icon: WindIcon, label: "Fumaça",     color: "bg-teal-500",  tab: "fumaca" },
-            ].map(({ icon: Icon, label, color, tab }) => (
+              { icon: Fuel, label: "Abastecer",  color: "bg-blue-500",  tab: "lancar", subType: "abastecimento" },
+              { icon: Wrench, label: "Manutenção", color: "bg-amber-500", tab: "lancar", subType: "manutencao" },
+              { icon: ClipboardListIcon, label: "Checklist",  color: "bg-violet-500", tab: "checklist", subType: undefined },
+              { icon: WindIcon, label: "Fumaça",     color: "bg-teal-500",  tab: "fumaca",  subType: undefined },
+            ].map(({ icon: Icon, label, color, tab, subType }) => (
               <button
                 key={label}
-                onClick={() => onNavigate(tab as Tab)}
+                onClick={() => onNavigate(tab as Tab, subType)}
                 className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-4 text-left active:scale-95 transition-transform"
               >
                 <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0", color)}>

@@ -659,6 +659,7 @@ export type Database = {
           data_realizada: string | null
           descricao: string
           id: string
+          foto_url: string | null
           observacoes: string | null
           oficina: string | null
           quilometragem: number | null
@@ -675,6 +676,7 @@ export type Database = {
           data_agendada: string
           data_realizada?: string | null
           descricao: string
+          foto_url?: string | null
           id?: string
           observacoes?: string | null
           oficina?: string | null
@@ -692,6 +694,7 @@ export type Database = {
           data_agendada?: string
           data_realizada?: string | null
           descricao?: string
+          foto_url?: string | null
           id?: string
           observacoes?: string | null
           oficina?: string | null

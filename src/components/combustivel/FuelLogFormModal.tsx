@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FornecedorSelect } from "@/components/ui/FornecedorSelect";
+import { PhotoUpload } from "@/components/ui/photo-upload";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -21,6 +22,7 @@ const schema = z.object({
   horimetro_no_abastecimento: z.number().min(0).optional(),
   posto_nome: z.string().optional(),
   observacoes: z.string().optional(),
+  foto_comprovante_url: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -38,6 +40,7 @@ export const FuelLogFormModal = ({
   open, onOpenChange, vehicleId, tipoMedicao = 'km', fuelLog, onSubmit,
 }: FuelLogFormModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fotoUrl, setFotoUrl] = useState<string>("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -66,6 +69,7 @@ export const FuelLogFormModal = ({
           posto_nome: fuelLog.posto_nome || "",
           observacoes: fuelLog.observacoes || "",
         });
+        setFotoUrl(fuelLog.foto_comprovante_url || "");
       } else {
         form.reset({
           data_abastecimento: new Date().toISOString().split("T")[0],
@@ -77,6 +81,7 @@ export const FuelLogFormModal = ({
           posto_nome: "",
           observacoes: "",
         });
+        setFotoUrl("");
       }
     }
   }, [open, fuelLog, form]);
@@ -99,6 +104,7 @@ export const FuelLogFormModal = ({
         horimetro_no_abastecimento: tipoMedicao === 'horimetro' ? (values.horimetro_no_abastecimento ?? null) : null,
         posto_nome: values.posto_nome || null,
         observacoes: values.observacoes || null,
+        foto_comprovante_url: fotoUrl || null,
       });
       onOpenChange(false);
     } finally {
@@ -224,6 +230,15 @@ export const FuelLogFormModal = ({
                 <FormMessage />
               </FormItem>
             )} />
+
+            <PhotoUpload
+              label="Foto do comprovante de abastecimento"
+              value={fotoUrl}
+              onChange={(url) => setFotoUrl(url || "")}
+              bucketName="fuel-photos"
+              vehicleId={vehicleId}
+              disabled={isSubmitting}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>

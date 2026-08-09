@@ -19,6 +19,7 @@ import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { FornecedorSelect } from "@/components/ui/FornecedorSelect";
+import { PhotoUpload } from "@/components/ui/photo-upload";
 
 interface MaintenanceFormModalProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
     responsavel: "",
     oficina: "",
     observacoes: "",
+    foto_url: "",
     status: "agendada" as 'agendada' | 'em_andamento' | 'concluida' | 'cancelada',
     created_by: ""
   });
@@ -77,6 +79,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
         responsavel: maintenance.responsavel || "",
         oficina: maintenance.oficina || "",
         observacoes: maintenance.observacoes || "",
+        foto_url: maintenance.foto_url || "",
         status: maintenance.status || "agendada",
         created_by: maintenance.created_by || ""
       });
@@ -95,6 +98,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
         responsavel: "",
         oficina: "",
         observacoes: "",
+        foto_url: "",
         status: "agendada" as 'agendada' | 'em_andamento' | 'concluida' | 'cancelada',
         created_by: ""
       });
@@ -162,6 +166,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
         responsavel: formData.responsavel,
         oficina: formData.oficina,
         observacoes: formData.observacoes,
+        foto_url: formData.foto_url || null,
         status: formData.status as 'agendada' | 'em_andamento' | 'concluida' | 'cancelada',
         created_by: createdByUserId
       };
@@ -391,6 +396,15 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
               rows={3}
             />
           </div>
+
+          <PhotoUpload
+            label="Foto da manutenção (comprovante / serviço)"
+            value={formData.foto_url}
+            onChange={(url) => setFormData(prev => ({ ...prev, foto_url: url || "" }))}
+            bucketName="maintenance-photos"
+            vehicleId={formData.vehicle_id}
+            disabled={loading}
+          />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
