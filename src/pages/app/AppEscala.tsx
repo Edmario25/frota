@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, CalendarDays, Loader2, Bell, X, CheckCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Loader2, Bell, X, CheckCheck, PlaneTakeoff, PlaneLanding, Clock } from "lucide-react";
 import { useEscalas } from "@/hooks/useEscalas";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
@@ -46,18 +46,29 @@ export function AppEscala() {
   // Pad início com dias vazios
   const startPad = firstDay.getDay(); // 0=Dom
 
-  // Próxima folga a partir de hoje
+  // Período de folga atual (em_folga confirmado OU dentro do intervalo de datas)
+  const periodoEmFolga = myPeriodos.find(p =>
+    p.status === 'em_folga' ||
+    (p.status === 'agendado' && isWithinInterval(today, {
+      start: parseISO(p.data_inicio_folga),
+      end: parseISO(p.data_fim_folga),
+    }))
+  );
+
+  // Próxima folga agendada (ainda não começou)
   const nextFolga = myPeriodos
-    .filter(p => parseISO(p.data_inicio_folga) >= today)
+    .filter(p => p.status !== 'concluido' && parseISO(p.data_inicio_folga) > today)
     .sort((a, b) => a.data_inicio_folga.localeCompare(b.data_inicio_folga))[0];
 
-  // Escala atual
-  const currentPeriodo = myPeriodos.find(p =>
-    isWithinInterval(today, {
-      start: parseISO(p.data_inicio_trabalho),
-      end: parseISO(p.data_fim_trabalho),
-    })
-  );
+  // Escala atual (período de trabalho)
+  const currentPeriodo = !periodoEmFolga
+    ? myPeriodos.find(p =>
+        isWithinInterval(today, {
+          start: parseISO(p.data_inicio_trabalho),
+          end: parseISO(p.data_fim_trabalho),
+        })
+      )
+    : undefined;
 
   // Dias de trabalho e folga no mês
   const diasTrabalho = days.filter(d => getDayType(d, myPeriodos, employee?.id ?? "") === "trabalho").length;
@@ -90,6 +101,30 @@ export function AppEscala() {
       </div>
 
       <div className="p-4 space-y-4 pb-8">
+
+        {/* ── Banner: Em folga agora ──────────────────────────────── */}
+        {periodoEmFolga && (
+          <div className="bg-green-500 rounded-2xl p-4 flex items-center gap-3 text-white shadow-md">
+            <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 text-2xl">
+              🌴
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base">Você está de folga!</p>
+              <p className="text-green-100 text-xs mt-0.5">
+                Retorno previsto:{" "}
+                <span className="font-semibold text-white">
+                  {format(parseISO(periodoEmFolga.data_fim_folga), "dd 'de' MMMM", { locale: ptBR })}
+                </span>
+              </p>
+              {periodoEmFolga.status === 'em_folga' && (
+                <p className="text-green-100 text-[10px] mt-0.5 flex items-center gap-1">
+                  <PlaneTakeoff className="h-3 w-3" />
+                  Saída confirmada pelo gestor
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Notificações de escala ──────────────────────────────── */}
         {notificacoes.length > 0 && (
@@ -151,19 +186,40 @@ export function AppEscala() {
         </div>
 
         {/* Próxima folga */}
-        {nextFolga && (
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-2xl p-4 border border-green-200 dark:border-green-800 flex items-center gap-3">
-            <span className="text-3xl">🌴</span>
-            <div>
-              <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Próxima folga</p>
-              <p className="font-bold text-slate-800 dark:text-slate-100">
-                {format(parseISO(nextFolga.data_inicio_folga), "dd 'de' MMMM", { locale: ptBR })}
-                {" "}–{" "}
-                {format(parseISO(nextFolga.data_fim_folga), "dd 'de' MMMM", { locale: ptBR })}
-              </p>
-              <p className="text-xs text-green-700 dark:text-green-400">
-                {nextFolga.escala_tipo?.dias_folga ?? "?"} dias de descanso
-              </p>
+        {nextFolga && !periodoEmFolga && (
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-2xl p-4 border border-green-200 dark:border-green-800">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl flex-shrink-0">🌴</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Próxima folga</p>
+                  {/* Badge: Prevista ou Confirmada */}
+                  <span className={cn(
+                    "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                    nextFolga.status === 'em_folga'
+                      ? "bg-green-200 text-green-800"
+                      : "bg-amber-100 text-amber-700"
+                  )}>
+                    {nextFolga.status === 'em_folga' ? "✅ Confirmada" : "⏳ Prevista"}
+                  </span>
+                </div>
+                <p className="font-bold text-slate-800 dark:text-slate-100 mt-0.5">
+                  {format(parseISO(nextFolga.data_inicio_folga), "dd 'de' MMMM", { locale: ptBR })}
+                  {" "}–{" "}
+                  {format(parseISO(nextFolga.data_fim_folga), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </p>
+                <div className="flex items-center gap-3 mt-1">
+                  <p className="text-xs text-green-700 dark:text-green-400">
+                    {nextFolga.escala_tipo?.dias_folga ?? "?"} dias de descanso
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {(() => {
+                      const diff = Math.ceil((parseISO(nextFolga.data_inicio_folga).getTime() - today.getTime()) / 86400000);
+                      return diff === 1 ? "Começa amanhã" : `Em ${diff} dias`;
+                    })()}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}

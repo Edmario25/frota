@@ -24,6 +24,8 @@ import {
   Calendar, Clock, Plus, Edit, Trash2, Settings,
   AlertTriangle, CheckCircle, Briefcase, Coffee,
   Bell, CalendarRange, MoreHorizontal, X,
+  LogOut, RotateCcw, Coffee as CoffeeIcon, ArrowLeftRight,
+  PlaneTakeoff, PlaneLanding,
 } from "lucide-react";
 import { format, isWithinInterval, parseISO, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -282,6 +284,8 @@ const Escalas = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'tipo' | 'periodo'; id: string; name: string } | null>(null);
   const [alertasDismissed, setAlertasDismissed] = useState<string[]>([]);
   const [autorizando, setAutorizando] = useState<string | null>(null);
+  const [atualizandoStatus, setAtualizandoStatus] = useState<string | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "agendado" | "em_folga" | "concluido">("todos");
 
   const diasAviso = useMemo(getDiasAviso, []);
   const hoje = new Date();
@@ -343,6 +347,55 @@ const Escalas = () => {
     );
   };
 
+  const handleConfirmarSaida = async (periodo: EscalaPeriodo) => {
+    setAtualizandoStatus(periodo.id);
+    try {
+      await updateEscalaPeriodo(periodo.id, { status: 'em_folga' });
+      const nome = periodo.employee?.nome ?? "Funcionário";
+      const dataRetorno = format(new Date(periodo.data_fim_folga), "dd/MM/yyyy", { locale: ptBR });
+      await criarNotificacao({
+        employee_id: periodo.employee_id,
+        periodo_id: periodo.id,
+        tipo: "escala_remarcada",
+        titulo: "Saída para folga confirmada ✅",
+        mensagem: `Sua saída foi confirmada. Retorno previsto em ${dataRetorno}.`,
+      });
+      await enviarPush(
+        periodo.employee_id,
+        "Saída confirmada ✅",
+        `${nome}, sua saída para folga foi registrada. Retorno em ${dataRetorno}.`
+      );
+    } catch (e) {
+      console.error("Erro ao confirmar saída:", e);
+    } finally {
+      setAtualizandoStatus(null);
+    }
+  };
+
+  const handleConfirmarRetorno = async (periodo: EscalaPeriodo) => {
+    setAtualizandoStatus(periodo.id);
+    try {
+      await updateEscalaPeriodo(periodo.id, { status: 'concluido' });
+      const nome = periodo.employee?.nome ?? "Funcionário";
+      await criarNotificacao({
+        employee_id: periodo.employee_id,
+        periodo_id: periodo.id,
+        tipo: "escala_remarcada",
+        titulo: "Retorno ao trabalho confirmado",
+        mensagem: `Seu retorno ao trabalho foi registrado pelo gestor.`,
+      });
+      await enviarPush(
+        periodo.employee_id,
+        "Retorno confirmado",
+        `${nome}, seu retorno ao trabalho foi registrado.`
+      );
+    } catch (e) {
+      console.error("Erro ao confirmar retorno:", e);
+    } finally {
+      setAtualizandoStatus(null);
+    }
+  };
+
   const handleAutorizar = async (periodo: EscalaPeriodo) => {
     setAutorizando(periodo.id);
     try {
@@ -390,28 +443,33 @@ const Escalas = () => {
   };
 
   const getStatusBadge = (periodo: EscalaPeriodo) => {
+    if (periodo.status === 'em_folga') {
+      return <Badge className="bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400"><PlaneTakeoff className="h-3 w-3 mr-1" />Em Folga</Badge>;
+    }
+    if (periodo.status === 'concluido') {
+      return <Badge variant="secondary"><PlaneLanding className="h-3 w-3 mr-1" />Concluído</Badge>;
+    }
     if (periodo.conflito_detectado && !periodo.conflito_autorizado) {
       return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Conflito</Badge>;
     }
     if (periodo.conflito_detectado && periodo.conflito_autorizado) {
       return <Badge variant="secondary"><CheckCircle className="h-3 w-3 mr-1" />Autorizado</Badge>;
     }
-    if (periodo.status === 'agendado') {
-      return <Badge variant="outline">Agendado</Badge>;
-    }
-    return <Badge>{periodo.status}</Badge>;
+    return <Badge variant="outline">Agendado</Badge>;
   };
 
-  // Stats calculations
-  const periodosAtivos = escalaPeriodos.filter(p => {
-    const hoje = new Date();
-    const inicioFolga = new Date(p.data_inicio_folga);
-    const fimFolga = new Date(p.data_fim_folga);
-    return hoje >= inicioFolga && hoje <= fimFolga;
-  }).length;
-
+  // Stats
+  const periodosAtivos   = escalaPeriodos.filter(p => p.status === 'em_folga').length;
   const periodosAgendados = escalaPeriodos.filter(p => p.status === 'agendado').length;
-  const conflitos = escalaPeriodos.filter(p => p.conflito_detectado && !p.conflito_autorizado).length;
+  const conflitos         = escalaPeriodos.filter(p => p.conflito_detectado && !p.conflito_autorizado).length;
+
+  // Períodos filtrados para a tabela
+  const periodosFiltrados = useMemo(() =>
+    filtroStatus === "todos"
+      ? escalaPeriodos
+      : escalaPeriodos.filter(p => p.status === filtroStatus),
+    [escalaPeriodos, filtroStatus]
+  );
 
   return (
     <Layout>
@@ -573,19 +631,45 @@ const Escalas = () => {
 
           <TabsContent value="periodos" className="mt-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Períodos Agendados</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+                <CardTitle>Períodos de Escala</CardTitle>
+                {/* Filtro rápido por status */}
+                <div className="flex gap-1 flex-wrap">
+                  {([
+                    { v: "todos",    label: "Todos" },
+                    { v: "agendado", label: "Agendados" },
+                    { v: "em_folga", label: "Em Folga" },
+                    { v: "concluido",label: "Concluídos" },
+                  ] as const).map(({ v, label }) => (
+                    <button
+                      key={v}
+                      onClick={() => setFiltroStatus(v)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        filtroStatus === v
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {label}
+                      {v !== "todos" && (
+                        <span className="ml-1 opacity-70">
+                          ({escalaPeriodos.filter(p => p.status === v).length})
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
                   <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-                ) : escalaPeriodos.length === 0 ? (
+                ) : periodosFiltrados.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <Calendar className="mx-auto h-12 w-12 mb-4" />
-                    <p>Nenhum período de escala cadastrado</p>
-                    {hasEscalaManagement && (
-                      <Button 
-                        className="mt-4" 
+                    <Calendar className="mx-auto h-12 w-12 mb-4 opacity-30" />
+                    <p>Nenhum período {filtroStatus !== "todos" ? `com status "${filtroStatus}"` : "cadastrado"}</p>
+                    {hasEscalaManagement && filtroStatus === "todos" && (
+                      <Button
+                        className="mt-4"
                         variant="outline"
                         onClick={() => { setSelectedPeriodo(null); setPeriodoModalOpen(true); }}
                       >
@@ -607,35 +691,66 @@ const Escalas = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {escalaPeriodos.map((periodo) => (
-                        <TableRow key={periodo.id}>
+                      {periodosFiltrados.map((periodo) => {
+                        const inicioFolga = new Date(periodo.data_inicio_folga);
+                        const fimFolga    = new Date(periodo.data_fim_folga);
+                        const podeConfirmarSaida   = periodo.status === 'agendado' && inicioFolga <= hoje;
+                        const podeConfirmarRetorno = periodo.status === 'em_folga';
+                        return (
+                        <TableRow
+                          key={periodo.id}
+                          className={
+                            periodo.status === 'em_folga'  ? "bg-green-50/40 dark:bg-green-950/20" :
+                            periodo.status === 'concluido' ? "opacity-60" : ""
+                          }
+                        >
                           <TableCell className="font-medium">{periodo.employee?.nome}</TableCell>
                           <TableCell>{periodo.escala_tipo?.nome}</TableCell>
-                          <TableCell>
-                            {format(new Date(periodo.data_inicio_trabalho), "dd/MM/yy", { locale: ptBR })} - {format(new Date(periodo.data_fim_trabalho), "dd/MM/yy", { locale: ptBR })}
+                          <TableCell className="text-sm">
+                            {format(new Date(periodo.data_inicio_trabalho), "dd/MM/yy", { locale: ptBR })} –{" "}
+                            {format(new Date(periodo.data_fim_trabalho), "dd/MM/yy", { locale: ptBR })}
                           </TableCell>
-                          <TableCell>
-                            {format(new Date(periodo.data_inicio_folga), "dd/MM/yy", { locale: ptBR })} - {format(new Date(periodo.data_fim_folga), "dd/MM/yy", { locale: ptBR })}
+                          <TableCell className="text-sm">
+                            <span className={periodo.status === 'em_folga' ? "text-green-700 dark:text-green-400 font-medium" : ""}>
+                              {format(inicioFolga, "dd/MM/yy", { locale: ptBR })} –{" "}
+                              {format(fimFolga, "dd/MM/yy", { locale: ptBR })}
+                            </span>
                           </TableCell>
                           <TableCell>{getStatusBadge(periodo)}</TableCell>
                           {hasEscalaManagement && (
                             <TableCell className="text-right">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
+                                  <Button variant="ghost" size="icon" disabled={atualizandoStatus === periodo.id}>
                                     <MoreHorizontal className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  {podeConfirmarSaida && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleConfirmarSaida(periodo)}
+                                      className="text-green-700 focus:text-green-700"
+                                    >
+                                      <PlaneTakeoff className="mr-2 h-4 w-4" />
+                                      Confirmar saída para folga
+                                    </DropdownMenuItem>
+                                  )}
+                                  {podeConfirmarRetorno && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleConfirmarRetorno(periodo)}
+                                      className="text-blue-700 focus:text-blue-700"
+                                    >
+                                      <PlaneLanding className="mr-2 h-4 w-4" />
+                                      Confirmar retorno ao trabalho
+                                    </DropdownMenuItem>
+                                  )}
+                                  {(podeConfirmarSaida || podeConfirmarRetorno) && <DropdownMenuSeparator />}
                                   <DropdownMenuItem onClick={() => handleRemarcar(periodo)}>
                                     <CalendarRange className="mr-2 h-4 w-4 text-blue-600" />
                                     Remarcar
                                   </DropdownMenuItem>
                                   {periodo.conflito_detectado && !periodo.conflito_autorizado && (
-                                    <DropdownMenuItem
-                                      onClick={() => handleAutorizar(periodo)}
-                                      disabled={autorizando === periodo.id}
-                                    >
+                                    <DropdownMenuItem onClick={() => handleAutorizar(periodo)} disabled={autorizando === periodo.id}>
                                       <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
                                       {autorizando === periodo.id ? "Autorizando..." : "Autorizar conflito"}
                                     </DropdownMenuItem>
@@ -657,7 +772,8 @@ const Escalas = () => {
                             </TableCell>
                           )}
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
