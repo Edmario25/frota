@@ -15,10 +15,12 @@ import {
   Gauge,
   Network,
   Wallet,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
+import { useChatGestorBadge } from "@/hooks/useChat";
 import {
   Tooltip,
   TooltipContent,
@@ -67,6 +69,12 @@ const menuGroups = [
     ]
   },
   {
+    group: "Comunicação",
+    items: [
+      { title: "Chat", icon: MessageSquare, url: "/chat", roles: OBRA_ACCESS, badge: "chat" as const },
+    ]
+  },
+  {
     group: "Admin",
     items: [
       { title: "Cargos", icon: Briefcase, url: "/cargos", roles: FULL_ACCESS },
@@ -91,9 +99,8 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
   const location = useLocation();
   const { role, loading } = useUserRole();
-
-  // Carrega branding do Supabase (funciona para todos os usuários, não só o admin)
   const { settings: branding } = useSystemSettings();
+  const chatUnread = useChatGestorBadge();
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -109,8 +116,10 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
     }))
     .filter(group => group.items.length > 0);
 
-  const renderItem = (item: typeof menuGroups[0]['items'][0]) => {
+  const renderItem = (item: (typeof menuGroups[0]['items'][0]) & { badge?: "chat" }) => {
     const active = isActive(item.url);
+    const badgeCount = item.badge === "chat" ? chatUnread : 0;
+
     const linkEl = (
       <NavLink
         key={item.url}
@@ -127,12 +136,27 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
         {active && (
           <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[hsl(var(--sidebar-primary))] rounded-r-full" />
         )}
-        <item.icon className={cn(
-          "flex-shrink-0 transition-colors",
-          collapsed ? "h-4 w-4" : "h-4 w-4",
-          active ? "text-[hsl(var(--sidebar-primary))]" : "text-[hsl(var(--sidebar-muted))] group-hover:text-[hsl(var(--sidebar-primary))]"
-        )} />
-        {!collapsed && <span className="truncate">{item.title}</span>}
+        {/* Ícone com badge opcional */}
+        <div className="relative flex-shrink-0">
+          <item.icon className={cn(
+            "h-4 w-4 transition-colors",
+            active ? "text-[hsl(var(--sidebar-primary))]" : "text-[hsl(var(--sidebar-muted))] group-hover:text-[hsl(var(--sidebar-primary))]"
+          )} />
+          {badgeCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-0.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center leading-none">
+              {badgeCount > 9 ? "9+" : badgeCount}
+            </span>
+          )}
+        </div>
+        {!collapsed && (
+          <span className="flex-1 truncate">{item.title}</span>
+        )}
+        {/* Badge no texto quando expandido */}
+        {!collapsed && badgeCount > 0 && (
+          <span className="ml-auto h-4 min-w-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none flex-shrink-0">
+            {badgeCount > 9 ? "9+" : badgeCount}
+          </span>
+        )}
       </NavLink>
     );
 
@@ -140,7 +164,9 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
       return (
         <Tooltip key={item.url} delayDuration={0}>
           <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">{item.title}</TooltipContent>
+          <TooltipContent side="right" className="font-medium">
+            {item.title}{badgeCount > 0 ? ` (${badgeCount})` : ""}
+          </TooltipContent>
         </Tooltip>
       );
     }

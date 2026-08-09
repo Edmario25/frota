@@ -26,6 +26,7 @@ const routeLabels: Record<string, string> = {
   "/cargos": "Cargos",
   "/configuracoes": "Configurações",
   "/minhas-informacoes": "Minhas Informações",
+  "/chat": "Chat com Motoristas",
 };
 
 interface HeaderProps {

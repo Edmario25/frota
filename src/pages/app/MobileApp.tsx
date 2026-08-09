@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw } from "lucide-react";
+import { Home, PlusCircle, ClipboardList, Wind, CalendarDays, User, WifiOff, RefreshCw, MessageSquare } from "lucide-react";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -12,25 +12,27 @@ import { AppChecklist } from "./AppChecklist";
 import { AppFumaca } from "./AppFumaca";
 import { AppEscala } from "./AppEscala";
 import { AppPerfil } from "./AppPerfil";
+import { AppChat } from "./AppChat";
 import { AppLogin } from "./AppLogin";
 import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
+import { useChatMotoristaBadge } from "@/hooks/useChat";
 
-type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "perfil";
+type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "chat" | "perfil";
 type LancarType = "abastecimento" | "manutencao" | "borracharia" | "lavagem" | "multa" | "avaria" | null;
 
 const tabs = [
   { id: "home",      label: "Início",    Icon: Home },
   { id: "lancar",    label: "Lançar",    Icon: PlusCircle },
   { id: "checklist", label: "Checklist", Icon: ClipboardList },
-  { id: "fumaca",    label: "Fumaça",    Icon: Wind },
   { id: "escala",    label: "Escala",    Icon: CalendarDays },
+  { id: "chat",      label: "Chat",      Icon: MessageSquare },
   { id: "perfil",    label: "Perfil",    Icon: User },
 ] as const;
 
 export default function MobileApp() {
-  const [active, setActive] = useState<Tab>("home");
+  const [active, setActive]       = useState<Tab>("home");
   const [lancarType, setLancarType] = useState<LancarType>(null);
-  const navigate = useNavigate();
+  const navigate                  = useNavigate();
 
   const handleNavigate = (tab: Tab, subType?: string) => {
     if (tab === "lancar" && subType) {
@@ -41,35 +43,26 @@ export default function MobileApp() {
     setActive(tab);
   };
 
-  const { user, loading: loadingAuth }           = useAuth();
-  const { isFuncionario, loading: loadingRole }  = useUserRole();
-  const { employee, loading: loadingEmployee }   = useCurrentEmployee();
-  const { isOnline, queueCount, syncQueue }      = useOnlineStatus();
-  const { unreadCount }                          = useEscalaNotificacoes();
+  const { user, loading: loadingAuth }          = useAuth();
+  const { isFuncionario, loading: loadingRole } = useUserRole();
+  const { employee, loading: loadingEmployee }  = useCurrentEmployee();
+  const { isOnline, queueCount, syncQueue }     = useOnlineStatus();
+  const { unreadCount: escalaUnread }           = useEscalaNotificacoes();
+  const chatUnread                              = useChatMotoristaBadge(employee?.id);
 
   const loading = loadingAuth || loadingRole || loadingEmployee;
 
-  /**
-   * Regra de acesso ao /app:
-   *  - Não autenticado → mostra tela de login própria do app
-   *  - Funcionário (tipo_acesso = 'funcionario'): sempre tem acesso
-   *  - Qualquer outro cargo: só tem acesso se acesso_app_motorista = true
-   *    (verificado via user_metadata — sincronizado por trigger no DB)
-   *  - Admins sem flag → redireciona ao dashboard gerencial
-   */
   const metaAccess = user?.user_metadata?.acesso_app_motorista === true;
   const temAcesso  = isFuncionario || metaAccess || (employee?.acesso_app_motorista === true);
 
   useEffect(() => {
-    // Só redireciona ao dashboard se estiver logado E não tiver acesso ao app
     if (!loadingAuth && !loadingRole && !loadingEmployee && user && !temAcesso) {
       navigate("/", { replace: true });
     }
   }, [loadingAuth, loadingRole, loadingEmployee, user, temAcesso, navigate]);
 
-  // Não logado → mostra login próprio do app
   if (!loadingAuth && !user) {
-    return <AppLogin onSuccess={() => {/* auth state atualiza via listener */}} />;
+    return <AppLogin onSuccess={() => {}} />;
   }
 
   if (loading) {
@@ -89,6 +82,7 @@ export default function MobileApp() {
       case "checklist": return <AppChecklist />;
       case "fumaca":    return <AppFumaca />;
       case "escala":    return <AppEscala />;
+      case "chat":      return <AppChat />;
       case "perfil":    return <AppPerfil />;
     }
   };
@@ -141,10 +135,18 @@ export default function MobileApp() {
             >
               <div className="relative">
                 <Icon className={cn("h-5 w-5", active === id && "scale-110 transition-transform")} />
-                {/* Badge de notificações na aba Escala */}
-                {id === "escala" && unreadCount > 0 && (
+
+                {/* Badge Escala */}
+                {id === "escala" && escalaUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
-                    {unreadCount > 9 ? "9+" : unreadCount}
+                    {escalaUnread > 9 ? "9+" : escalaUnread}
+                  </span>
+                )}
+
+                {/* Badge Chat */}
+                {id === "chat" && chatUnread > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {chatUnread > 9 ? "9+" : chatUnread}
                   </span>
                 )}
               </div>

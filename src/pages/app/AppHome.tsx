@@ -6,7 +6,7 @@ import { format, isWithinInterval, parseISO, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "perfil";
+type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "chat" | "perfil";
 
 const today = new Date();
 const todayStr = today.toISOString().split("T")[0];
