@@ -2,8 +2,16 @@
  * Toca um som de notificação curto usando Web Audio API.
  * Não precisa de arquivo externo — gera o som programaticamente.
  * Silencioso em caso de erro (política do browser, etc.).
+ *
+ * Debounce global de 2 s: mesmo que múltiplos hooks disparem ao mesmo tempo
+ * (ex: useChatGestor + useChatGestorBadge), o som toca apenas uma vez.
  */
+let _lastPlayedAt = 0;
+
 export function playNotifSound() {
+  const now = Date.now();
+  if (now - _lastPlayedAt < 2000) return; // já tocou recentemente
+  _lastPlayedAt = now;
   try {
     const Ctx = window.AudioContext ?? (window as any).webkitAudioContext;
     if (!Ctx) return;

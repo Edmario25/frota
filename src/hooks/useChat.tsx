@@ -426,17 +426,29 @@ export function useChatGestor() {
 }
 
 // ── Hook leve para o badge no Sidebar ─────────────────────────────────────────
+// Também toca som global quando chega mensagem nova — independente da página aberta.
 export function useChatGestorBadge() {
   const [total, setTotal] = useState(0);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const channelRef  = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const prevRef     = useRef<number | null>(null); // null = ainda não carregou
+  const firstLoad   = useRef(true);
 
   const fetchTotal = useCallback(async () => {
     const { data } = await (supabase as any)
       .from("chat_conversas")
       .select("nao_lidas_gestor");
-    if (data) {
-      setTotal((data as any[]).reduce((s, c) => s + (c.nao_lidas_gestor ?? 0), 0));
+    if (!data) return;
+
+    const novoTotal = (data as any[]).reduce((s, c) => s + (c.nao_lidas_gestor ?? 0), 0);
+
+    // Toca som só se não for o carregamento inicial e o total aumentou
+    if (!firstLoad.current && prevRef.current !== null && novoTotal > prevRef.current) {
+      playNotifSound();
     }
+
+    firstLoad.current = false;
+    prevRef.current   = novoTotal;
+    setTotal(novoTotal);
   }, []);
 
   useEffect(() => {

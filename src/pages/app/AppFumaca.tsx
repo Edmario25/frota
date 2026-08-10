@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Wind, Check, Loader2 } from "lucide-react";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
@@ -25,10 +25,18 @@ export function AppFumaca() {
   const { toast } = useToast();
 
   const [indice, setIndice]   = useState<number | null>(null);
+  const [km, setKm]           = useState("");
   const [obs, setObs]         = useState("");
   const [fotoUrl, setFotoUrl] = useState("");
   const [saving, setSaving]   = useState(false);
   const [done, setDone]       = useState<"aprovado" | "reprovado" | null>(null);
+
+  // Pré-preenche km do cadastro do veículo quando ele carrega
+  useEffect(() => {
+    if (vehicle?.quilometragem_atual != null) {
+      setKm(String(vehicle.quilometragem_atual));
+    }
+  }, [vehicle?.quilometragem_atual]);
 
   const selected = indice !== null ? RINGELMANN[indice] : null;
 
@@ -41,6 +49,7 @@ export function AppFumaca() {
         vehicle_id: vehicle.id,
         employee_id: employee?.id ?? null,
         indice_ringelmann: indice,
+        quilometragem_atual: km ? parseFloat(km) : null,
         data_teste: new Date().toISOString().split("T")[0],
         observacoes: obs || null,
         evidencias_url: fotoUrl || null,
@@ -91,7 +100,7 @@ export function AppFumaca() {
           </p>
         </div>
         <button
-          onClick={() => { setIndice(null); setObs(""); setFotoUrl(""); setDone(null); }}
+          onClick={() => { setIndice(null); setKm(vehicle?.quilometragem_atual != null ? String(vehicle.quilometragem_atual) : ""); setObs(""); setFotoUrl(""); setDone(null); }}
           className="mt-2 px-6 py-3 bg-teal-600 text-white font-semibold rounded-xl text-sm"
         >
           Novo Teste
@@ -130,6 +139,20 @@ export function AppFumaca() {
             </div>
           </div>
         )}
+
+        {/* KM Atual */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm">
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
+            KM Atual do Veículo
+          </label>
+          <input
+            type="number"
+            value={km}
+            onChange={e => setKm(e.target.value)}
+            placeholder="Informe a quilometragem"
+            className="w-full h-12 border border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 text-sm px-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
 
         {/* Escala Ringelmann */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, X, Minus, ClipboardCheck, Loader2, Camera } from "lucide-react";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
@@ -75,6 +75,13 @@ export function AppChecklist() {
 
   const setFoto = (key: FotoKey, url: string) =>
     setFotos(prev => ({ ...prev, [key]: url }));
+
+  // Pré-preenche km do cadastro do veículo quando ele carrega
+  useEffect(() => {
+    if (vehicle?.quilometragem_atual != null) {
+      setKm(String(vehicle.quilometragem_atual));
+    }
+  }, [vehicle?.quilometragem_atual]);
 
   const resetForm = () => {
     setStatuses({});
