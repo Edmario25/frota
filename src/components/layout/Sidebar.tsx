@@ -68,6 +68,7 @@ const menuGroups = [
     group: "Análises",
     items: [
       { title: "Relatórios", icon: BarChart3, url: "/relatorios", roles: OBRA_ACCESS },
+      { title: "Rel. Escalas", icon: Calendar, url: "/relatorios-escala", roles: OBRA_ACCESS },
     ]
   },
   {

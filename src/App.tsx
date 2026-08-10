@@ -27,6 +27,7 @@ import Configuracoes from "./pages/Configuracoes";
 import Departamentos from "./pages/Departamentos";
 import FundoFixo from "./pages/FundoFixo";
 import Relatorios from "./pages/Relatorios";
+import RelatorioEscalas from "./pages/RelatorioEscalas";
 import Chat from "./pages/Chat";
 import MobileApp from "./pages/app/MobileApp";
 import { loadBrandingFromDB } from "./hooks/useSystemSettings";
@@ -173,6 +174,13 @@ const App = () => (
               <ProtectedRoute>
                 <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
                   <Relatorios />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/relatorios-escala" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <RelatorioEscalas />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />
