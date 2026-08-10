@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, X, Minus, ClipboardCheck, Loader2 } from "lucide-react";
+import { Check, X, Minus, ClipboardCheck, Loader2, Camera } from "lucide-react";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useInspectionChecklist } from "@/hooks/useInspectionChecklist";
@@ -18,24 +18,44 @@ interface CheckItem {
 }
 
 const ITEMS: CheckItem[] = [
-  { id: "pneus",       label: "Pneus (pressão e estado)",     categoria: "Mecânica" },
-  { id: "oleo",        label: "Nível de óleo do motor",       categoria: "Mecânica" },
-  { id: "agua",        label: "Água do radiador",             categoria: "Mecânica" },
-  { id: "freios",      label: "Freios",                       categoria: "Mecânica" },
-  { id: "embreagem",   label: "Embreagem",                    categoria: "Mecânica" },
-  { id: "farois",      label: "Faróis e lanternas",           categoria: "Elétrica" },
-  { id: "setas",       label: "Setas e pisca-alerta",         categoria: "Elétrica" },
-  { id: "limpadores",  label: "Limpadores de para-brisa",     categoria: "Elétrica" },
-  { id: "buzina",      label: "Buzina",                       categoria: "Elétrica" },
-  { id: "retrovisores",label: "Retrovisores",                 categoria: "Segurança" },
-  { id: "extintor",    label: "Extintor de incêndio",         categoria: "Segurança" },
-  { id: "cinto",       label: "Cinto de segurança",           categoria: "Segurança" },
-  { id: "triangulo",   label: "Triângulo de segurança",       categoria: "Segurança" },
-  { id: "documentos",  label: "Documentação do veículo",      categoria: "Documentos" },
-  { id: "combustivel", label: "Nível de combustível",         categoria: "Mecânica" },
+  { id: "pneus",        label: "Pneus (pressão e estado)",     categoria: "Mecânica"   },
+  { id: "oleo",         label: "Nível de óleo do motor",       categoria: "Mecânica"   },
+  { id: "agua",         label: "Água do radiador",             categoria: "Mecânica"   },
+  { id: "freios",       label: "Freios",                       categoria: "Mecânica"   },
+  { id: "embreagem",    label: "Embreagem",                    categoria: "Mecânica"   },
+  { id: "combustivel",  label: "Nível de combustível",         categoria: "Mecânica"   },
+  { id: "farois",       label: "Faróis e lanternas",           categoria: "Elétrica"   },
+  { id: "setas",        label: "Setas e pisca-alerta",         categoria: "Elétrica"   },
+  { id: "limpadores",   label: "Limpadores de para-brisa",     categoria: "Elétrica"   },
+  { id: "buzina",       label: "Buzina",                       categoria: "Elétrica"   },
+  { id: "retrovisores", label: "Retrovisores",                 categoria: "Segurança"  },
+  { id: "extintor",     label: "Extintor de incêndio",         categoria: "Segurança"  },
+  { id: "cinto",        label: "Cinto de segurança",           categoria: "Segurança"  },
+  { id: "triangulo",    label: "Triângulo de segurança",       categoria: "Segurança"  },
+  { id: "documentos",   label: "Documentação do veículo",      categoria: "Documentos" },
 ];
 
 const categorias = [...new Set(ITEMS.map(i => i.categoria))];
+
+// As mesmas 5 categorias de foto usadas no sistema gerencial
+const FOTOS_CONFIG = [
+  { key: "frente",        label: "Foto 1 — Frente",        icon: "🚗" },
+  { key: "traseira",      label: "Foto 2 — Traseira",      icon: "🚙" },
+  { key: "lado_direito",  label: "Foto 3 — Lado Direito",  icon: "➡️" },
+  { key: "lado_esquerdo", label: "Foto 4 — Lado Esquerdo", icon: "⬅️" },
+  { key: "painel",        label: "Foto 5 — Painel",        icon: "📊" },
+] as const;
+
+type FotoKey = (typeof FOTOS_CONFIG)[number]["key"];
+type FotosState = Record<FotoKey, string>;
+
+const FOTOS_INICIAL: FotosState = {
+  frente:        "",
+  traseira:      "",
+  lado_direito:  "",
+  lado_esquerdo: "",
+  painel:        "",
+};
 
 export function AppChecklist() {
   const { vehicle, loading: vLoading } = useEmployeeVehicle();
@@ -44,49 +64,74 @@ export function AppChecklist() {
   const { toast } = useToast();
 
   const [statuses, setStatuses] = useState<Record<string, ItemStatus>>({});
-  const [km, setKm]             = useState("");
-  const [obs, setObs]           = useState("");
-  const [fotoUrl, setFotoUrl]   = useState("");
-  const [saving, setSaving]     = useState(false);
-  const [done, setDone]         = useState(false);
+  const [km,    setKm]    = useState("");
+  const [obs,   setObs]   = useState("");
+  const [fotos, setFotos] = useState<FotosState>({ ...FOTOS_INICIAL });
+  const [saving, setSaving] = useState(false);
+  const [done,   setDone]   = useState(false);
 
-  const setStatus = (id: string, status: ItemStatus) => {
+  const setStatus = (id: string, status: ItemStatus) =>
     setStatuses(prev => ({ ...prev, [id]: status }));
+
+  const setFoto = (key: FotoKey, url: string) =>
+    setFotos(prev => ({ ...prev, [key]: url }));
+
+  const resetForm = () => {
+    setStatuses({});
+    setKm("");
+    setObs("");
+    setFotos({ ...FOTOS_INICIAL });
+    setDone(false);
   };
 
   const pendentes = ITEMS.filter(i => !statuses[i.id]);
   const progresso = Math.round(((ITEMS.length - pendentes.length) / ITEMS.length) * 100);
 
+  // Quantas fotos já foram capturadas
+  const fotosCapturadas = Object.values(fotos).filter(Boolean).length;
+
   const handleSubmit = async () => {
     if (pendentes.length > 0) {
-      toast({ title: `Responda todos os itens (${pendentes.length} restante${pendentes.length > 1 ? "s" : ""})`, variant: "destructive" });
+      toast({
+        title: `Responda todos os itens (${pendentes.length} restante${pendentes.length > 1 ? "s" : ""})`,
+        variant: "destructive",
+      });
       return;
     }
     if (!vehicle || !employee) return;
 
     setSaving(true);
     try {
+      // Só serializa fotos_checklist se pelo menos uma foi capturada
+      const temFotos = Object.values(fotos).some(Boolean);
+      const fotosJson = temFotos ? JSON.stringify(fotos) : null;
+
       const checklist = await createChecklist({
-        vehicle_id: vehicle.id,
-        employee_id: employee.id,
-        tipo_servico: "pre_viagem",
-        km_atual: km ? parseFloat(km) : null,
-        observacoes: obs || null,
-        foto_url: fotoUrl || null,
+        vehicle_id:      vehicle.id,
+        employee_id:     employee.id,
+        tipo_servico:    "pre_viagem",
+        km_atual:        km ? parseFloat(km) : null,
+        observacoes:     obs || null,
+        foto_url:        fotos.frente || null,  // retro-compat: frente = foto principal
+        fotos_checklist: fotosJson,
       });
 
       await Promise.all(
         ITEMS.map(item =>
           createChecklistItem({
             checklist_id: checklist.id,
-            item_nome: item.label,
-            status: statuses[item.id] === "ok" ? "aprovado" : statuses[item.id] === "defeito" ? "reprovado" : "nao_aplicavel",
+            item_nome:    item.label,
+            status:
+              statuses[item.id] === "ok"
+                ? "aprovado"
+                : statuses[item.id] === "defeito"
+                  ? "reprovado"
+                  : "nao_aplicavel",
           })
         )
       );
 
       setDone(true);
-      setFotoUrl("");
       toast({ title: "Checklist enviado com sucesso!" });
     } catch (e: any) {
       toast({ title: "Erro ao salvar checklist", description: e.message, variant: "destructive" });
@@ -94,6 +139,8 @@ export function AppChecklist() {
       setSaving(false);
     }
   };
+
+  // ── Estados de carregamento / sem veículo ────────────────────────────────────
 
   if (vLoading || eLoading) {
     return (
@@ -112,6 +159,8 @@ export function AppChecklist() {
     );
   }
 
+  // ── Tela de sucesso ──────────────────────────────────────────────────────────
+
   if (done) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] px-6 text-center gap-4">
@@ -120,10 +169,12 @@ export function AppChecklist() {
         </div>
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Checklist enviado!</h2>
-          <p className="text-slate-500 text-sm mt-1">{format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
+          <p className="text-slate-500 text-sm mt-1">
+            {format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+          </p>
         </div>
         <button
-          onClick={() => { setStatuses({}); setKm(""); setObs(""); setFotoUrl(""); setDone(false); }}
+          onClick={resetForm}
           className="mt-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl text-sm"
         >
           Novo Checklist
@@ -132,8 +183,11 @@ export function AppChecklist() {
     );
   }
 
+  // ── Formulário principal ─────────────────────────────────────────────────────
+
   return (
     <div className="min-h-full bg-slate-50 dark:bg-slate-900">
+
       {/* Header */}
       <div className="bg-gradient-to-br from-violet-800 to-violet-600 px-4 pt-10 pb-5 text-white">
         <h1 className="text-lg font-bold">Checklist de Inspeção</h1>
@@ -156,9 +210,12 @@ export function AppChecklist() {
       </div>
 
       <div className="p-4 space-y-4 pb-8">
+
         {/* KM */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm">
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">KM Atual do Veículo</label>
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
+            KM Atual do Veículo
+          </label>
           <input
             type="number"
             value={km}
@@ -168,7 +225,7 @@ export function AppChecklist() {
           />
         </div>
 
-        {/* Items por categoria */}
+        {/* Itens por categoria */}
         {categorias.map(cat => (
           <div key={cat} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">
             <div className="px-4 py-2 bg-slate-50 dark:bg-slate-700 border-b border-slate-100 dark:border-slate-600">
@@ -212,7 +269,9 @@ export function AppChecklist() {
 
         {/* Observações */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm">
-          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">Observações Gerais</label>
+          <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block mb-2">
+            Observações Gerais
+          </label>
           <textarea
             value={obs}
             onChange={e => setObs(e.target.value)}
@@ -222,15 +281,58 @@ export function AppChecklist() {
           />
         </div>
 
-        {/* Foto */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm">
-          <MobilePhotoCapture
-            label="📷 Foto geral do veículo (opcional)"
-            bucket="checklist-photos"
-            vehicleId={vehicle.id}
-            value={fotoUrl}
-            onChange={setFotoUrl}
-          />
+        {/* ── 5 Fotos do veículo ──────────────────────────────────────────── */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">
+          {/* Header da seção com contador */}
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700 border-b border-slate-100 dark:border-slate-600 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Camera className="h-4 w-4 text-violet-600" />
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                Fotos do Veículo
+              </p>
+            </div>
+            <span className={cn(
+              "text-xs font-semibold px-2 py-0.5 rounded-full",
+              fotosCapturadas === 5
+                ? "bg-green-100 text-green-700"
+                : fotosCapturadas > 0
+                  ? "bg-violet-100 text-violet-700"
+                  : "bg-slate-100 text-slate-500"
+            )}>
+              {fotosCapturadas}/5 fotos
+            </span>
+          </div>
+
+          <div className="divide-y divide-slate-100 dark:divide-slate-700">
+            {FOTOS_CONFIG.map(({ key, label, icon }) => (
+              <div key={key} className="px-4 py-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-base">{icon}</span>
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {label}
+                  </span>
+                  {fotos[key] && (
+                    <span className="ml-auto text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                      ✓ capturada
+                    </span>
+                  )}
+                </div>
+                <MobilePhotoCapture
+                  label=""
+                  bucket="vehicle-photos"
+                  vehicleId={vehicle.id}
+                  value={fotos[key]}
+                  onChange={url => setFoto(key, url)}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="px-4 py-2 bg-slate-50/50 dark:bg-slate-700/50 border-t border-slate-100 dark:border-slate-600">
+            <p className="text-[10px] text-slate-400 text-center">
+              Fotos opcionais — mesmas categorias visíveis no sistema gerencial
+            </p>
+          </div>
         </div>
 
         {/* Submit */}
@@ -239,7 +341,10 @@ export function AppChecklist() {
           disabled={saving}
           className="w-full h-14 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white font-bold rounded-2xl flex items-center justify-center gap-2 text-base transition-colors"
         >
-          {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <ClipboardCheck className="h-5 w-5" />}
+          {saving
+            ? <Loader2 className="h-5 w-5 animate-spin" />
+            : <ClipboardCheck className="h-5 w-5" />
+          }
           {saving ? "Enviando..." : "Enviar Checklist"}
         </button>
       </div>
@@ -247,7 +352,9 @@ export function AppChecklist() {
   );
 }
 
-function StatusBtn({ active, onClick, color, icon, label }: {
+function StatusBtn({
+  active, onClick, color, icon, label,
+}: {
   active: boolean; onClick: () => void; color: string; icon: React.ReactNode; label: string;
 }) {
   return (
