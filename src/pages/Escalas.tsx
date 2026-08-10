@@ -541,34 +541,61 @@ const Escalas = () => {
 
             {/* Folgas próximas — aviso */}
             {alertasFolgaProxima.map(p => {
-              const dias = differenceInDays(new Date(p.data_inicio_folga), hoje);
+              const inicioFolga = new Date(p.data_inicio_folga);
+              inicioFolga.setHours(0, 0, 0, 0);
+              const dias = differenceInDays(inicioFolga, hoje);
+              const podeConfirmar = p.status === 'agendado' && inicioFolga <= hoje;
               return (
                 <div
                   key={p.id}
-                  className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-4 py-3"
+                  className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
+                    podeConfirmar
+                      ? "border-green-300 bg-green-50 dark:bg-green-900/10 dark:border-green-800"
+                      : "border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800"
+                  }`}
                 >
-                  <Bell className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  {podeConfirmar
+                    ? <PlaneTakeoff className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    : <Bell className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  }
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                      Folga próxima — {p.employee?.nome ?? "—"}
+                    <p className={`text-sm font-semibold ${podeConfirmar ? "text-green-800 dark:text-green-300" : "text-amber-800 dark:text-amber-300"}`}>
+                      {podeConfirmar ? "⏳ Aguardando confirmação de saída" : "Folga próxima"} — {p.employee?.nome ?? "—"}
                     </p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                    <p className={`text-xs ${podeConfirmar ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
                       {dias === 0
                         ? "Começa hoje"
                         : dias === 1
                         ? "Começa amanhã"
                         : `Começa em ${dias} dias`}
-                      {" "}({format(new Date(p.data_inicio_folga), "dd/MM")} –{" "}
+                      {" "}({format(inicioFolga, "dd/MM")} –{" "}
                       {format(new Date(p.data_fim_folga), "dd/MM/yyyy")}) · Escala{" "}
                       {p.escala_tipo?.nome ?? "—"}
                     </p>
                   </div>
-                  <button
-                    onClick={() => setAlertasDismissed(d => [...d, p.id])}
-                    className="h-7 w-7 rounded flex items-center justify-center text-amber-400 hover:text-amber-600 hover:bg-amber-100 flex-shrink-0"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {podeConfirmar && (
+                      <Button
+                        size="sm"
+                        className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700 text-white"
+                        disabled={atualizandoStatus === p.id}
+                        onClick={() => handleConfirmarSaida(p)}
+                      >
+                        <PlaneTakeoff className="h-3 w-3 mr-1" />
+                        {atualizandoStatus === p.id ? "Confirmando..." : "Confirmar saída"}
+                      </Button>
+                    )}
+                    <button
+                      onClick={() => setAlertasDismissed(d => [...d, p.id])}
+                      className={`h-7 w-7 rounded flex items-center justify-center flex-shrink-0 ${
+                        podeConfirmar
+                          ? "text-green-400 hover:text-green-600 hover:bg-green-100"
+                          : "text-amber-400 hover:text-amber-600 hover:bg-amber-100"
+                      }`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -716,7 +743,36 @@ const Escalas = () => {
                               {format(fimFolga, "dd/MM/yy", { locale: ptBR })}
                             </span>
                           </TableCell>
-                          <TableCell>{getStatusBadge(periodo)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getStatusBadge(periodo)}
+                              {/* Botão inline de confirmação — visível sem abrir o "..." */}
+                              {podeConfirmarSaida && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[11px] border-green-400 text-green-700 hover:bg-green-50"
+                                  disabled={atualizandoStatus === periodo.id}
+                                  onClick={() => handleConfirmarSaida(periodo)}
+                                >
+                                  <PlaneTakeoff className="h-3 w-3 mr-1" />
+                                  {atualizandoStatus === periodo.id ? "..." : "Confirmar saída"}
+                                </Button>
+                              )}
+                              {podeConfirmarRetorno && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[11px] border-blue-400 text-blue-700 hover:bg-blue-50"
+                                  disabled={atualizandoStatus === periodo.id}
+                                  onClick={() => handleConfirmarRetorno(periodo)}
+                                >
+                                  <PlaneLanding className="h-3 w-3 mr-1" />
+                                  {atualizandoStatus === periodo.id ? "..." : "Confirmar retorno"}
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
                           {hasEscalaManagement && (
                             <TableCell className="text-right">
                               <DropdownMenu>
