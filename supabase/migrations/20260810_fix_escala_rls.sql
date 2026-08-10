@@ -50,8 +50,10 @@ USING (true);
 -- ── Função check_user_app_access (usada em useCurrentEmployee) ────────────
 -- Verifica se um usuário tem acesso ao app do motorista.
 -- Retorna true se o employee tem acesso_app_motorista = true.
+-- DROP primeiro porque CREATE OR REPLACE não pode alterar assinatura existente.
 
-CREATE OR REPLACE FUNCTION public.check_user_app_access(p_user_id uuid)
+DROP FUNCTION IF EXISTS public.check_user_app_access(uuid);
+CREATE FUNCTION public.check_user_app_access(p_user_id uuid)
 RETURNS boolean
 LANGUAGE sql
 STABLE
