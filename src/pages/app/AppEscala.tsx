@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, CalendarDays, Loader2, Bell, X, CheckCheck, PlaneTakeoff, PlaneLanding, Clock } from "lucide-react";
-import { useEscalas } from "@/hooks/useEscalas";
+import { ChevronLeft, ChevronRight, CalendarDays, Loader2, Bell, X, CheckCheck, PlaneTakeoff, PlaneLanding } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
+import type { EscalaPeriodo } from "@/hooks/useEscalas";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   parseISO, isWithinInterval, isSameMonth, isToday,
@@ -13,13 +15,16 @@ import { cn } from "@/lib/utils";
 
 type DayType = "trabalho" | "folga" | "neutro";
 
-function getDayType(date: Date, periodos: any[], employeeId: string): DayType {
+function getDayType(date: Date, periodos: EscalaPeriodo[]): DayType {
   for (const p of periodos) {
-    if (p.employee_id !== employeeId) continue;
-    if (isWithinInterval(date, { start: parseISO(p.data_inicio_trabalho), end: parseISO(p.data_fim_trabalho) }))
-      return "trabalho";
-    if (isWithinInterval(date, { start: parseISO(p.data_inicio_folga), end: parseISO(p.data_fim_folga) }))
-      return "folga";
+    try {
+      if (isWithinInterval(date, { start: parseISO(p.data_inicio_trabalho), end: parseISO(p.data_fim_trabalho) }))
+        return "trabalho";
+      if (isWithinInterval(date, { start: parseISO(p.data_inicio_folga), end: parseISO(p.data_fim_folga) }))
+        return "folga";
+    } catch {
+      // ignora períodos com datas inválidas
+    }
   }
   return "neutro";
 }
@@ -28,15 +33,31 @@ const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export function AppEscala() {
   const { employee, loading: eLoading } = useCurrentEmployee();
-  const { escalaPeriodos, escalaTipos, loading: esLoading } = useEscalas();
   const { notificacoes, marcarComoLida, marcarTodasComoLidas } = useEscalaNotificacoes();
   const [mes, setMes] = useState(new Date());
 
-  const loading = eLoading || esLoading;
+  // ── Query dedicada: busca APENAS os períodos do funcionário logado ────────
+  // Usa filtro explícito .eq("employee_id", ...) além do RLS,
+  // tornando o componente resiliente a eventuais problemas de política.
+  const { data: myPeriodos = [], isLoading: esLoading } = useQuery({
+    queryKey: ["myEscalaPeriodos", employee?.id],
+    enabled: !!employee?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("escala_periodos")
+        .select(`*, escala_tipo:escala_tipos(*)`)
+        .eq("employee_id", employee!.id)
+        .order("data_inicio_trabalho", { ascending: false });
 
-  const myPeriodos = employee
-    ? escalaPeriodos.filter(p => p.employee_id === employee.id)
-    : [];
+      if (error) {
+        console.error("Erro ao buscar escala do funcionário:", error);
+        return [] as EscalaPeriodo[];
+      }
+      return (data ?? []) as EscalaPeriodo[];
+    },
+  });
+
+  const loading = eLoading || esLoading;
 
   const today = new Date();
   const firstDay = startOfMonth(mes);
@@ -46,31 +67,38 @@ export function AppEscala() {
   // Pad início com dias vazios
   const startPad = firstDay.getDay(); // 0=Dom
 
-  // Período de folga atual (em_folga confirmado OU dentro do intervalo de datas)
-  const periodoEmFolga = myPeriodos.find(p =>
-    p.status === 'em_folga' ||
-    (p.status === 'agendado' && isWithinInterval(today, {
-      start: parseISO(p.data_inicio_folga),
-      end: parseISO(p.data_fim_folga),
-    }))
-  );
+  // Período de folga atual
+  const periodoEmFolga = myPeriodos.find(p => {
+    try {
+      return p.status === 'em_folga' ||
+        (p.status === 'agendado' && isWithinInterval(today, {
+          start: parseISO(p.data_inicio_folga),
+          end:   parseISO(p.data_fim_folga),
+        }));
+    } catch { return false; }
+  });
 
   // Próxima folga agendada (ainda não começou)
   const nextFolga = myPeriodos
-    .filter(p => p.status !== 'concluido' && parseISO(p.data_inicio_folga) > today)
+    .filter(p => {
+      try { return p.status !== 'concluido' && parseISO(p.data_inicio_folga) > today; }
+      catch { return false; }
+    })
     .sort((a, b) => a.data_inicio_folga.localeCompare(b.data_inicio_folga))[0];
 
   // Escala atual (período de trabalho)
   const currentPeriodo = !periodoEmFolga
-    ? myPeriodos.find(p =>
-        isWithinInterval(today, {
-          start: parseISO(p.data_inicio_trabalho),
-          end: parseISO(p.data_fim_trabalho),
-        })
-      )
+    ? myPeriodos.find(p => {
+        try {
+          return isWithinInterval(today, {
+            start: parseISO(p.data_inicio_trabalho),
+            end:   parseISO(p.data_fim_trabalho),
+          });
+        } catch { return false; }
+      })
     : undefined;
 
-  // Referência para as stats: período em folga > período atual > próxima folga > primeiro período
+  // Referência para as stats
   const periodoRef = periodoEmFolga ?? currentPeriodo ?? nextFolga ?? myPeriodos[0];
   const diasTrabalho = periodoRef?.escala_tipo?.dias_trabalho ?? 0;
   const diasFolga    = periodoRef?.escala_tipo?.dias_folga ?? 0;
@@ -196,7 +224,6 @@ export function AppEscala() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Próxima folga</p>
-                  {/* Badge: Prevista ou Confirmada */}
                   <span className={cn(
                     "text-[10px] font-bold px-2 py-0.5 rounded-full",
                     nextFolga.status === 'em_folga'
@@ -217,8 +244,10 @@ export function AppEscala() {
                   </p>
                   <p className="text-xs text-slate-400">
                     {(() => {
-                      const diff = Math.ceil((parseISO(nextFolga.data_inicio_folga).getTime() - today.getTime()) / 86400000);
-                      return diff === 1 ? "Começa amanhã" : `Em ${diff} dias`;
+                      try {
+                        const diff = Math.ceil((parseISO(nextFolga.data_inicio_folga).getTime() - today.getTime()) / 86400000);
+                        return diff === 1 ? "Começa amanhã" : `Em ${diff} dias`;
+                      } catch { return ""; }
                     })()}
                   </p>
                 </div>
@@ -260,7 +289,7 @@ export function AppEscala() {
               <div key={`pad-${i}`} />
             ))}
             {days.map(day => {
-              const type = getDayType(day, myPeriodos, employee?.id ?? "");
+              const type = getDayType(day, myPeriodos);
               const inMonth = isSameMonth(day, mes);
               const todayMark = isToday(day);
 
@@ -332,7 +361,9 @@ export function AppEscala() {
                     p.status === 'concluido' ? "bg-slate-100 text-slate-500" :
                     "bg-blue-50 text-blue-600"
                   )}>
-                    {p.status === 'em_folga' ? "Em folga" : p.status === 'concluido' ? "Concluído" : "Agendado"}
+                    {p.status === 'em_folga' ? (
+                      <span className="flex items-center gap-1"><PlaneTakeoff className="h-2.5 w-2.5" /> Em folga</span>
+                    ) : p.status === 'concluido' ? "Concluído" : "Agendado"}
                   </span>
                 </div>
               ))}
