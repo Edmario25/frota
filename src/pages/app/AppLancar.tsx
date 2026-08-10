@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   Fuel, Wrench, Truck, Droplets, AlertTriangle, ShieldAlert,
-  ChevronLeft, Check, WifiOff, Camera, X, ImageIcon,
+  ChevronLeft, Check, WifiOff,
 } from "lucide-react";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
@@ -16,7 +16,7 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { enqueue } from "@/lib/offlineQueue";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { MobilePhotoCapture } from "@/components/app/MobilePhotoCapture";
 
 type LancarType = "abastecimento" | "manutencao" | "borracharia" | "lavagem" | "multa" | "avaria" | null;
 
@@ -118,131 +118,6 @@ function SubmitButton({ label, onSave, saving, offline }: { label: string; onSav
       )}
       {saving ? "Salvando..." : offline ? "Salvar offline (sincronizar depois)" : label}
     </button>
-  );
-}
-
-// ── Mobile Photo Capture ───────────────────────────────────────────────────────
-function MobilePhotoCapture({ label, bucket, vehicleId, value, onChange }: {
-  label: string;
-  bucket: string;
-  vehicleId?: string;
-  value: string;
-  onChange: (url: string) => void;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState<string>(value);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 50 * 1024 * 1024) {
-      toast({ title: "Arquivo muito grande", description: "Máximo 50MB", variant: "destructive" });
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const ext = file.name.split(".").pop();
-      const name = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const path = vehicleId ? `${vehicleId}/${name}` : name;
-
-      const { error } = await supabase.storage.from(bucket).upload(path, file);
-      if (error) throw error;
-
-      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-      onChange(data.publicUrl);
-
-      // local preview
-      const reader = new FileReader();
-      reader.onload = ev => setPreview(ev.target?.result as string);
-      reader.readAsDataURL(file);
-
-      toast({ title: "Foto carregada ✓" });
-    } catch (err: any) {
-      toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
-
-  const handleRemove = async () => {
-    if (value) {
-      try {
-        const url = new URL(value);
-        const parts = url.pathname.split("/");
-        const path = parts.slice(-2).join("/");
-        await supabase.storage.from(bucket).remove([path]);
-      } catch {}
-    }
-    setPreview("");
-    onChange("");
-  };
-
-  return (
-    <div className="space-y-2">
-      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</label>
-
-      {preview ? (
-        <div className="relative inline-block">
-          <img
-            src={preview}
-            alt="Preview"
-            className="w-full max-h-48 object-cover rounded-xl border border-slate-200 dark:border-slate-600"
-          />
-          <div className="absolute top-2 right-2 flex gap-1">
-            <button
-              type="button"
-              onClick={() => window.open(preview, "_blank")}
-              className="h-8 w-8 rounded-full bg-black/50 flex items-center justify-center"
-            >
-              <ImageIcon className="h-4 w-4 text-white" />
-            </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              className="h-8 w-8 rounded-full bg-red-500/80 flex items-center justify-center"
-            >
-              <X className="h-4 w-4 text-white" />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          className={cn(
-            "w-full h-24 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl",
-            "flex flex-col items-center justify-center gap-2 text-slate-400",
-            "active:bg-slate-100 dark:active:bg-slate-700 transition-colors",
-            uploading && "opacity-60"
-          )}
-        >
-          {uploading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs">Enviando...</span>
-            </>
-          ) : (
-            <>
-              <Camera className="h-6 w-6" />
-              <span className="text-xs font-medium">Tirar foto / Galeria</span>
-            </>
-          )}
-        </button>
-      )}
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFile}
-        className="hidden"
-      />
-    </div>
   );
 }
 
@@ -403,12 +278,13 @@ function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string
   const { createTireService } = useTireServices();
   const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
-  const [tipo, setTipo]     = useState("");
-  const [qtd, setQtd]       = useState("1");
-  const [valor, setValor]   = useState("");
-  const [local, setLocal]   = useState("");
-  const [obs, setObs]       = useState("");
-  const [saving, setSaving] = useState(false);
+  const [tipo, setTipo]         = useState("");
+  const [qtd, setQtd]           = useState("1");
+  const [valor, setValor]       = useState("");
+  const [local, setLocal]       = useState("");
+  const [fotoUrl, setFotoUrl]   = useState("");
+  const [obs, setObs]           = useState("");
+  const [saving, setSaving]     = useState(false);
 
   const handleSave = async () => {
     if (!tipo) { toast({ title: "Selecione o tipo de serviço", variant: "destructive" }); return; }
@@ -422,6 +298,7 @@ function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string
       quantidade_pneus: parseInt(qtd),
       valor_servico: valor ? parseFloat(valor) : null,
       local_servico: local || null,
+      foto_pneus_url: fotoUrl || null,
       observacoes: obs || null,
     };
 
@@ -449,6 +326,13 @@ function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string
       <MobileInput label="Quantidade de pneus" type="number" value={qtd} onChange={setQtd} min="1" />
       <MobileInput label="Valor (R$)" type="number" value={valor} onChange={setValor} placeholder="0,00" step="0.01" prefix="R$" />
       <MobileInput label="Local / Borracharia" type="text" value={local} onChange={setLocal} placeholder="Nome do estabelecimento" />
+      <MobilePhotoCapture
+        label="Foto dos pneus / comprovante (opcional)"
+        bucket="tire-photos"
+        vehicleId={vehicleId}
+        value={fotoUrl}
+        onChange={setFotoUrl}
+      />
       <MobileTextarea label="Observações" value={obs} onChange={setObs} />
       <SubmitButton label="Registrar Borracharia" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>
@@ -532,11 +416,12 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
   const { createTrafficFine } = useTrafficFines();
   const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
-  const [tipo, setTipo]     = useState("");
-  const [valor, setValor]   = useState("");
-  const [local, setLocal]   = useState("");
-  const [obs, setObs]       = useState("");
-  const [saving, setSaving] = useState(false);
+  const [tipo, setTipo]         = useState("");
+  const [valor, setValor]       = useState("");
+  const [local, setLocal]       = useState("");
+  const [fotoUrl, setFotoUrl]   = useState("");
+  const [obs, setObs]           = useState("");
+  const [saving, setSaving]     = useState(false);
 
   const handleSave = async () => {
     if (!tipo || !valor || !local) { toast({ title: "Preencha tipo, valor e local", variant: "destructive" }); return; }
@@ -550,6 +435,7 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
       valor: parseFloat(valor),
       local_infracao: local,
       situacao: "pendente",
+      comprovante_url: fotoUrl || null,
       observacoes: obs || null,
     };
 
@@ -561,7 +447,7 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
         onClose();
         return;
       }
-      await createTrafficFine(payload);
+      await createTrafficFine(payload as any);
       onClose();
     } catch { } finally { setSaving(false); }
   };
@@ -578,6 +464,13 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
       ]} />
       <MobileInput label="Valor da multa (R$)" type="number" value={valor} onChange={setValor} placeholder="0,00" step="0.01" prefix="R$" />
       <MobileInput label="Local da infração" type="text" value={local} onChange={setLocal} placeholder="Ex: Av. Paulista, 1000" />
+      <MobilePhotoCapture
+        label="Foto da notificação / comprovante (opcional)"
+        bucket="fine-photos"
+        vehicleId={vehicleId}
+        value={fotoUrl}
+        onChange={setFotoUrl}
+      />
       <MobileTextarea label="Observações" value={obs} onChange={setObs} />
       <SubmitButton label="Registrar Multa" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>
@@ -590,6 +483,7 @@ function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; emp
   const { toast } = useToast();
   const [descricao, setDescricao] = useState("");
   const [local, setLocal]         = useState("");
+  const [fotoUrl, setFotoUrl]     = useState("");
   const [obs, setObs]             = useState("");
   const [saving, setSaving]       = useState(false);
 
@@ -603,6 +497,7 @@ function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; emp
       data_avaria: new Date().toISOString().split("T")[0],
       descricao_avaria: descricao,
       local_ocorrencia: local || null,
+      foto_url: fotoUrl || null,
       observacoes: obs || null,
     };
 
@@ -623,6 +518,13 @@ function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; emp
     <div className="space-y-4">
       <MobileTextarea label="Descrição da avaria *" value={descricao} onChange={setDescricao} placeholder="Descreva o que aconteceu..." />
       <MobileInput label="Local da ocorrência" type="text" value={local} onChange={setLocal} placeholder="Ex: Rodovia SP-330, km 120" />
+      <MobilePhotoCapture
+        label="Foto da avaria (opcional)"
+        bucket="damage-photos"
+        vehicleId={vehicleId}
+        value={fotoUrl}
+        onChange={setFotoUrl}
+      />
       <MobileTextarea label="Observações adicionais" value={obs} onChange={setObs} />
       <SubmitButton label="Registrar Avaria" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>

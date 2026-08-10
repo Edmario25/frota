@@ -575,6 +575,7 @@ export type Database = {
           created_at: string
           data_inspecao: string
           employee_id: string
+          foto_url: string | null
           funcao: string | null
           id: string
           km_atual: number | null
@@ -588,6 +589,7 @@ export type Database = {
           created_at?: string
           data_inspecao?: string
           employee_id: string
+          foto_url?: string | null
           funcao?: string | null
           id?: string
           km_atual?: number | null
@@ -601,6 +603,7 @@ export type Database = {
           created_at?: string
           data_inspecao?: string
           employee_id?: string
+          foto_url?: string | null
           funcao?: string | null
           id?: string
           km_atual?: number | null

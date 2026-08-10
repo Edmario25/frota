@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { MobilePhotoCapture } from "@/components/app/MobilePhotoCapture";
 
 type ItemStatus = "ok" | "defeito" | "na";
 
@@ -45,6 +46,7 @@ export function AppChecklist() {
   const [statuses, setStatuses] = useState<Record<string, ItemStatus>>({});
   const [km, setKm]             = useState("");
   const [obs, setObs]           = useState("");
+  const [fotoUrl, setFotoUrl]   = useState("");
   const [saving, setSaving]     = useState(false);
   const [done, setDone]         = useState(false);
 
@@ -70,6 +72,7 @@ export function AppChecklist() {
         tipo_servico: "pre_viagem",
         km_atual: km ? parseFloat(km) : null,
         observacoes: obs || null,
+        foto_url: fotoUrl || null,
       });
 
       await Promise.all(
@@ -83,6 +86,7 @@ export function AppChecklist() {
       );
 
       setDone(true);
+      setFotoUrl("");
       toast({ title: "Checklist enviado com sucesso!" });
     } catch (e: any) {
       toast({ title: "Erro ao salvar checklist", description: e.message, variant: "destructive" });
@@ -119,7 +123,7 @@ export function AppChecklist() {
           <p className="text-slate-500 text-sm mt-1">{format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}</p>
         </div>
         <button
-          onClick={() => { setStatuses({}); setKm(""); setObs(""); setDone(false); }}
+          onClick={() => { setStatuses({}); setKm(""); setObs(""); setFotoUrl(""); setDone(false); }}
           className="mt-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl text-sm"
         >
           Novo Checklist
@@ -215,6 +219,17 @@ export function AppChecklist() {
             placeholder="Alguma observação adicional..."
             rows={3}
             className="w-full border border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 text-sm px-4 py-3 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+          />
+        </div>
+
+        {/* Foto */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm">
+          <MobilePhotoCapture
+            label="📷 Foto geral do veículo (opcional)"
+            bucket="checklist-photos"
+            vehicleId={vehicle.id}
+            value={fotoUrl}
+            onChange={setFotoUrl}
           />
         </div>
 

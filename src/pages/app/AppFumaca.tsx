@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { MobilePhotoCapture } from "@/components/app/MobilePhotoCapture";
 
 const RINGELMANN = [
   { valor: 0, label: "0 – Transparente",  cor: "bg-gray-100 border-gray-300 text-gray-600",     resultado: "aprovado" },
@@ -23,10 +24,11 @@ export function AppFumaca() {
   const { createSmokeTest } = useSmokeTests();
   const { toast } = useToast();
 
-  const [indice, setIndice] = useState<number | null>(null);
-  const [obs, setObs]       = useState("");
-  const [saving, setSaving] = useState(false);
-  const [done, setDone]     = useState<"aprovado" | "reprovado" | null>(null);
+  const [indice, setIndice]   = useState<number | null>(null);
+  const [obs, setObs]         = useState("");
+  const [fotoUrl, setFotoUrl] = useState("");
+  const [saving, setSaving]   = useState(false);
+  const [done, setDone]       = useState<"aprovado" | "reprovado" | null>(null);
 
   const selected = indice !== null ? RINGELMANN[indice] : null;
 
@@ -41,8 +43,10 @@ export function AppFumaca() {
         indice_ringelmann: indice,
         data_teste: new Date().toISOString().split("T")[0],
         observacoes: obs || null,
+        evidencias_url: fotoUrl || null,
       } as any);
       setDone(selected!.resultado as "aprovado" | "reprovado");
+      setFotoUrl("");
       toast({ title: "Teste de fumaça registrado!" });
     } catch { } finally { setSaving(false); }
   };
@@ -87,7 +91,7 @@ export function AppFumaca() {
           </p>
         </div>
         <button
-          onClick={() => { setIndice(null); setObs(""); setDone(null); }}
+          onClick={() => { setIndice(null); setObs(""); setFotoUrl(""); setDone(null); }}
           className="mt-2 px-6 py-3 bg-teal-600 text-white font-semibold rounded-xl text-sm"
         >
           Novo Teste
@@ -171,6 +175,17 @@ export function AppFumaca() {
             placeholder="Condições do teste, clima, etc..."
             rows={3}
             className="w-full border border-slate-200 dark:border-slate-600 rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 text-sm px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+          />
+        </div>
+
+        {/* Foto da evidência */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm">
+          <MobilePhotoCapture
+            label="📷 Foto da fumaça / evidência (opcional)"
+            bucket="smoke-photos"
+            vehicleId={vehicle.id}
+            value={fotoUrl}
+            onChange={setFotoUrl}
           />
         </div>
 

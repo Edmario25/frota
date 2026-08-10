@@ -37,6 +37,7 @@ import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
+import { PhotoUpload } from "@/components/ui/photo-upload";
 
 const step1Schema = z.object({
   vehicle_id: z.string().min(1, "Selecione um veículo"),
@@ -606,11 +607,15 @@ export const SmokeTestFormModal = ({
                   name="evidencias_url"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Evidências (Foto/Vídeo) - Opcional</FormLabel>
+                      <FormLabel>Foto da Fumaça / Evidências (Opcional)</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="URL da evidência ou deixe em branco"
-                          {...field}
+                        <PhotoUpload
+                          label=""
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          bucketName="smoke-photos"
+                          vehicleId={form.watch("vehicle_id")}
+                          accept="image/*"
                         />
                       </FormControl>
                       <FormMessage />
