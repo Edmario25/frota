@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FornecedorSelect } from "@/components/ui/FornecedorSelect";
+import { PhotoUpload } from "@/components/ui/photo-upload";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -18,6 +19,8 @@ const schema = z.object({
   responsavel_lavagem: z.string().optional(),
   fornecedor: z.string().optional(),
   valor: z.number().min(0).optional(),
+  foto_antes_url: z.string().optional(),
+  foto_depois_url: z.string().optional(),
   observacoes: z.string().optional(),
 });
 
@@ -44,6 +47,8 @@ export const WashRecordFormModal = ({
       responsavel_lavagem: "",
       fornecedor: "",
       valor: undefined,
+      foto_antes_url: "",
+      foto_depois_url: "",
       observacoes: "",
     },
   });
@@ -57,6 +62,8 @@ export const WashRecordFormModal = ({
           responsavel_lavagem: washRecord.responsavel_lavagem || "",
           fornecedor: washRecord.fornecedor || "",
           valor: washRecord.valor ?? undefined,
+          foto_antes_url: washRecord.foto_antes_url || "",
+          foto_depois_url: washRecord.foto_depois_url || "",
           observacoes: washRecord.observacoes || "",
         });
       } else {
@@ -66,6 +73,8 @@ export const WashRecordFormModal = ({
           responsavel_lavagem: "",
           fornecedor: "",
           valor: undefined,
+          foto_antes_url: "",
+          foto_depois_url: "",
           observacoes: "",
         });
       }
@@ -82,6 +91,8 @@ export const WashRecordFormModal = ({
         responsavel_lavagem: values.responsavel_lavagem || null,
         fornecedor: values.fornecedor || null,
         valor: values.valor ?? null,
+        foto_antes_url: values.foto_antes_url || null,
+        foto_depois_url: values.foto_depois_url || null,
         observacoes: values.observacoes || null,
       });
       onOpenChange(false);
@@ -92,7 +103,7 @@ export const WashRecordFormModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{washRecord ? "Editar Lavagem" : "Registrar Lavagem"}</DialogTitle>
         </DialogHeader>
@@ -164,6 +175,43 @@ export const WashRecordFormModal = ({
                 <FormMessage />
               </FormItem>
             )} />
+
+            {/* Fotos antes e depois */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="foto_antes_url" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Foto Antes</FormLabel>
+                  <FormControl>
+                    <PhotoUpload
+                      label=""
+                      value={field.value || ""}
+                      onChange={(url) => field.onChange(url || "")}
+                      bucketName="wash-photos"
+                      vehicleId={vehicleId}
+                      accept="image/*"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="foto_depois_url" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Foto Depois</FormLabel>
+                  <FormControl>
+                    <PhotoUpload
+                      label=""
+                      value={field.value || ""}
+                      onChange={(url) => field.onChange(url || "")}
+                      bucketName="wash-photos"
+                      vehicleId={vehicleId}
+                      accept="image/*"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
 
             <FormField control={form.control} name="observacoes" render={({ field }) => (
               <FormItem>
