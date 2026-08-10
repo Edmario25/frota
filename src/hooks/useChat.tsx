@@ -6,6 +6,7 @@ import { playNotifSound } from "@/lib/notifSound";
 export interface ChatConversa {
   id: string;
   motorista_id: string;
+  obra_id?: string | null;
   criada_em: string;
   ultima_mensagem_em: string | null;
   ultima_mensagem: string | null;
@@ -24,7 +25,7 @@ export interface ChatMensagem {
   criada_em: string;
 }
 
-// ── Utilitário: envia push via edge function (reutilizado pelo chat) ──────────
+// ── Utilitário: envia push via edge function ──────────────────────────────────
 export async function enviarPushChat(employeeId: string, titulo: string, mensagem: string) {
   try {
     const { data: session } = await supabase.auth.getSession();
@@ -59,7 +60,6 @@ export function useChatMotorista(motoristaId: string | undefined) {
   const [loading, setLoading]     = useState(true);
   const [sending, setSending]     = useState(false);
   const { toast }                 = useToast();
-  const channelRef                = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const loadConversa = useCallback(async () => {
     if (!motoristaId) return;
@@ -80,12 +80,13 @@ export function useChatMotorista(motoristaId: string | undefined) {
           .gte("criada_em", getLimite30Dias())
           .order("criada_em", { ascending: true });
         setMensagens((data as ChatMensagem[]) ?? []);
-        // Zera não lidas ao abrir
+        // Zera não lidas ao abrir o chat
         await (supabase as any)
           .from("chat_conversas")
           .update({ nao_lidas_motorista: 0 })
           .eq("id", existing.id);
       } else {
+        // Cria a conversa (obra_id preenchido pelo trigger do banco)
         const { data: nova, error } = await (supabase as any)
           .from("chat_conversas")
           .insert({ motorista_id: motoristaId })
@@ -102,14 +103,14 @@ export function useChatMotorista(motoristaId: string | undefined) {
     }
   }, [motoristaId]);
 
-  // Realtime: escuta TODAS as mensagens desta conversa
+  // ── Realtime: mensagens desta conversa ────────────────────────────────────
+  // FIX: captura o channel por valor no closure do cleanup para evitar
+  //      cancelar o canal errado quando conversa.id muda rapidamente.
   useEffect(() => {
     if (!conversa?.id) return;
 
-    channelRef.current?.unsubscribe();
-
-    channelRef.current = supabase
-      .channel(`chat-motorista-${conversa.id}-${Date.now()}`)
+    const channel = supabase
+      .channel(`chat-motorista-${conversa.id}`)
       .on(
         "postgres_changes",
         {
@@ -120,22 +121,15 @@ export function useChatMotorista(motoristaId: string | undefined) {
         },
         (payload) => {
           const nova = payload.new as ChatMensagem;
-
           setMensagens(prev => {
             if (prev.some(m => m.id === nova.id)) return prev;
             return [...prev, nova];
           });
 
-          // Notifica visualmente quando a mensagem vem do gestor
+          // FIX: sem toast quando chat está aberto — a mensagem já aparece na tela.
+          // O MobileApp cuida da notificação quando o chat NÃO está ativo.
+          // Apenas zera o contador de não lidas:
           if (nova.tipo_autor === "gestor") {
-            toast({
-              title: "💬 Mensagem do Gestor",
-              description: nova.mensagem.length > 60
-                ? nova.mensagem.slice(0, 60) + "…"
-                : nova.mensagem,
-              duration: 5000,
-            });
-            // Zera contador imediatamente pois o chat está aberto
             (supabase as any)
               .from("chat_conversas")
               .update({ nao_lidas_motorista: 0 })
@@ -159,9 +153,8 @@ export function useChatMotorista(motoristaId: string | undefined) {
         }
       });
 
-    return () => {
-      channelRef.current?.unsubscribe();
-    };
+    // FIX: fecha o canal capturado por valor, não via ref
+    return () => { supabase.removeChannel(channel); };
   }, [conversa?.id]);
 
   const enviarMensagem = useCallback(async (texto: string) => {
@@ -200,16 +193,14 @@ export function useChatGestor() {
   const [sending, setSending]         = useState(false);
   const { toast }                     = useToast();
 
-  // Refs para os canais Realtime
   const chConversas = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const chMensagens = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Mantém ref atualizada com as conversas (para evitar closure stale)
-  const conversasRef = useRef<ChatConversa[]>([]);
+  // Refs para evitar stale closure nos callbacks Realtime
+  const conversasRef   = useRef<ChatConversa[]>([]);
   conversasRef.current = conversas;
 
-  // Mantém ref atualizada com a conversa selecionada
-  const selecionadaRef = useRef<ChatConversa | null>(null);
+  const selecionadaRef   = useRef<ChatConversa | null>(null);
   selecionadaRef.current = selecionada;
 
   const loadConversas = useCallback(async () => {
@@ -268,7 +259,6 @@ export function useChatGestor() {
             if (prev.some(m => m.id === nova.id)) return prev;
             return [...prev, nova];
           });
-          // Se motorista mandou enquanto tínhamos a conversa aberta, zera contador
           if (nova.tipo_autor === "motorista") {
             (supabase as any)
               .from("chat_conversas")
@@ -280,13 +270,56 @@ export function useChatGestor() {
       .subscribe();
   }, []);
 
-  // ── Realtime GLOBAL: escuta TODAS as msgs do motorista (para notificação) ──
+  // ── Gestor inicia conversa com motorista sem histórico ────────────────────
+  const criarOuAbrirConversa = useCallback(async (motoristaId: string) => {
+    // Se já existe, apenas abre
+    const existente = conversasRef.current.find(c => c.motorista_id === motoristaId);
+    if (existente) {
+      abrirConversa(existente);
+      return;
+    }
+    try {
+      const { data, error } = await (supabase as any)
+        .from("chat_conversas")
+        .insert({ motorista_id: motoristaId })
+        .select("*, motorista:employees!motorista_id(id, nome)")
+        .single();
+      if (error) throw error;
+      const nova = data as ChatConversa;
+      setConversas(prev => [nova, ...prev]);
+      abrirConversa(nova);
+    } catch (err: any) {
+      toast({ title: "Erro ao iniciar conversa", description: err.message, variant: "destructive" });
+    }
+  }, [abrirConversa]);
+
+  // ── Lista motoristas da obra sem conversa (para o gestor iniciar) ─────────
+  const buscarMotoristasDisp = useCallback(async (): Promise<{ id: string; nome: string }[]> => {
+    const { data, error } = await (supabase as any)
+      .from("obra_funcionarios")
+      .select("employee_id, employee:employees!employee_id(id, nome)")
+      .eq("status", true);
+
+    if (error || !data) return [];
+
+    const comConversa = new Set(conversasRef.current.map(c => c.motorista_id));
+    const seen = new Set<string>();
+    const result: { id: string; nome: string }[] = [];
+
+    for (const row of data as any[]) {
+      if (row.employee && !comConversa.has(row.employee_id) && !seen.has(row.employee_id)) {
+        seen.add(row.employee_id);
+        result.push(row.employee);
+      }
+    }
+
+    return result.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, []);
+
+  // ── Realtime: lista de conversas + notificações ───────────────────────────
   useEffect(() => {
     loadConversas();
 
-    // Canal 1: mudanças nas conversas (UPDATEs de ultima_mensagem, badges, INSERTs de novas)
-    // O trigger do banco atualiza nao_lidas_gestor e ultima_mensagem em chat_conversas →
-    // usamos isso para notificar o gestor em vez de ouvir chat_mensagens sem filtro.
     chConversas.current = supabase
       .channel("chat-gestor-conversas")
       .on(
@@ -299,9 +332,9 @@ export function useChatGestor() {
         { event: "UPDATE", schema: "public", table: "chat_conversas" },
         (payload) => {
           const updated = payload.new as ChatConversa;
-
-          // Notifica se nao_lidas_gestor aumentou para uma conversa não selecionada
           const prev = conversasRef.current.find(c => c.id === updated.id);
+
+          // Notifica se nao_lidas_gestor aumentou em conversa não selecionada
           if (
             (updated.nao_lidas_gestor ?? 0) > (prev?.nao_lidas_gestor ?? 0) &&
             selecionadaRef.current?.id !== updated.id
@@ -319,7 +352,7 @@ export function useChatGestor() {
             });
           }
 
-          // Atualiza estado da lista
+          // Atualiza estado da lista mantendo o JOIN do motorista
           setConversas(prev =>
             prev
               .map(c => c.id === updated.id
@@ -360,8 +393,6 @@ export function useChatGestor() {
         });
       if (error) throw error;
 
-      // ── Envia push para o motorista ─────────────────────────────────────
-      // Usa o employee_id do motorista para notificar via VAPID
       if (selecionada.motorista_id) {
         enviarPushChat(
           selecionada.motorista_id,
@@ -376,6 +407,7 @@ export function useChatGestor() {
     }
   }, [selecionada]);
 
+  // FIX: totalNaoLidas calculado apenas uma vez (no hook) — Chat.tsx usa este
   const totalNaoLidas = conversas.reduce((s, c) => s + (c.nao_lidas_gestor ?? 0), 0);
 
   return {
@@ -388,6 +420,8 @@ export function useChatGestor() {
     totalNaoLidas,
     abrirConversa,
     enviarMensagem,
+    criarOuAbrirConversa,
+    buscarMotoristasDisp,
   };
 }
 
@@ -407,7 +441,6 @@ export function useChatGestorBadge() {
 
   useEffect(() => {
     fetchTotal();
-
     channelRef.current = supabase
       .channel("chat-badge-gestor")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_conversas" },
@@ -415,7 +448,6 @@ export function useChatGestorBadge() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_conversas" },
         () => fetchTotal())
       .subscribe();
-
     return () => { channelRef.current?.unsubscribe(); };
   }, [fetchTotal]);
 
@@ -440,7 +472,6 @@ export function useChatMotoristaBadge(motoristaId: string | undefined) {
   useEffect(() => {
     if (!motoristaId) return;
     fetchTotal();
-
     channelRef.current = supabase
       .channel(`chat-badge-motorista-${motoristaId}`)
       .on(
@@ -454,7 +485,6 @@ export function useChatMotoristaBadge(motoristaId: string | undefined) {
         () => fetchTotal()
       )
       .subscribe();
-
     return () => { channelRef.current?.unsubscribe(); };
   }, [motoristaId, fetchTotal]);
 

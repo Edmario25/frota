@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { useChatGestor, ChatConversa } from "@/hooks/useChat";
-import { MessageSquare, Send, Search, Users } from "lucide-react";
+import { MessageSquare, Send, Search, Users, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -20,19 +20,99 @@ function getInitials(nome: string) {
   return nome.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
+// ── Popover: selecionar motorista para nova conversa ──────────────────────────
+function NovaChatPopover({
+  buscarDisp,
+  onCriar,
+  onClose,
+}: {
+  buscarDisp: () => Promise<{ id: string; nome: string }[]>;
+  onCriar: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [motoristas, setMotoristas] = useState<{ id: string; nome: string }[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [busca, setBusca]           = useState("");
+
+  useEffect(() => {
+    buscarDisp().then(lista => {
+      setMotoristas(lista);
+      setLoading(false);
+    });
+  }, [buscarDisp]);
+
+  const filtrados = motoristas.filter(m =>
+    m.nome.toLowerCase().includes(busca.toLowerCase())
+  );
+
+  return (
+    <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+      {/* Header */}
+      <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+        <Search className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+        <input
+          autoFocus
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar motorista..."
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Lista */}
+      <div className="max-h-52 overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-6">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : filtrados.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6 px-4">
+            {busca
+              ? "Nenhum motorista encontrado"
+              : motoristas.length === 0
+                ? "Todos os motoristas já têm conversa aberta"
+                : "Nenhum motorista disponível"}
+          </p>
+        ) : (
+          filtrados.map(m => (
+            <button
+              key={m.id}
+              onClick={() => { onCriar(m.id); onClose(); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted/60 transition-colors"
+            >
+              <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-primary font-bold text-xs">{getInitials(m.nome)}</span>
+              </div>
+              <span className="text-sm text-foreground">{m.nome}</span>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Painel esquerdo: lista de conversas ────────────────────────────────────────
 function ConversasList({
   conversas,
   selecionada,
   onSelecionar,
   loading,
+  buscarDisp,
+  onNova,
 }: {
   conversas: ChatConversa[];
   selecionada: ChatConversa | null;
   onSelecionar: (cv: ChatConversa) => void;
   loading: boolean;
+  buscarDisp: () => Promise<{ id: string; nome: string }[]>;
+  onNova: (motoristaId: string) => void;
 }) {
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca]       = useState("");
+  const [novaOpen, setNovaOpen] = useState(false);
 
   const filtradas = conversas.filter(c =>
     c.motorista?.nome.toLowerCase().includes(busca.toLowerCase())
@@ -40,17 +120,45 @@ function ConversasList({
 
   return (
     <div className="flex flex-col h-full border-r border-border bg-card">
-      {/* Header da lista */}
+      {/* Header */}
       <div className="p-4 border-b border-border">
-        <h2 className="font-semibold text-foreground mb-3">Conversas</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-foreground">Conversas</h2>
+          {/* Botão: gestor inicia conversa */}
+          <button
+            onClick={() => setNovaOpen(v => !v)}
+            title="Nova conversa"
+            className={cn(
+              "h-7 w-7 rounded-lg flex items-center justify-center transition-colors",
+              novaOpen
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary"
+            )}
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Popover de nova conversa */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={busca}
-            onChange={e => setBusca(e.target.value)}
-            placeholder="Buscar motorista..."
-            className="pl-9 h-9 text-sm"
-          />
+          {novaOpen && (
+            <NovaChatPopover
+              buscarDisp={buscarDisp}
+              onCriar={onNova}
+              onClose={() => setNovaOpen(false)}
+            />
+          )}
+
+          {/* Campo de busca na lista existente */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              placeholder="Buscar motorista..."
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -66,9 +174,11 @@ function ConversasList({
             <p className="text-sm text-muted-foreground">
               {busca ? "Nenhum motorista encontrado" : "Nenhuma conversa ainda"}
             </p>
-            <p className="text-xs text-muted-foreground/60">
-              As conversas aparecem quando um motorista enviar a primeira mensagem
-            </p>
+            {!busca && (
+              <p className="text-xs text-muted-foreground/60">
+                Clique em <strong>+</strong> para iniciar uma conversa com um motorista
+              </p>
+            )}
           </div>
         ) : (
           filtradas.map(cv => (
@@ -82,14 +192,11 @@ function ConversasList({
                   : "hover:bg-muted/50"
               )}
             >
-              {/* Avatar */}
               <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                 <span className="text-primary font-bold text-sm">
                   {getInitials(cv.motorista?.nome ?? "?")}
                 </span>
               </div>
-
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                   <p className="font-medium text-sm text-foreground truncate">
@@ -135,13 +242,14 @@ function ConversaAberta({
   sending: boolean;
   onEnviar: (t: string) => void;
 }) {
-  const [texto, setTexto] = useState("");
-  const bottomRef = useState<HTMLDivElement | null>(null);
+  const [texto, setTexto]   = useState("");
+  // FIX: useRef correto para o marcador de auto-scroll
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll
-  const setBottomRef = (el: HTMLDivElement | null) => {
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-  };
+  // FIX: auto-scroll real quando chegam novas mensagens via Realtime
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [mensagens]);
 
   const handleSend = () => {
     const t = texto.trim();
@@ -159,7 +267,7 @@ function ConversaAberta({
         <div>
           <p className="font-semibold text-foreground">Selecione uma conversa</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Escolha um motorista na lista ao lado para ver e responder mensagens
+            Escolha um motorista na lista ao lado ou clique em <strong>+</strong> para iniciar
           </p>
         </div>
       </div>
@@ -168,7 +276,7 @@ function ConversaAberta({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header da conversa */}
+      {/* Header */}
       <div className="flex-shrink-0 px-6 py-4 border-b border-border bg-card flex items-center gap-3">
         <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center">
           <span className="text-primary font-bold text-sm">
@@ -228,7 +336,8 @@ function ConversaAberta({
                 </div>
               );
             })}
-            <div ref={setBottomRef} />
+            {/* FIX: ref correto — rola aqui quando mensagens mudam */}
+            <div ref={bottomRef} />
           </>
         )}
       </div>
@@ -264,7 +373,7 @@ function ConversaAberta({
             className={cn(
               "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all",
               texto.trim() && !sending
-                ? "bg-primary hover:bg-primary/90"
+                ? "bg-primary hover:bg-primary/90 active:scale-95"
                 : "bg-muted"
             )}
           >
@@ -287,15 +396,15 @@ function ConversaAberta({
 export default function Chat() {
   const {
     conversas, mensagens, selecionada, loading, loadingMsgs,
-    sending, abrirConversa, enviarMensagem,
+    sending, totalNaoLidas,  // FIX: usa totalNaoLidas do hook, sem recomputar
+    abrirConversa, enviarMensagem,
+    criarOuAbrirConversa, buscarMotoristasDisp,
   } = useChatGestor();
-
-  const totalNaoLidas = conversas.reduce((s, c) => s + (c.nao_lidas_gestor ?? 0), 0);
 
   return (
     <Layout>
       <div className="flex flex-col h-full">
-        {/* Page header */}
+        {/* Header da página */}
         <div className="flex-shrink-0 px-6 py-4 border-b border-border flex items-center gap-3">
           <div className="relative">
             <MessageSquare className="h-5 w-5 text-foreground" />
@@ -314,13 +423,15 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* Layout de duas colunas */}
+        {/* Layout duas colunas */}
         <div className="flex-1 overflow-hidden grid grid-cols-[300px_1fr]">
           <ConversasList
             conversas={conversas}
             selecionada={selecionada}
             onSelecionar={abrirConversa}
             loading={loading}
+            buscarDisp={buscarMotoristasDisp}
+            onNova={criarOuAbrirConversa}
           />
           <ConversaAberta
             cv={selecionada}

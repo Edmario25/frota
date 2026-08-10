@@ -74,56 +74,60 @@ export default function MobileApp() {
   const temAcesso  = isFuncionario || metaAccess || (employee?.acesso_app_motorista === true);
 
   // ── Notificação global: toast quando gestor envia msg e motorista não está na aba chat ──
-  // Observa chat_conversas (com filtro por motorista_id) em vez de chat_mensagens sem filtro.
-  // O trigger do banco já atualiza nao_lidas_motorista e ultima_mensagem, então é mais confiável.
+  // FIX: busca o valor inicial de prevNaoLidas ANTES de criar o canal para evitar
+  //      disparar toast incorretamente se nao_lidas já era > 0 ao montar.
   useEffect(() => {
     if (!employee?.id) return;
 
-    let prevNaoLidas = 0;
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    // Lê o valor inicial de nao_lidas para comparar depois
     (supabase as any)
       .from("chat_conversas")
       .select("nao_lidas_motorista")
       .eq("motorista_id", employee.id)
       .maybeSingle()
       .then(({ data }: { data: { nao_lidas_motorista: number } | null }) => {
-        if (data) prevNaoLidas = data.nao_lidas_motorista ?? 0;
+        if (cancelled) return;   // componente desmontou antes da resposta
+
+        let prevNaoLidas = data?.nao_lidas_motorista ?? 0;
+
+        channel = supabase
+          .channel(`app-notif-conv-${employee.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "chat_conversas",
+              filter: `motorista_id=eq.${employee.id}`,
+            },
+            (payload) => {
+              const updated = payload.new as { nao_lidas_motorista: number; ultima_mensagem: string | null };
+              const novasNaoLidas = updated.nao_lidas_motorista ?? 0;
+
+              if (novasNaoLidas > prevNaoLidas && activeRef.current !== "chat") {
+                playNotifSound();
+                toast({
+                  title: "💬 Mensagem do Gestor",
+                  description: updated.ultima_mensagem
+                    ? (updated.ultima_mensagem.length > 60
+                        ? updated.ultima_mensagem.slice(0, 60) + "…"
+                        : updated.ultima_mensagem)
+                    : "Nova mensagem",
+                  duration: 6000,
+                });
+              }
+              prevNaoLidas = novasNaoLidas;
+            }
+          )
+          .subscribe();
       });
 
-    const channel = supabase
-      .channel(`app-notif-conv-${employee.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "chat_conversas",
-          filter: `motorista_id=eq.${employee.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as { nao_lidas_motorista: number; ultima_mensagem: string | null };
-          const novasNaoLidas = updated.nao_lidas_motorista ?? 0;
-
-          // Só notifica se nao_lidas aumentou E não está na aba chat
-          if (novasNaoLidas > prevNaoLidas && activeRef.current !== "chat") {
-            playNotifSound();
-            toast({
-              title: "💬 Mensagem do Gestor",
-              description: updated.ultima_mensagem
-                ? (updated.ultima_mensagem.length > 60
-                    ? updated.ultima_mensagem.slice(0, 60) + "…"
-                    : updated.ultima_mensagem)
-                : "Nova mensagem",
-              duration: 6000,
-            });
-          }
-          prevNaoLidas = novasNaoLidas;
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [employee?.id]);
 
   useEffect(() => {

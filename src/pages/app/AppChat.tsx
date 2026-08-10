@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Send, MessageSquare } from "lucide-react";
 import { useChatMotorista } from "@/hooks/useChat";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
-import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,7 +15,6 @@ function formatTime(iso: string) {
 
 export function AppChat() {
   const { employee } = useCurrentEmployee();
-  const { user }     = useAuth();
   const {
     mensagens, loading, sending, enviarMensagem,
   } = useChatMotorista(employee?.id);
