@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => ({
         importScripts: ["/sw-push.js"],
         // Faz precache de todos os assets do build
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff,woff2}"],
+        // Bundle principal ultrapassa 2 MiB — aumenta limite do precache
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
         // Estratégia para navegação: sempre tenta a rede, cai no cache
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
