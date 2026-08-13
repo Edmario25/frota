@@ -6,7 +6,7 @@ import {
   User,
   Car,
   Calendar,
-  BarChart3,
+  BarChart3, CalendarDays,
   Settings,
   Truck,
   Building2,
@@ -16,9 +16,27 @@ import {
   Network,
   Wallet,
   MessageSquare,
+  ShieldCheck,
+  AlertOctagon,
+  ClipboardList,
+  BookOpen,
+  FileWarning,
+  Package,
+  GraduationCap,
+  UserCheck,
+  FileText,
+  Timer,
+  Wrench,
+  CalendarRange,
+  HardHat,
+  PieChart,
+  Globe,
+  ShieldAlert,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
+import { usePermissions, type PermKey } from "@/hooks/usePermissions";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { useChatGestorBadge } from "@/hooks/useChat";
 import {
@@ -28,67 +46,94 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-// Roles de acesso total (gestor_contrato é o novo padrão; admin e gestor_frota são legados)
+// Roles de acesso total (legado — mantido para compatibilidade)
 const FULL_ACCESS = ['gestor_contrato', 'admin', 'gestor_frota'];
 const OBRA_ACCESS = [...FULL_ACCESS, 'gestor_obra'];
 const ALL_ROLES   = [...OBRA_ACCESS, 'funcionario'];
-// Chat: apenas gestor_obra (por obra) e admin — gestor_contrato e gestor_frota sem acesso
 const CHAT_ACCESS = ['gestor_obra', 'admin'];
+const SMS_ROLES   = [...OBRA_ACCESS, 'tecnico_sms'];
 
+// Cada item de menu tem: roles (legado) + perm (nova permissão por cargo)
+// O item aparece se: tem a role (legado) OU tem a permissão do cargo (novo)
 const menuGroups = [
   {
     group: "Principal",
     items: [
-      { title: "Dashboard", icon: LayoutDashboard, url: "/", roles: ALL_ROLES },
+      { title: "Dashboard", icon: LayoutDashboard, url: "/", roles: ALL_ROLES, perm: "acesso_dashboard" as PermKey },
     ]
   },
   {
     group: "Pessoas",
     items: [
-      { title: "Funcionários", icon: Users, url: "/funcionarios", roles: OBRA_ACCESS },
-      { title: "Escalas", icon: Calendar, url: "/escalas", roles: OBRA_ACCESS },
+      { title: "Funcionários",   icon: Users,    url: "/funcionarios", roles: OBRA_ACCESS, perm: "acesso_colaboradores" as PermKey },
+      { title: "Escalas",        icon: Calendar, url: "/escalas",      roles: OBRA_ACCESS, perm: "acesso_escalas" as PermKey },
+      { title: "Efetivo / Ponto",   icon: Timer,    url: "/efetivo",           roles: OBRA_ACCESS, perm: "acesso_efetivo" as PermKey },
+      { title: "Espelho de Ponto",  icon: CalendarDays, url: "/efetivo/relatorio", roles: OBRA_ACCESS, perm: "acesso_efetivo" as PermKey },
     ]
   },
   {
     group: "Frota",
     items: [
-      { title: "Veículos Leves", icon: Car, url: "/frota", roles: OBRA_ACCESS },
-      { title: "Veículos Pesados", icon: Truck, url: "/veiculos-pesados", roles: OBRA_ACCESS },
+      { title: "Veículos Leves",   icon: Car,   url: "/frota",            roles: OBRA_ACCESS, perm: "acesso_frota" as PermKey },
+      { title: "Veículos Pesados", icon: Truck, url: "/veiculos-pesados", roles: OBRA_ACCESS, perm: "acesso_frota" as PermKey },
     ]
   },
   {
     group: "Projetos",
     items: [
-      { title: "Obras", icon: Building2, url: "/obras", roles: OBRA_ACCESS },
-      { title: "Fornecedores", icon: Boxes, url: "/fornecedores", roles: OBRA_ACCESS },
-      { title: "Fundo Fixo", icon: Wallet, url: "/fundo-fixo", roles: ALL_ROLES },
+      { title: "Obras",          icon: Building2, url: "/obras",          roles: OBRA_ACCESS, perm: "acesso_colaboradores" as PermKey },
+      { title: "Fornecedores",   icon: Boxes,     url: "/fornecedores",   roles: OBRA_ACCESS, perm: "acesso_colaboradores" as PermKey },
+      { title: "Almoxarifado",   icon: Package,   url: "/almoxarifado",   roles: OBRA_ACCESS, perm: "acesso_almoxarifado" as PermKey },
+      { title: "Ferramentas",    icon: Wrench,    url: "/ferramentas",    roles: OBRA_ACCESS, perm: "acesso_ferramentas" as PermKey },
+      { title: "Cronograma",      icon: CalendarRange, url: "/cronograma",      roles: OBRA_ACCESS, perm: "acesso_cronograma" as PermKey },
+      { title: "Subcontratadas",  icon: HardHat,    url: "/subcontratadas",   roles: OBRA_ACCESS, perm: "acesso_subcontratadas" as PermKey },
+      { title: "Orçado × Realizado", icon: PieChart, url: "/orcado-realizado", roles: OBRA_ACCESS, perm: "acesso_financeiro" as PermKey },
+      { title: "Portal do Cliente",   icon: Globe,       url: "/portal-cliente",    roles: OBRA_ACCESS, perm: "acesso_relatorios" as PermKey },
+      { title: "Não Conformidades",  icon: ShieldAlert, url: "/nao-conformidades", roles: OBRA_ACCESS, perm: "acesso_qualidade"   as PermKey },
+      { title: "Visitantes",         icon: UserCheck,   url: "/visitantes",        roles: OBRA_ACCESS, perm: "acesso_visitantes"  as PermKey },
+      { title: "Fundo Fixo",     icon: Wallet,    url: "/fundo-fixo",     roles: ALL_ROLES,   perm: "acesso_fundo_fixo" as PermKey },
     ]
   },
   {
     group: "Análises",
     items: [
-      { title: "Relatórios", icon: BarChart3, url: "/relatorios", roles: OBRA_ACCESS },
-      { title: "Rel. Escalas", icon: Calendar, url: "/relatorios-escala", roles: OBRA_ACCESS },
+      { title: "Relatórios",   icon: BarChart3, url: "/relatorios",        roles: OBRA_ACCESS, perm: "acesso_relatorios" as PermKey },
+      { title: "Rel. Escalas", icon: Calendar,  url: "/relatorios-escala", roles: OBRA_ACCESS, perm: "acesso_relatorios" as PermKey },
     ]
   },
   {
     group: "Comunicação",
     items: [
-      { title: "Chat", icon: MessageSquare, url: "/chat", roles: CHAT_ACCESS, badge: "chat" as const },
+      { title: "Chat",         icon: MessageSquare, url: "/chat",         roles: CHAT_ACCESS, perm: null,                                  badge: "chat" as const },
+      { title: "Comunicados",  icon: Megaphone,     url: "/comunicados",  roles: ALL_ROLES,   perm: "acesso_comunicados" as PermKey },
+    ]
+  },
+  {
+    group: "SMS / SSMA",
+    items: [
+      { title: "Painel SMS",        icon: ShieldCheck,   url: "/sms",              roles: SMS_ROLES, perm: "acesso_sms_dashboard" as PermKey },
+      { title: "Desvios",           icon: AlertOctagon,  url: "/sms/desvios",      roles: SMS_ROLES, perm: "acesso_sms_desvios" as PermKey },
+      { title: "Inspeções",         icon: ClipboardList, url: "/sms/inspecoes",    roles: SMS_ROLES, perm: "acesso_sms_inspecoes" as PermKey },
+      { title: "DDS",               icon: BookOpen,      url: "/sms/dds",          roles: SMS_ROLES, perm: "acesso_sms_dds" as PermKey },
+      { title: "APR",               icon: FileWarning,   url: "/sms/apr",          roles: SMS_ROLES, perm: "acesso_sms_apr" as PermKey },
+      { title: "EPIs",              icon: Package,       url: "/sms/epis",         roles: SMS_ROLES, perm: "acesso_sms_epis" as PermKey },
+      { title: "Treinamentos",      icon: GraduationCap, url: "/sms/treinamentos", roles: SMS_ROLES, perm: "acesso_sms_treinamentos" as PermKey },
+      { title: "Admissão Digital",  icon: UserCheck,     url: "/sms/admissao",     roles: SMS_ROLES, perm: "acesso_sms_admissao" as PermKey },
+      { title: "RDO",               icon: FileText,      url: "/sms/rdo",          roles: SMS_ROLES, perm: "acesso_sms_rdo" as PermKey },
     ]
   },
   {
     group: "Admin",
     items: [
-      { title: "Cargos", icon: Briefcase, url: "/cargos", roles: FULL_ACCESS },
-      { title: "Departamentos", icon: Network, url: "/departamentos", roles: FULL_ACCESS },
-      { title: "Configurações", icon: Settings, url: "/configuracoes", roles: FULL_ACCESS },
+      { title: "Cargos",         icon: Briefcase, url: "/cargos",         roles: FULL_ACCESS, perm: null },
+      { title: "Departamentos",  icon: Network,   url: "/departamentos",  roles: FULL_ACCESS, perm: null },
+      { title: "Configurações",  icon: Settings,  url: "/configuracoes",  roles: FULL_ACCESS, perm: null },
     ]
   },
   {
     group: "Conta",
     items: [
-      { title: "Meu Perfil", icon: User, url: "/minhas-informacoes", roles: ALL_ROLES },
+      { title: "Meu Perfil", icon: User, url: "/minhas-informacoes", roles: ALL_ROLES, perm: null },
     ]
   },
 ];
@@ -101,21 +146,34 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
   const location = useLocation();
-  const { role, loading } = useUserRole();
+  const { role, loading: loadingRole } = useUserRole();
+  const { can, loading: loadingPerms, ready: permsReady } = usePermissions();
   const { settings: branding } = useSystemSettings();
   const chatUnread = useChatGestorBadge();
+
+  const loading = loadingRole || loadingPerms;
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
     return location.pathname.startsWith(path);
   };
 
+  // Item visível se: role legada permite (comportamento anterior)
+  //              OU  cargo tem a permissão específica (novo PBAC)
+  const itemVisible = (item: { roles: string[]; perm: PermKey | null }) => {
+    if (loading) return false;
+    // perm = null → controlado apenas por role (Admin, Conta, Chat)
+    if (item.perm === null) return !!role && item.roles.includes(role);
+    // Tenta permissão do cargo primeiro (novo sistema)
+    if (permsReady && can(item.perm)) return true;
+    // Fallback para role legada (cargos ainda não migrados)
+    return !!role && item.roles.includes(role);
+  };
+
   const filteredGroups = menuGroups
     .map(group => ({
       ...group,
-      items: group.items.filter(item =>
-        !loading && role && item.roles.includes(role)
-      )
+      items: group.items.filter(itemVisible),
     }))
     .filter(group => group.items.length > 0);
 

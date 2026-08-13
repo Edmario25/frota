@@ -30,6 +30,26 @@ import Relatorios from "./pages/Relatorios";
 import RelatorioEscalas from "./pages/RelatorioEscalas";
 import Chat from "./pages/Chat";
 import MobileApp from "./pages/app/MobileApp";
+import SmsDashboard from "./pages/sms/SmsDashboard";
+import SmsDesvios from "./pages/sms/SmsDesvios";
+import SmsInspecoes from "./pages/sms/SmsInspecoes";
+import SmsDds from "./pages/sms/SmsDds";
+import SmsApr from "./pages/sms/SmsApr";
+import SmsEpis from "./pages/sms/SmsEpis";
+import SmsTreinamentos from "./pages/sms/SmsTreinamentos";
+import SmsAdmissao from "./pages/sms/SmsAdmissao";
+import SmsRdo from "./pages/sms/SmsRdo";
+import Efetivo from "./pages/Efetivo";
+import EfetivoRelatorio from "./pages/EfetivoRelatorio";
+import Almoxarifado from "./pages/Almoxarifado";
+import Ferramentas from "./pages/Ferramentas";
+import Cronograma from "./pages/Cronograma";
+import Subcontratadas from "./pages/Subcontratadas";
+import OrcadoRealizado from "./pages/OrcadoRealizado";
+import PortalCliente from "./pages/PortalCliente";
+import NaoConformidades from "./pages/NaoConformidades";
+import Comunicados from "./pages/Comunicados";
+import Visitantes from "./pages/Visitantes";
 import { loadBrandingFromDB } from "./hooks/useSystemSettings";
 
 // 1. Aplica favicon do localStorage imediatamente (sem esperar rede)
@@ -210,6 +230,148 @@ const App = () => (
                 {/* Chat restrito a gestor_obra (por obra) e admin — gestor_contrato sem acesso */}
                 <RoleProtectedRoute allowedRoles={['gestor_obra', 'admin']}>
                   <Chat />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            {/* ── Efetivo e Ponto ─────────────────────────────────── */}
+            <Route path="/efetivo" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <Efetivo />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/efetivo/relatorio" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <EfetivoRelatorio />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/almoxarifado" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <Almoxarifado />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/ferramentas" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <Ferramentas />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/cronograma" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <Cronograma />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/subcontratadas" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <Subcontratadas />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/orcado-realizado" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <OrcadoRealizado />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/portal-cliente" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <PortalCliente />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/nao-conformidades" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <NaoConformidades />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/comunicados" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'funcionario']}>
+                  <Comunicados />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/visitantes" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <Visitantes />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            {/* ── SMS / SSMA ──────────────────────────────────────── */}
+            <Route path="/sms" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsDashboard />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/desvios" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsDesvios />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/inspecoes" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsInspecoes />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/dds" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsDds />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/apr" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsApr />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/epis" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsEpis />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/treinamentos" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsTreinamentos />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/admissao" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsAdmissao />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/rdo" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsRdo />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />

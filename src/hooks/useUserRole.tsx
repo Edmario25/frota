@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type AppRole = 'gestor_contrato' | 'gestor_obra' | 'funcionario' | 'admin' | 'gestor_frota';
+export type AppRole = 'gestor_contrato' | 'gestor_obra' | 'funcionario' | 'admin' | 'gestor_frota' | 'tecnico_sms';
 
 export const useUserRole = () => {
   const { user } = useAuth();
