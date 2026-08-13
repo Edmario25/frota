@@ -30,6 +30,7 @@ import Relatorios from "./pages/Relatorios";
 import RelatorioEscalas from "./pages/RelatorioEscalas";
 import Chat from "./pages/Chat";
 import MobileApp from "./pages/app/MobileApp";
+import AppSms from "./pages/app/AppSms";
 import SmsDashboard from "./pages/sms/SmsDashboard";
 import SmsDesvios from "./pages/sms/SmsDesvios";
 import SmsInspecoes from "./pages/sms/SmsInspecoes";
@@ -377,6 +378,7 @@ const App = () => (
             } />
             {/* /app gerencia seu próprio auth — não usa ProtectedRoute */}
             <Route path="/app" element={<MobileApp />} />
+            <Route path="/app-sms" element={<AppSms />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
