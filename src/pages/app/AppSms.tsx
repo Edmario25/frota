@@ -11,13 +11,17 @@ import { RdoForm }       from "./sms/RdoForm"
 import { NearMissForm }  from "./sms/NearMissForm"
 import { AcidenteForm }  from "./sms/AcidenteForm"
 import { PtForm }        from "./sms/PtForm"
+import { QrScannerModal }         from "./sms/QrScannerModal"
+import { VeiculoHistoricoScreen } from "./sms/VeiculoHistoricoScreen"
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type Employee = { id: string; nome: string; obra_id: string | null }
 type Obra = { id: string; nome: string }
+type Veiculo = { id: string; placa: string; marca: string; modelo: string }
 type Screen =
   | 'home'
   | 'hist'
+  | 'veiculo-hist'
   | 'form-dds' | 'form-desvio' | 'form-inspecao' | 'form-apr'
   | 'form-rdo' | 'form-near_miss' | 'form-acidente' | 'form-pt'
 
@@ -57,6 +61,9 @@ export default function AppSms() {
   const [syncing, setSyncing]     = useState(false)
   const [syncMsg, setSyncMsg]     = useState('')
   const [histRecords, setHist]    = useState<Awaited<ReturnType<typeof smsDb.getAll>>>([])
+  const [veiculos, setVeiculos]   = useState<Veiculo[]>([])
+  const [showQrScanner, setQrScan]= useState(false)
+  const [scannedVehicleId, setScanVehicle] = useState<string | null>(null)
   const [email, setEmail]         = useState('')
   const [password, setPassword]   = useState('')
   const [loginErr, setLoginErr]   = useState('')
@@ -136,7 +143,7 @@ export default function AppSms() {
       .order('nome')
     if (obrasData) setObras(obrasData)
     // load ref data when online
-    if (navigator.onLine) loadRefData()
+    if (navigator.onLine) { loadRefData(); loadVeiculos(vinculo?.obra_id ?? null) }
     // restore from IndexedDB cache
     else {
       const cached = await smsDb.getRef<typeof ddsTemas>('sms_dds_temas')
@@ -149,8 +156,28 @@ export default function AppSms() {
       if (cCatInsp) setCatalogoInsp(cCatInsp)
       const cItens = await smsDb.getRef<typeof itensCatalogo>('sms_inspecoes_itens_catalogo')
       if (cItens) setItensCatalog(cItens)
+      const cVeiculos = await smsDb.getRef<Veiculo[]>('obra_veiculos')
+      if (cVeiculos) setVeiculos(cVeiculos)
     }
     refreshCounts()
+  }
+
+  const loadVeiculos = async (obraId: string | null) => {
+    if (!obraId) return
+    try {
+      // Busca veículos vinculados à obra via obra_veiculos
+      const { data } = await (supabase as any)
+        .from('obra_veiculos')
+        .select('vehicles(id, placa, marca, modelo)')
+        .eq('obra_id', obraId)
+        .eq('status', true)
+      const lista: Veiculo[] = (data ?? [])
+        .map((row: any) => row.vehicles)
+        .filter(Boolean)
+        .sort((a: Veiculo, b: Veiculo) => a.placa.localeCompare(b.placa))
+      setVeiculos(lista)
+      await smsDb.setRef('obra_veiculos', lista)
+    } catch { /* offline */ }
   }
 
   const loadRefData = async () => {
@@ -195,7 +222,7 @@ export default function AppSms() {
   }, [online, employee])
 
   useEffect(() => {
-    if (online && employee) { loadRefData(); doSync() }
+    if (online && employee) { loadRefData(); loadVeiculos(employee.obra_id); doSync() }
   }, [online])
 
   // ── save handler ─────────────────────────────────────────────────────────────
@@ -297,8 +324,29 @@ export default function AppSms() {
     )
   }
 
+  // ── QR scan handler ───────────────────────────────────────────────────────────
+  const handleQrScan = (vehicleId: string) => {
+    setQrScan(false)
+    setScanVehicle(vehicleId)
+    setScreen('veiculo-hist')
+  }
+
+  // ── render: QR scanner overlay ────────────────────────────────────────────────
+  if (showQrScanner)
+    return <QrScannerModal onScan={handleQrScan} onClose={() => setQrScan(false)} />
+
+  // ── render: histórico do veículo ──────────────────────────────────────────────
+  if (screen === 'veiculo-hist' && scannedVehicleId)
+    return (
+      <VeiculoHistoricoScreen
+        vehicleId={scannedVehicleId}
+        obraId={employee!.obra_id}
+        onBack={() => { setScanVehicle(null); setScreen('home') }}
+      />
+    )
+
   // ── render: forms ─────────────────────────────────────────────────────────────
-  const formProps = { employee: employee!, obras, obraId: employee!.obra_id ?? '' }
+  const formProps = { employee: employee!, obras, obraId: employee!.obra_id ?? '', veiculos }
 
   if (screen === 'form-dds')
     return <DdsForm {...formProps} ddsTemas={ddsTemas} onSave={handleSave} onBack={() => setScreen('home')} />
@@ -360,7 +408,7 @@ export default function AppSms() {
           </div>
         )}
         {/* bottom nav */}
-        <BottomNav screen={screen} onHome={() => setScreen('home')} onHist={loadHist} />
+        <BottomNav screen={screen} onHome={() => setScreen('home')} onHist={loadHist} onQr={() => setQrScan(true)} />
       </div>
     )
   }
@@ -393,6 +441,20 @@ export default function AppSms() {
 
       {/* grid de ações */}
       <div className="flex-1 overflow-y-auto p-4 pb-24">
+
+        {/* QR Code scanner */}
+        <button
+          onClick={() => setQrScan(true)}
+          className="w-full mb-4 flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-green-800 text-white active:scale-[.98] transition-transform"
+        >
+          <span className="text-2xl">📷</span>
+          <div className="text-left flex-1">
+            <p className="text-sm font-bold leading-tight">Escanear Veículo</p>
+            <p className="text-xs text-green-300 leading-tight">Ver histórico de segurança via QR Code</p>
+          </div>
+          <span className="text-green-400 text-lg">›</span>
+        </button>
+
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Novo lançamento</p>
         <div className="grid grid-cols-2 gap-3">
           {MENU_ITEMS.map(item => (
@@ -440,7 +502,11 @@ export default function AppSms() {
 }
 
 // ─── bottom nav ───────────────────────────────────────────────────────────────
-function BottomNav({ screen, onHome, onHist }: { screen: Screen; onHome: () => void; onHist: () => void }) {
+function BottomNav({
+  screen, onHome, onHist, onQr,
+}: {
+  screen: Screen; onHome: () => void; onHist: () => void; onQr: () => void
+}) {
   return (
     <nav className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex">
       <button
@@ -449,6 +515,13 @@ function BottomNav({ screen, onHome, onHist }: { screen: Screen; onHome: () => v
       >
         <span className="text-xl">🏠</span>
         Início
+      </button>
+      <button
+        onClick={onQr}
+        className="flex-1 py-3 flex flex-col items-center gap-0.5 text-xs font-medium text-gray-400"
+      >
+        <span className="text-xl">📷</span>
+        Veículo
       </button>
       <button
         onClick={onHist}

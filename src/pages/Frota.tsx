@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Filter, Edit, Trash2, Eye, Download } from "lucide-react";
+import { Search, Plus, Filter, Edit, Trash2, Eye, Download, QrCode } from "lucide-react";
 import { 
   Table,
   TableBody,
@@ -23,6 +23,7 @@ import { useVehicles } from "@/hooks/useVehicles";
 import { VehicleFormModal } from "@/components/frota/VehicleFormModal";
 import { ConfirmDeleteModal } from "@/components/frota/ConfirmDeleteModal";
 import { VehicleDetailModal } from "@/components/frota/VehicleDetailModal";
+import { QrCodeVeiculoDialog } from "@/components/frota/QrCodeVeiculoDialog";
 import { VehicleKmCell } from "@/components/frota/VehicleKmCell";
 import { useKmCyclesBatch } from "@/hooks/useVehicleKmCycles";
 import { getVehicleStatusColor, getVehicleStatusText } from "@/lib/statusHelpers";
@@ -44,6 +45,8 @@ const Frota = () => {
   const [isRentalCompanyModalOpen, setIsRentalCompanyModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [qrVehicle, setQrVehicle] = useState<Vehicle | null>(null);
 
   const [stats, setStats] = useState({
     disponivel: 0,
@@ -260,6 +263,9 @@ const Frota = () => {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDetailModal(vehicle); }}>
                         <Eye className="h-4 w-4" />
                       </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-green-700 hover:text-green-800 hover:bg-green-50" title="Gerar QR Code SMS" onClick={(e) => { e.stopPropagation(); setQrVehicle(vehicle); setIsQrModalOpen(true); }}>
+                        <QrCode className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditModal(vehicle); }}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -314,6 +320,12 @@ const Frota = () => {
         onOpenChange={setIsDeleteModalOpen}
         vehicle={selectedVehicle}
         onConfirm={handleDeleteVehicle}
+      />
+
+      <QrCodeVeiculoDialog
+        vehicle={qrVehicle}
+        open={isQrModalOpen}
+        onOpenChange={(open) => { setIsQrModalOpen(open); if (!open) setQrVehicle(null); }}
       />
 
       {/* Painel GPS / Traccar */}

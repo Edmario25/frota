@@ -1,10 +1,14 @@
 import { useState } from "react"
 import { FormShell, Field, inputCls, textareaCls, PhotoStrip, usePhotoCapture } from "./shared"
 
+type Veiculo = { id: string; placa: string; marca: string; modelo: string }
+
 interface Props {
   employee: { id: string; nome: string }
   obraId: string
   obras: { id: string; nome: string }[]
+  veiculos?: Veiculo[]
+  preselectedVehicleId?: string
   onSave: (type: 'acidente', data: Record<string, unknown>) => Promise<void>
   onBack: () => void
 }
@@ -23,11 +27,12 @@ const PARTES_CORPO = [
   'Quadril', 'Coxa', 'Joelho', 'Perna / pé', 'Tornozelo', 'Dedo(s) do pé', 'Múltiplas',
 ]
 
-export function AcidenteForm({ employee, obraId, obras, onSave, onBack }: Props) {
+export function AcidenteForm({ employee, obraId, obras, veiculos = [], preselectedVehicleId, onSave, onBack }: Props) {
   const now = new Date()
   const localDT = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 
   const [obra, setObra]           = useState(obraId || obras[0]?.id || '')
+  const [veiculoId, setVeiculoId] = useState(preselectedVehicleId ?? '')
   const [tipo, setTipo]           = useState('acidente_tipico')
   const [dataHora, setDataHora]   = useState(localDT)
   const [descricao, setDescricao] = useState('')
@@ -45,6 +50,7 @@ export function AcidenteForm({ employee, obraId, obras, onSave, onBack }: Props)
     setSaving(true)
     await onSave('acidente', {
       obra_id:          obra,
+      veiculo_id:       veiculoId || null,
       tipo,
       data_hora:        new Date(dataHora).toISOString(),
       descricao,
@@ -70,6 +76,15 @@ export function AcidenteForm({ employee, obraId, obras, onSave, onBack }: Props)
         <Field label="Obra">
           <select className={`w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm`} value={obra} onChange={e => setObra(e.target.value)}>
             {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+          </select>
+        </Field>
+      )}
+
+      {veiculos.length > 0 && (
+        <Field label="🚗 Veículo envolvido">
+          <select className={`w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm`} value={veiculoId} onChange={e => setVeiculoId(e.target.value)}>
+            <option value="">— Nenhum veículo envolvido —</option>
+            {veiculos.map(v => <option key={v.id} value={v.id}>{v.placa} · {v.marca} {v.modelo}</option>)}
           </select>
         </Field>
       )}

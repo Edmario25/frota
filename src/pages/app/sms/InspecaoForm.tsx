@@ -4,10 +4,14 @@ import { FormShell, Field, inputCls, textareaCls, PhotoStrip, usePhotoCapture } 
 type CatalogoInspecao = { id: string; nome: string }
 type ItemCatalogo = { id: string; catalogo_id: string; item: string; criterio?: string | null }
 
+type Veiculo = { id: string; placa: string; marca: string; modelo: string }
+
 interface Props {
   employee: { id: string; nome: string }
   obraId: string
   obras: { id: string; nome: string }[]
+  veiculos?: Veiculo[]
+  preselectedVehicleId?: string
   catalogoInspecoes: CatalogoInspecao[]
   itensCatalogo: ItemCatalogo[]
   onSave: (type: 'inspecao', data: Record<string, unknown>) => Promise<void>
@@ -33,9 +37,10 @@ const ITENS_PADRAO: Record<string, string[]> = {
   eletrica: ['Quadro com DPS e DR instalados', 'Cabos sem emendas expostas', 'Tomadas com proteção', 'Aterramento verificado'],
 }
 
-export function InspecaoForm({ employee, obraId, obras, catalogoInspecoes, itensCatalogo, onSave, onBack }: Props) {
+export function InspecaoForm({ employee, obraId, obras, veiculos = [], preselectedVehicleId, catalogoInspecoes, itensCatalogo, onSave, onBack }: Props) {
   const today = new Date().toISOString().split('T')[0]
   const [obra, setObra]             = useState(obraId || obras[0]?.id || '')
+  const [veiculoId, setVeiculoId]   = useState(preselectedVehicleId ?? '')
   const [tipo, setTipo]             = useState(
     catalogoInspecoes.length > 0 ? catalogoInspecoes[0].id : TIPOS_PADRAO[0].id,
   )
@@ -62,6 +67,7 @@ export function InspecaoForm({ employee, obraId, obras, catalogoInspecoes, itens
     setSaving(true)
     await onSave('inspecao', {
       obra_id:    obra,
+      veiculo_id: veiculoId || null,
       catalogo_id: usandoCatalogo ? tipo : null,
       tipo_nome:  usandoCatalogo
         ? catalogoInspecoes.find(c => c.id === tipo)?.nome
@@ -91,6 +97,15 @@ export function InspecaoForm({ employee, obraId, obras, catalogoInspecoes, itens
         <Field label="Obra">
           <select className={`w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm`} value={obra} onChange={e => setObra(e.target.value)}>
             {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+          </select>
+        </Field>
+      )}
+
+      {veiculos.length > 0 && (
+        <Field label="🚗 Veículo inspecionado">
+          <select className={`w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm`} value={veiculoId} onChange={e => setVeiculoId(e.target.value)}>
+            <option value="">— Não é inspeção de veículo —</option>
+            {veiculos.map(v => <option key={v.id} value={v.id}>{v.placa} · {v.marca} {v.modelo}</option>)}
           </select>
         </Field>
       )}
