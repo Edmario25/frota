@@ -106,8 +106,11 @@ export default function AppSms() {
     const data = emp
     setEmployee(data)
     setAuthState('ok')
-    // load obras for this employee
-    const { data: obrasData } = await (supabase as any).from('obras').select('id, nome').eq('ativa', true).order('nome')
+    // load obras ativas (status != concluida/cancelada)
+    const { data: obrasData } = await (supabase as any)
+      .from('obras').select('id, nome, status')
+      .not('status', 'in', '("concluida","cancelada")')
+      .order('nome')
     if (obrasData) setObras(obrasData)
     // load ref data when online
     if (navigator.onLine) loadRefData()
