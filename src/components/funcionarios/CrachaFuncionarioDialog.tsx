@@ -112,17 +112,35 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
     } catch { /* usa padrão */ }
   }
 
-  // Converte a foto para base64 para embed no HTML (sem depender de URL externa ao imprimir)
-  const carregarFoto = async () => {
+  // Converte a foto para base64 via canvas (evita bloqueios CORS do fetch)
+  const carregarFoto = () => {
     const url = employee.foto_url
     if (!url) return
-    try {
-      const resp = await fetch(url)
-      const blob = await resp.blob()
-      const reader = new FileReader()
-      reader.onload = () => setFotoB64(reader.result as string)
-      reader.readAsDataURL(blob)
-    } catch { /* sem foto */ }
+    return new Promise<void>((resolve) => {
+      const img = new Image()
+      img.crossOrigin = "anonymous"
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas")
+          canvas.width  = img.naturalWidth  || 200
+          canvas.height = img.naturalHeight || 200
+          canvas.getContext("2d")?.drawImage(img, 0, 0)
+          setFotoB64(canvas.toDataURL("image/jpeg", 0.9))
+        } catch {
+          // canvas foi taintado por CORS — usa a URL diretamente (funciona no popup)
+          setFotoB64(url)
+        }
+        resolve()
+      }
+      img.onerror = () => {
+        // Tenta sem crossOrigin como último recurso
+        const img2 = new Image()
+        img2.onload  = () => { setFotoB64(url); resolve() }
+        img2.onerror = () => resolve()
+        img2.src = url
+      }
+      img.src = url
+    })
   }
 
   // ── Impressão ─────────────────────────────────────────────────────────────
@@ -161,8 +179,10 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
 
     const iniciais = employee.nome.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
 
-    const fotoHtml = fotoB64
-      ? `<img src="${fotoB64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
+    // Usa base64 (embed seguro) OU a URL original como fallback (funciona no popup do mesmo domínio)
+    const fotoSrcHtml = fotoB64 || employee.foto_url || ""
+    const fotoHtml = fotoSrcHtml
+      ? `<img src="${fotoSrcHtml}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
       : `<div style="width:100%;height:100%;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#475569;">${iniciais}</div>`
 
     const trRows = treinamentos.map(t => {
