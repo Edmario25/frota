@@ -21,6 +21,8 @@ type Screen =
   | 'form-dds' | 'form-desvio' | 'form-inspecao' | 'form-apr'
   | 'form-rdo' | 'form-near_miss' | 'form-acidente' | 'form-pt'
 
+type AuthState = 'loading' | 'unauth' | 'sem_acesso' | 'ok'
+
 const MENU_ITEMS: { type: RecordType; label: string; emoji: string; desc: string; color: string }[] = [
   { type: 'dds',       label: 'DDS',          emoji: '🎓', desc: 'Diálogo Diário de Segurança',        color: 'bg-blue-50 border-blue-200 text-blue-800' },
   { type: 'desvio',    label: 'Desvio',        emoji: '⚠️',  desc: 'Condição/ato inseguro',              color: 'bg-orange-50 border-orange-200 text-orange-800' },
@@ -47,7 +49,7 @@ function useOnlineStatus() {
 
 // ─── main component ───────────────────────────────────────────────────────────
 export default function AppSms() {
-  const [authState, setAuthState] = useState<'loading' | 'unauth' | 'ok'>('loading')
+  const [authState, setAuthState] = useState<AuthState>('loading')
   const [employee, setEmployee]   = useState<Employee | null>(null)
   const [obras, setObras]         = useState<Obra[]>([])
   const [screen, setScreen]       = useState<Screen>('home')
@@ -84,8 +86,9 @@ export default function AppSms() {
   }, [])
 
   const loadEmployee = async (userId: string) => {
-    const { data } = await (supabase as any).from('employees').select('id, nome, obra_id').eq('user_id', userId).maybeSingle()
+    const { data } = await (supabase as any).from('employees').select('id, nome, obra_id, acesso_app_sms').eq('user_id', userId).maybeSingle()
     if (!data) { setAuthState('unauth'); return }
+    if (!data.acesso_app_sms) { setAuthState('sem_acesso'); return }
     setEmployee(data)
     setAuthState('ok')
     // load obras for this employee
@@ -197,6 +200,26 @@ export default function AppSms() {
           <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-gray-600 text-sm">Carregando...</p>
         </div>
+      </div>
+    )
+  }
+
+  // ── render: sem permissão ─────────────────────────────────────────────────────
+  if (authState === 'sem_acesso') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-700 to-gray-900 flex flex-col items-center justify-center p-6 text-center">
+        <div className="text-6xl mb-4">🔒</div>
+        <h2 className="text-xl font-bold text-white mb-2">Acesso não autorizado</h2>
+        <p className="text-gray-300 text-sm mb-6 max-w-xs">
+          Seu usuário não tem permissão para acessar o App SMS Campo.
+          Solicite ao administrador que habilite o acesso no cadastro do seu perfil.
+        </p>
+        <button
+          onClick={handleLogout}
+          className="text-sm text-gray-400 underline"
+        >
+          Sair e usar outro usuário
+        </button>
       </div>
     )
   }

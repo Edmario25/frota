@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PhotoUpload } from "@/components/ui/photo-upload";
-import { ShieldCheck, Shield, User, Info, KeyRound, ChevronDown, ChevronUp, Smartphone } from "lucide-react";
+import { ShieldCheck, Shield, User, Info, KeyRound, ChevronDown, ChevronUp, Smartphone, HardHat } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCargos } from "@/hooks/useCargos";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
@@ -49,6 +49,7 @@ const schema = z.object({
   obra_id:               z.string().optional(),
   escala_tipo_id:        z.string().optional(),
   acesso_app_motorista:  z.boolean().default(false),
+  acesso_app_sms:        z.boolean().default(false),
 });
 
 interface Props {
@@ -81,6 +82,7 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
       cargo_id: "", departamento_id: "", data_admissao: "",
       status: "ativo", obra_id: "", escala_tipo_id: "",
       acesso_app_motorista: false,
+      acesso_app_sms:       false,
     },
   });
 
@@ -170,6 +172,7 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
           obra_id:              activeObraId,
           escala_tipo_id:       employee.escala_tipo_id ?? "",
           acesso_app_motorista: employee.acesso_app_motorista ?? false,
+          acesso_app_sms:       (employee as any).acesso_app_sms ?? false,
         });
         setPhotoUrl(employee.foto_url ?? "");
       } else {
@@ -200,6 +203,7 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
         escala_tipo_id:       values.escala_tipo_id || null,
         foto_url:             photoUrl || null,
         acesso_app_motorista: values.acesso_app_motorista ?? false,
+        acesso_app_sms:       values.acesso_app_sms ?? false,
       };
 
       const submitData = employee
@@ -338,6 +342,39 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Permite que este funcionário acesse o app mobile para lançar abastecimentos,
                         manutenções, checklists e consultar a escala de trabalho.
+                      </p>
+                    </div>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {/* Acesso ao App SMS Campo */}
+            <FormField
+              control={form.control}
+              name="acesso_app_sms"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        id="acesso_app_sms"
+                        className="mt-0.5"
+                      />
+                    </FormControl>
+                    <div className="flex-1">
+                      <label
+                        htmlFor="acesso_app_sms"
+                        className="text-sm font-semibold cursor-pointer flex items-center gap-2"
+                      >
+                        <HardHat className="h-4 w-4 text-green-700" />
+                        Acesso ao App SMS Campo
+                      </label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Permite que este funcionário acesse o app de segurança do trabalho
+                        para registrar DDS, desvios, inspeções, APR, RDO e ocorrências em campo.
                       </p>
                     </div>
                   </div>
