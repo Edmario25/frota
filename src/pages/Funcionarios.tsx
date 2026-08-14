@@ -5,8 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, Edit, Trash2, Eye, ShieldCheck, Shield, User, Download, CreditCard } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Edit, Trash2, Eye, ShieldCheck, Shield, User, Download, CreditCard, ClipboardList } from "lucide-react";
 import { CrachaFuncionarioDialog } from "@/components/funcionarios/CrachaFuncionarioDialog";
+import { PerfilRhSheet } from "@/components/funcionarios/PerfilRhSheet";
 import {
   Table,
   TableBody,
@@ -52,7 +53,8 @@ const Funcionarios = () => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isCrachaOpen, setIsCrachaOpen] = useState(false);
+  const [isCrachaOpen, setIsCrachaOpen]   = useState(false);
+  const [isRhOpen,     setIsRhOpen]       = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -252,6 +254,10 @@ const Funcionarios = () => {
                           <Eye className="h-4 w-4 mr-2" />
                           Visualizar
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setIsRhOpen(true); }}>
+                          <ClipboardList className="h-4 w-4 mr-2 text-blue-500" />
+                          Perfil RH
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setIsCrachaOpen(true); }}>
                           <CreditCard className="h-4 w-4 mr-2 text-violet-500" />
                           Gerar Crachá
@@ -310,6 +316,12 @@ const Funcionarios = () => {
             employee={selectedEmployee}
           />
         )}
+
+        <PerfilRhSheet
+          open={isRhOpen}
+          onOpenChange={setIsRhOpen}
+          employee={selectedEmployee}
+        />
       </div>
     </Layout>
   );
