@@ -3,6 +3,7 @@
   "short_name": "Frota App",
   "description": "Lançamentos, checklist e escala para motoristas",
   "start_url": "/app",
+  "scope": "/app",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#1e40af",
