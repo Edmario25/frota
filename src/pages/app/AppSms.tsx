@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { smsDb, RecordType } from "@/lib/sms-offline-db"
 import { syncAll } from "@/lib/sms-sync"
@@ -71,6 +71,25 @@ export default function AppSms() {
 
   const online = useOnlineStatus()
   const syncLock = useRef(false)
+
+  // ── Troca o manifest PWA para que "Adicionar à tela inicial" instale o app
+  //    correto (start_url /app-sms) em vez do app do motorista (/app)
+  useEffect(() => {
+    // Salva referências originais
+    const manifestLink  = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
+    const themeColor    = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    const origManifest  = manifestLink?.href ?? ''
+    const origTheme     = themeColor?.content ?? ''
+
+    if (manifestLink) manifestLink.href = '/app-sms-manifest.json'
+    if (themeColor)   themeColor.content = '#15803d'
+
+    // Restaura ao sair da rota /app-sms
+    return () => {
+      if (manifestLink) manifestLink.href = origManifest
+      if (themeColor)   themeColor.content = origTheme
+    }
+  }, [])
 
   // ── auth check ──────────────────────────────────────────────────────────────
   useEffect(() => {
