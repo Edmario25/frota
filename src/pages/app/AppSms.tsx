@@ -86,24 +86,28 @@ export default function AppSms() {
   }, [])
 
   const loadEmployee = async (userId: string) => {
-    // 1. Busca dados básicos do funcionário (sem a coluna opcional)
+    // 1. Dados básicos — employees NÃO tem obra_id diretamente
     const { data: emp } = await (supabase as any)
-      .from('employees').select('id, nome, obra_id').eq('user_id', userId).maybeSingle()
+      .from('employees').select('id, nome').eq('user_id', userId).maybeSingle()
     if (!emp) { setAuthState('unauth'); return }
 
-    // 2. Verifica acesso_app_sms separadamente — a coluna pode não existir
-    //    se a migration ainda não foi rodada no Supabase.
-    //    Nesse caso a query retorna erro, accessRow fica null e liberamos o acesso.
+    // 2. Obra atual via obra_funcionarios
+    const { data: vinculo } = await (supabase as any)
+      .from('obra_funcionarios').select('obra_id')
+      .eq('employee_id', emp.id).eq('status', true)
+      .maybeSingle()
+
+    // 3. Verifica acesso_app_sms (coluna pode não existir se migration não rodou)
     const { data: accessRow } = await (supabase as any)
       .from('employees').select('acesso_app_sms').eq('id', emp.id).maybeSingle()
 
-    // Bloqueia APENAS quando a coluna existe E está explicitamente false
+    // Bloqueia APENAS quando coluna existe E está explicitamente false
     if (accessRow !== null && accessRow.acesso_app_sms === false) {
       setAuthState('sem_acesso')
       return
     }
 
-    const data = emp
+    const data = { ...emp, obra_id: vinculo?.obra_id ?? null }
     setEmployee(data)
     setAuthState('ok')
     // load obras ativas (status != concluida/cancelada)
