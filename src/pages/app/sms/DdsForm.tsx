@@ -7,12 +7,12 @@ interface Props {
   employee: { id: string; nome: string }
   obraId: string
   obras: { id: string; nome: string }[]
-  temas: Tema[]
+  temas?: Tema[]
   onSave: (type: 'dds', data: Record<string, unknown>) => Promise<void>
   onBack: () => void
 }
 
-export function DdsForm({ employee, obraId, obras, temas, onSave, onBack }: Props) {
+export function DdsForm({ employee, obraId, obras, temas = [], onSave, onBack }: Props) {
   const today = new Date().toISOString().split('T')[0]
   const [obra, setObra]                 = useState(obraId || obras[0]?.id || '')
   const [temaId, setTemaId]             = useState(temas[0]?.id || '')

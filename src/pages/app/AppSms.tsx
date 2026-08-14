@@ -70,7 +70,7 @@ export default function AppSms() {
   const [loggingIn, setLoggingIn] = useState(false)
 
   // reference data
-  const [ddsTemas, setDdsTemas]                 = useState<{ id: string; tema: string }[]>([])
+  const [ddsTemas, setDdsTemas]                 = useState<{ id: string; titulo: string; nr_relacionada?: string | null }[]>([])
   const [tiposAtividade, setTiposAtiv]          = useState<{ id: string; nome: string }[]>([])
   const [riscosCatalogo, setRiscosCatalog]      = useState<{ id: string; risco: string; categoria: string; recomendacao: string | null }[]>([])
   const [catalogoInspecoes, setCatalogoInsp]    = useState<{ id: string; nome: string }[]>([])
@@ -183,7 +183,7 @@ export default function AppSms() {
   const loadRefData = async () => {
     try {
       const [r1, r2, r3, r4, r5] = await Promise.all([
-        (supabase as any).from('sms_dds_temas').select('id, tema').order('tema'),
+        (supabase as any).from('sms_dds_temas').select('id, titulo, nr_relacionada').order('titulo'),
         (supabase as any).from('sms_apr_tipos_atividade').select('id, nome').order('nome'),
         (supabase as any).from('sms_apr_riscos_catalogo').select('id, risco, categoria, recomendacao').order('categoria, risco'),
         (supabase as any).from('sms_inspecoes_catalogo').select('id, nome').order('nome'),
@@ -349,7 +349,12 @@ export default function AppSms() {
   const formProps = { employee: employee!, obras, obraId: employee!.obra_id ?? '', veiculos }
 
   if (screen === 'form-dds')
-    return <DdsForm {...formProps} ddsTemas={ddsTemas} onSave={handleSave} onBack={() => setScreen('home')} />
+    return <DdsForm
+      {...formProps}
+      temas={ddsTemas.map(t => ({ id: t.id, titulo: t.titulo, codigo_nr: t.nr_relacionada ?? null }))}
+      onSave={handleSave}
+      onBack={() => setScreen('home')}
+    />
   if (screen === 'form-desvio')
     return <DesvioForm {...formProps} onSave={handleSave} onBack={() => setScreen('home')} />
   if (screen === 'form-inspecao')
