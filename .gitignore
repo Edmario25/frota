@@ -10,7 +10,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-sms-stub
 *.local
+
+# Capacitor Android (gerado automaticamente)
+android/
 
 # Environment variables — never commit real credentials
 .env
