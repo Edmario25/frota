@@ -4,6 +4,7 @@ import { VehicleTypeChart } from "@/components/dashboard/VehicleTypeChart";
 import { KilometrageChart } from "@/components/dashboard/KilometrageChart";
 import { ObrasSummaryCard } from "@/components/dashboard/ObrasSummaryCard";
 import { UpcomingLeavesCard } from "@/components/dashboard/UpcomingLeavesCard";
+import { VencimentosCard } from "@/components/dashboard/VencimentosCard";
 import { MyVehicleCard } from "@/components/employee/MyVehicleCard";
 import { MyScheduleCard } from "@/components/employee/MyScheduleCard";
 import { MyMaintenanceCard } from "@/components/employee/MyMaintenanceCard";
@@ -20,6 +21,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Users, Car, Wrench, HardHat, Truck, AlertTriangle,
   ArrowRight, BarChart3, ShieldAlert, ClipboardCheck, TriangleAlert,
+  GraduationCap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -87,6 +89,7 @@ const Index = () => {
   const { user } = useAuth();
   const [vehicleStats, setVehicleStats] = useState({ disponivel: 0, em_uso: 0, manutencao: 0, alertas_km: 0 });
   const [smsStats, setSmsStats] = useState({ nearMissSemana: 0, desviosAbertos: 0, inspecoesHoje: 0 });
+  const [trStats, setTrStats]   = useState({ vencidos: 0, aVencer: 0 });
 
   // Apenas funcionários puros (cargo funcionario) são redirecionados ao /app
   // Usuários com acesso_app_motorista podem usar ambas as interfaces
@@ -120,6 +123,19 @@ const Index = () => {
       });
     };
     fetchSmsStats();
+  }, []);
+
+  // Busca totais de treinamentos vencidos / a vencer
+  useEffect(() => {
+    const hoje   = new Date().toISOString().split("T")[0]
+    const limite = new Date(Date.now() + 60 * 86_400_000).toISOString().split("T")[0]
+    Promise.all([
+      (supabase as any).from("sms_colaborador_treinamentos")
+        .select("id", { count: "exact", head: true }).eq("status", "vencido"),
+      (supabase as any).from("sms_colaborador_treinamentos")
+        .select("id", { count: "exact", head: true }).eq("status", "a_vencer")
+        .lte("data_vencimento", limite),
+    ]).then(([v, a]) => setTrStats({ vencidos: v.count ?? 0, aVencer: a.count ?? 0 }))
   }, []);
 
   const hour        = new Date().getHours();
@@ -169,8 +185,8 @@ const Index = () => {
         {/* ── Dashboard completo (admin / gestor_contrato) ─────────── */}
         {hasFullAccess && (
           <>
-            {/* 4 KPIs principais */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {/* 5 KPIs principais */}
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
               {/* Obras */}
               <KpiCard
@@ -234,6 +250,25 @@ const Index = () => {
                 value={manutAgend}
                 sub="Agendadas"
                 subColor={manutAgend > 5 ? "text-red-600" : "text-amber-600"}
+              />
+
+              {/* Treinamentos */}
+              <KpiCard
+                icon={GraduationCap}
+                iconBg={trStats.vencidos > 0 ? "bg-red-500" : trStats.aVencer > 0 ? "bg-amber-500" : "bg-emerald-500"}
+                label="Treinamentos"
+                value={trStats.vencidos + trStats.aVencer}
+                sub={trStats.vencidos > 0
+                  ? `${trStats.vencidos} vencido${trStats.vencidos > 1 ? "s" : ""} · ${trStats.aVencer} a vencer`
+                  : trStats.aVencer > 0
+                    ? `${trStats.aVencer} a vencer (60 dias)`
+                    : "Todos em dia ✅"}
+                subColor={trStats.vencidos > 0 ? "text-red-600" : trStats.aVencer > 0 ? "text-amber-600" : "text-emerald-600"}
+                footer={
+                  <Link to="/sms/treinamentos" className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline">
+                    Ver matriz <ArrowRight className="h-3 w-3" />
+                  </Link>
+                }
               />
 
             </div>
@@ -314,6 +349,9 @@ const Index = () => {
                 )}
               </div>
             </div>
+
+            {/* Vencimentos: treinamentos + documentos */}
+            <VencimentosCard diasJanela={60} maxItens={10} />
 
             {/* Linha inferior: Obras + Escalas */}
             <div className="grid gap-5 lg:grid-cols-2">

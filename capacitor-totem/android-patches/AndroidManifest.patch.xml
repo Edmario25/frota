@@ -1,0 +1,50 @@
+<!--
+  Diferenças a aplicar manualmente em:
+  android/app/src/main/AndroidManifest.xml
+
+  Após "cap add android", abra o manifesto e:
+
+  1. Adicione a permissão de câmera ANTES de <application>:
+     (o Capacitor já inclui INTERNET e CAMERA via plugin, mas garanta que esteja:)
+
+     <uses-permission android:name="android.permission.CAMERA" />
+     <uses-feature android:name="android.hardware.camera" android:required="true" />
+
+  2. Na tag <activity>, adicione / modifique os atributos:
+
+     android:screenOrientation="landscape"
+     android:launchMode="singleTask"
+     android:windowSoftInputMode="adjustNothing"
+     android:keepScreenOn="true"
+
+  Exemplo do bloco <activity> completo após as alterações:
+
+  <activity
+      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+      android:exported="true"
+      android:hardwareAccelerated="true"
+      android:label="@string/title_activity_main"
+      android:launchMode="singleTask"
+      android:keepScreenOn="true"
+      android:screenOrientation="landscape"
+      android:windowSoftInputMode="adjustNothing"
+      android:name=".MainActivity">
+
+      <intent-filter>
+          <action android:name="android.intent.action.MAIN" />
+          <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+
+  </activity>
+
+  3. Para kiosk mode (Lock Task) — opcional, requer Device Owner:
+     Adicione na tag <application>:
+
+     android:testOnly="false"
+
+     E no código (MainActivity.java), descomente:
+       startLockTask();
+
+     Depois configure o Device Owner via ADB:
+       adb shell dpm set-device-owner br.com.apicegestao.totem/.MainActivity
+-->

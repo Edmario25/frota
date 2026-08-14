@@ -120,6 +120,7 @@ const menuGroups = [
       { title: "APR",               icon: FileWarning,   url: "/sms/apr",          roles: SMS_ROLES, perm: "acesso_sms_apr" as PermKey },
       { title: "EPIs",              icon: Package,       url: "/sms/epis",         roles: SMS_ROLES, perm: "acesso_sms_epis" as PermKey },
       { title: "Treinamentos",      icon: GraduationCap, url: "/sms/treinamentos", roles: SMS_ROLES, perm: "acesso_sms_treinamentos" as PermKey },
+      { title: "Conformidade",      icon: BarChart3,     url: "/sms/conformidade", roles: SMS_ROLES, perm: "acesso_sms_treinamentos" as PermKey },
       { title: "Admissão Digital",  icon: UserCheck,     url: "/sms/admissao",     roles: SMS_ROLES, perm: "acesso_sms_admissao" as PermKey },
       { title: "RDO",               icon: FileText,      url: "/sms/rdo",          roles: SMS_ROLES, perm: "acesso_sms_rdo" as PermKey },
     ]

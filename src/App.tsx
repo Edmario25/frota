@@ -38,6 +38,7 @@ import SmsDds from "./pages/sms/SmsDds";
 import SmsApr from "./pages/sms/SmsApr";
 import SmsEpis from "./pages/sms/SmsEpis";
 import SmsTreinamentos from "./pages/sms/SmsTreinamentos";
+import SmsConformidade from "./pages/sms/SmsConformidade";
 import SmsAdmissao from "./pages/sms/SmsAdmissao";
 import SmsRdo from "./pages/sms/SmsRdo";
 import Efetivo from "./pages/Efetivo";
@@ -367,6 +368,13 @@ const App = () => (
               <ProtectedRoute>
                 <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
                   <SmsTreinamentos />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/conformidade" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsConformidade />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />
