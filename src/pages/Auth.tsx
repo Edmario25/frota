@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff, Lock, Mail, Truck, Car, MapPin, Settings, ClipboardList, Gauge } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, HardHat, ShieldAlert, MapPin, Settings, ClipboardList } from "lucide-react";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -64,14 +64,14 @@ const Auth = () => {
       
       {/* Floating decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Left side - Truck icon */}
+        {/* Left side - HardHat icon */}
         <div className="absolute left-[5%] bottom-[20%] text-white/10 animate-pulse">
-          <Truck className="w-32 h-32 md:w-48 md:h-48" strokeWidth={0.5} />
+          <HardHat className="w-32 h-32 md:w-48 md:h-48" strokeWidth={0.5} />
         </div>
-        
-        {/* Right side - Car icon */}
+
+        {/* Right side - ShieldAlert icon */}
         <div className="absolute right-[5%] bottom-[15%] text-white/10 animate-pulse">
-          <Car className="w-28 h-28 md:w-40 md:h-40" strokeWidth={0.5} />
+          <ShieldAlert className="w-28 h-28 md:w-40 md:h-40" strokeWidth={0.5} />
         </div>
         
         {/* Decorative icons */}
@@ -93,14 +93,14 @@ const Auth = () => {
       {/* Logo */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10">
         <div className="relative">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-blue-400 flex items-center justify-center shadow-lg shadow-primary/30">
-            <Gauge className="w-7 h-7 text-white" strokeWidth={2} />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/40">
+            <HardHat className="w-7 h-7 text-white" strokeWidth={2} />
           </div>
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-900 animate-pulse" />
         </div>
         <div className="flex flex-col">
-          <span className="text-2xl font-bold text-white tracking-tight">GESTÃO DE</span>
-          <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-400 tracking-tight -mt-1">FROTAS</span>
+          <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-amber-500 tracking-tight">ÁPICE</span>
+          <span className="text-2xl font-bold text-white tracking-tight -mt-1">GESTÃO</span>
         </div>
       </div>
 
