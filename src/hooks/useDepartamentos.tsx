@@ -31,9 +31,12 @@ export const useDepartamentos = () => {
     mutationFn: async (d: DepartamentoInsert) => {
       const { data, error } = await supabase.from('departamentos').insert([d]).select().single();
       if (error) throw error;
-      return data;
+      return data as Departamento;
     },
-    onSuccess: () => {
+    onSuccess: (novo) => {
+      qc.setQueryData(QK, (old: Departamento[] = []) =>
+        [...old, novo].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+      );
       invalidate();
       toast({ title: "Departamento cadastrado", description: "O departamento foi cadastrado com sucesso." });
     },
@@ -44,9 +47,10 @@ export const useDepartamentos = () => {
     mutationFn: async ({ id, d }: { id: string; d: DepartamentoUpdate }) => {
       const { data, error } = await supabase.from('departamentos').update(d).eq('id', id).select().single();
       if (error) throw error;
-      return data;
+      return data as Departamento;
     },
-    onSuccess: () => {
+    onSuccess: (atualizado) => {
+      qc.setQueryData(QK, (old: Departamento[] = []) => old.map(dep => dep.id === atualizado.id ? atualizado : dep));
       invalidate();
       toast({ title: "Departamento atualizado", description: "O departamento foi atualizado com sucesso." });
     },
@@ -57,8 +61,10 @@ export const useDepartamentos = () => {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('departamentos').delete().eq('id', id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      qc.setQueryData(QK, (old: Departamento[] = []) => old.filter(dep => dep.id !== id));
       invalidate();
       toast({ title: "Departamento excluído", description: "O departamento foi excluído com sucesso." });
     },

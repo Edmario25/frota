@@ -109,7 +109,11 @@ export const useEmployees = () => {
 
       return data;
     },
-    onSuccess: invalidate,
+    onSuccess: (novo) => {
+      // Atualiza o cache imediatamente — novo funcionário aparece sem esperar segundo request
+      qc.setQueryData(['employees'], (old: any[] = []) => [novo, ...old]);
+      invalidate(); // confirma em background (atualiza relações, ordenação)
+    },
     onError: (e: any) => toast({ title: "Erro ao cadastrar funcionário", description: friendlyDbError(e), variant: "destructive" }),
   });
 
@@ -145,7 +149,10 @@ export const useEmployees = () => {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (atualizado) => {
+      qc.setQueryData(['employees'], (old: any[] = []) =>
+        old.map(e => e.id === atualizado.id ? atualizado : e),
+      );
       invalidate();
       toast({ title: "Funcionário atualizado", description: "O funcionário foi atualizado com sucesso." });
     },
@@ -156,8 +163,10 @@ export const useEmployees = () => {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('employees').delete().eq('id', id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      qc.setQueryData(['employees'], (old: any[] = []) => old.filter(e => e.id !== id));
       invalidate();
       toast({ title: "Funcionário excluído", description: "O funcionário foi excluído com sucesso." });
     },

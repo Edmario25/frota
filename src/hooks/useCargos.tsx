@@ -31,10 +31,12 @@ export const useCargos = () => {
     mutationFn: async (d: CargoInsert) => {
       const { data, error } = await supabase.from('cargos').insert([d]).select().single();
       if (error) throw error;
-      return data;
+      return data as Cargo;
     },
-    onSuccess: () => {
-      invalidate();
+    onSuccess: (novo) => {
+      // Adiciona imediatamente ao cache local — sem esperar novo request
+      qc.setQueryData(QK, (old: Cargo[] = []) => [...old, novo].sort((a, b) => (a.nivel_hierarquico ?? 0) - (b.nivel_hierarquico ?? 0)));
+      invalidate(); // confirma em background
       toast({ title: "Cargo cadastrado", description: "O cargo foi cadastrado com sucesso." });
     },
     onError: (e: any) => toast({ title: "Erro ao cadastrar cargo", description: e.message, variant: "destructive" }),
@@ -44,9 +46,10 @@ export const useCargos = () => {
     mutationFn: async ({ id, d }: { id: string; d: CargoUpdate }) => {
       const { data, error } = await supabase.from('cargos').update(d).eq('id', id).select().single();
       if (error) throw error;
-      return data;
+      return data as Cargo;
     },
-    onSuccess: () => {
+    onSuccess: (atualizado) => {
+      qc.setQueryData(QK, (old: Cargo[] = []) => old.map(c => c.id === atualizado.id ? atualizado : c));
       invalidate();
       toast({ title: "Cargo atualizado", description: "O cargo foi atualizado com sucesso." });
     },
@@ -57,8 +60,10 @@ export const useCargos = () => {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('cargos').delete().eq('id', id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      qc.setQueryData(QK, (old: Cargo[] = []) => old.filter(c => c.id !== id));
       invalidate();
       toast({ title: "Cargo excluído", description: "O cargo foi excluído com sucesso." });
     },
