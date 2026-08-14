@@ -28,6 +28,7 @@ import Departamentos from "./pages/Departamentos";
 import FundoFixo from "./pages/FundoFixo";
 import Relatorios from "./pages/Relatorios";
 import RelatorioEscalas from "./pages/RelatorioEscalas";
+import RelatorioFolha from "./pages/RelatorioFolha";
 import Chat from "./pages/Chat";
 import MobileApp from "./pages/app/MobileApp";
 import AppSms from "./pages/app/AppSms";
@@ -204,6 +205,13 @@ const App = () => (
               <ProtectedRoute>
                 <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
                   <RelatorioEscalas />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/relatorio-folha" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <RelatorioFolha />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />
