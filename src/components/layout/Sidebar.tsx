@@ -33,6 +33,7 @@ import {
   Globe,
   ShieldAlert,
   Megaphone,
+  QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -67,8 +68,9 @@ const menuGroups = [
     items: [
       { title: "Funcionários",   icon: Users,    url: "/funcionarios", roles: OBRA_ACCESS, perm: "acesso_colaboradores" as PermKey },
       { title: "Escalas",        icon: Calendar, url: "/escalas",      roles: OBRA_ACCESS, perm: "acesso_escalas" as PermKey },
-      { title: "Efetivo / Ponto",   icon: Timer,    url: "/efetivo",           roles: OBRA_ACCESS, perm: "acesso_efetivo" as PermKey },
+      { title: "Efetivo / Ponto",   icon: Timer,        url: "/efetivo",           roles: OBRA_ACCESS, perm: "acesso_efetivo" as PermKey },
       { title: "Espelho de Ponto",  icon: CalendarDays, url: "/efetivo/relatorio", roles: OBRA_ACCESS, perm: "acesso_efetivo" as PermKey },
+      { title: "Ponto QR",          icon: QrCode,       url: "/ponto-qr",          roles: OBRA_ACCESS, perm: "acesso_efetivo" as PermKey },
     ]
   },
   {

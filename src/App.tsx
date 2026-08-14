@@ -42,6 +42,7 @@ import SmsAdmissao from "./pages/sms/SmsAdmissao";
 import SmsRdo from "./pages/sms/SmsRdo";
 import Efetivo from "./pages/Efetivo";
 import EfetivoRelatorio from "./pages/EfetivoRelatorio";
+import PontoQr from "./pages/PontoQr";
 import Almoxarifado from "./pages/Almoxarifado";
 import Ferramentas from "./pages/Ferramentas";
 import Cronograma from "./pages/Cronograma";
@@ -246,6 +247,13 @@ const App = () => (
               <ProtectedRoute>
                 <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
                   <EfetivoRelatorio />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/ponto-qr" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <PontoQr />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />

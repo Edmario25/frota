@@ -14,6 +14,7 @@ import { PtForm }        from "./sms/PtForm"
 import { QrScannerModal }              from "./sms/QrScannerModal"
 import { VeiculoHistoricoScreen }      from "./sms/VeiculoHistoricoScreen"
 import { FuncionarioHistoricoScreen }  from "./sms/FuncionarioHistoricoScreen"
+import { PontoTotemScreen }            from "./sms/PontoTotemScreen"
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type Employee = { id: string; nome: string; obra_id: string | null }
@@ -24,6 +25,7 @@ type Screen =
   | 'hist'
   | 'veiculo-hist'
   | 'func-hist'
+  | 'ponto-totem'
   | 'form-dds' | 'form-desvio' | 'form-inspecao' | 'form-apr'
   | 'form-rdo' | 'form-near_miss' | 'form-acidente' | 'form-pt'
 
@@ -375,6 +377,16 @@ export default function AppSms() {
       />
     )
 
+  // ── render: totem de ponto ────────────────────────────────────────────────────
+  if (screen === 'ponto-totem')
+    return (
+      <PontoTotemScreen
+        obraId={employee!.obra_id}
+        registradoPor={employee!.id}
+        onBack={() => setScreen('home')}
+      />
+    )
+
   // ── render: forms ─────────────────────────────────────────────────────────────
   const formProps = { employee: employee!, obras, obraId: employee!.obra_id ?? '', veiculos }
 
@@ -478,25 +490,35 @@ export default function AppSms() {
       <div className="flex-1 overflow-y-auto p-4 pb-24">
 
         {/* QR Code scanners */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           <button
             onClick={() => setQrScan(true)}
-            className="flex items-center gap-2 px-3 py-3.5 rounded-2xl bg-green-800 text-white active:scale-[.98] transition-transform"
+            className="flex flex-col items-center gap-1.5 px-2 py-3.5 rounded-2xl bg-green-800 text-white active:scale-[.98] transition-transform"
           >
-            <span className="text-xl">🚗</span>
-            <div className="text-left flex-1 min-w-0">
+            <span className="text-2xl">🚗</span>
+            <div className="text-center">
               <p className="text-xs font-bold leading-tight">Veículo</p>
-              <p className="text-[10px] text-green-300 leading-tight">QR do veículo</p>
+              <p className="text-[9px] text-green-300 leading-tight">QR do veículo</p>
             </div>
           </button>
           <button
             onClick={() => setCrachaScan(true)}
-            className="flex items-center gap-2 px-3 py-3.5 rounded-2xl bg-violet-700 text-white active:scale-[.98] transition-transform"
+            className="flex flex-col items-center gap-1.5 px-2 py-3.5 rounded-2xl bg-violet-700 text-white active:scale-[.98] transition-transform"
           >
-            <span className="text-xl">👤</span>
-            <div className="text-left flex-1 min-w-0">
+            <span className="text-2xl">👤</span>
+            <div className="text-center">
               <p className="text-xs font-bold leading-tight">Crachá</p>
-              <p className="text-[10px] text-violet-300 leading-tight">QR do funcionário</p>
+              <p className="text-[9px] text-violet-300 leading-tight">Histórico</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setScreen('ponto-totem')}
+            className="flex flex-col items-center gap-1.5 px-2 py-3.5 rounded-2xl bg-amber-600 text-white active:scale-[.98] transition-transform"
+          >
+            <span className="text-2xl">🕐</span>
+            <div className="text-center">
+              <p className="text-xs font-bold leading-tight">Ponto</p>
+              <p className="text-[9px] text-amber-200 leading-tight">Totem QR</p>
             </div>
           </button>
         </div>
