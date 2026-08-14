@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react"
 
 interface Props {
-  onScan: (vehicleId: string) => void
+  onScan: (id: string) => void
   onClose: () => void
+  hint?: string
+  title?: string
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export function QrScannerModal({ onScan, onClose }: Props) {
+export function QrScannerModal({ onScan, onClose, hint: hintProp, title = "Escanear QR Code" }: Props) {
   const [error, setError] = useState<string | null>(null)
-  const [hint, setHint]   = useState("Aponte a câmera para o QR Code do veículo")
+  const [hint, setHint]   = useState(hintProp ?? "Aponte a câmera para o QR Code")
   const stopRef           = useRef<(() => void) | null>(null)
   const doneRef           = useRef(false)
 
@@ -60,7 +62,7 @@ export function QrScannerModal({ onScan, onClose }: Props) {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-12 pb-3 bg-black/80">
         <button onClick={onClose} className="text-white text-2xl leading-none px-1">‹</button>
-        <h1 className="font-semibold text-white text-sm">Escanear QR do Veículo</h1>
+        <h1 className="font-semibold text-white text-sm">{title}</h1>
       </div>
 
       {/* Camera area */}

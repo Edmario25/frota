@@ -11,8 +11,9 @@ import { RdoForm }       from "./sms/RdoForm"
 import { NearMissForm }  from "./sms/NearMissForm"
 import { AcidenteForm }  from "./sms/AcidenteForm"
 import { PtForm }        from "./sms/PtForm"
-import { QrScannerModal }         from "./sms/QrScannerModal"
-import { VeiculoHistoricoScreen } from "./sms/VeiculoHistoricoScreen"
+import { QrScannerModal }              from "./sms/QrScannerModal"
+import { VeiculoHistoricoScreen }      from "./sms/VeiculoHistoricoScreen"
+import { FuncionarioHistoricoScreen }  from "./sms/FuncionarioHistoricoScreen"
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type Employee = { id: string; nome: string; obra_id: string | null }
@@ -22,6 +23,7 @@ type Screen =
   | 'home'
   | 'hist'
   | 'veiculo-hist'
+  | 'func-hist'
   | 'form-dds' | 'form-desvio' | 'form-inspecao' | 'form-apr'
   | 'form-rdo' | 'form-near_miss' | 'form-acidente' | 'form-pt'
 
@@ -62,8 +64,10 @@ export default function AppSms() {
   const [syncMsg, setSyncMsg]     = useState('')
   const [histRecords, setHist]    = useState<Awaited<ReturnType<typeof smsDb.getAll>>>([])
   const [veiculos, setVeiculos]   = useState<Veiculo[]>([])
-  const [showQrScanner, setQrScan]= useState(false)
-  const [scannedVehicleId, setScanVehicle] = useState<string | null>(null)
+  const [showQrScanner, setQrScan]         = useState(false)
+  const [showCrachaScanner, setCrachaScan] = useState(false)
+  const [scannedVehicleId, setScanVehicle]  = useState<string | null>(null)
+  const [scannedEmployeeId, setScanEmployee]= useState<string | null>(null)
   const [email, setEmail]         = useState('')
   const [password, setPassword]   = useState('')
   const [loginErr, setLoginErr]   = useState('')
@@ -324,16 +328,32 @@ export default function AppSms() {
     )
   }
 
-  // ── QR scan handler ───────────────────────────────────────────────────────────
+  // ── QR scan handlers ─────────────────────────────────────────────────────────
   const handleQrScan = (vehicleId: string) => {
     setQrScan(false)
     setScanVehicle(vehicleId)
     setScreen('veiculo-hist')
   }
 
-  // ── render: QR scanner overlay ────────────────────────────────────────────────
+  const handleCrachaScan = (employeeId: string) => {
+    setCrachaScan(false)
+    setScanEmployee(employeeId)
+    setScreen('func-hist')
+  }
+
+  // ── render: QR scanner overlays ──────────────────────────────────────────────
   if (showQrScanner)
     return <QrScannerModal onScan={handleQrScan} onClose={() => setQrScan(false)} />
+
+  if (showCrachaScanner)
+    return (
+      <QrScannerModal
+        onScan={handleCrachaScan}
+        onClose={() => setCrachaScan(false)}
+        hint="Aponte para o QR Code do crachá do funcionário"
+        title="Escanear Crachá"
+      />
+    )
 
   // ── render: histórico do veículo ──────────────────────────────────────────────
   if (screen === 'veiculo-hist' && scannedVehicleId)
@@ -342,6 +362,16 @@ export default function AppSms() {
         vehicleId={scannedVehicleId}
         obraId={employee!.obra_id}
         onBack={() => { setScanVehicle(null); setScreen('home') }}
+      />
+    )
+
+  // ── render: histórico do funcionário (crachá) ─────────────────────────────────
+  if (screen === 'func-hist' && scannedEmployeeId)
+    return (
+      <FuncionarioHistoricoScreen
+        employeeId={scannedEmployeeId}
+        obraId={employee!.obra_id}
+        onBack={() => { setScanEmployee(null); setScreen('home') }}
       />
     )
 
@@ -447,18 +477,29 @@ export default function AppSms() {
       {/* grid de ações */}
       <div className="flex-1 overflow-y-auto p-4 pb-24">
 
-        {/* QR Code scanner */}
-        <button
-          onClick={() => setQrScan(true)}
-          className="w-full mb-4 flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-green-800 text-white active:scale-[.98] transition-transform"
-        >
-          <span className="text-2xl">📷</span>
-          <div className="text-left flex-1">
-            <p className="text-sm font-bold leading-tight">Escanear Veículo</p>
-            <p className="text-xs text-green-300 leading-tight">Ver histórico de segurança via QR Code</p>
-          </div>
-          <span className="text-green-400 text-lg">›</span>
-        </button>
+        {/* QR Code scanners */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <button
+            onClick={() => setQrScan(true)}
+            className="flex items-center gap-2 px-3 py-3.5 rounded-2xl bg-green-800 text-white active:scale-[.98] transition-transform"
+          >
+            <span className="text-xl">🚗</span>
+            <div className="text-left flex-1 min-w-0">
+              <p className="text-xs font-bold leading-tight">Veículo</p>
+              <p className="text-[10px] text-green-300 leading-tight">QR do veículo</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setCrachaScan(true)}
+            className="flex items-center gap-2 px-3 py-3.5 rounded-2xl bg-violet-700 text-white active:scale-[.98] transition-transform"
+          >
+            <span className="text-xl">👤</span>
+            <div className="text-left flex-1 min-w-0">
+              <p className="text-xs font-bold leading-tight">Crachá</p>
+              <p className="text-[10px] text-violet-300 leading-tight">QR do funcionário</p>
+            </div>
+          </button>
+        </div>
 
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Novo lançamento</p>
         <div className="grid grid-cols-2 gap-3">

@@ -6,12 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Users, AlertTriangle, CheckCircle2, Clock, HelpCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/useEmployees";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { EquipesObraModal } from "./EquipesObraModal";
 
 interface VinculacaoFuncionarioModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
   const [loading, setLoading] = useState(false);
   const [vinculacoes, setVinculacoes] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [showEquipes, setShowEquipes] = useState(false);
+  const [treinStatusMap, setTreinStatusMap] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     employee_id: "",
     funcao_obra: "",
@@ -36,10 +39,29 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
   useEffect(() => {
     if (isOpen && obra) {
       fetchVinculacoes();
-      refetchEmployees(); // Recarregar funcionários sempre que abrir
-      console.log('Funcionários disponíveis:', employees);
+      refetchEmployees();
     }
-  }, [isOpen, obra, employees]);
+  }, [isOpen, obra]);
+
+  // Busca status de treinamentos para cada vinculado
+  const fetchTreinStatus = async (employeeIds: string[]) => {
+    if (employeeIds.length === 0) return;
+    const hoje = new Date().toISOString().split("T")[0];
+    const { data } = await (supabase as any)
+      .from("sms_colaborador_treinamentos")
+      .select("colaborador_id, status, data_vencimento")
+      .in("colaborador_id", employeeIds);
+
+    const map: Record<string, string> = {};
+    for (const id of employeeIds) {
+      const registros = (data ?? []).filter((r: any) => r.colaborador_id === id);
+      if (registros.length === 0) { map[id] = "sem_dados"; continue; }
+      if (registros.some((r: any) => r.status === "vencido")) { map[id] = "vencido"; continue; }
+      if (registros.some((r: any) => r.status === "a_vencer")) { map[id] = "a_vencer"; continue; }
+      map[id] = "em_dia";
+    }
+    setTreinStatusMap(map);
+  };
 
   const fetchVinculacoes = async () => {
     if (!obra) return;
@@ -80,6 +102,7 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
       
       console.log('Vinculações enriquecidas:', enrichedVinculacoes);
       setVinculacoes(enrichedVinculacoes);
+      fetchTreinStatus(enrichedVinculacoes.map((v: any) => v.employee_id).filter(Boolean));
     } catch (error) {
       console.error('Erro ao buscar vinculações:', error);
       toast({
@@ -162,6 +185,8 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
   if (!obra) return null;
 
   return (
+    <>
+    <EquipesObraModal isOpen={showEquipes} onClose={() => setShowEquipes(false)} obra={obra} />
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -169,12 +194,18 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h3 className="text-lg font-semibold">Funcionários Vinculados</h3>
-            <Button onClick={() => setShowForm(true)} disabled={showForm}>
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Funcionário
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowEquipes(true)}>
+                <Users className="h-4 w-4 mr-2 text-violet-500" />
+                Equipes
+              </Button>
+              <Button onClick={() => setShowForm(true)} disabled={showForm}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar
+              </Button>
+            </div>
           </div>
 
           {showForm && (
@@ -252,8 +283,8 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
               <TableRow>
                 <TableHead>Funcionário</TableHead>
                 <TableHead>Função na Obra</TableHead>
+                <TableHead>Treinamentos</TableHead>
                 <TableHead>Data Entrada</TableHead>
-                <TableHead>Data Saída</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Ações</TableHead>
               </TableRow>
@@ -278,13 +309,32 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
                     </TableCell>
                     <TableCell>{vinculacao.funcao_obra}</TableCell>
                     <TableCell>
-                      {format(new Date(vinculacao.data_entrada), "dd/MM/yyyy", { locale: ptBR })}
+                      {(() => {
+                        const st = treinStatusMap[vinculacao.employee_id];
+                        if (!st || st === "sem_dados") return (
+                          <span className="flex items-center gap-1 text-xs text-slate-400">
+                            <HelpCircle className="h-3.5 w-3.5" /> Sem dados
+                          </span>
+                        );
+                        if (st === "vencido") return (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-red-600">
+                            <AlertTriangle className="h-3.5 w-3.5" /> Vencido
+                          </span>
+                        );
+                        if (st === "a_vencer") return (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-amber-600">
+                            <Clock className="h-3.5 w-3.5" /> A vencer
+                          </span>
+                        );
+                        return (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Em dia
+                          </span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
-                      {vinculacao.data_saida 
-                        ? format(new Date(vinculacao.data_saida), "dd/MM/yyyy", { locale: ptBR })
-                        : "-"
-                      }
+                      {format(new Date(vinculacao.data_entrada), "dd/MM/yyyy", { locale: ptBR })}
                     </TableCell>
                     <TableCell>
                       <Badge variant={vinculacao.status ? "default" : "secondary"}>
@@ -308,5 +358,6 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
