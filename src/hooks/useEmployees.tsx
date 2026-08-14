@@ -48,6 +48,17 @@ export const useEmployees = () => {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['employees'] });
 
+  // Traduz erros de constraint do PostgreSQL em mensagens amigáveis
+  function friendlyDbError(e: any): string {
+    const msg: string = e?.message ?? ''
+    if (msg.includes('employees_cpf_key'))    return 'Já existe um funcionário cadastrado com este CPF.'
+    if (msg.includes('employees_email_key'))  return 'Já existe um funcionário com este e-mail de login.'
+    if (msg.includes('duplicate key'))        return 'Registro duplicado — verifique CPF e e-mail.'
+    if (msg.includes('violates foreign key')) return 'Referência inválida — verifique cargo ou obra selecionados.'
+    if (msg.includes('null value'))           return 'Preencha todos os campos obrigatórios.'
+    return msg
+  }
+
   const createMutation = useMutation({
     mutationFn: async (employeeData: any) => {
       let userId: string | null = null;
@@ -99,7 +110,7 @@ export const useEmployees = () => {
       return data;
     },
     onSuccess: invalidate,
-    onError: (e: any) => toast({ title: "Erro ao cadastrar funcionário", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Erro ao cadastrar funcionário", description: friendlyDbError(e), variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -138,7 +149,7 @@ export const useEmployees = () => {
       invalidate();
       toast({ title: "Funcionário atualizado", description: "O funcionário foi atualizado com sucesso." });
     },
-    onError: (e: any) => toast({ title: "Erro ao atualizar funcionário", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Erro ao atualizar funcionário", description: friendlyDbError(e), variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -150,7 +161,7 @@ export const useEmployees = () => {
       invalidate();
       toast({ title: "Funcionário excluído", description: "O funcionário foi excluído com sucesso." });
     },
-    onError: (e: any) => toast({ title: "Erro ao excluir funcionário", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Erro ao excluir funcionário", description: friendlyDbError(e), variant: "destructive" }),
   });
 
   const getEmployeeStats = () => {
