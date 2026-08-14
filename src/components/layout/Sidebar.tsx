@@ -291,7 +291,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
                   <p className="text-sm font-bold text-white leading-tight truncate">
                     {branding.companyName}
                   </p>
-                  <p className="text-xs text-[hsl(var(--sidebar-muted))] leading-tight">Gestão de Frotas</p>
+                  <p className="text-xs text-[hsl(var(--sidebar-muted))] leading-tight">Plataforma de Gestão</p>
                 </div>
               )}
             </>

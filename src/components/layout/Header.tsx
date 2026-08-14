@@ -47,7 +47,7 @@ export function Header({ onMenuClick, alertCount = 0, onBellClick }: HeaderProps
 
   const getInitials = (email: string) => email.slice(0, 2).toUpperCase();
 
-  const pageTitle = routeLabels[location.pathname] ?? "Fleet Scale";
+  const pageTitle = routeLabels[location.pathname] ?? "Ápice Gestão";
 
   return (
     <header className="h-14 bg-card border-b border-border flex items-center px-4 gap-3 flex-shrink-0">

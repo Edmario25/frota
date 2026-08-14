@@ -1,7 +1,7 @@
 {
-  "name": "Frota – App do Motorista",
-  "short_name": "Frota App",
-  "description": "Lançamentos, checklist e escala para motoristas",
+  "name": "Ápice – App do Motorista",
+  "short_name": "Ápice Motorista",
+  "description": "Lançamentos, checklist e escala para motoristas – Ápice Gestão",
   "start_url": "/app",
   "scope": "/app",
   "display": "standalone",

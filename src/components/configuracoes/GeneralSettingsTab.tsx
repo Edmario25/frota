@@ -103,7 +103,7 @@ function LocalImageUpload({
 export function GeneralSettingsTab() {
   const saved = loadSettings();
 
-  const [companyName, setCompanyName] = useState(saved.companyName ?? "Fleet Scale");
+  const [companyName, setCompanyName] = useState(saved.companyName ?? "Ápice Gestão");
   const [companyEmail, setCompanyEmail] = useState(saved.companyEmail ?? "");
   const [companyPhone, setCompanyPhone] = useState(saved.companyPhone ?? "");
 

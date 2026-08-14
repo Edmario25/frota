@@ -15,10 +15,11 @@ import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useObras } from "@/hooks/useObras";
 import { useMaintenance } from "@/hooks/useMaintenance";
+import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Users, Car, Wrench, HardHat, Truck, AlertTriangle,
-  ArrowRight, BarChart3,
+  ArrowRight, BarChart3, ShieldAlert, ClipboardCheck, TriangleAlert,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -85,6 +86,7 @@ const Index = () => {
   const { maintenanceRecords } = useMaintenance();
   const { user } = useAuth();
   const [vehicleStats, setVehicleStats] = useState({ disponivel: 0, em_uso: 0, manutencao: 0, alertas_km: 0 });
+  const [smsStats, setSmsStats] = useState({ nearMissSemana: 0, desviosAbertos: 0, inspecoesHoje: 0 });
 
   // Apenas funcionários puros (cargo funcionario) são redirecionados ao /app
   // Usuários com acesso_app_motorista podem usar ambas as interfaces
@@ -101,14 +103,34 @@ const Index = () => {
     }
   }, [vehicles, getVehicleStats]);
 
-  const hour       = new Date().getHours();
-  const greeting   = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-  const firstName  = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "usuário";
-  const obraStats  = getObraStats();
-  const manutAgend = maintenanceRecords.filter(m => m.status === "agendada").length;
-  const veicLeves  = vehicles.filter(v => v.tipo === "leve").length;
+  // Busca estatísticas de SMS / Segurança
+  useEffect(() => {
+    const fetchSmsStats = async () => {
+      const hoje = new Date().toISOString().split("T")[0];
+      const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const [nm, dev, insp] = await Promise.all([
+        (supabase as any).from("sms_near_miss").select("id", { count: "exact", head: true }).gte("created_at", seteDiasAtras),
+        (supabase as any).from("sms_desvios").select("id", { count: "exact", head: true }).eq("status", "aberto"),
+        (supabase as any).from("sms_inspecoes").select("id", { count: "exact", head: true }).gte("created_at", hoje),
+      ]);
+      setSmsStats({
+        nearMissSemana: nm.count ?? 0,
+        desviosAbertos: dev.count ?? 0,
+        inspecoesHoje: insp.count ?? 0,
+      });
+    };
+    fetchSmsStats();
+  }, []);
+
+  const hour        = new Date().getHours();
+  const greeting    = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+  const firstName   = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "usuário";
+  const obraStats   = getObraStats();
+  const manutAgend  = maintenanceRecords.filter(m => m.status === "agendada").length;
+  const veicLeves   = vehicles.filter(v => v.tipo === "leve").length;
   const veicPesados = vehicles.filter(v => v.tipo === "pesado").length;
-  const empAtivos  = employees.filter(e => e.status === "ativo").length;
+  const empAtivos   = employees.filter(e => e.status === "ativo").length;
+  const smsTotal    = smsStats.nearMissSemana + smsStats.desviosAbertos;
 
   return (
     <Layout>
@@ -121,7 +143,7 @@ const Index = () => {
           </p>
           <h1 className="text-2xl font-extrabold text-foreground tracking-tight">{greeting}, {firstName}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {isFuncionario ? "Acompanhe seu veículo e suas atividades" : "Visão geral do sistema de gestão de frota"}
+            {isFuncionario ? "Acompanhe seu veículo e suas atividades" : "Visão geral do sistema de gestão integrada"}
           </p>
         </div>
 
@@ -149,13 +171,21 @@ const Index = () => {
           <>
             {/* 4 KPIs principais */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+              {/* Obras */}
               <KpiCard
-                icon={Users} iconBg="bg-blue-500" label="Funcionários"
-                value={empAtivos}
-                sub={`${employees.length} cadastrados`}
-                subColor="text-blue-600"
+                icon={HardHat} iconBg="bg-violet-500" label="Obras Ativas"
+                value={obraStats.em_andamento}
+                sub={`${obraStats.total} cadastradas`}
+                subColor="text-violet-600"
+                footer={
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>{employees.filter(e => e.status === "ativo").length} funcionários ativos</span>
+                  </div>
+                }
               />
 
+              {/* Frota */}
               <KpiCard
                 icon={Car} iconBg="bg-emerald-500" label="Frota Total"
                 value={vehicles.length}
@@ -180,6 +210,23 @@ const Index = () => {
                 }
               />
 
+              {/* SMS / Segurança */}
+              <KpiCard
+                icon={ShieldAlert}
+                iconBg={smsStats.nearMissSemana > 0 ? "bg-orange-500" : "bg-teal-500"}
+                label="SMS · Segurança"
+                value={smsTotal}
+                sub={`${smsStats.nearMissSemana} near-miss (7d) · ${smsStats.desviosAbertos} desvios abertos`}
+                subColor={smsTotal > 0 ? "text-orange-600" : "text-teal-600"}
+                footer={
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <ClipboardCheck className="h-3 w-3 text-teal-500" />
+                    <span>{smsStats.inspecoesHoje} inspeção hoje</span>
+                  </div>
+                }
+              />
+
+              {/* Manutenções */}
               <KpiCard
                 icon={Wrench}
                 iconBg={manutAgend > 5 ? "bg-red-500" : "bg-amber-500"}
@@ -189,12 +236,6 @@ const Index = () => {
                 subColor={manutAgend > 5 ? "text-red-600" : "text-amber-600"}
               />
 
-              <KpiCard
-                icon={HardHat} iconBg="bg-violet-500" label="Obras Ativas"
-                value={obraStats.em_andamento}
-                sub={`${obraStats.total} no total`}
-                subColor="text-violet-600"
-              />
             </div>
 
             {/* Corpo: gráficos + acesso rápido */}
@@ -215,12 +256,12 @@ const Index = () => {
                     <p className="text-sm font-semibold text-foreground">Acesso Rápido</p>
                   </div>
                   <div className="px-1 py-2 divide-y divide-border/30">
-                    <QuickLink to="/frota"        icon={Car}         color="bg-blue-500"   label="Veículos Leves"  sub={`${veicLeves} veículos`} />
-                    <QuickLink to="/veiculos-pesados" icon={Truck}   color="bg-emerald-500" label="Veículos Pesados" sub={`${veicPesados} veículos`} />
-                    <QuickLink to="/manutencao"   icon={Wrench}      color="bg-amber-500"  label="Manutenção"      sub={`${manutAgend} agendadas`} />
-                    <QuickLink to="/funcionarios" icon={Users}       color="bg-indigo-500" label="Funcionários"    sub={`${empAtivos} ativos`} />
-                    <QuickLink to="/obras"        icon={HardHat}     color="bg-violet-500" label="Obras"           sub={`${obraStats.em_andamento} em andamento`} />
-                    <QuickLink to="/relatorios"   icon={BarChart3}   color="bg-slate-500"  label="Relatórios"      sub="Custo de frota" />
+                    <QuickLink to="/obras"            icon={HardHat}     color="bg-violet-500"  label="Obras"              sub={`${obraStats.em_andamento} em andamento`} />
+                    <QuickLink to="/frota"            icon={Car}         color="bg-blue-500"    label="Veículos Leves"      sub={`${veicLeves} veículos`} />
+                    <QuickLink to="/veiculos-pesados" icon={Truck}       color="bg-emerald-500" label="Veículos Pesados"    sub={`${veicPesados} veículos`} />
+                    <QuickLink to="/manutencao"       icon={Wrench}      color="bg-amber-500"   label="Manutenção"          sub={`${manutAgend} agendadas`} />
+                    <QuickLink to="/funcionarios"     icon={Users}       color="bg-indigo-500"  label="Funcionários"        sub={`${empAtivos} ativos`} />
+                    <QuickLink to="/relatorios"       icon={BarChart3}   color="bg-slate-500"   label="Relatórios"          sub="Custo de frota" />
                   </div>
                 </div>
 
