@@ -83,6 +83,20 @@ export default function AppSms() {
   const online = useOnlineStatus()
   const syncLock = useRef(false)
 
+  // ── QR scan handlers (devem ficar ANTES dos early returns — Regras dos Hooks) ──
+  // useCallback garante referência estável para o QrScannerModal
+  const handleQrScan = useCallback((vehicleId: string) => {
+    setQrScan(false)
+    setScanVehicle(vehicleId)
+    setScreen('veiculo-hist')
+  }, [])
+
+  const handleCrachaScan = useCallback((employeeId: string) => {
+    setCrachaScan(false)
+    setScanEmployee(employeeId)
+    setScreen('func-hist')
+  }, [])
+
   // ── Troca o manifest PWA para que "Adicionar à tela inicial" instale o app
   //    correto (start_url /app-sms) em vez do app do motorista (/app)
   useEffect(() => {
@@ -327,20 +341,6 @@ export default function AppSms() {
       </div>
     )
   }
-
-  // ── QR scan handlers ─────────────────────────────────────────────────────────
-  // useCallback garante referência estável para o QrScannerModal
-  const handleQrScan = useCallback((vehicleId: string) => {
-    setQrScan(false)
-    setScanVehicle(vehicleId)
-    setScreen('veiculo-hist')
-  }, [])
-
-  const handleCrachaScan = useCallback((employeeId: string) => {
-    setCrachaScan(false)
-    setScanEmployee(employeeId)
-    setScreen('func-hist')
-  }, [])
 
   // ── render: QR scanner overlays ──────────────────────────────────────────────
   if (showQrScanner)
