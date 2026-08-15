@@ -112,11 +112,12 @@ export default function Efetivo() {
     setLoading(true);
     setLoaded(false);
     try {
-      // Funcionários da obra (via employee_obra_assignments)
+      // Funcionários da obra (via obra_funcionarios — tabela usada no cadastro)
       const { data: emps } = await (supabase as any)
-        .from("employee_obra_assignments")
+        .from("obra_funcionarios")
         .select("employee_id, employees(id, nome, cargos(nome))")
-        .eq("obra_id", obraId);
+        .eq("obra_id", obraId)
+        .eq("status", true);
 
       // Apontamentos já salvos para obra+data
       const { data: pontos } = await (supabase as any)
@@ -155,7 +156,7 @@ export default function Efetivo() {
 
       setRows(newRows);
       setLoaded(true);
-      if (newRows.length === 0) toast.info("Nenhum funcionário vinculado a essa obra. Vincule em Configurações → Usuários.");
+      if (newRows.length === 0) toast.info("Nenhum funcionário vinculado a essa obra. Vincule no cadastro do funcionário, campo Obra.");
     } catch (e) {
       console.error(e);
       toast.error("Erro ao carregar dados");

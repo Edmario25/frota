@@ -76,11 +76,12 @@ export default function EfetivoRelatorio() {
       const dataIni   = `${mes}-01`;
       const dataFim   = `${mes}-${String(diasNoMes).padStart(2, "0")}`;
 
-      // Funcionários da obra
+      // Funcionários da obra (via obra_funcionarios — tabela usada no cadastro)
       const { data: emps } = await (supabase as any)
-        .from("employee_obra_assignments")
+        .from("obra_funcionarios")
         .select("employee_id, employees(id, nome, cargos(nome))")
-        .eq("obra_id", obraId);
+        .eq("obra_id", obraId)
+        .eq("status", true);
 
       // Todos os apontamentos do mês
       const { data: pontos } = await (supabase as any)
