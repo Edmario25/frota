@@ -1,7 +1,7 @@
 import { TOTEM_PRONTO } from "./supabaseClient"
 import { TotemScreen } from "./TotemScreen"
 
-const OBRA_ID = import.meta.env.VITE_OBRA_ID ?? null
+const OBRA_ID = import.meta.env.VITE_OBRA_ID || null   // "" vira null
 
 // ─── App raiz do totem ────────────────────────────────────────────────────────
 // Usa service role key — sem necessidade de login de usuário.

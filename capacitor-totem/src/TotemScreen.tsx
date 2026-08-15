@@ -17,7 +17,7 @@ interface Props {
   registradoPor: string
 }
 
-const UUID_RE  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const UUID_RE  = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
 const RESET_MS = 4500    // ms antes de voltar ao scan após confirmação
 const ERRO_MS  = 3000    // ms antes de voltar ao scan após erro
 
@@ -71,8 +71,21 @@ export function TotemScreen({ obraId, registradoPor }: Props) {
         { fps: 10, qrbox: { width: 220, height: 220 } },
         async (decoded: string) => {
           if (doneRef.current || !mountedRef.current) return
-          const id = decoded.trim()
-          if (!UUID_RE.test(id)) return   // não é UUID — ignora silenciosamente
+          // Remove todo whitespace (incluindo \r \n \t e caracteres invisíveis)
+          const limpo = decoded.replace(/\s+/g, "").replace(/[^\x20-\x7E]/g, "")
+          const match = limpo.match(UUID_RE)
+          // Debug: mostra o que foi lido (remover depois de confirmar funcionamento)
+          if (!match) {
+            mostrarErro(`QR lido mas sem UUID: "${limpo.slice(0, 40)}"`)
+            return
+          }
+          const id = match[0].toLowerCase()
+          // Valida formato exato antes de enviar ao banco
+          const uuidExato = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)
+          if (!uuidExato) {
+            mostrarErro(`Formato inválido: "${id}"`)
+            return
+          }
           doneRef.current = true
           await pararScanner()
           if (mountedRef.current) {
@@ -99,16 +112,31 @@ export function TotemScreen({ obraId, registradoPor }: Props) {
   // ── Processar ponto ──────────────────────────────────────────────────────────
   async function processarPonto(employeeId: string) {
     try {
-      // 1. Dados do funcionário
+      // 1. Dados do funcionário — busca sem join primeiro para isolar erros de RLS
       const { data: emp, error: empErr } = await (supabase as any)
         .from("employees")
-        .select("nome, foto_url, cargos(nome)")
+        .select("id, nome, foto_url, cargo_id")
         .eq("id", employeeId)
         .maybeSingle()
 
-      if (empErr || !emp) {
-        mostrarErro("Funcionário não encontrado no sistema")
+      if (empErr) {
+        mostrarErro(`DB erro (id="${employeeId}"): ${empErr.message ?? empErr.code}`)
         return
+      }
+      if (!emp) {
+        mostrarErro(`Não encontrado (id="${employeeId.slice(0,8)}…")`)
+        return
+      }
+
+      // 1b. Busca cargo separado (evita falha por RLS no join)
+      let cargoNome = ""
+      if (emp.cargo_id) {
+        const { data: cargo } = await (supabase as any)
+          .from("cargos")
+          .select("nome")
+          .eq("id", emp.cargo_id)
+          .maybeSingle()
+        cargoNome = cargo?.nome ?? ""
       }
 
       // 2. Último registro hoje → determina entrada ou saída
@@ -130,9 +158,9 @@ export function TotemScreen({ obraId, registradoPor }: Props) {
         .from("employee_ponto_qr")
         .insert({
           employee_id:    employeeId,
-          obra_id:        obraId,
+          obra_id:        obraId || null,  // null se VITE_OBRA_ID em branco
           tipo,
-          registrado_por: registradoPor,
+          registrado_por: null,            // totem não tem sessão de usuário
           metodo:         "qr",
         })
 
@@ -145,7 +173,7 @@ export function TotemScreen({ obraId, registradoPor }: Props) {
         foto_url: emp.foto_url ?? null,
         tipo,
         hora:     new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        cargo:    emp.cargos?.nome ?? "",
+        cargo:    cargoNome,
       })
       setEstado("confirmado")
       reiniciarApos(RESET_MS)

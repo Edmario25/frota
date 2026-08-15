@@ -91,9 +91,16 @@ export function useEmployeeRh(employeeId: string | null) {
         (supabase as any).from("employee_ferias")
           .select("*").eq("employee_id", employeeId).order("data_inicio", { ascending: false }),
       ])
-      setDadosRh(rhRes.data ?? {})
-      setDocumentos(docsRes.data ?? [])
-      setFerias(ferRes.data ?? [])
+
+      // Só atualiza se não houver erro — evita apagar dados por bloqueio de RLS
+      if (rhRes.error) {
+        console.error("[useEmployeeRh] SELECT employee_dados_rh:", rhRes.error.message)
+        toast({ title: "Erro ao carregar dados RH", description: rhRes.error.message, variant: "destructive" })
+      } else {
+        setDadosRh(rhRes.data ?? {})
+      }
+      if (!docsRes.error) setDocumentos(docsRes.data ?? [])
+      if (!ferRes.error)  setFerias(ferRes.data ?? [])
     } catch (e) {
       console.error("[useEmployeeRh] refetch error", e)
     } finally {
