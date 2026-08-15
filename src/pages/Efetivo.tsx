@@ -89,7 +89,7 @@ export default function Efetivo() {
   const [saving, setSaving]       = useState(false);
   const [loaded, setLoaded]       = useState(false);
   const [search, setSearch]       = useState("");
-  const [filtroFrente, setFiltroFrente] = useState("");
+  const [filtroFrente, setFiltroFrente] = useState("all");
 
   // Importação CSV
   const fileRef               = useRef<HTMLInputElement>(null);
@@ -363,7 +363,7 @@ export default function Efetivo() {
   // ─── Filtro ────────────────────────────────────────────────────────────
   const filtered = rows.filter(r =>
     (!search       || r.nome.toLowerCase().includes(search.toLowerCase())) &&
-    (!filtroFrente || r.frente === filtroFrente)
+    (filtroFrente === "all" || r.frente === filtroFrente)
   );
 
   const obraNome = obras.find(o => o.id === obraId)?.nome ?? "";
@@ -510,7 +510,7 @@ export default function Efetivo() {
                     <SelectValue placeholder="Frente..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas as frentes</SelectItem>
+                    <SelectItem value="all">Todas as frentes</SelectItem>
                     {FRENTES.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
                   </SelectContent>
                 </Select>
