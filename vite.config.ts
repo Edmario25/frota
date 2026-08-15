@@ -29,6 +29,11 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff,woff2}"],
         // Bundle principal ultrapassa 2 MiB — aumenta limite do precache
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
+        // O SW novo assume o controle imediatamente após instalar.
+        // Evita que a versão antiga fique servindo cache stale após deploy,
+        // o que causava tela branca até o usuário fazer hard-refresh.
+        skipWaiting: true,
+        clientsClaim: true,
         // Estratégia para navegação: sempre tenta a rede, cai no cache
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
