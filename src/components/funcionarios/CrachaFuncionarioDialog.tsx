@@ -73,8 +73,9 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
     try {
       const QRCode = (await import("qrcode")).default
       const url = await QRCode.toDataURL(employee.id, {
-        width: 220, margin: 1,
+        width: 500, margin: 2,
         color: { dark: "#0f172a", light: "#ffffff" },
+        errorCorrectionLevel: "H",
       })
       setQrDataUrl(url)
     } catch { /* ignore */ }
@@ -182,8 +183,8 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
     // Usa base64 (embed seguro) OU a URL original como fallback (funciona no popup do mesmo domínio)
     const fotoSrcHtml = fotoB64 || employee.foto_url || ""
     const fotoHtml = fotoSrcHtml
-      ? `<img src="${fotoSrcHtml}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-      : `<div style="width:100%;height:100%;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#475569;">${iniciais}</div>`
+      ? `<img src="${fotoSrcHtml}" style="width:100%;height:100%;object-fit:cover;" />`
+      : `<div style="width:100%;height:100%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#475569;">${iniciais}</div>`
 
     const trRows = treinamentos.map(t => {
       const cor = t.status === "em_dia" ? "#16a34a" : t.status === "a_vencer" ? "#d97706" : "#dc2626"
@@ -233,44 +234,52 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
     .strip-name  { font-size: 7px; color: #fbbf24; font-weight: 900; text-align:center; line-height:1.25; letter-spacing:.5px }
     .strip-obra  { font-size: 6px; color: #94a3b8; text-align:center; line-height:1.3; margin-top:2px; padding: 0 1px }
 
+    /* Foto quadrada ao lado do nome */
     .photo-area {
-      width: 15mm; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      padding: 3mm 0 3mm 2mm;
+      width: 30mm; flex-shrink: 0;
+      display: flex; align-items: stretch;
+      padding: 2.5mm 0 2.5mm 2mm;
     }
-    .photo-circle {
-      width: 13mm; height: 13mm; border-radius: 50%;
-      overflow: hidden; border: 1mm solid #e2e8f0; flex-shrink:0;
+    .photo-square {
+      width: 100%; aspect-ratio: 1;
+      overflow: hidden;
+      border: .5mm solid #e2e8f0;
+      border-radius: 1.5mm;
+      flex-shrink: 0;
     }
 
     .info {
-      flex: 1; padding: 3mm 2mm 2mm 2.5mm;
+      flex: 1; padding: 2.5mm 1.5mm 2mm 2mm;
       display: flex; flex-direction: column; justify-content: space-between;
       overflow: hidden;
     }
     .info-top { flex:1; min-height:0 }
-    .emp-nome  { font-size: 10.5px; font-weight: 900; color: #0f172a; line-height:1.2; word-break:break-word }
-    .emp-cargo { font-size: 8px; color: #475569; font-weight: 600; margin-top: 1mm }
-    .emp-dept  { font-size: 7px; color: #94a3b8; margin-top: 0.5mm }
-    .emp-obra  { font-size: 7px; color: #64748b; margin-top: 0.5mm; font-style:italic }
+    .emp-nome  { font-size: 10px; font-weight: 900; color: #0f172a; line-height:1.2; word-break:break-word }
+    .emp-cargo { font-size: 7.5px; color: #475569; font-weight: 600; margin-top: 1mm }
+    .emp-dept  { font-size: 6.5px; color: #94a3b8; margin-top: 0.5mm }
+    .emp-obra  { font-size: 6.5px; color: #64748b; margin-top: 0.5mm; font-style:italic }
     .status-pill {
       display:inline-flex; align-items:center; gap: 2px;
-      padding: 1mm 2mm; border-radius: 99px;
-      font-size: 7.5px; font-weight: 800; color: white;
+      padding: .8mm 1.8mm; border-radius: 99px;
+      font-size: 7px; font-weight: 800; color: white;
       background: ${statusCor}; margin-top: 1.5mm;
     }
     .footer-row {
-      border-top: .3mm solid #f1f5f9; padding-top: 1.5mm; margin-top: 1.5mm;
+      border-top: .3mm solid #f1f5f9; padding-top: 1mm; margin-top: 1mm;
       display: flex; gap: 4px; flex-wrap:wrap;
     }
-    .footer-txt { font-size: 6.5px; color: #94a3b8 }
+    .footer-txt { font-size: 6px; color: #94a3b8 }
 
+    /* QR grande — 30mm para leitura confiável */
     .qr-area {
-      width: 16mm; flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
-      padding: 3mm 2.5mm 3mm 0;
+      width: 32mm; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2mm 2.5mm 2mm 1mm;
+      gap: 1mm;
     }
-    .qr-area img { width: 14mm; height: 14mm }
+    .qr-area img { width: 28mm; height: 28mm }
+    .qr-label { font-size: 5.5px; color: #94a3b8; text-align:center; letter-spacing:.3px }
 
     /* ── Verso ── */
     .card-back { flex-direction: row }
@@ -316,9 +325,9 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
       ${obraAtual ? `<span class="strip-obra">${obraAtual}</span>` : ""}
     </div>
 
-    <!-- Foto -->
+    <!-- Foto quadrada -->
     <div class="photo-area">
-      <div class="photo-circle">${fotoHtml}</div>
+      <div class="photo-square">${fotoHtml}</div>
     </div>
 
     <!-- Informações -->
@@ -337,9 +346,10 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
       </div>
     </div>
 
-    <!-- QR -->
+    <!-- QR grande -->
     <div class="qr-area">
-      ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR"/>` : ""}
+      ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR Code"/>` : ""}
+      <span class="qr-label">PONTO QR</span>
     </div>
   </div>
 
@@ -433,12 +443,12 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
             {activeTab === "frente" && (
               <div
                 className="rounded-xl overflow-hidden border border-border/50 shadow-sm flex"
-                style={{ height: "136px" }}
+                style={{ height: "152px" }}
               >
                 {/* Faixa escura */}
                 <div
                   className="flex flex-col items-center justify-center gap-1 px-2 flex-shrink-0"
-                  style={{ width: "60px", background: "linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%)" }}
+                  style={{ width: "56px", background: "linear-gradient(180deg, #1e3a5f 0%, #0f172a 100%)" }}
                 >
                   <span className="text-xl">🏗️</span>
                   <span className="text-[7px] font-black text-amber-400 text-center leading-tight">ÁPICE<br/>GESTÃO</span>
@@ -447,19 +457,19 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
                   )}
                 </div>
 
-                {/* Foto */}
-                <div className="flex items-center justify-center px-2 flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-border flex-shrink-0 bg-muted flex items-center justify-center">
+                {/* Foto QUADRADA */}
+                <div className="flex items-center py-2 pl-2 flex-shrink-0">
+                  <div className="w-24 h-24 rounded overflow-hidden border border-border flex-shrink-0 bg-muted flex items-center justify-center">
                     {fotoSrc ? (
                       <img src={fotoSrc} alt="foto" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-sm font-bold text-muted-foreground">{iniciais}</span>
+                      <span className="text-xl font-bold text-muted-foreground">{iniciais}</span>
                     )}
                   </div>
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 px-2 py-2 flex flex-col justify-between min-w-0">
+                <div className="flex-1 px-2 py-2 flex flex-col justify-between min-w-0 overflow-hidden">
                   <div>
                     <p className="font-black text-sm leading-tight text-foreground truncate">{employee.nome}</p>
                     <p className="text-xs text-muted-foreground font-semibold truncate">{employee.cargos?.nome ?? "—"}</p>
@@ -480,10 +490,11 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
                   </p>
                 </div>
 
-                {/* QR */}
+                {/* QR GRANDE */}
                 {qrDataUrl && (
-                  <div className="flex items-center justify-center px-2 flex-shrink-0">
-                    <img src={qrDataUrl} alt="QR" className="w-14 h-14" />
+                  <div className="flex flex-col items-center justify-center px-2 flex-shrink-0 gap-1">
+                    <img src={qrDataUrl} alt="QR" className="w-24 h-24" />
+                    <span className="text-[8px] text-muted-foreground font-medium">PONTO QR</span>
                   </div>
                 )}
               </div>
