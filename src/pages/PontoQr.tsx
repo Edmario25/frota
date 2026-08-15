@@ -84,6 +84,10 @@ export default function PontoQr() {
   const fetchRegistros = useCallback(async () => {
     setLoading(true)
     try {
+      // Converte para ISO UTC respeitando o fuso local do navegador
+      const inicioUtc = new Date(`${dataInicio}T00:00:00`).toISOString()
+      const fimUtc    = new Date(`${dataFim}T23:59:59`).toISOString()
+
       let q = (supabase as any)
         .from("employee_ponto_qr")
         .select(`
@@ -92,8 +96,8 @@ export default function PontoQr() {
           obras(nome),
           scanner:registrado_por(nome)
         `)
-        .gte("registrado_em", `${dataInicio}T00:00:00`)
-        .lte("registrado_em", `${dataFim}T23:59:59`)
+        .gte("registrado_em", inicioUtc)
+        .lte("registrado_em", fimUtc)
         .order("registrado_em", { ascending: false })
 
       if (obraId !== "all") q = q.eq("obra_id", obraId)
