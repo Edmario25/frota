@@ -57,23 +57,32 @@ export function FuncionarioHistoricoScreen({ employeeId, obraId, onBack }: Props
   const [trein, setTrein]       = useState<Treinamento[]>([])
   const [items, setItems]       = useState<HistItem[]>([])
   const [loading, setLoading]   = useState(true)
+  const [erro, setErro]         = useState<string | null>(null)
   const [tab, setTab]           = useState<"treinamentos" | "historico">("treinamentos")
 
   useEffect(() => { fetchAll() }, [employeeId])
 
   const fetchAll = async () => {
     setLoading(true)
-    await Promise.all([fetchFunc(), fetchTreinamentos(), fetchHistorico()])
-    setLoading(false)
+    setErro(null)
+    try {
+      await Promise.all([fetchFunc(), fetchTreinamentos(), fetchHistorico()])
+    } catch (e: any) {
+      console.error("[FuncionarioHistorico] fetchAll error:", e)
+      setErro(e?.message ?? "Erro ao carregar dados")
+    } finally {
+      setLoading(false)
+    }
   }
 
   const fetchFunc = async () => {
-    const { data } = await supabase
+    const { data, error } = await (supabase as any)
       .from("employees")
-      .select("id, nome, cpf, cargos(nome), departamentos!fk_employees_departamento(nome)")
+      .select("id, nome, cpf, cargos(nome), departamentos(nome)")
       .eq("id", employeeId)
       .maybeSingle()
-    setFunc(data as any ?? null)
+    if (error) console.warn("[FuncionarioHistorico] fetchFunc:", error.message)
+    setFunc(data ?? null)
   }
 
   const fetchTreinamentos = async () => {
@@ -198,6 +207,17 @@ export function FuncionarioHistoricoScreen({ employeeId, obraId, onBack }: Props
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : erro ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
+          <span className="text-4xl">⚠️</span>
+          <p className="text-gray-500 text-sm">{erro}</p>
+          <button
+            onClick={fetchAll}
+            className="mt-2 px-5 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold"
+          >
+            Tentar novamente
+          </button>
         </div>
       ) : (
         <>

@@ -81,6 +81,44 @@ export default defineConfig(({ mode }) => ({
     }),
   ].filter(Boolean),
 
+  build: {
+    // Aumenta limite de aviso (chunks grandes são esperados com shadcn)
+    chunkSizeWarningLimit: 3000,
+    rollupOptions: {
+      output: {
+        // Code-splitting manual para reduzir pico de RAM no build
+        manualChunks: {
+          // UI / design-system
+          "vendor-ui":    ["react", "react-dom", "react-router-dom"],
+          "vendor-ui2":   [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-tooltip",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-checkbox",
+            "@radix-ui/react-switch",
+            "@radix-ui/react-label",
+            "@radix-ui/react-slider",
+            "@radix-ui/react-accordion",
+          ],
+          // Supabase
+          "vendor-supabase": ["@supabase/supabase-js"],
+          // Datas
+          "vendor-dates":    ["date-fns"],
+          // Charts
+          "vendor-charts":   ["recharts"],
+          // QR Code (pesado)
+          "vendor-qr":       ["qrcode"],
+          // Ícones
+          "vendor-icons":    ["lucide-react"],
+        },
+      },
+    },
+  },
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
