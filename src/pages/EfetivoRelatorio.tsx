@@ -106,9 +106,14 @@ export default function EfetivoRelatorio() {
       });
 
       const rows: EmpRow[] = (emps ?? [])
-        .map((a: any) => a.employees)
+        .map((a: any) => {
+          // PostgREST pode devolver o join como objeto ou como array (1 elemento)
+          const emp = Array.isArray(a.employees) ? a.employees[0] : a.employees;
+          return emp ?? null;
+        })
         .filter(Boolean)
         .map((e: any) => {
+          const cargosObj = Array.isArray(e.cargos) ? e.cargos[0] : e.cargos;
           const diasEmp = pontoMap[e.id] ?? {};
           let total_hht = 0, total_hhe = 0, presencas = 0, faltas = 0;
           for (let d = 1; d <= diasNoMes; d++) {
@@ -125,9 +130,9 @@ export default function EfetivoRelatorio() {
           total_hhe = pontosEmp.reduce((s: number, p: any) => s + (p.horas_extras ?? 0), 0);
 
           return {
-            employee_id: e.id,
-            nome:        e.nome,
-            cargo_nome:  e.cargos?.nome ?? null,
+            employee_id: e.id ?? "",
+            nome:        e.nome ?? "—",
+            cargo_nome:  cargosObj?.nome ?? null,
             dias:        diasEmp,
             total_hht,
             total_hhe,

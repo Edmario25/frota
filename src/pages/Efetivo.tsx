@@ -130,16 +130,22 @@ export default function Efetivo() {
       (pontos ?? []).forEach((p: any) => { pontoMap[p.employee_id] = p; });
 
       const newRows: PontoRow[] = (emps ?? [])
-        .map((a: any) => a.employees)
+        .map((a: any) => {
+          // PostgREST pode devolver o join como objeto ou como array (1 elemento)
+          const emp = Array.isArray(a.employees) ? a.employees[0] : a.employees;
+          return emp ?? null;
+        })
         .filter(Boolean)
         .map((e: any) => {
           const ponto = pontoMap[e.id] ?? null;
           const entrada = ponto?.hora_entrada?.slice(0, 5) ?? "";
           const saida   = ponto?.hora_saida?.slice(0, 5) ?? "";
+          // cargos também pode vir como array
+          const cargosObj = Array.isArray(e.cargos) ? e.cargos[0] : e.cargos;
           return {
-            id:                e.id,
-            nome:              e.nome,
-            cargo_nome:        e.cargos?.nome ?? null,
+            id:                e.id ?? "",
+            nome:              e.nome ?? "—",
+            cargo_nome:        cargosObj?.nome ?? null,
             ausencia:          ponto?.ausencia ?? false,
             motivo_ausencia:   ponto?.motivo_ausencia ?? "",
             frente:            ponto?.frente ?? "",
@@ -481,7 +487,7 @@ export default function Efetivo() {
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <CardTitle className="text-base">
-                    Equipe — {obraNome} · {format(new Date(data + "T12:00:00"), "EEEE, dd/MM/yyyy", { locale: ptBR })}
+                    Equipe — {obraNome} · {data ? format(new Date(data + "T12:00:00"), "EEEE, dd/MM/yyyy", { locale: ptBR }) : ""}
                   </CardTitle>
                   <CardDescription>{rows.length} funcionários vinculados a essa obra</CardDescription>
                 </div>
@@ -658,7 +664,7 @@ function PontoCard({ row, onChange }: PontoCardProps) {
             ? "bg-red-200 text-red-700 dark:bg-red-800 dark:text-red-200"
             : "bg-primary/10 text-primary"
         )}>
-          {row.nome.charAt(0).toUpperCase()}
+          {(row.nome || "?").charAt(0).toUpperCase()}
         </div>
 
         {/* Nome + cargo */}
