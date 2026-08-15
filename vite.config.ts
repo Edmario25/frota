@@ -91,34 +91,43 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
-        // Code-splitting manual para reduzir pico de RAM no build
-        manualChunks: {
-          // UI / design-system
-          "vendor-ui":    ["react", "react-dom", "react-router-dom"],
-          "vendor-ui2":   [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-select",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-toast",
-            "@radix-ui/react-tooltip",
-            "@radix-ui/react-popover",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-checkbox",
-            "@radix-ui/react-switch",
-            "@radix-ui/react-label",
-            "@radix-ui/react-slider",
-            "@radix-ui/react-accordion",
-          ],
+        // Code-splitting manual para reduzir pico de RAM no build.
+        // IMPORTANTE: usa forma de FUNÇÃO (não objeto) para que o match seja
+        // por caminho de arquivo — evita que React seja incluído em dois chunks
+        // ao mesmo tempo (duplicação causava React error #310 "Invalid hook call").
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined
+
+          // React e seus internos SEMPRE num chunk único
+          if (
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
+            id.includes("/react-router") ||
+            id.includes("/scheduler/")
+          ) return "vendor-react"
+
+          // Radix UI (components)
+          if (id.includes("/@radix-ui/")) return "vendor-radix"
+
           // Supabase
-          "vendor-supabase": ["@supabase/supabase-js"],
+          if (id.includes("/@supabase/")) return "vendor-supabase"
+
+          // Charts / D3
+          if (id.includes("/recharts/") || id.includes("/d3-") || id.includes("/victory-"))
+            return "vendor-charts"
+
           // Datas
-          "vendor-dates":    ["date-fns"],
-          // Charts
-          "vendor-charts":   ["recharts"],
-          // QR Code (pesado)
-          "vendor-qr":       ["qrcode"],
+          if (id.includes("/date-fns/")) return "vendor-dates"
+
           // Ícones
-          "vendor-icons":    ["lucide-react"],
+          if (id.includes("/lucide-react/")) return "vendor-icons"
+
+          // QR Code
+          if (id.includes("/qrcode/") || id.includes("/html5-qrcode/"))
+            return "vendor-qr"
+
+          // Demais node_modules num chunk genérico
+          return "vendor-misc"
         },
       },
     },
