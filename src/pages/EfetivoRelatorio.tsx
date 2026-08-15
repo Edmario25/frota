@@ -22,6 +22,7 @@ interface DiaInfo {
   hora_entrada:     string | null;
   hora_saida:       string | null;
   frente:           string | null;
+  fonte:            "salvo" | "totem";
 }
 
 interface EmpRow {
@@ -83,7 +84,12 @@ export default function EfetivoRelatorio() {
         .eq("obra_id", obraId)
         .eq("status", true);
 
-      // Todos os apontamentos do mês
+      // IDs dos funcionários (para filtrar totem por employee_id)
+      const empIds = (emps ?? [])
+        .map((a: any) => (Array.isArray(a.employees) ? a.employees[0] : a.employees)?.id)
+        .filter(Boolean);
+
+      // Apontamentos salvos pelo supervisor
       const { data: pontos } = await (supabase as any)
         .from("efetivo_ponto")
         .select("employee_id, data, ausencia, horas_trabalhadas, horas_extras, hora_entrada, hora_saida, frente")
@@ -91,7 +97,40 @@ export default function EfetivoRelatorio() {
         .gte("data", dataIni)
         .lte("data", dataFim);
 
-      // Montar mapa employee_id → ponto[]
+      // Registros do totem QR para o mês (filtra por employee — obra_id pode ser null no totem)
+      const inicioUtc = new Date(`${dataIni}T00:00:00`).toISOString();
+      const fimUtc    = new Date(`${dataFim}T23:59:59`).toISOString();
+      const { data: totemRecs } = empIds.length > 0
+        ? await (supabase as any)
+            .from("employee_ponto_qr")
+            .select("employee_id, tipo, registrado_em")
+            .in("employee_id", empIds)
+            .gte("registrado_em", inicioUtc)
+            .lte("registrado_em", fimUtc)
+            .order("registrado_em", { ascending: true })
+        : { data: [] };
+
+      // Mapa totem: employee_id → dia → { entrada, saida, ms de duração }
+      type TotemDia = { entrada: string; saida: string; entMs: number; saiMs: number };
+      const totemMap: Record<string, Record<number, TotemDia>> = {};
+      for (const r of (totemRecs ?? [])) {
+        const dt  = new Date(r.registrado_em);
+        const dia = dt.getDate();   // dia local do mês
+        const hora = dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        if (!totemMap[r.employee_id]) totemMap[r.employee_id] = {};
+        if (!totemMap[r.employee_id][dia])
+          totemMap[r.employee_id][dia] = { entrada: "", saida: "", entMs: 0, saiMs: 0 };
+        if (r.tipo === "entrada" && !totemMap[r.employee_id][dia].entrada) {
+          totemMap[r.employee_id][dia].entrada = hora;
+          totemMap[r.employee_id][dia].entMs   = dt.getTime();
+        }
+        if (r.tipo === "saida") {
+          totemMap[r.employee_id][dia].saida = hora;
+          totemMap[r.employee_id][dia].saiMs = dt.getTime();
+        }
+      }
+
+      // Mapa supervisor: employee_id → dia → DiaInfo
       const pontoMap: Record<string, Record<number, DiaInfo>> = {};
       (pontos ?? []).forEach((p: any) => {
         const dia = parseInt(p.data.split("-")[2]);
@@ -102,6 +141,7 @@ export default function EfetivoRelatorio() {
           hora_entrada:      p.hora_entrada?.slice(0, 5) ?? null,
           hora_saida:        p.hora_saida?.slice(0, 5) ?? null,
           frente:            p.frente,
+          fonte:             "salvo",
         };
       });
 
@@ -114,18 +154,35 @@ export default function EfetivoRelatorio() {
         .filter(Boolean)
         .map((e: any) => {
           const cargosObj = Array.isArray(e.cargos) ? e.cargos[0] : e.cargos;
-          const diasEmp = pontoMap[e.id] ?? {};
+
+          // Mescla: supervisor > totem > vazio
+          const diasEmp: Record<number, DiaInfo> = {};
+          for (let d = 1; d <= diasNoMes; d++) {
+            if (pontoMap[e.id]?.[d]) {
+              diasEmp[d] = pontoMap[e.id][d];
+            } else if (totemMap[e.id]?.[d]?.entrada) {
+              const t = totemMap[e.id][d];
+              const horas = t.entrada && t.saida && t.saiMs > t.entMs
+                ? Math.round((t.saiMs - t.entMs) / 36000) / 100  // arredonda em 0.01
+                : null;
+              diasEmp[d] = {
+                ausencia:          false,
+                horas_trabalhadas: horas,
+                hora_entrada:      t.entrada,
+                hora_saida:        t.saida || null,
+                frente:            null,
+                fonte:             "totem",
+              };
+            }
+          }
+
           let total_hht = 0, total_hhe = 0, presencas = 0, faltas = 0;
           for (let d = 1; d <= diasNoMes; d++) {
             const dia = diasEmp[d];
             if (!dia) continue;
             if (dia.ausencia) { faltas++; }
-            else {
-              presencas++;
-              total_hht += dia.horas_trabalhadas ?? 0;
-            }
+            else { presencas++; total_hht += dia.horas_trabalhadas ?? 0; }
           }
-          // horas extras não estão no select acima, mas pontos tem o campo
           const pontosEmp = (pontos ?? []).filter((p: any) => p.employee_id === e.id);
           total_hhe = pontosEmp.reduce((s: number, p: any) => s + (p.horas_extras ?? 0), 0);
 
@@ -287,7 +344,8 @@ export default function EfetivoRelatorio() {
               </CardTitle>
               <CardDescription>{empRows.length} funcionários · {diasNoMes} dias</CardDescription>
               <div className="flex gap-3 text-xs mt-1 flex-wrap">
-                <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-green-100 dark:bg-green-900/30 inline-block" /> P = Presente</span>
+                <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-green-100 dark:bg-green-900/30 inline-block" /> P = Presente (manual)</span>
+                <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-blue-100 dark:bg-blue-900/30 inline-block" /> Q = Totem QR</span>
                 <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-red-100 dark:bg-red-900/30 inline-block" /> A = Ausente</span>
                 <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-muted inline-block" /> — = Não registrado</span>
               </div>
@@ -323,6 +381,13 @@ export default function EfetivoRelatorio() {
                                 <span className="text-muted-foreground/40">·</span>
                               ) : dia.ausencia ? (
                                 <span className="inline-flex items-center justify-center h-6 w-7 rounded text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">A</span>
+                              ) : dia.fonte === "totem" ? (
+                                <span
+                                  title={`QR Totem · ${dia.hora_entrada ?? ""}${dia.hora_saida ? `–${dia.hora_saida}` : ""} (${dia.horas_trabalhadas != null ? dia.horas_trabalhadas + "h" : "s/ saída"})`}
+                                  className="inline-flex items-center justify-center h-6 w-7 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 cursor-help"
+                                >
+                                  Q
+                                </span>
                               ) : (
                                 <span
                                   title={`${dia.hora_entrada ?? ""}–${dia.hora_saida ?? ""} (${dia.horas_trabalhadas ?? 0}h)${dia.frente ? ` · ${dia.frente}` : ""}`}
