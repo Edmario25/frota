@@ -83,15 +83,20 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
 
       case 'inspecao': {
         const { error: e1 } = await (supabase as any).from('sms_inspecoes').insert({
-          id:             rec.id,
-          obra_id:        rec.obra_id,
-          checklist_id:   d.checklist_id,
-          responsavel_id: rec.employee_id,
-          data:           d.data,
-          status:         'concluida',
-          observacoes:    d.observacoes || null,
-          device_id:      d.device_id || null,
-          sync_status:    'synced',
+          id:               rec.id,
+          obra_id:          rec.obra_id,
+          veiculo_id:       d.veiculo_id   || null,
+          checklist_id:     d.checklist_id || null,
+          tipo:             d.tipo         || null,
+          responsavel_id:   rec.employee_id,
+          condutor:         d.condutor     || null,
+          data:             d.data,
+          hora:             d.hora         || null,
+          status:           'concluida',
+          status_liberacao: d.status_liberacao || null,
+          observacoes:      d.observacoes  || null,
+          device_id:        d.device_id    || null,
+          sync_status:      'synced',
         })
         if (e1) return { ok: false, error: e1.message }
         const respostas = d.respostas as Array<{ item_id: string; resposta: string; observacao?: string }> | undefined

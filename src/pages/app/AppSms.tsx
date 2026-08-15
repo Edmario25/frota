@@ -14,6 +14,7 @@ import { PtForm }        from "./sms/PtForm"
 import { QrScannerModal }              from "./sms/QrScannerModal"
 import { VeiculoHistoricoScreen }      from "./sms/VeiculoHistoricoScreen"
 import { FuncionarioHistoricoScreen }  from "./sms/FuncionarioHistoricoScreen"
+import { LiberacaoVeiculoForm }        from "./sms/LiberacaoVeiculoForm"
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type Employee = { id: string; nome: string; obra_id: string | null }
@@ -24,6 +25,7 @@ type Screen =
   | 'hist'
   | 'veiculo-hist'
   | 'func-hist'
+  | 'form-liberacao'
   | 'form-dds' | 'form-desvio' | 'form-inspecao' | 'form-apr'
   | 'form-rdo' | 'form-near_miss' | 'form-acidente' | 'form-pt'
 
@@ -356,12 +358,31 @@ export default function AppSms() {
       />
     )
 
+  // ── render: liberação de veículo ─────────────────────────────────────────────
+  if (screen === 'form-liberacao')
+    return (
+      <LiberacaoVeiculoForm
+        employee={employee!}
+        obraId={employee!.obra_id ?? ''}
+        obras={obras}
+        veiculos={veiculos}
+        preselectedVehicleId={scannedVehicleId ?? undefined}
+        onSave={handleSave}
+        onBack={() => {
+          // Se veio do QR scan, volta ao histórico; senão volta ao home
+          if (scannedVehicleId) setScreen('veiculo-hist')
+          else { setScanVehicle(null); setScreen('home') }
+        }}
+      />
+    )
+
   // ── render: histórico do veículo ──────────────────────────────────────────────
   if (screen === 'veiculo-hist' && scannedVehicleId)
     return (
       <VeiculoHistoricoScreen
         vehicleId={scannedVehicleId}
         obraId={employee!.obra_id}
+        onLiberar={() => setScreen('form-liberacao')}
         onBack={() => { setScanVehicle(null); setScreen('home') }}
       />
     )
@@ -501,6 +522,19 @@ export default function AppSms() {
             </div>
           </button>
         </div>
+
+        {/* Liberação de Veículo — acesso rápido */}
+        <button
+          onClick={() => { setScanVehicle(null); setScreen('form-liberacao') }}
+          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-orange-600 text-white active:scale-[.98] transition-transform mb-4"
+        >
+          <span className="text-2xl">🚦</span>
+          <div className="text-left">
+            <p className="text-sm font-bold leading-tight">Liberação de Veículo</p>
+            <p className="text-[11px] text-orange-200 leading-tight">Checklist diário + teste de fumaça</p>
+          </div>
+          <span className="ml-auto text-orange-200 text-lg">›</span>
+        </button>
 
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Novo lançamento</p>
         <div className="grid grid-cols-2 gap-3">

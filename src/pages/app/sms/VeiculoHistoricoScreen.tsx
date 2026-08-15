@@ -107,9 +107,10 @@ interface Props {
   vehicleId: string
   obraId: string | null
   onBack: () => void
+  onLiberar?: () => void
 }
 
-export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack }: Props) {
+export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }: Props) {
   const [veiculo, setVeiculo]       = useState<Veiculo | null>(null)
   const [ultimaInsp, setUltimaInsp] = useState<UltimaInspecao | null | "loading">("loading")
   const [items, setItems]           = useState<HistItem[]>([])
@@ -314,6 +315,16 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack }: Props) {
                   </p>
                 </div>
               </div>
+
+              {/* Botão de liberação quando aguardando ou bloqueado */}
+              {onLiberar && liberacao.tipo !== "liberado" && (
+                <button
+                  onClick={onLiberar}
+                  className="mt-3 w-full py-2.5 rounded-xl bg-orange-600 text-white text-sm font-bold flex items-center justify-center gap-2"
+                >
+                  🚦 Iniciar Liberação Agora
+                </button>
+              )}
 
               {/* Última inspeção — detalhes */}
               {ultimaInsp && (
