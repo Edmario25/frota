@@ -129,15 +129,23 @@ export default function Efetivo() {
         .eq("data", data);
 
       // Registros do totem QR para esse dia (converte data local → UTC)
+      // Filtra por employee_id (não por obra_id pois o totem pode gravar obra_id null
+      // quando VITE_OBRA_ID não está configurado no .env do capacitor)
       const inicioUtc = new Date(`${data}T00:00:00`).toISOString();
       const fimUtc    = new Date(`${data}T23:59:59`).toISOString();
-      const { data: totemRecs } = await (supabase as any)
-        .from("employee_ponto_qr")
-        .select("employee_id, tipo, registrado_em")
-        .eq("obra_id", obraId)
-        .gte("registrado_em", inicioUtc)
-        .lte("registrado_em", fimUtc)
-        .order("registrado_em", { ascending: true });
+      const empIds = (emps ?? [])
+        .map((a: any) => (Array.isArray(a.employees) ? a.employees[0] : a.employees)?.id)
+        .filter(Boolean);
+
+      const { data: totemRecs } = empIds.length > 0
+        ? await (supabase as any)
+            .from("employee_ponto_qr")
+            .select("employee_id, tipo, registrado_em")
+            .in("employee_id", empIds)
+            .gte("registrado_em", inicioUtc)
+            .lte("registrado_em", fimUtc)
+            .order("registrado_em", { ascending: true })
+        : { data: [] };
 
       // Mapa totem: employee_id → { entrada: "HH:MM", saida: "HH:MM" }
       const totemMap: Record<string, { entrada: string; saida: string }> = {};
