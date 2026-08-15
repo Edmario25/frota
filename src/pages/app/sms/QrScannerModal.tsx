@@ -10,38 +10,53 @@ interface Props {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function QrScannerModal({ onScan, onClose, hint: hintProp, title = "Escanear QR Code" }: Props) {
-  const [error, setError] = useState<string | null>(null)
-  const [hint, setHint]   = useState(hintProp ?? "Aponte a câmera para o QR Code")
-  const stopRef           = useRef<(() => void) | null>(null)
-  const doneRef           = useRef(false)
+  const [error, setError]   = useState<string | null>(null)
+  const [hint, setHint]     = useState(hintProp ?? "Aponte a câmera para o QR Code")
+  const [scanned, setScanned] = useState(false)   // feedback visual enquanto para a câmera
+  const scannerRef          = useRef<any>(null)
+  const doneRef             = useRef(false)
 
   useEffect(() => {
-    let scanner: any = null
+    let cancelled = false
 
     async function start() {
       try {
         const { Html5Qrcode } = await import("html5-qrcode")
-        scanner = new Html5Qrcode("qr-reader-sms")
+        const scanner = new Html5Qrcode("qr-reader-sms")
+        scannerRef.current = scanner
 
         await scanner.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decoded: string) => {
-            if (doneRef.current) return
+
+          // ── Callback de sucesso ─────────────────────────────────────────
+          async (decoded: string) => {
+            if (doneRef.current || cancelled) return
             const id = decoded.trim()
+
             if (!UUID_RE.test(id)) {
               setHint("QR inválido — use o QR gerado pelo sistema")
               return
             }
-            doneRef.current = true
-            scanner.stop().catch(() => {})
-            onScan(id)
-          },
-          () => {/* ignore frame errors */}
-        )
 
-        stopRef.current = () => scanner.stop().catch(() => {})
+            // Marca como concluído imediatamente para ignorar frames seguintes
+            doneRef.current = true
+            setScanned(true)
+
+            // Para a câmera ANTES de notificar o pai.
+            // Isso evita que o cleanup do useEffect chame stop() duas vezes
+            // (double-stop causa crash no Capacitor WebView → tela branca).
+            try { await scanner.stop() } catch { /* já parado */ }
+            scannerRef.current = null   // sinaliza ao cleanup que já foi parado
+
+            if (!cancelled) onScan(id)
+          },
+
+          // ── Callback de frame sem QR (silencioso) ───────────────────────
+          () => { /* ignore frame errors */ }
+        )
       } catch (e: any) {
+        if (cancelled) return
         setError(
           e?.message?.includes("permission")
             ? "Permissão de câmera negada. Libere o acesso nas configurações do celular."
@@ -52,10 +67,18 @@ export function QrScannerModal({ onScan, onClose, hint: hintProp, title = "Escan
 
     start()
 
+    // Cleanup: para a câmera somente se ainda estiver rodando
     return () => {
-      if (stopRef.current) stopRef.current()
+      cancelled = true
+      const s = scannerRef.current
+      if (s) {
+        scannerRef.current = null
+        s.stop().catch(() => {})
+      }
     }
-  }, [onScan])
+  // Sem dependência em onScan: a câmera inicia uma vez e não reinicia a cada render do pai
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -76,6 +99,14 @@ export function QrScannerModal({ onScan, onClose, hint: hintProp, title = "Escan
           >
             Fechar
           </button>
+        </div>
+      ) : scanned ? (
+        // Feedback visual enquanto processa (transição antes de mostrar o histórico)
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center">
+            <span className="text-3xl">✓</span>
+          </div>
+          <p className="text-white text-sm font-semibold">QR lido! Carregando...</p>
         </div>
       ) : (
         <>

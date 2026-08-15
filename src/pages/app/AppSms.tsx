@@ -329,17 +329,18 @@ export default function AppSms() {
   }
 
   // ── QR scan handlers ─────────────────────────────────────────────────────────
-  const handleQrScan = (vehicleId: string) => {
+  // useCallback garante referência estável para o QrScannerModal
+  const handleQrScan = useCallback((vehicleId: string) => {
     setQrScan(false)
     setScanVehicle(vehicleId)
     setScreen('veiculo-hist')
-  }
+  }, [])
 
-  const handleCrachaScan = (employeeId: string) => {
+  const handleCrachaScan = useCallback((employeeId: string) => {
     setCrachaScan(false)
     setScanEmployee(employeeId)
     setScreen('func-hist')
-  }
+  }, [])
 
   // ── render: QR scanner overlays ──────────────────────────────────────────────
   if (showQrScanner)
