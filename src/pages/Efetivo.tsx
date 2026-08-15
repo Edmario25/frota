@@ -39,6 +39,8 @@ interface PontoRow extends Employee {
   horas_trabalhadas: number | null;
   // id do registro já salvo (para upsert)
   existing_id:      string | null;
+  // origem do dado: salvo pelo supervisor | pré-preenchido pelo totem | entrada manual
+  fonte:            "salvo" | "totem" | "manual";
   // controle de UI
   expanded:         boolean;
 }
@@ -126,6 +128,31 @@ export default function Efetivo() {
         .eq("obra_id", obraId)
         .eq("data", data);
 
+      // Registros do totem QR para esse dia (converte data local → UTC)
+      const inicioUtc = new Date(`${data}T00:00:00`).toISOString();
+      const fimUtc    = new Date(`${data}T23:59:59`).toISOString();
+      const { data: totemRecs } = await (supabase as any)
+        .from("employee_ponto_qr")
+        .select("employee_id, tipo, registrado_em")
+        .eq("obra_id", obraId)
+        .gte("registrado_em", inicioUtc)
+        .lte("registrado_em", fimUtc)
+        .order("registrado_em", { ascending: true });
+
+      // Mapa totem: employee_id → { entrada: "HH:MM", saida: "HH:MM" }
+      const totemMap: Record<string, { entrada: string; saida: string }> = {};
+      for (const r of (totemRecs ?? [])) {
+        if (!totemMap[r.employee_id]) totemMap[r.employee_id] = { entrada: "", saida: "" };
+        const hora = new Date(r.registrado_em)
+          .toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        if (r.tipo === "entrada" && !totemMap[r.employee_id].entrada) {
+          totemMap[r.employee_id].entrada = hora; // primeira entrada do dia
+        }
+        if (r.tipo === "saida") {
+          totemMap[r.employee_id].saida = hora;   // última saída do dia
+        }
+      }
+
       const pontoMap: Record<string, any> = {};
       (pontos ?? []).forEach((p: any) => { pontoMap[p.employee_id] = p; });
 
@@ -138,8 +165,16 @@ export default function Efetivo() {
         .filter(Boolean)
         .map((e: any) => {
           const ponto = pontoMap[e.id] ?? null;
-          const entrada = ponto?.hora_entrada?.slice(0, 5) ?? "";
-          const saida   = ponto?.hora_saida?.slice(0, 5) ?? "";
+          const totem = totemMap[e.id] ?? null;
+          // Prioridade: salvo pelo supervisor > totem QR > vazio (manual)
+          const fonte: "salvo" | "totem" | "manual" =
+            ponto ? "salvo" : totem ? "totem" : "manual";
+          const entrada = ponto
+            ? (ponto.hora_entrada?.slice(0, 5) ?? "")
+            : (totem?.entrada ?? "");
+          const saida = ponto
+            ? (ponto.hora_saida?.slice(0, 5) ?? "")
+            : (totem?.saida ?? "");
           // cargos também pode vir como array
           const cargosObj = Array.isArray(e.cargos) ? e.cargos[0] : e.cargos;
           return {
@@ -155,6 +190,7 @@ export default function Efetivo() {
             horas_extras:      ponto?.horas_extras?.toString() ?? "0",
             horas_trabalhadas: calcHoras(entrada, saida),
             existing_id:       ponto?.id ?? null,
+            fonte,
             expanded:          false,
           } satisfies PontoRow;
         })
@@ -669,7 +705,14 @@ function PontoCard({ row, onChange }: PontoCardProps) {
 
         {/* Nome + cargo */}
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate">{row.nome}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium text-sm truncate">{row.nome}</p>
+            {row.fonte === "totem" && (
+              <Badge className="text-[9px] py-0 px-1.5 h-4 rounded-full bg-blue-100 text-blue-700 border-0 dark:bg-blue-900/30 dark:text-blue-300 flex-shrink-0">
+                QR
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             {row.cargo_nome && (
               <span className="text-[10px] text-muted-foreground">{row.cargo_nome}</span>
