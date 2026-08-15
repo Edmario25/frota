@@ -98,7 +98,8 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined
 
-          // React e seus internos SEMPRE num chunk único
+          // React e seus internos SEMPRE num chunk único.
+          // Inclui scheduler (dependência interna do React DOM).
           if (
             id.includes("/react/") ||
             id.includes("/react-dom/") ||
@@ -106,28 +107,21 @@ export default defineConfig(({ mode }) => ({
             id.includes("/scheduler/")
           ) return "vendor-react"
 
-          // Radix UI (components)
-          if (id.includes("/@radix-ui/")) return "vendor-radix"
-
-          // Supabase
+          // Supabase (grande, sem dependência do React)
           if (id.includes("/@supabase/")) return "vendor-supabase"
 
-          // Charts / D3
-          if (id.includes("/recharts/") || id.includes("/d3-") || id.includes("/victory-"))
+          // Charts / D3 (sem React)
+          if (id.includes("/recharts/") || id.includes("/d3-"))
             return "vendor-charts"
 
-          // Datas
-          if (id.includes("/date-fns/")) return "vendor-dates"
-
-          // Ícones
-          if (id.includes("/lucide-react/")) return "vendor-icons"
-
-          // QR Code
+          // QR Code (sem React)
           if (id.includes("/qrcode/") || id.includes("/html5-qrcode/"))
             return "vendor-qr"
 
-          // Demais node_modules num chunk genérico
-          return "vendor-misc"
+          // Demais node_modules: deixa o Rollup decidir o melhor lugar.
+          // NÃO agrupar em "vendor-misc" — pacotes que usam React.createContext()
+          // precisam que o Rollup resolva a ordem de inicialização corretamente.
+          return undefined
         },
       },
     },
