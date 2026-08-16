@@ -15,7 +15,7 @@ import {
 import {
   Users, Car, AlertTriangle, DollarSign, BarChart3,
   Download, Search, TrendingDown, Fuel, Wrench, Wallet,
-  FileText, Building2, RefreshCw, Printer,
+  FileText, Building2, RefreshCw, Printer, Truck, ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -125,14 +125,18 @@ export default function Relatorios() {
         </Card>
 
         {/* Abas */}
-        <Tabs defaultValue="efetivo" className="space-y-4">
-          <TabsList className="h-10">
+        <Tabs defaultValue="frota" className="space-y-4">
+          <TabsList className="h-10 flex-wrap">
+            <TabsTrigger value="frota"      className="gap-1.5 text-xs"><Truck className="h-3.5 w-3.5" />Frota</TabsTrigger>
             <TabsTrigger value="efetivo"    className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Efetivo</TabsTrigger>
             <TabsTrigger value="avarias"    className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" />Avarias</TabsTrigger>
             <TabsTrigger value="custo-obra" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" />Custo por Obra</TabsTrigger>
             <TabsTrigger value="custo-frota" className="gap-1.5 text-xs"><DollarSign className="h-3.5 w-3.5" />Custo de Frota</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="frota">
+            <RelatorioVeiculos filters={filters} hasFullAccess={hasFullAccess} userObraId={userObraId} />
+          </TabsContent>
           <TabsContent value="efetivo">
             <RelatorioEfetivo filters={filters} hasFullAccess={hasFullAccess} userObraId={userObraId} />
           </TabsContent>
@@ -324,138 +328,284 @@ function RelatorioEfetivo({ filters, hasFullAccess, userObraId }: ReportProps) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 2. RELATÓRIO DE VEÍCULOS
+// 2. RELATÓRIO DE FROTA — STATUS DE LIBERAÇÃO
 // ══════════════════════════════════════════════════════════════════════════════
+
+type LibStatus = "liberado" | "bloqueado" | "aguardando" | "manutencao" | "inativo";
+
+const LIB_CFG: Record<LibStatus, { label: string; cls: string; emoji: string }> = {
+  liberado:   { label: "Liberado",            emoji: "✅", cls: "bg-green-100 text-green-800 border border-green-300" },
+  bloqueado:  { label: "Bloqueado",           emoji: "🚫", cls: "bg-red-100 text-red-800 border border-red-300" },
+  aguardando: { label: "Aguardando liberação", emoji: "⏳", cls: "bg-orange-100 text-orange-800 border border-orange-300" },
+  manutencao: { label: "Em manutenção",       emoji: "🔧", cls: "bg-amber-100 text-amber-800 border border-amber-300" },
+  inativo:    { label: "Inativo",             emoji: "⛔", cls: "bg-gray-100 text-gray-600 border border-gray-300" },
+};
+
+function libBadge(status: LibStatus) {
+  const c = LIB_CFG[status];
+  return (
+    <span className={cn("inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full", c.cls)}>
+      {c.emoji} {c.label}
+    </span>
+  );
+}
 
 function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) {
   const [rows, setRows]       = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
-  const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [filtroTipo, setFiltroTipo] = useState("pesado");
+  const [filtroLib,  setFiltroLib]  = useState("todos");
 
-  const fetch = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // busca veículos + responsável + manutenções no período + combustível no período
-      const [vRes, mRes, fRes] = await Promise.all([
-        (supabase as any).from("vehicles")
-          .select("id, placa, modelo, marca, ano, tipo, status, quilometragem_atual, valor_aluguel_mensal, responsavel_id, employees(nome)")
-          .order("placa"),
-        (supabase as any).from("maintenance_records")
-          .select("id, vehicle_id, tipo, status, custo, data_realizada")
-          .gte("data_realizada", filters.dataInicio)
-          .lte("data_realizada", filters.dataFim),
-        (supabase as any).from("vehicle_fuel_logs")
-          .select("id, vehicle_id, litros, valor_total, data_abastecimento")
-          .gte("data_abastecimento", filters.dataInicio)
-          .lte("data_abastecimento", filters.dataFim),
+      const hoje = format(new Date(), "yyyy-MM-dd");
+
+      // 1. Veículos + responsável
+      let vQ = (supabase as any)
+        .from("vehicles")
+        .select("id, placa, modelo, marca, ano, tipo, status, quilometragem_atual, valor_aluguel_mensal, responsavel_id, employees(nome)")
+        .order("tipo", { ascending: false }) // pesados primeiro
+        .order("placa");
+
+      // 2. Liberações de hoje (inspection_checklists + items)
+      const [vRes, libRes] = await Promise.all([
+        vQ,
+        (supabase as any)
+          .from("inspection_checklists")
+          .select("id, vehicle_id, data_inspecao, responsavel_checklist, inspection_items(resultado)")
+          .eq("tipo_servico", "liberacao_veiculo")
+          .gte("data_inspecao", hoje + "T00:00:00")
+          .lte("data_inspecao", hoje + "T23:59:59"),
       ]);
 
-      const manut  = mRes.data  ?? [];
-      const fuel   = fRes.data  ?? [];
-      let veiculos = vRes.data  ?? [];
+      let veiculos = vRes.data ?? [];
+      const libs   = libRes.data ?? [];
 
-      // filtro de obra para gestor: inclui veículos por responsável E por obra_veiculos
+      // filtro por obra (gestor)
       if (!hasFullAccess && userObraId) {
         const [{ data: ofData }, { data: ovData }] = await Promise.all([
           (supabase as any).from("obra_funcionarios").select("employee_id").eq("obra_id", userObraId).eq("status", true),
           (supabase as any).from("obra_veiculos").select("vehicle_id").eq("obra_id", userObraId).eq("status", true),
         ]);
-        const empIds       = (ofData ?? []).map((e: any) => e.employee_id);
-        const obraVehIds   = (ovData ?? []).map((v: any) => v.vehicle_id);
+        const empIds     = (ofData ?? []).map((e: any) => e.employee_id);
+        const obraVehIds = (ovData ?? []).map((v: any) => v.vehicle_id);
         veiculos = veiculos.filter((v: any) =>
           empIds.includes(v.responsavel_id) || obraVehIds.includes(v.id)
         );
       }
 
-      const enriched = veiculos.map((v: any) => ({
-        ...v,
-        qtd_manutencoes:    manut.filter((m: any) => m.vehicle_id === v.id).length,
-        custo_manutencao:   manut.filter((m: any) => m.vehicle_id === v.id).reduce((s: number, m: any) => s + (m.custo ?? 0), 0),
-        litros_combustivel: fuel.filter((f: any) => f.vehicle_id === v.id).reduce((s: number, f: any) => s + (f.litros ?? 0), 0),
-        custo_combustivel:  fuel.filter((f: any) => f.vehicle_id === v.id).reduce((s: number, f: any) => s + (f.valor_total ?? 0), 0),
-      }));
+      // 3. Determinar libStatus por veículo
+      const enriched = veiculos.map((v: any) => {
+        let libStatus: LibStatus;
+        if (v.status === "inativo") {
+          libStatus = "inativo";
+        } else if (v.status === "manutencao") {
+          libStatus = "manutencao";
+        } else {
+          const lib = libs.find((l: any) => l.vehicle_id === v.id);
+          if (!lib) {
+            libStatus = "aguardando";
+          } else {
+            const itens = lib.inspection_items ?? [];
+            const reprovados = itens.filter((i: any) => i.resultado === "reprovado").length;
+            libStatus = reprovados > 0 ? "bloqueado" : "liberado";
+          }
+        }
+        const lib = libs.find((l: any) => l.vehicle_id === v.id);
+        return {
+          ...v,
+          libStatus,
+          libResponsavel: lib?.responsavel_checklist ?? null,
+          libData:        lib?.data_inspecao ?? null,
+        };
+      });
 
       setRows(enriched);
       setFetched(true);
     } finally { setLoading(false); }
   }, [filters, hasFullAccess, userObraId]);
 
-  const filtered = filtroTipo === "todos" ? rows : rows.filter(r => r.tipo === filtroTipo);
+  // filtros locais
+  const filtered = rows
+    .filter(r => filtroTipo === "todos" || r.tipo === filtroTipo)
+    .filter(r => filtroLib  === "todos" || r.libStatus === filtroLib);
 
-  const totalManut  = filtered.reduce((s, r) => s + r.custo_manutencao, 0);
-  const totalFuel   = filtered.reduce((s, r) => s + r.custo_combustivel, 0);
-  const totalAluguel = filtered.reduce((s, r) => s + (r.valor_aluguel_mensal ?? 0), 0);
-
-  const statusBadge = (s: string) => {
-    const map: Record<string, string> = {
-      disponivel:  "bg-green-100 text-green-700",
-      em_uso:      "bg-blue-100 text-blue-700",
-      manutencao:  "bg-amber-100 text-amber-700",
-      inativo:     "bg-gray-100 text-gray-600",
-    };
-    const labels: Record<string, string> = {
-      disponivel: "Disponível", em_uso: "Em Uso", manutencao: "Manutenção", inativo: "Inativo",
-    };
-    return <Badge className={cn("border-0 text-xs", map[s] ?? "bg-gray-100")}>{labels[s] ?? s}</Badge>;
-  };
+  // contadores para cards
+  const cnt = (s: LibStatus) => rows
+    .filter(r => filtroTipo === "todos" || r.tipo === filtroTipo)
+    .filter(r => r.libStatus === s).length;
+  const totalFiltered = rows.filter(r => filtroTipo === "todos" || r.tipo === filtroTipo).length;
 
   const exportCSV = () => {
-    const header = ["Placa","Modelo","Marca","Ano","Tipo","Status","KM Atual","Responsável",
-                    "Manutenções","Custo Manutenção","Litros Combustível","Custo Combustível","Aluguel/Mês"];
+    const header = ["Placa","Modelo","Marca","Ano","Tipo","Status Operacional","Status Liberação","Responsável","Liberado por","KM/H Atual"];
     const data = filtered.map(r => [
-      r.placa, r.modelo, r.marca, r.ano, r.tipo, r.status, r.quilometragem_atual,
+      r.placa, r.modelo, r.marca, r.ano ?? "", r.tipo,
+      r.status,
+      LIB_CFG[r.libStatus as LibStatus].label,
       r.employees?.nome ?? "",
-      r.qtd_manutencoes, fmt(r.custo_manutencao), r.litros_combustivel.toFixed(1), fmt(r.custo_combustivel),
-      fmt(r.valor_aluguel_mensal ?? 0),
+      r.libResponsavel ?? "",
+      r.quilometragem_atual ?? "",
     ]);
-    downloadCSV([header, ...data], `veiculos_${filters.dataInicio}_${filters.dataFim}.csv`);
+    downloadCSV([header, ...data], `frota_liberacao_${hoje()}.csv`);
   };
+
+  const hoje = () => format(new Date(), "yyyy-MM-dd");
+
+  const handlePrint = () => {
+    const rowsHtml = filtered.map(r => {
+      const cfg = LIB_CFG[r.libStatus as LibStatus];
+      const statusLabels: Record<string, string> = { disponivel: "Disponível", em_uso: "Em Uso", manutencao: "Manutenção", inativo: "Inativo" };
+      return `
+        <tr>
+          <td><b>${r.placa}</b></td>
+          <td>${r.marca} ${r.modelo}</td>
+          <td>${r.tipo === "pesado" ? "Pesado" : "Leve"}</td>
+          <td>${statusLabels[r.status] ?? r.status}</td>
+          <td><span style="font-size:11px;font-weight:600">${cfg.emoji} ${cfg.label}</span></td>
+          <td>${r.employees?.nome ?? "—"}</td>
+          <td>${r.libResponsavel ?? "—"}</td>
+          <td class="text-right">${r.quilometragem_atual?.toLocaleString("pt-BR") ?? "—"}</td>
+        </tr>`;
+    }).join("");
+
+    const cardsHtml = [
+      { label: "Total", val: totalFiltered, color: "#334155" },
+      { label: "✅ Liberados", val: cnt("liberado"), color: "#16a34a" },
+      { label: "⏳ Aguardando", val: cnt("aguardando"), color: "#ea580c" },
+      { label: "🚫 Bloqueados", val: cnt("bloqueado"), color: "#dc2626" },
+      { label: "🔧 Manutenção", val: cnt("manutencao"), color: "#d97706" },
+    ].map(c => `
+      <div class="print-card">
+        <p class="print-card-label">${c.label}</p>
+        <p class="print-card-value" style="color:${c.color}">${c.val}</p>
+      </div>`).join("");
+
+    const tipoLabel = filtroTipo === "todos" ? "Todos" : filtroTipo === "pesado" ? "Pesados" : "Leves";
+    const w = window.open("", "_blank", "width=1100,height=800");
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="UTF-8">
+      <title>Relatório de Liberação de Veículos</title>
+      <style>
+        * { margin:0;padding:0;box-sizing:border-box }
+        body { font-family:Arial,sans-serif;color:#111;background:#fff;padding:28px 32px }
+        .print-header { border-bottom:3px solid #1e40af;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end }
+        .print-title { font-size:20px;font-weight:800;color:#1e40af }
+        .print-subtitle { font-size:11px;color:#64748b;margin-top:3px }
+        .print-meta { font-size:10px;color:#64748b;text-align:right;line-height:1.6 }
+        .print-cards { display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px }
+        .print-card { border:1px solid #e2e8f0;border-radius:6px;padding:9px 12px }
+        .print-card-label { font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:2px }
+        .print-card-value { font-size:22px;font-weight:800 }
+        table { width:100%;border-collapse:collapse;font-size:10px;margin-bottom:20px }
+        thead th { background:#1e40af;color:#fff;padding:7px 8px;text-align:left;font-weight:600;white-space:nowrap }
+        .text-right { text-align:right }
+        tbody td { padding:5px 8px;border-bottom:1px solid #e2e8f0 }
+        tbody tr:nth-child(even) td { background:#f8fafc }
+        .print-footer { font-size:9px;color:#94a3b8;text-align:right;border-top:1px solid #e2e8f0;padding-top:10px }
+        @media print { @page { margin:15mm;size:A4 landscape } }
+      </style>
+    </head><body>
+      <div class="print-header">
+        <div>
+          <div class="print-title">Relatório de Liberação de Veículos</div>
+          <div class="print-subtitle">Data de referência: ${format(new Date(), "dd/MM/yyyy", { locale: ptBR })} — Tipo: ${tipoLabel}</div>
+        </div>
+        <div class="print-meta">Emitido em: ${new Date().toLocaleString("pt-BR")}</div>
+      </div>
+      <div class="print-cards">${cardsHtml}</div>
+      <table>
+        <thead><tr>
+          <th>Placa</th><th>Modelo</th><th>Tipo</th><th>Status</th><th>Liberação</th>
+          <th>Responsável</th><th>Liberado por</th><th class="text-right">Medição</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="print-footer">Sistema de Gestão de Frota — gerado em ${new Date().toLocaleString("pt-BR")}</div>
+      <script>window.onload=()=>{window.print()}<\/script>
+    </body></html>`);
+    w.document.close();
+  };
+
+  const TIPO_OPTS = [
+    { v: "pesado", l: "Veículos Pesados" },
+    { v: "leve",   l: "Veículos Leves"  },
+    { v: "todos",  l: "Todos os tipos"  },
+  ];
+  const LIB_OPTS = [
+    { v: "todos",      l: "Todas as situações"     },
+    { v: "liberado",   l: "✅ Liberados"             },
+    { v: "aguardando", l: "⏳ Aguardando liberação"  },
+    { v: "bloqueado",  l: "🚫 Bloqueados"            },
+    { v: "manutencao", l: "🔧 Em manutenção"         },
+    { v: "inativo",    l: "⛔ Inativos"              },
+  ];
 
   return (
     <div className="space-y-4">
+
+      {/* Controles */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-            <SelectTrigger className="h-8 text-xs w-36"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos os tipos</SelectItem>
-              <SelectItem value="leve">Leve</SelectItem>
-              <SelectItem value="pesado">Pesado</SelectItem>
+              {TIPO_OPTS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button size="sm" onClick={fetch} disabled={loading} className="h-8 gap-1.5">
+          <Select value={filtroLib} onValueChange={setFiltroLib}>
+            <SelectTrigger className="h-8 text-xs w-52"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {LIB_OPTS.map(o => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button size="sm" onClick={fetchData} disabled={loading} className="h-8 gap-1.5">
             {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
             {fetched ? "Atualizar" : "Gerar Relatório"}
           </Button>
         </div>
         {fetched && (
-          <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={exportCSV}>
-            <Download className="h-3.5 w-3.5" />Exportar CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={exportCSV}>
+              <Download className="h-3.5 w-3.5" />CSV
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={handlePrint}>
+              <Printer className="h-3.5 w-3.5" />Imprimir
+            </Button>
+          </div>
         )}
       </div>
 
+      {/* Cards de resumo */}
       {fetched && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "Veículos",        val: filtered.length,               color: "text-foreground",   fmt: false },
-            { label: "Custo Manutenção", val: totalManut,                   color: "text-amber-600",    fmt: true  },
-            { label: "Custo Combustível",val: totalFuel,                    color: "text-blue-600",     fmt: true  },
-            { label: "Aluguel Mensal",   val: totalAluguel,                 color: "text-violet-600",   fmt: true  },
+            { label: "Total",            val: totalFiltered,     color: "text-foreground"  },
+            { label: "✅ Liberados",     val: cnt("liberado"),   color: "text-green-600"   },
+            { label: "⏳ Aguardando",    val: cnt("aguardando"), color: "text-orange-600"  },
+            { label: "🚫 Bloqueados",    val: cnt("bloqueado"),  color: "text-red-600"     },
+            { label: "🔧 Manutenção",    val: cnt("manutencao"), color: "text-amber-600"   },
           ].map(item => (
-            <Card key={item.label} className="border-0 shadow-sm">
+            <Card key={item.label} className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => {
+                const map: Record<string, string> = {
+                  "Total": "todos", "✅ Liberados": "liberado", "⏳ Aguardando": "aguardando",
+                  "🚫 Bloqueados": "bloqueado", "🔧 Manutenção": "manutencao",
+                };
+                setFiltroLib(map[item.label] ?? "todos");
+              }}>
               <CardContent className="pt-3 pb-2">
                 <p className="text-xs text-muted-foreground">{item.label}</p>
-                <p className={cn("text-xl font-extrabold", item.color)}>
-                  {item.fmt ? fmt(item.val as number) : item.val}
-                </p>
+                <p className={cn("text-2xl font-extrabold", item.color)}>{item.val}</p>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
+      {/* Tabela */}
       {fetched && (
         <Card className="border-0 shadow-sm">
           <CardContent className="p-0">
@@ -466,34 +616,53 @@ function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) 
                   <TableHead>Modelo</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Liberação hoje</TableHead>
                   <TableHead>Responsável</TableHead>
-                  <TableHead className="text-right">KM Atual</TableHead>
-                  <TableHead className="text-right">Manut.</TableHead>
-                  <TableHead className="text-right">Custo Manut.</TableHead>
-                  <TableHead className="text-right">Custo Comb.</TableHead>
+                  <TableHead>Liberado por</TableHead>
+                  <TableHead className="text-right">Medição</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map(r => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-mono font-semibold text-sm">{r.placa}</TableCell>
-                    <TableCell className="text-sm">{r.marca} {r.modelo}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs capitalize">{r.tipo}</Badge>
-                    </TableCell>
-                    <TableCell>{statusBadge(r.status)}</TableCell>
-                    <TableCell className="text-sm">{r.employees?.nome ?? "—"}</TableCell>
-                    <TableCell className="text-right text-sm">{r.quilometragem_atual?.toLocaleString("pt-BR") ?? "—"}</TableCell>
-                    <TableCell className="text-right text-sm">{r.qtd_manutencoes}</TableCell>
-                    <TableCell className="text-right text-sm font-medium text-amber-700">{fmt(r.custo_manutencao)}</TableCell>
-                    <TableCell className="text-right text-sm font-medium text-blue-700">{fmt(r.custo_combustivel)}</TableCell>
-                  </TableRow>
-                ))}
+                {filtered.map(r => {
+                  const vStatusMap: Record<string, string> = {
+                    disponivel: "Disponível", em_uso: "Em Uso", manutencao: "Manutenção", inativo: "Inativo",
+                  };
+                  const vStatusCls: Record<string, string> = {
+                    disponivel: "bg-green-100 text-green-700",
+                    em_uso:     "bg-blue-100 text-blue-700",
+                    manutencao: "bg-amber-100 text-amber-700",
+                    inativo:    "bg-gray-100 text-gray-600",
+                  };
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-mono font-semibold text-sm">{r.placa}</TableCell>
+                      <TableCell className="text-sm">{r.marca} {r.modelo} {r.ano ? `(${r.ano})` : ""}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {r.tipo === "pesado" ? "🚛 Pesado" : "🚗 Leve"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn("border-0 text-xs", vStatusCls[r.status] ?? "bg-gray-100")}>
+                          {vStatusMap[r.status] ?? r.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{libBadge(r.libStatus)}</TableCell>
+                      <TableCell className="text-sm">{r.employees?.nome ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{r.libResponsavel ?? "—"}</TableCell>
+                      <TableCell className="text-right text-sm font-medium">
+                        {r.quilometragem_atual != null
+                          ? r.quilometragem_atual.toLocaleString("pt-BR") + " km"
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
-                      <Car className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      Nenhum veículo encontrado
+                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                      <Truck className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                      Nenhum veículo encontrado para os filtros selecionados
                     </TableCell>
                   </TableRow>
                 )}
@@ -504,7 +673,7 @@ function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) 
       )}
 
       {!fetched && !loading && (
-        <EmptyPrompt icon={Car} label='Clique em "Gerar Relatório" para carregar os dados de frota' />
+        <EmptyPrompt icon={ShieldCheck} label='Clique em "Gerar Relatório" para ver o status de liberação de hoje' />
       )}
     </div>
   );
