@@ -360,7 +360,8 @@ function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const hoje = format(new Date(), "yyyy-MM-dd");
+      // hoje em formato YYYY-MM-DD (mesmo que o hook useVehicleLiberacao)
+      const hojeStr = new Date().toISOString().split("T")[0];
 
       // 1. Veículos + responsável
       let vQ = (supabase as any)
@@ -369,19 +370,20 @@ function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) 
         .order("tipo", { ascending: false }) // pesados primeiro
         .order("placa");
 
-      // 2. Liberações de hoje (inspection_checklists + items)
+      // 2. Todos os checklists de liberação (sem filtro de data no banco,
+      //    igual ao hook useVehicleLiberacao) — filtramos por data no JS
+      //    O campo correto dos itens é "status" (não "resultado")
       const [vRes, libRes] = await Promise.all([
         vQ,
         (supabase as any)
           .from("inspection_checklists")
-          .select("id, vehicle_id, data_inspecao, responsavel_checklist, inspection_items(resultado)")
+          .select("id, vehicle_id, data_inspecao, responsavel_checklist, inspection_items(status)")
           .eq("tipo_servico", "liberacao_veiculo")
-          .gte("data_inspecao", hoje + "T00:00:00")
-          .lte("data_inspecao", hoje + "T23:59:59"),
+          .order("data_inspecao", { ascending: false }),
       ]);
 
       let veiculos = vRes.data ?? [];
-      const libs   = libRes.data ?? [];
+      const allLibs: any[] = libRes.data ?? [];
 
       // filtro por obra (gestor)
       if (!hasFullAccess && userObraId) {
@@ -396,7 +398,15 @@ function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) 
         );
       }
 
-      // 3. Determinar libStatus por veículo
+      // 3. Para cada veículo, pega o registro mais recente (já vem ordenado desc)
+      //    e aplica a MESMA lógica do hook useVehicleLiberacao
+      const libByVehicle: Record<string, any> = {};
+      for (const row of allLibs) {
+        if (!libByVehicle[row.vehicle_id]) {
+          libByVehicle[row.vehicle_id] = row; // mais recente
+        }
+      }
+
       const enriched = veiculos.map((v: any) => {
         let libStatus: LibStatus;
         if (v.status === "inativo") {
@@ -404,21 +414,28 @@ function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) 
         } else if (v.status === "manutencao") {
           libStatus = "manutencao";
         } else {
-          const lib = libs.find((l: any) => l.vehicle_id === v.id);
+          const lib = libByVehicle[v.id];
           if (!lib) {
             libStatus = "aguardando";
           } else {
-            const itens = lib.inspection_items ?? [];
-            const reprovados = itens.filter((i: any) => i.resultado === "reprovado").length;
-            libStatus = reprovados > 0 ? "bloqueado" : "liberado";
+            // isHoje: mesmo critério do hook — data_inspecao >= "YYYY-MM-DD" de hoje
+            const isHoje = (lib.data_inspecao ?? "") >= hojeStr;
+            if (!isHoje) {
+              libStatus = "aguardando"; // vencido → no relatório mostramos como aguardando
+            } else {
+              const itens: { status: string }[] = lib.inspection_items ?? [];
+              const nc = itens.filter((i: any) => i.status === "reprovado").length;
+              libStatus = nc > 0 ? "bloqueado" : "liberado";
+            }
           }
         }
-        const lib = libs.find((l: any) => l.vehicle_id === v.id);
+        const lib = libByVehicle[v.id];
+        const isHoje = lib && (lib.data_inspecao ?? "") >= hojeStr;
         return {
           ...v,
           libStatus,
-          libResponsavel: lib?.responsavel_checklist ?? null,
-          libData:        lib?.data_inspecao ?? null,
+          libResponsavel: isHoje ? (lib?.responsavel_checklist ?? null) : null,
+          libData:        isHoje ? (lib?.data_inspecao ?? null) : null,
         };
       });
 
