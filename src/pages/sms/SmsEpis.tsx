@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { loadBrandingFromDB } from "@/hooks/useSystemSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -234,7 +235,7 @@ function SignaturePad({ onChange }: { onChange: (b64: string | null) => void }) 
 }
 
 // ─── Print Ficha ─────────────────────────────────────────────────────────────
-function printFichaEpi(e: ColabEpi) {
+async function printFichaEpi(e: ColabEpi) {
   const nomeEpi  = e.sms_epis_catalogo?.nome ?? "—";
   const ca       = e.sms_epis_catalogo?.ca_numero ?? "—";
   const colab    = e.employees?.nome ?? "—";
@@ -243,16 +244,44 @@ function printFichaEpi(e: ColabEpi) {
     ? `<img src="${e.assinatura_base64}" style="height:70px;border:1px solid #cbd5e1;border-radius:4px;background:#fff"/>`
     : `<div style="height:70px;border:1px dashed #cbd5e1;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:11px">Sem assinatura digital</div>`;
 
-  const w = window.open("", "_blank", "width=780,height=680");
+  // Busca branding do localStorage (já sincronizado com o Supabase)
+  let companyName = "Sistema de Gestão de Frota";
+  let logoUrl = "";
+  try {
+    const raw = localStorage.getItem("fleet_settings");
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s.companyName) companyName = s.companyName;
+      if (s.logoUrl)     logoUrl     = s.logoUrl;
+    }
+  } catch { /* usa defaults */ }
+
+  // Se não tiver no localStorage, tenta o banco (sem bloquear muito)
+  if (!logoUrl) {
+    try {
+      const branding = await loadBrandingFromDB();
+      if (branding.companyName) companyName = branding.companyName;
+      if (branding.logoUrl)     logoUrl     = branding.logoUrl;
+    } catch { /* usa defaults */ }
+  }
+
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" style="height:52px;max-width:180px;object-fit:contain" />`
+    : `<div style="width:52px;height:52px;background:#0f172a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:900">${companyName.charAt(0)}</div>`;
+
+  const w = window.open("", "_blank", "width=780,height=720");
   if (!w) return;
   w.document.write(`<!DOCTYPE html><html><head>
     <meta charset="UTF-8"><title>Ficha de EPI</title>
     <style>
       *{margin:0;padding:0;box-sizing:border-box}
       body{font-family:Arial,sans-serif;color:#111;padding:32px;font-size:12px}
-      .header{border-bottom:3px solid #0f172a;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}
-      .title{font-size:18px;font-weight:800;color:#0f172a}
-      .sub{font-size:10px;color:#64748b;margin-top:3px}
+      .company-header{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:3px solid #0f172a;margin-bottom:6px}
+      .company-name{font-size:16px;font-weight:800;color:#0f172a;line-height:1.2}
+      .company-sub{font-size:10px;color:#64748b;margin-top:2px}
+      .doc-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;padding-top:8px}
+      .doc-title{font-size:15px;font-weight:700;color:#1e293b}
+      .doc-sub{font-size:10px;color:#64748b;margin-top:2px}
       .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
       .field label{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:3px;display:block}
       .field .val{font-size:13px;font-weight:600;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
@@ -260,14 +289,20 @@ function printFichaEpi(e: ColabEpi) {
       .section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#475569;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid #e2e8f0}
       .sig-box{margin-bottom:20px}
       .footer{font-size:9px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:10px;margin-top:20px}
-      .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;background:#dcfce7;color:#166534}
       @media print{@page{margin:15mm;size:A5}}
     </style>
   </head><body>
-    <div class="header">
+    <div class="company-header">
+      ${logoHtml}
       <div>
-        <div class="title">Ficha de Entrega de EPI</div>
-        <div class="sub">Comprovante de entrega de Equipamento de Proteção Individual</div>
+        <div class="company-name">${companyName}</div>
+        <div class="company-sub">Gestão de Segurança, Meio Ambiente e Saúde — SMS</div>
+      </div>
+    </div>
+    <div class="doc-header">
+      <div>
+        <div class="doc-title">Ficha de Entrega de EPI</div>
+        <div class="doc-sub">Comprovante de entrega de Equipamento de Proteção Individual</div>
       </div>
       <div style="text-align:right;font-size:10px;color:#64748b">
         Emitido: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR })}
@@ -803,7 +838,7 @@ export default function SmsEpis() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => printFichaEpi(e)} title="Imprimir ficha">
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => void printFichaEpi(e)} title="Imprimir ficha">
                             <Printer className="h-3 w-3" />
                           </Button>
                           {!e.data_devolucao && (
@@ -852,7 +887,7 @@ export default function SmsEpis() {
                             </div>
                             <div className="flex items-center gap-1">
                               <span className="text-muted-foreground">desde {fmtDate(ep.data_entrega)}</span>
-                              <button onClick={() => printFichaEpi(ep)} className="text-muted-foreground hover:text-foreground">
+                              <button onClick={() => void printFichaEpi(ep)} className="text-muted-foreground hover:text-foreground">
                                 <Printer className="h-3 w-3" />
                               </button>
                             </div>
