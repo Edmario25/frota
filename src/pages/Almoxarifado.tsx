@@ -581,20 +581,34 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
       {obraId && (
         <>
           {/* Mini KPIs */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border bg-card p-3 text-center">
-              <p className="text-lg font-extrabold text-green-600">{movs.filter(m => m.tipo === "entrada").length}</p>
-              <p className="text-xs text-muted-foreground">Entradas no período</p>
-            </div>
-            <div className="rounded-xl border bg-card p-3 text-center">
-              <p className="text-lg font-extrabold text-red-600">{movs.filter(m => m.tipo === "saida").length}</p>
-              <p className="text-xs text-muted-foreground">Saídas no período</p>
-            </div>
-            <div className="rounded-xl border bg-card p-3 text-center">
-              <p className="text-lg font-extrabold">{movs.length}</p>
-              <p className="text-xs text-muted-foreground">Total de registros</p>
-            </div>
-          </div>
+          {(() => {
+            const custoEntradas = movs.filter(m=>m.tipo==="entrada" && m.preco_unitario).reduce((s,m)=>s+(m.preco_unitario??0)*m.quantidade,0);
+            const custoSaidas   = movs.filter(m=>m.tipo==="saida"   && m.preco_unitario).reduce((s,m)=>s+(m.preco_unitario??0)*m.quantidade,0);
+            const custoTotal    = movs.filter(m=>m.preco_unitario).reduce((s,m)=>s+(m.preco_unitario??0)*m.quantidade,0);
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-lg font-extrabold text-green-600">{movs.filter(m=>m.tipo==="entrada").length}</p>
+                  <p className="text-xs font-semibold text-muted-foreground">Entradas</p>
+                  {custoEntradas > 0 && <p className="text-xs font-bold text-green-700 mt-0.5">{moedaBR(custoEntradas)}</p>}
+                </div>
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-lg font-extrabold text-red-600">{movs.filter(m=>m.tipo==="saida").length}</p>
+                  <p className="text-xs font-semibold text-muted-foreground">Saídas</p>
+                  {custoSaidas > 0 && <p className="text-xs font-bold text-red-700 mt-0.5">{moedaBR(custoSaidas)}</p>}
+                </div>
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-lg font-extrabold">{movs.length}</p>
+                  <p className="text-xs font-semibold text-muted-foreground">Total registros</p>
+                </div>
+                <div className={cn("rounded-xl border p-3", custoTotal > 0 ? "bg-blue-50 border-blue-200" : "bg-card")}>
+                  <p className={cn("text-lg font-extrabold", custoTotal > 0 ? "text-blue-700" : "text-muted-foreground")}>{moedaBR(custoTotal)}</p>
+                  <p className="text-xs font-semibold text-muted-foreground">Custo total período</p>
+                  {custoTotal === 0 && <p className="text-[10px] text-muted-foreground mt-0.5">Informe preço nas entradas</p>}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Busca */}
           <div className="relative max-w-xs">
@@ -613,14 +627,15 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
                   <TableHead>Frente / Destino</TableHead>
                   <TableHead>Fornecedor / NF</TableHead>
                   <TableHead className="text-right">Valor Unit.</TableHead>
+                  <TableHead className="text-right">Valor Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i}>{Array.from({ length: 7 }).map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-16" /></TableCell>)}</TableRow>
+                  <TableRow key={i}>{Array.from({ length: 8 }).map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-16" /></TableCell>)}</TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">Nenhuma movimentação no período.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">Nenhuma movimentação no período.</TableCell></TableRow>
                 )}
                 {!loading && filtered.map(m => {
                   const ti = TIPOS_MOV.find(t => t.value === m.tipo)!;
@@ -648,12 +663,28 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
                         {m.nota_fiscal && <span className="font-mono text-xs">NF {m.nota_fiscal}</span>}
                         {!m.fornecedor && !m.nota_fiscal && "—"}
                       </TableCell>
-                      <TableCell className="text-right text-sm tabular-nums">
+                      <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
                         {m.preco_unitario ? moedaBR(m.preco_unitario) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums font-semibold">
+                        {m.preco_unitario
+                          ? <span className={m.tipo === "entrada" ? "text-green-700" : m.tipo === "saida" ? "text-red-700" : "text-foreground"}>
+                              {moedaBR(m.preco_unitario * m.quantidade)}
+                            </span>
+                          : "—"}
                       </TableCell>
                     </TableRow>
                   );
                 })}
+                {!loading && filtered.some(m => m.preco_unitario) && (
+                  <TableRow className="bg-muted/40 font-bold border-t-2">
+                    <TableCell colSpan={6} className="text-right text-sm text-muted-foreground">Total do período:</TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">—</TableCell>
+                    <TableCell className="text-right text-sm tabular-nums font-extrabold">
+                      {moedaBR(filtered.filter(m=>m.preco_unitario).reduce((s,m)=>s+(m.preco_unitario??0)*m.quantidade,0))}
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
