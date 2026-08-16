@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Filter, Edit, Trash2, Eye, Download, QrCode } from "lucide-react";
+import { Search, Plus, Filter, Edit, Trash2, Eye, Download, QrCode, Wrench } from "lucide-react";
 import { 
   Table,
   TableBody,
@@ -29,6 +29,7 @@ import { useKmCyclesBatch } from "@/hooks/useVehicleKmCycles";
 import { getVehicleStatusColor, getVehicleStatusText } from "@/lib/statusHelpers";
 import { downloadCsv } from "@/lib/exportCsv";
 import { useVehicleLiberacao } from "@/hooks/useVehicleLiberacao";
+import { AvariaRapidaDialog } from "@/components/frota/AvariaRapidaDialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -48,6 +49,8 @@ const Frota = () => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [qrVehicle, setQrVehicle] = useState<Vehicle | null>(null);
+  const [isAvariaOpen, setIsAvariaOpen] = useState(false);
+  const [avariaVehicle, setAvariaVehicle] = useState<Vehicle | null>(null);
 
   const [stats, setStats] = useState({
     disponivel: 0,
@@ -249,14 +252,22 @@ const Frota = () => {
                       <Badge className={getVehicleStatusColor(vehicle.status || 'disponivel')}>
                         {getVehicleStatusText(vehicle.status || 'disponivel')}
                       </Badge>
-                      {(() => {
+                      {vehicle.status === "manutencao" ? (
+                        <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none bg-amber-100 text-amber-800 border border-amber-300">
+                          🔧 Em manutenção
+                        </span>
+                      ) : vehicle.status === "inativo" ? (
+                        <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none bg-gray-100 text-gray-600 border border-gray-300">
+                          ⛔ Inativo
+                        </span>
+                      ) : (() => {
                         const lib = liberacaoMap[vehicle.id]
                         if (!lib) return null
                         const cfg: Record<string, { label: string; cls: string }> = {
-                          liberado:  { label: "✅ Liberado",             cls: "bg-green-100 text-green-800 border border-green-300" },
-                          bloqueado: { label: "🚫 Bloqueado",            cls: "bg-red-100 text-red-800 border border-red-300" },
-                          vencido:   { label: "⚠️ Liberação vencida",    cls: "bg-amber-100 text-amber-800 border border-amber-300" },
-                          aguardando:{ label: "⏳ Aguardando liberação",  cls: "bg-orange-100 text-orange-800 border border-orange-300" },
+                          liberado:  { label: "✅ Liberado",            cls: "bg-green-100 text-green-800 border border-green-300" },
+                          bloqueado: { label: "🚫 Bloqueado",           cls: "bg-red-100 text-red-800 border border-red-300" },
+                          vencido:   { label: "⚠️ Liberação vencida",   cls: "bg-amber-100 text-amber-800 border border-amber-300" },
+                          aguardando:{ label: "⏳ Aguardando liberação", cls: "bg-orange-100 text-orange-800 border border-orange-300" },
                         }
                         const c = cfg[lib.status]
                         return (
@@ -287,6 +298,14 @@ const Frota = () => {
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-green-700 hover:text-green-800 hover:bg-green-50" title="Gerar QR Code SMS" onClick={(e) => { e.stopPropagation(); setQrVehicle(vehicle); setIsQrModalOpen(true); }}>
                         <QrCode className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon"
+                        className={`h-8 w-8 ${vehicle.status === "manutencao" ? "text-amber-600 bg-amber-50" : "text-amber-500 hover:text-amber-700 hover:bg-amber-50"}`}
+                        title={vehicle.status === "manutencao" ? "Retornar ao serviço" : "Reportar avaria"}
+                        onClick={(e) => { e.stopPropagation(); setAvariaVehicle(vehicle); setIsAvariaOpen(true); }}
+                      >
+                        <Wrench className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditModal(vehicle); }}>
                         <Edit className="h-4 w-4" />
@@ -348,6 +367,13 @@ const Frota = () => {
         vehicle={qrVehicle}
         open={isQrModalOpen}
         onOpenChange={(open) => { setIsQrModalOpen(open); if (!open) setQrVehicle(null); }}
+      />
+
+      <AvariaRapidaDialog
+        open={isAvariaOpen}
+        onOpenChange={(open) => { setIsAvariaOpen(open); if (!open) setAvariaVehicle(null); }}
+        vehicle={avariaVehicle}
+        onStatusChanged={refetchVehicles}
       />
 
       {/* Painel GPS / Traccar */}
