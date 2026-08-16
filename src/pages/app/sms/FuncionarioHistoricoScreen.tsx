@@ -50,7 +50,19 @@ type PtAtiva = {
   equipe: string | null
 }
 
-type Tab = "treinamentos" | "aprpt" | "historico"
+type EpiEntrega = {
+  id: string
+  nome: string
+  ca_numero: string | null
+  data_entrega: string
+  data_devolucao: string | null
+  quantidade: number
+  condicao: string | null
+  obra: string | null
+  assinado: boolean
+}
+
+type Tab = "treinamentos" | "epis" | "aprpt" | "historico"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -97,6 +109,7 @@ export function FuncionarioHistoricoScreen({ employeeId, obraId, onBack }: Props
   const [items, setItems]       = useState<HistItem[]>([])
   const [aprs, setAprs]         = useState<AprAtiva[]>([])
   const [pts, setPts]           = useState<PtAtiva[]>([])
+  const [epis, setEpis]         = useState<EpiEntrega[]>([])
   const [loading, setLoading]   = useState(true)
   const [erro, setErro]         = useState<string | null>(null)
   const [tab, setTab]           = useState<Tab>("treinamentos")
@@ -107,13 +120,36 @@ export function FuncionarioHistoricoScreen({ employeeId, obraId, onBack }: Props
     setLoading(true)
     setErro(null)
     try {
-      await Promise.all([fetchFunc(), fetchTreinamentos(), fetchHistorico(), fetchAprsPts()])
+      await Promise.all([fetchFunc(), fetchTreinamentos(), fetchHistorico(), fetchAprsPts(), fetchEpis()])
     } catch (e: any) {
       console.error("[FuncionarioHistorico] fetchAll error:", e)
       setErro(e?.message ?? "Erro ao carregar dados")
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchEpis = async () => {
+    const { data } = await (supabase as any)
+      .from("sms_colaborador_epis")
+      .select("id, data_entrega, data_devolucao, quantidade, condicao, assinatura_base64, sms_epis_catalogo(nome, ca_numero), obras(nome)")
+      .eq("colaborador_id", employeeId)
+      .order("data_entrega", { ascending: false })
+      .limit(50)
+
+    setEpis(
+      (data ?? []).map((r: any) => ({
+        id:             r.id,
+        nome:           r.sms_epis_catalogo?.nome ?? "—",
+        ca_numero:      r.sms_epis_catalogo?.ca_numero ?? null,
+        data_entrega:   r.data_entrega,
+        data_devolucao: r.data_devolucao ?? null,
+        quantidade:     r.quantidade ?? 1,
+        condicao:       r.condicao ?? null,
+        obra:           r.obras?.nome ?? null,
+        assinado:       !!r.assinatura_base64,
+      }))
+    )
   }
 
   const fetchFunc = async () => {
@@ -252,7 +288,9 @@ export function FuncionarioHistoricoScreen({ employeeId, obraId, onBack }: Props
     : emDia > 0      ? { txt: "REGULAR",   bg: "#16a34a" }
     :                  { txt: "SEM DADOS",  bg: "#64748b" }
 
-  const totalAprPt = aprs.length + pts.length
+  const totalAprPt   = aprs.length + pts.length
+  const episEmUso    = epis.filter(e => !e.data_devolucao).length
+  const episTotal    = epis.length
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -297,47 +335,61 @@ export function FuncionarioHistoricoScreen({ employeeId, obraId, onBack }: Props
         </div>
       ) : (
         <>
-          {/* Resumo de treinamentos */}
+          {/* Resumo */}
           <div className="flex gap-2 px-4 py-3 bg-white border-b border-gray-100">
             {[
-              { label: "Em dia",   count: emDia,    color: "#16a34a" },
-              { label: "A vencer", count: aVencer,  color: "#d97706" },
-              { label: "Vencidos", count: vencidos, color: "#dc2626" },
+              { label: "Em dia",    count: emDia,      color: "#16a34a" },
+              { label: "A vencer",  count: aVencer,    color: "#d97706" },
+              { label: "Vencidos",  count: vencidos,   color: "#dc2626" },
+              { label: "EPIs em uso", count: episEmUso, color: "#0284c7" },
             ].map(s => (
               <div key={s.label} className="flex-1 rounded-xl p-2 text-center"
                 style={{ background: `${s.color}15`, border: `1px solid ${s.color}30` }}>
                 <p className="text-lg font-extrabold" style={{ color: s.color }}>{s.count}</p>
-                <p className="text-[10px] font-medium text-gray-500">{s.label}</p>
+                <p className="text-[10px] font-medium text-gray-500 leading-tight">{s.label}</p>
               </div>
             ))}
           </div>
 
           {/* Tabs */}
-          <div className="flex bg-white border-b border-gray-100">
+          <div className="flex bg-white border-b border-gray-100 overflow-x-auto">
             <button
               onClick={() => setTab("treinamentos")}
-              className={`flex-1 py-3 text-[13px] font-semibold transition-colors ${
+              className={`flex-shrink-0 px-3 py-3 text-[12px] font-semibold transition-colors ${
                 tab === "treinamentos" ? "text-green-700 border-b-2 border-green-600" : "text-gray-500"
               }`}
             >
               📋 Treinamentos
             </button>
             <button
+              onClick={() => setTab("epis")}
+              className={`flex-shrink-0 px-3 py-3 text-[12px] font-semibold transition-colors relative ${
+                tab === "epis" ? "text-green-700 border-b-2 border-green-600" : "text-gray-500"
+              }`}
+            >
+              🦺 EPIs
+              {episEmUso > 0 && (
+                <span className="absolute top-2 right-1 bg-sky-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {episEmUso}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => setTab("aprpt")}
-              className={`flex-1 py-3 text-[13px] font-semibold transition-colors relative ${
+              className={`flex-shrink-0 px-3 py-3 text-[12px] font-semibold transition-colors relative ${
                 tab === "aprpt" ? "text-green-700 border-b-2 border-green-600" : "text-gray-500"
               }`}
             >
               🔑 APR / PT
               {totalAprPt > 0 && (
-                <span className="absolute top-2 right-3 bg-green-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                <span className="absolute top-2 right-1 bg-green-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                   {totalAprPt}
                 </span>
               )}
             </button>
             <button
               onClick={() => setTab("historico")}
-              className={`flex-1 py-3 text-[13px] font-semibold transition-colors ${
+              className={`flex-shrink-0 px-3 py-3 text-[12px] font-semibold transition-colors ${
                 tab === "historico" ? "text-green-700 border-b-2 border-green-600" : "text-gray-500"
               }`}
             >
@@ -380,6 +432,120 @@ export function FuncionarioHistoricoScreen({ employeeId, obraId, onBack }: Props
                     </div>
                   )
                 })}
+              </div>
+            )}
+
+            {/* ── TAB: EPIs ────────────────────────────────────────────── */}
+            {tab === "epis" && (
+              <div className="p-4 space-y-3">
+
+                {/* Resumo rápido */}
+                {episTotal > 0 && (
+                  <div className="flex gap-2">
+                    <div className="flex-1 rounded-xl p-2.5 text-center bg-sky-50 border border-sky-100">
+                      <p className="text-xl font-extrabold text-sky-600">{episEmUso}</p>
+                      <p className="text-[10px] text-gray-500 font-medium">Em uso</p>
+                    </div>
+                    <div className="flex-1 rounded-xl p-2.5 text-center bg-gray-50 border border-gray-100">
+                      <p className="text-xl font-extrabold text-gray-500">{episTotal - episEmUso}</p>
+                      <p className="text-[10px] text-gray-500 font-medium">Devolvidos</p>
+                    </div>
+                    <div className="flex-1 rounded-xl p-2.5 text-center bg-slate-50 border border-slate-100">
+                      <p className="text-xl font-extrabold text-slate-600">{episTotal}</p>
+                      <p className="text-[10px] text-gray-500 font-medium">Total</p>
+                    </div>
+                  </div>
+                )}
+
+                {epis.length === 0 ? (
+                  <div className="text-center py-14 text-gray-400">
+                    <p className="text-4xl mb-3">🦺</p>
+                    <p className="text-sm font-medium">Nenhum EPI registrado</p>
+                    <p className="text-xs mt-1 text-gray-400">Os EPIs entregues a este colaborador aparecerão aqui</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Em uso */}
+                    {epis.filter(e => !e.data_devolucao).length > 0 && (
+                      <div>
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                          Em uso · {epis.filter(e => !e.data_devolucao).length} item(s)
+                        </p>
+                        <div className="space-y-2">
+                          {epis.filter(e => !e.data_devolucao).map(epi => (
+                            <div key={epi.id} className="bg-white rounded-2xl border border-sky-200 p-3.5 shadow-sm">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                                  <span className="text-xl leading-none mt-0.5">🦺</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900 leading-tight">{epi.nome}</p>
+                                    {epi.ca_numero && (
+                                      <p className="text-[11px] text-gray-400 mt-0.5 font-mono">CA {epi.ca_numero}</p>
+                                    )}
+                                    <div className="flex flex-wrap gap-x-3 mt-1">
+                                      <p className="text-[11px] text-gray-500">
+                                        📅 Entregue: {new Date(epi.data_entrega).toLocaleDateString("pt-BR")}
+                                      </p>
+                                      {epi.quantidade > 1 && (
+                                        <p className="text-[11px] text-gray-500">Qtd: {epi.quantidade}</p>
+                                      )}
+                                    </div>
+                                    {epi.obra && (
+                                      <p className="text-[11px] text-gray-400 mt-0.5">📍 {epi.obra}</p>
+                                    )}
+                                    {epi.condicao && (
+                                      <p className="text-[11px] text-gray-400 capitalize mt-0.5">
+                                        Condição: {epi.condicao}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                                    EM USO
+                                  </span>
+                                  {epi.assinado && (
+                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-200">
+                                      ✓ Assinado
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Devolvidos */}
+                    {epis.filter(e => e.data_devolucao).length > 0 && (
+                      <div>
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 mt-3">
+                          Devolvidos · {epis.filter(e => e.data_devolucao).length} item(s)
+                        </p>
+                        <div className="space-y-2">
+                          {epis.filter(e => e.data_devolucao).map(epi => (
+                            <div key={epi.id} className="bg-white rounded-2xl border border-gray-200 p-3 shadow-sm opacity-75">
+                              <div className="flex items-center gap-2.5">
+                                <span className="text-lg leading-none">🦺</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-700 leading-tight">{epi.nome}</p>
+                                  <p className="text-[11px] text-gray-400 mt-0.5">
+                                    {new Date(epi.data_entrega).toLocaleDateString("pt-BR")} →{" "}
+                                    {new Date(epi.data_devolucao!).toLocaleDateString("pt-BR")}
+                                  </p>
+                                </div>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0">
+                                  DEVOLVIDO
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
