@@ -1,0 +1,86 @@
+// ─── Hook: Status de liberação diária por veículo ───────────────────────────
+// Busca o último checklist de liberação de cada veículo e retorna um mapa
+// vehicleId → { status, data, responsavel }
+
+import { useEffect, useState } from "react"
+import { supabase } from "@/integrations/supabase/client"
+
+export type LiberacaoStatus = "liberado" | "bloqueado" | "aguardando" | "vencido"
+
+export type VehicleLiberacaoInfo = {
+  status: LiberacaoStatus
+  data: string | null
+  responsavel: string | null
+}
+
+function hoje() { return new Date().toISOString().split("T")[0] }
+
+/**
+ * Retorna um mapa de vehicleId → VehicleLiberacaoInfo.
+ * Faz uma única query batch para todos os vehicle IDs passados.
+ * Só refetch quando `vehicleIds` muda.
+ */
+export function useVehicleLiberacao(vehicleIds: string[]) {
+  const [map, setMap] = useState<Record<string, VehicleLiberacaoInfo>>({})
+  const [loading, setLoading] = useState(false)
+
+  const key = vehicleIds.slice().sort().join(",")
+
+  useEffect(() => {
+    if (vehicleIds.length === 0) { setMap({}); return }
+
+    let cancelled = false
+    setLoading(true)
+
+    ;(async () => {
+      try {
+        // Busca todos os checklists de liberação para os veículos da lista
+        const { data, error } = await (supabase as any)
+          .from("inspection_checklists")
+          .select("id, vehicle_id, data_inspecao, responsavel_checklist, inspection_items(status)")
+          .eq("tipo_servico", "liberacao_veiculo")
+          .in("vehicle_id", vehicleIds)
+          .order("data_inspecao", { ascending: false })
+
+        if (error || cancelled) return
+
+        // Para cada veículo, pega o registro mais recente (results já vem ordenados desc)
+        const result: Record<string, VehicleLiberacaoInfo> = {}
+        for (const row of data ?? []) {
+          if (result[row.vehicle_id]) continue  // já processamos este veículo (mais recente)
+
+          const itens: { status: string }[] = row.inspection_items ?? []
+          const nc = itens.filter(i => i.status === "reprovado").length
+          const isHoje = row.data_inspecao >= hoje()
+
+          let status: LiberacaoStatus
+          if (!isHoje)    status = "vencido"
+          else if (nc > 0) status = "bloqueado"
+          else             status = "liberado"
+
+          result[row.vehicle_id] = {
+            status,
+            data: row.data_inspecao,
+            responsavel: row.responsavel_checklist,
+          }
+        }
+
+        // Veículos sem nenhum checklist ficam como "aguardando"
+        for (const id of vehicleIds) {
+          if (!result[id]) {
+            result[id] = { status: "aguardando", data: null, responsavel: null }
+          }
+        }
+
+        if (!cancelled) setMap(result)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+
+  return { liberacaoMap: map, liberacaoLoading: loading }
+}

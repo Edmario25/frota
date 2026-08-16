@@ -20,9 +20,18 @@ type UltimaInspecao = {
   itensNC: ItemNC[]
 }
 
+type LiberacaoChecklist = {
+  id: string
+  data_inspecao: string
+  responsavel_checklist: string | null
+  observacoes: string | null
+  itensReprovados: { item_nome: string; observacoes: string | null }[]
+  itensAprovados: number
+}
+
 type HistItem = {
   id: string
-  tipo: 'inspecao' | 'near_miss' | 'acidente' | 'desvio' | 'apr'
+  tipo: 'inspecao' | 'near_miss' | 'acidente' | 'desvio' | 'apr' | 'liberacao'
   titulo: string
   subtitulo?: string
   data: string
@@ -50,8 +59,8 @@ function hoje() {
   return new Date().toISOString().split("T")[0]
 }
 
-// Determina status de liberação baseado na última inspeção
-function getLiberacao(insp: UltimaInspecao | null): {
+// Determina status de liberação baseado no último checklist de liberação (inspection_checklists)
+function getLiberacao(lib: LiberacaoChecklist | null): {
   tipo: "liberado" | "bloqueado" | "aguardando"
   titulo: string
   desc: string
@@ -60,33 +69,33 @@ function getLiberacao(insp: UltimaInspecao | null): {
   txt: string
   border: string
 } {
-  if (!insp) {
+  if (!lib) {
     return {
       tipo: "aguardando",
-      titulo: "AGUARDANDO INSPEÇÃO",
-      desc: "Nenhuma inspeção vinculada a este veículo. Realize a inspeção antes de liberar.",
-      emoji: "⚠️",
+      titulo: "AGUARDANDO LIBERAÇÃO",
+      desc: "Nenhuma liberação registrada hoje. Acesse 'Liberação de Veículo' para realizar o processo.",
+      emoji: "⏳",
       bg: "bg-amber-50", txt: "text-amber-900", border: "border-amber-300",
     }
   }
 
-  const isHoje = insp.data >= hoje()
+  const isHoje = lib.data_inspecao >= hoje()
 
   if (!isHoje) {
     return {
       tipo: "aguardando",
-      titulo: "INSPEÇÃO VENCIDA",
-      desc: `Última inspeção em ${fmtDate(insp.data)}. Realize uma nova inspeção hoje.`,
+      titulo: "LIBERAÇÃO VENCIDA",
+      desc: `Última liberação em ${fmtDate(lib.data_inspecao)}. Realize nova liberação para hoje.`,
       emoji: "⚠️",
       bg: "bg-amber-50", txt: "text-amber-900", border: "border-amber-300",
     }
   }
 
-  if (insp.itensNC.length > 0) {
+  if (lib.itensReprovados.length > 0) {
     return {
       tipo: "bloqueado",
       titulo: "BLOQUEADO",
-      desc: `${insp.itensNC.length} não conformidade${insp.itensNC.length > 1 ? "s" : ""} encontrada${insp.itensNC.length > 1 ? "s" : ""}. Corrija antes de liberar.`,
+      desc: `${lib.itensReprovados.length} pendência${lib.itensReprovados.length > 1 ? "s" : ""} encontrada${lib.itensReprovados.length > 1 ? "s" : ""}. Corrija antes de operar.`,
       emoji: "🚫",
       bg: "bg-red-50", txt: "text-red-900", border: "border-red-400",
     }
@@ -95,7 +104,9 @@ function getLiberacao(insp: UltimaInspecao | null): {
   return {
     tipo: "liberado",
     titulo: "LIBERADO PARA OPERAR",
-    desc: `Inspeção de hoje concluída sem não conformidades.`,
+    desc: lib.responsavel_checklist
+      ? `Liberado hoje por ${lib.responsavel_checklist}.`
+      : "Liberação de hoje concluída sem pendências.",
     emoji: "✅",
     bg: "bg-green-50", txt: "text-green-900", border: "border-green-400",
   }
@@ -111,19 +122,21 @@ interface Props {
 }
 
 export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }: Props) {
-  const [veiculo, setVeiculo]       = useState<Veiculo | null>(null)
-  const [ultimaInsp, setUltimaInsp] = useState<UltimaInspecao | null | "loading">("loading")
-  const [items, setItems]           = useState<HistItem[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [erro, setErro]             = useState<string | null>(null)
-  const [showChecklist, setShowCk]  = useState(false)
+  const [veiculo, setVeiculo]           = useState<Veiculo | null>(null)
+  const [ultimaLib, setUltimaLib]       = useState<LiberacaoChecklist | null | "loading">("loading")
+  // Keep sms_inspecoes for legacy status fallback (not used for liberation display anymore)
+  const [_ultimaInsp, setUltimaInsp]   = useState<UltimaInspecao | null>(null)
+  const [items, setItems]               = useState<HistItem[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [erro, setErro]                 = useState<string | null>(null)
+  const [showChecklist, setShowCk]      = useState(false)
 
   useEffect(() => { fetchAll() }, [vehicleId])
 
   const fetchAll = async () => {
     setLoading(true)
     setErro(null)
-    setUltimaInsp("loading")
+    setUltimaLib("loading")
     try {
       // 1. Dados do veículo
       const { data: v } = await (supabase as any)
@@ -135,7 +148,38 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }:
 
       const obraFilter = (q: any) => obraId ? q.eq("obra_id", obraId) : q
 
-      // 2. Última inspeção vinculada a este veículo
+      // 2. Último checklist de LIBERAÇÃO deste veículo (tabela do sistema principal)
+      const { data: libCl } = await (supabase as any)
+        .from("inspection_checklists")
+        .select("id, data_inspecao, responsavel_checklist, observacoes")
+        .eq("vehicle_id", vehicleId)
+        .eq("tipo_servico", "liberacao_veiculo")
+        .order("data_inspecao", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (libCl) {
+        const { data: libItens } = await (supabase as any)
+          .from("inspection_items")
+          .select("item_nome, status, observacoes")
+          .eq("checklist_id", libCl.id)
+
+        const itensReprovados = (libItens ?? []).filter((i: any) => i.status === "reprovado")
+        const itensAprovados  = (libItens ?? []).filter((i: any) => i.status === "aprovado").length
+
+        setUltimaLib({
+          id: libCl.id,
+          data_inspecao: libCl.data_inspecao,
+          responsavel_checklist: libCl.responsavel_checklist,
+          observacoes: libCl.observacoes,
+          itensReprovados,
+          itensAprovados,
+        })
+      } else {
+        setUltimaLib(null)
+      }
+
+      // 3. Última inspeção SMS (para exibição no histórico)
       const { data: insp } = await (supabase as any)
         .from("sms_inspecoes")
         .select("id, data, status, observacoes")
@@ -145,55 +189,54 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }:
         .maybeSingle()
 
       if (insp) {
-        // Busca itens NC dessa inspeção
         const { data: ncItens } = await (supabase as any)
           .from("sms_inspecoes_respostas")
           .select("item_id, observacao")
           .eq("inspecao_id", insp.id)
           .eq("resposta", "NC")
-
-        setUltimaInsp({
-          id: insp.id,
-          data: insp.data,
-          status: insp.status ?? null,
-          observacoes: insp.observacoes ?? null,
-          itensNC: ncItens ?? [],
-        })
-      } else {
-        setUltimaInsp(null)
+        setUltimaInsp({ id: insp.id, data: insp.data, status: insp.status ?? null,
+          observacoes: insp.observacoes ?? null, itensNC: ncItens ?? [] })
       }
 
-      // 3. Histórico completo de eventos
-      const [r1, r2, r3, r4, r5] = await Promise.all([
+      // 4. Histórico completo de eventos (liberações + SMS)
+      const [r1, r2, r3, r4, r5, rLib] = await Promise.all([
         obraFilter((supabase as any).from("sms_inspecoes")
           .select("id, data, status, observacoes")
           .eq("veiculo_id", vehicleId)
           .order("data", { ascending: false })
-          .limit(50)),
+          .limit(30)),
 
         obraFilter((supabase as any).from("sms_near_miss")
           .select("id, created_at, o_que_aconteceu, status")
           .eq("veiculo_id", vehicleId)
           .order("created_at", { ascending: false })
-          .limit(50)),
+          .limit(30)),
 
         obraFilter((supabase as any).from("sms_acidentes")
           .select("id, data_hora, tipo, descricao")
           .eq("veiculo_id", vehicleId)
           .order("data_hora", { ascending: false })
-          .limit(50)),
+          .limit(30)),
 
         obraFilter((supabase as any).from("sms_desvios")
           .select("id, data_abertura, tipo, descricao, gravidade, status")
           .eq("veiculo_id", vehicleId)
           .order("data_abertura", { ascending: false })
-          .limit(50)),
+          .limit(30)),
 
         obraFilter((supabase as any).from("sms_aprs")
           .select("id, data, hora_inicio, descricao_trabalho, status")
           .eq("veiculo_id", vehicleId)
           .order("data", { ascending: false })
-          .limit(50)),
+          .limit(30)),
+
+        // Histórico de liberações (últimas 20)
+        (supabase as any).from("inspection_checklists")
+          .select("id, data_inspecao, responsavel_checklist, observacoes, inspection_items(status)")
+          .eq("vehicle_id", vehicleId)
+          .eq("tipo_servico", "liberacao_veiculo")
+          .order("data_inspecao", { ascending: false })
+          .limit(20),
       ])
 
       const merged: HistItem[] = []
@@ -203,7 +246,7 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }:
           id: row.id, tipo: "inspecao", emoji: "🔍", cor: "border-teal-200",
           titulo: `Inspeção — ${row.status ?? ""}`,
           subtitulo: row.observacoes ?? undefined,
-          data: row.data ?? row.data_inspecao,
+          data: row.data,
           status: row.status,
         })
       }
@@ -236,7 +279,7 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }:
           id: row.id, tipo: "desvio", emoji: "⚠️", cor: "border-orange-200",
           titulo: `Desvio — ${row.tipo ?? ""}`,
           subtitulo: row.descricao,
-          data: row.data_abertura ?? row.data_ocorrencia,
+          data: row.data_abertura,
           status: row.status,
         })
       }
@@ -244,9 +287,20 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }:
         merged.push({
           id: row.id, tipo: "apr", emoji: "📋", cor: "border-purple-200",
           titulo: `APR — ${row.status ?? ""}`,
-          subtitulo: row.descricao_trabalho ?? row.observacoes ?? undefined,
-          data: row.data ?? row.data_hora_inicio,
+          subtitulo: row.descricao_trabalho ?? undefined,
+          data: row.data,
           status: row.status,
+        })
+      }
+      for (const row of rLib.data ?? []) {
+        const itensArr = row.inspection_items ?? []
+        const nc = itensArr.filter((i: any) => i.status === "reprovado").length
+        merged.push({
+          id: row.id, tipo: "liberacao", emoji: nc > 0 ? "🚫" : "✅", cor: nc > 0 ? "border-red-200" : "border-green-200",
+          titulo: nc > 0 ? `Liberação — BLOQUEADO (${nc} NC)` : "Liberação — LIBERADO",
+          subtitulo: row.responsavel_checklist ? `Por: ${row.responsavel_checklist}` : undefined,
+          data: row.data_inspecao,
+          status: nc > 0 ? "bloqueado" : "liberado",
         })
       }
 
@@ -256,13 +310,13 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }:
     } catch (e: any) {
       console.error("[VeiculoHistorico] fetchAll error:", e)
       setErro(e?.message ?? "Erro ao carregar")
-      setUltimaInsp(null)
+      setUltimaLib(null)
     } finally {
       setLoading(false)
     }
   }
 
-  const liberacao = getLiberacao(ultimaInsp === "loading" ? null : ultimaInsp)
+  const liberacao = getLiberacao(ultimaLib === "loading" ? null : ultimaLib)
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -299,7 +353,7 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }:
 
         {/* ── Painel de Liberação ─────────────────────────────────────────── */}
         <div className="px-4 pt-4">
-          {ultimaInsp === "loading" ? (
+          {ultimaLib === "loading" ? (
             <div className="rounded-2xl border-2 border-gray-200 bg-white h-24 animate-pulse" />
           ) : (
             <div className={`rounded-2xl border-2 ${liberacao.border} ${liberacao.bg} p-4`}>
@@ -325,53 +379,54 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }:
                   🚦 Iniciar Liberação Agora
                 </button>
               )}
+              {onLiberar && liberacao.tipo === "liberado" && (
+                <button
+                  onClick={onLiberar}
+                  className="mt-3 w-full py-2 rounded-xl border border-green-400 text-green-800 text-xs font-semibold"
+                >
+                  🔄 Refazer liberação
+                </button>
+              )}
 
-              {/* Última inspeção — detalhes */}
-              {ultimaInsp && (
-                <>
-                  <div className={`border-t ${liberacao.border} mt-3 pt-3 space-y-1.5`}>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[11px] font-medium ${liberacao.txt} opacity-70`}>
-                        📅 {fmtDate(ultimaInsp.data)}
-                      </span>
-                      {/* Itens NC se houver */}
-                      {ultimaInsp.itensNC.length > 0 && (
-                        <button
-                          onClick={() => setShowCk(v => !v)}
-                          className="text-[11px] font-semibold text-red-700 underline"
-                        >
-                          {showChecklist ? "Ocultar NCs ▲" : `Ver ${ultimaInsp.itensNC.length} NC(s) ▼`}
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Lista de NCs expandida */}
-                    {showChecklist && ultimaInsp.itensNC.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {ultimaInsp.itensNC.map((nc, i) => (
-                          <div key={nc.item_id ?? i} className="flex items-start gap-2">
-                            <span className="text-red-500 text-xs mt-0.5 flex-shrink-0">❌</span>
-                            <div>
-                              <p className="text-xs text-red-800 font-medium leading-snug">
-                                Item {i + 1}: Não Conforme
-                              </p>
-                              {nc.observacao && (
-                                <p className="text-[11px] text-red-700 leading-snug">{nc.observacao}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Observações gerais */}
-                    {ultimaInsp.observacoes && (
-                      <p className={`text-[11px] ${liberacao.txt} opacity-70 leading-snug`}>
-                        Obs: {ultimaInsp.observacoes}
-                      </p>
+              {/* Detalhes da última liberação */}
+              {ultimaLib && (
+                <div className={`border-t ${liberacao.border} mt-3 pt-3 space-y-1.5`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[11px] font-medium ${liberacao.txt} opacity-70`}>
+                      📅 {fmtDate(ultimaLib.data_inspecao)}
+                    </span>
+                    {ultimaLib.itensReprovados.length > 0 && (
+                      <button
+                        onClick={() => setShowCk(v => !v)}
+                        className="text-[11px] font-semibold text-red-700 underline"
+                      >
+                        {showChecklist ? "Ocultar ▲" : `Ver ${ultimaLib.itensReprovados.length} pendência(s) ▼`}
+                      </button>
                     )}
                   </div>
-                </>
+
+                  {showChecklist && ultimaLib.itensReprovados.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {ultimaLib.itensReprovados.map((item, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <span className="text-red-500 text-xs mt-0.5 flex-shrink-0">❌</span>
+                          <div>
+                            <p className="text-xs text-red-800 font-medium leading-snug">{item.item_nome}</p>
+                            {item.observacoes && (
+                              <p className="text-[11px] text-red-700 leading-snug">{item.observacoes}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {ultimaLib.observacoes && (
+                    <p className={`text-[11px] ${liberacao.txt} opacity-70 leading-snug`}>
+                      Obs: {ultimaLib.observacoes}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -387,14 +442,15 @@ export function VeiculoHistoricoScreen({ vehicleId, obraId, onBack, onLiberar }:
         {/* Summary chips */}
         {items.length > 0 && (
           <div className="px-4 pb-2 flex gap-2 flex-wrap">
-            {(["inspecao", "near_miss", "acidente", "desvio", "apr"] as const).map(t => {
+            {(["liberacao", "inspecao", "near_miss", "acidente", "desvio", "apr"] as const).map(t => {
               const count = items.filter(i => i.tipo === t).length
               if (count === 0) return null
               const labelMap: Record<string, string> = {
-                inspecao: "Inspeção", near_miss: "Near Miss", acidente: "Acidente",
-                desvio: "Desvio", apr: "APR",
+                liberacao: "Liberação", inspecao: "Inspeção", near_miss: "Near Miss",
+                acidente: "Acidente", desvio: "Desvio", apr: "APR",
               }
               const bgMap: Record<string, string> = {
+                liberacao: "bg-orange-100 text-orange-800",
                 inspecao: "bg-teal-100 text-teal-800",
                 near_miss: "bg-amber-100 text-amber-800",
                 acidente: "bg-red-100 text-red-800",

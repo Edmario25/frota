@@ -28,6 +28,7 @@ import { VehicleKmCell } from "@/components/frota/VehicleKmCell";
 import { useKmCyclesBatch } from "@/hooks/useVehicleKmCycles";
 import { getVehicleStatusColor, getVehicleStatusText } from "@/lib/statusHelpers";
 import { downloadCsv } from "@/lib/exportCsv";
+import { useVehicleLiberacao } from "@/hooks/useVehicleLiberacao";
 import type { Database } from "@/integrations/supabase/types";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -71,6 +72,9 @@ const Frota = () => {
 
   // Single batch query for all light vehicle km cycles (replaces N individual RPC calls)
   const kmCyclesMap = useKmCyclesBatch(lightVehicles.map(v => v.id));
+
+  // Batch liberation status — one query for all light vehicles
+  const { liberacaoMap } = useVehicleLiberacao(lightVehicles.map(v => v.id));
 
   const filteredVehicles = lightVehicles.filter(vehicle =>
     vehicle.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -241,9 +245,27 @@ const Frota = () => {
                     }
                   </TableCell>
                   <TableCell>
-                    <Badge className={getVehicleStatusColor(vehicle.status || 'disponivel')}>
-                      {getVehicleStatusText(vehicle.status || 'disponivel')}
-                    </Badge>
+                    <div className="flex flex-col gap-1">
+                      <Badge className={getVehicleStatusColor(vehicle.status || 'disponivel')}>
+                        {getVehicleStatusText(vehicle.status || 'disponivel')}
+                      </Badge>
+                      {(() => {
+                        const lib = liberacaoMap[vehicle.id]
+                        if (!lib) return null
+                        const cfg: Record<string, { label: string; cls: string }> = {
+                          liberado:  { label: "✅ Liberado",             cls: "bg-green-100 text-green-800 border border-green-300" },
+                          bloqueado: { label: "🚫 Bloqueado",            cls: "bg-red-100 text-red-800 border border-red-300" },
+                          vencido:   { label: "⚠️ Liberação vencida",    cls: "bg-amber-100 text-amber-800 border border-amber-300" },
+                          aguardando:{ label: "⏳ Aguardando liberação",  cls: "bg-orange-100 text-orange-800 border border-orange-300" },
+                        }
+                        const c = cfg[lib.status]
+                        return (
+                          <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none ${c.cls}`}>
+                            {c.label}
+                          </span>
+                        )
+                      })()}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <VehicleKmCell

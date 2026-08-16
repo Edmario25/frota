@@ -364,10 +364,9 @@ export default function AppSms() {
       <LiberacaoVeiculoForm
         employee={employee!}
         obraId={employee!.obra_id ?? ''}
-        obras={obras}
         veiculos={veiculos}
         preselectedVehicleId={scannedVehicleId ?? undefined}
-        onSave={handleSave}
+        onSaved={() => { setScanVehicle(null); setScreen('home') }}
         onBack={() => {
           // Se veio do QR scan, volta ao histórico; senão volta ao home
           if (scannedVehicleId) setScreen('veiculo-hist')
