@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Truck, Plus, Eye, Edit, Trash2, Search, Filter } from "lucide-react";
+import { Truck, Plus, Eye, Edit, Trash2, Search, Filter, QrCode } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import { useHeavyVehicleInspections } from "@/hooks/useHeavyVehicleInspections";
 import { HeavyVehicleFormModal } from "@/components/veiculos-pesados/HeavyVehicleFormModal";
 import { ConfirmDeleteModal } from "@/components/veiculos-pesados/ConfirmDeleteModal";
 import { HeavyVehicleDetailModal } from "@/components/veiculos-pesados/HeavyVehicleDetailModal";
+import { QrCodeVeiculoDialog } from "@/components/frota/QrCodeVeiculoDialog";
+import { useVehicleLiberacao } from "@/hooks/useVehicleLiberacao";
 import { getVehicleStatusColor, getVehicleStatusText } from "@/lib/statusHelpers";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -36,6 +38,8 @@ export const VeiculosPesados: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [qrVehicle, setQrVehicle] = useState<Vehicle | null>(null);
   
   const [stats, setStats] = useState({
     disponivel: 0,
@@ -63,7 +67,10 @@ export const VeiculosPesados: React.FC = () => {
 
   // Filter heavy vehicles
   const heavyVehicles = vehicles.filter(vehicle => vehicle.tipo === 'pesado');
-  
+
+  // Batch liberation status — one query for all heavy vehicles
+  const { liberacaoMap } = useVehicleLiberacao(heavyVehicles.map(v => v.id));
+
   const filteredVehicles = heavyVehicles.filter(vehicle =>
     vehicle.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
     vehicle.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -166,8 +173,9 @@ export const VeiculosPesados: React.FC = () => {
                 <TableHead>Veículo</TableHead>
                 <TableHead>Responsável</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Liberação</TableHead>
                 <TableHead>Medição</TableHead>
-                <TableHead className="w-[100px]">Ações</TableHead>
+                <TableHead className="w-[110px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -196,6 +204,24 @@ export const VeiculosPesados: React.FC = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
+                    {(() => {
+                      const lib = liberacaoMap[vehicle.id]
+                      if (!lib) return <span className="text-muted-foreground text-xs">—</span>
+                      const cfg: Record<string, { label: string; cls: string }> = {
+                        liberado:  { label: "✅ Liberado",            cls: "bg-green-100 text-green-800 border border-green-300" },
+                        bloqueado: { label: "🚫 Bloqueado",           cls: "bg-red-100 text-red-800 border border-red-300" },
+                        vencido:   { label: "⚠️ Lib. vencida",        cls: "bg-amber-100 text-amber-800 border border-amber-300" },
+                        aguardando:{ label: "⏳ Aguardando",           cls: "bg-orange-100 text-orange-800 border border-orange-300" },
+                      }
+                      const c = cfg[lib.status]
+                      return (
+                        <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none ${c.cls}`}>
+                          {c.label}
+                        </span>
+                      )
+                    })()}
+                  </TableCell>
+                  <TableCell>
                     {(vehicle as any).tipo_medicao === 'horimetro'
                       ? <span>{((vehicle as any).horimetro_atual ?? 0).toLocaleString()} h</span>
                       : <span>{(vehicle.quilometragem_atual ?? 0).toLocaleString()} km</span>
@@ -205,6 +231,9 @@ export const VeiculosPesados: React.FC = () => {
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openDetailModal(vehicle); }}>
                         <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-green-700 hover:text-green-800 hover:bg-green-50" title="Gerar QR Code SMS" onClick={(e) => { e.stopPropagation(); setQrVehicle(vehicle); setIsQrModalOpen(true); }}>
+                        <QrCode className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditModal(vehicle); }}>
                         <Edit className="h-4 w-4" />
@@ -247,12 +276,20 @@ export const VeiculosPesados: React.FC = () => {
         rentalCompanies={rentalCompanies}
       />
       
-      <ConfirmDeleteModal 
+      <ConfirmDeleteModal
         open={isDeleteModalOpen}
         onOpenChange={setIsDeleteModalOpen}
         vehicle={selectedVehicle}
         onConfirm={handleDeleteVehicle}
       />
+
+      {qrVehicle && (
+        <QrCodeVeiculoDialog
+          vehicle={qrVehicle}
+          open={isQrModalOpen}
+          onOpenChange={(open) => { setIsQrModalOpen(open); if (!open) setQrVehicle(null); }}
+        />
+      )}
     </Layout>
   );
 };
