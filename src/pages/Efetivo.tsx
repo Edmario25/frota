@@ -39,8 +39,8 @@ interface PontoRow extends Employee {
   horas_trabalhadas: number | null;
   // id do registro já salvo (para upsert)
   existing_id:      string | null;
-  // origem do dado: salvo pelo supervisor | pré-preenchido pelo totem | entrada manual
-  fonte:            "salvo" | "totem" | "manual";
+  // origem do dado: supervisor | app campo | totem QR | manual
+  fonte:            "salvo" | "campo" | "totem" | "manual";
   // controle de UI
   expanded:         boolean;
 }
@@ -175,8 +175,12 @@ export default function Efetivo() {
           const ponto = pontoMap[e.id] ?? null;
           const totem = totemMap[e.id] ?? null;
           // Prioridade: salvo pelo supervisor > totem QR > vazio (manual)
-          const fonte: "salvo" | "totem" | "manual" =
-            ponto ? "salvo" : totem ? "totem" : "manual";
+          const fonte: "salvo" | "campo" | "totem" | "manual" =
+            ponto
+              ? (ponto.fonte === "campo" ? "campo" : "salvo")
+              : totem
+              ? "totem"
+              : "manual";
           const entrada = ponto
             ? (ponto.hora_entrada?.slice(0, 5) ?? "")
             : (totem?.entrada ?? "");
@@ -250,6 +254,7 @@ export default function Efetivo() {
         ausencia:          r.ausencia,
         motivo_ausencia:   r.ausencia ? (r.motivo_ausencia || null) : null,
         registrado_por:    userId,
+        fonte:             "supervisor",   // supervisor confirma / substitui qualquer origem
       }));
 
       const { error } = await (supabase as any)
@@ -359,6 +364,7 @@ export default function Efetivo() {
         ausencia:          r.ausencia,
         motivo_ausencia:   r.ausencia ? (r.motivo_ausencia || null) : null,
         registrado_por:    userId,
+        fonte:             "csv",
       }));
 
       const { error } = await (supabase as any)
@@ -718,6 +724,11 @@ function PontoCard({ row, onChange }: PontoCardProps) {
             {row.fonte === "totem" && (
               <Badge className="text-[9px] py-0 px-1.5 h-4 rounded-full bg-blue-100 text-blue-700 border-0 dark:bg-blue-900/30 dark:text-blue-300 flex-shrink-0">
                 QR
+              </Badge>
+            )}
+            {row.fonte === "campo" && (
+              <Badge className="text-[9px] py-0 px-1.5 h-4 rounded-full bg-green-100 text-green-700 border-0 dark:bg-green-900/30 dark:text-green-300 flex-shrink-0">
+                CAMPO
               </Badge>
             )}
           </div>

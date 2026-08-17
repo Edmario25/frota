@@ -19,12 +19,17 @@ interface Funcionario {
   id: string; nome: string; matricula: string | null; cargo: string | null;
   foto_url: string | null; departamento: string | null;
 }
+// Apontamento vem da tabela efetivo_ponto (integração com Efetivo e Ponto)
 interface Apontamento {
-  id: string; funcionario_id: string | null; nome_manual: string | null;
-  frente: string | null; atividade: string | null; turno: string;
-  horas_normal: number; horas_extra: number; presente: boolean;
+  id: string;
+  employee_id: string;
+  frente: string | null;
+  horas_trabalhadas: number | null;
+  horas_extras: number;
+  ausencia: boolean;
+  fonte: string;
   created_at: string;
-  funcionarios?: { nome: string; matricula: string | null; cargo: string | null; foto_url: string | null };
+  employees?: { nome: string; foto_url: string | null; cargos?: { nome: string } | null };
 }
 
 const FRENTES_PADRAO = ["Fundação","Estrutura","Alvenaria","Instalações Elétricas",
@@ -103,18 +108,18 @@ export default function AppCampo() {
     if (scanning) return;
     setScanning(true); setScanError("");
     try {
-      // Extrai UUID do QR (pode ser URL ou UUID direto)
+      // Extrai UUID do QR — o crachá contém o employees.id diretamente
       const uuidMatch = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
       if (!uuidMatch) { setScanError("QR inválido — não é um crachá do sistema"); setScanning(false); return; }
-      const funcId = uuidMatch[0];
+      const empId = uuidMatch[0];
 
-      // Verifica se já apontado hoje
+      // Verifica se já apontado hoje em efetivo_ponto
       const { data: exist } = await (supabase as any)
-        .from("apontamentos_campo")
+        .from("efetivo_ponto")
         .select("id")
         .eq("obra_id", obraId)
-        .eq("funcionario_id", funcId)
-        .eq("data_apontamento", data)
+        .eq("employee_id", empId)
+        .eq("data", data)
         .maybeSingle();
 
       if (exist) {
@@ -122,14 +127,26 @@ export default function AppCampo() {
         setScanning(false); return;
       }
 
-      // Busca dados do funcionário
-      const { data: f } = await (supabase as any)
-        .from("funcionarios").select("id,nome,matricula,cargo,foto_url,departamento")
-        .eq("id", funcId).maybeSingle();
+      // Busca dados do funcionário na tabela employees (igual ao crachá)
+      const { data: emp } = await (supabase as any)
+        .from("employees")
+        .select("id, nome, foto_url, cargos(nome)")
+        .eq("id", empId)
+        .maybeSingle();
 
-      if (!f) { setScanError("Funcionário não encontrado no sistema"); setScanning(false); return; }
+      if (!emp) { setScanError("Funcionário não encontrado no sistema"); setScanning(false); return; }
 
-      setFunc(f as Funcionario);
+      // Adapta para o tipo Funcionario usado nas telas
+      const f: Funcionario = {
+        id:          emp.id,
+        nome:        emp.nome,
+        matricula:   null,
+        cargo:       emp.cargos?.nome ?? null,
+        foto_url:    emp.foto_url ?? null,
+        departamento: null,
+      };
+
+      setFunc(f);
       setFrente(""); setAtividade(""); setTurno("dia"); setHorasNorm("8"); setHorasExtra("0"); setObs("");
       setScreen("confirm");
     } catch (e: any) { setScanError(e.message); }
@@ -137,19 +154,27 @@ export default function AppCampo() {
   }
 
   // ─── Confirmar apontamento ──────────────────────────────────────────────────
+  // Grava diretamente em efetivo_ponto para integração com "Efetivo e Ponto"
   async function handleConfirmar() {
     if (!func || !obraId) return;
     setSaving(true);
     try {
       const { data: { user: u } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from("apontamentos_campo").insert({
-        obra_id: obraId, funcionario_id: func.id, data_apontamento: data,
-        frente: frente || null, atividade: atividade || null,
-        turno, horas_normal: parseFloat(horasNorm) || 8,
-        horas_extra: parseFloat(horasExtra) || 0,
-        registrado_por: u?.id,
-        observacao: obs || null,
-      });
+      const { error } = await (supabase as any).from("efetivo_ponto").upsert({
+        obra_id:           obraId,
+        employee_id:       func.id,
+        data,
+        frente:            frente || null,
+        empresa:           null,
+        hora_entrada:      null,         // campo não captura horário de entrada/saída
+        hora_saida:        null,
+        horas_trabalhadas: parseFloat(horasNorm) || 8,
+        horas_extras:      parseFloat(horasExtra) || 0,
+        ausencia:          false,
+        motivo_ausencia:   obs || null,
+        registrado_por:    u?.id,
+        fonte:             "campo",      // identifica origem na tela Efetivo e Ponto
+      }, { onConflict: "obra_id,employee_id,data" });
       if (error) throw new Error(error.message);
       setScreen("sucesso");
     } catch (e: any) { toast.error(e.message); }
@@ -161,10 +186,10 @@ export default function AppCampo() {
     if (!obraId) return;
     setLoadingLista(true);
     const { data } = await (supabase as any)
-      .from("apontamentos_campo")
-      .select("*, funcionarios(nome, matricula, cargo, foto_url)")
+      .from("efetivo_ponto")
+      .select("id, employee_id, frente, horas_trabalhadas, horas_extras, ausencia, fonte, created_at, employees(nome, foto_url, cargos(nome))")
       .eq("obra_id", obraId)
-      .eq("data_apontamento", data)
+      .eq("data", data)
       .order("created_at", { ascending: false });
     setApontamentos((data ?? []) as Apontamento[]);
     setLoadingLista(false);
@@ -352,8 +377,8 @@ function HomeScreen({ obra, data, setData, onScanner, onLista, onTrocarObra, onL
   useEffect(() => {
     (async () => {
       const { count: c } = await (supabase as any)
-        .from("apontamentos_campo").select("id", { count: "exact", head: true })
-        .eq("obra_id", obraId).eq("data_apontamento", data);
+        .from("efetivo_ponto").select("id", { count: "exact", head: true })
+        .eq("obra_id", obraId).eq("data", data).eq("ausencia", false);
       setCount(c ?? 0);
     })();
   }, [obraId, data]);
@@ -767,8 +792,9 @@ function ListaScreen({ apontamentos, obra, data, loading, onBack, onRefresh }: {
   apontamentos: Apontamento[]; obra: Obra; data: string;
   loading: boolean; onBack: () => void; onRefresh: () => void;
 }) {
-  const totalHoras = apontamentos.reduce((s, a) => s + a.horas_normal + a.horas_extra, 0);
-  const totalExtra = apontamentos.reduce((s, a) => s + a.horas_extra, 0);
+  const presentes  = apontamentos.filter(a => !a.ausencia).length;
+  const totalHoras = apontamentos.reduce((s, a) => s + (a.horas_trabalhadas ?? 0) + (a.horas_extras ?? 0), 0);
+  const totalExtra = apontamentos.reduce((s, a) => s + (a.horas_extras ?? 0), 0);
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
@@ -791,7 +817,7 @@ function ListaScreen({ apontamentos, obra, data, loading, onBack, onRefresh }: {
         {/* KPIs */}
         <div className="grid grid-cols-3 gap-2 mt-3">
           {[
-            { label: "Presentes", value: apontamentos.length, color: "text-blue-400" },
+            { label: "Presentes", value: presentes, color: "text-blue-400" },
             { label: "Total horas", value: `${totalHoras}h`, color: "text-green-400" },
             { label: "Extras", value: `${totalExtra}h`, color: "text-amber-400" },
           ].map(k => (
@@ -817,11 +843,18 @@ function ListaScreen({ apontamentos, obra, data, loading, onBack, onRefresh }: {
           </div>
         )}
         {!loading && apontamentos.map(a => {
-          const nome = a.funcionarios?.nome ?? a.nome_manual ?? "—";
-          const foto = a.funcionarios?.foto_url;
-          const cargo = a.funcionarios?.cargo;
+          const nome  = a.employees?.nome ?? "—";
+          const foto  = a.employees?.foto_url;
+          const cargo = a.employees?.cargos?.nome;
+          const horas = a.horas_trabalhadas ?? 0;
+          const extra = a.horas_extras ?? 0;
           return (
-            <div key={a.id} className="bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center gap-3">
+            <div key={a.id} className={cn(
+              "border rounded-xl p-3 flex items-center gap-3",
+              a.ausencia
+                ? "bg-red-950/30 border-red-800/50"
+                : "bg-slate-800 border-slate-700"
+            )}>
               {foto ? (
                 <img src={foto} alt={nome} className="h-11 w-11 rounded-lg object-cover flex-shrink-0" />
               ) : (
@@ -832,13 +865,15 @@ function ListaScreen({ apontamentos, obra, data, loading, onBack, onRefresh }: {
               <div className="flex-1 min-w-0">
                 <p className="text-white font-semibold text-sm truncate">{nome}</p>
                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  {a.frente && <span className="text-[10px] bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded font-medium">{a.frente}</span>}
-                  {a.turno && <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-medium capitalize">{a.turno}</span>}
+                  {a.ausencia && <span className="text-[10px] bg-red-900/60 text-red-300 px-1.5 py-0.5 rounded font-medium">Ausente</span>}
+                  {a.frente   && <span className="text-[10px] bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded font-medium">{a.frente}</span>}
+                  {cargo      && <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-medium">{cargo}</span>}
+                  {a.fonte === "campo" && <span className="text-[9px] bg-green-900/60 text-green-300 px-1.5 py-0.5 rounded font-bold">CAMPO</span>}
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-white font-bold text-sm tabular-nums">{a.horas_normal}h</p>
-                {a.horas_extra > 0 && <p className="text-amber-400 text-xs tabular-nums">+{a.horas_extra}h extra</p>}
+                {!a.ausencia && <p className="text-white font-bold text-sm tabular-nums">{horas}h</p>}
+                {extra > 0   && <p className="text-amber-400 text-xs tabular-nums">+{extra}h extra</p>}
                 <p className="text-slate-500 text-[10px] tabular-nums">{fmtHora(a.created_at)}</p>
               </div>
             </div>
