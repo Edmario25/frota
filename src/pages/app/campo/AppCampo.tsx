@@ -524,6 +524,12 @@ function ScannerScreen({ onQrLido, onBack, scanning, error, onClearError }: {
   }, []);
 
   async function startCamera() {
+    setCamError("");
+    // Verifica se a API existe (contexto seguro)
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCamError("Câmera não suportada neste dispositivo.");
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
@@ -531,12 +537,24 @@ function ScannerScreen({ onQrLido, onBack, scanning, error, onClearError }: {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
         setActive(true);
         startDecoding();
       }
-    } catch {
-      setCamError("Não foi possível acessar a câmera. Verifique as permissões.");
+    } catch (err: any) {
+      const denied = err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError";
+      if (denied) {
+        setCamError("denied");
+      } else {
+        setCamError("Não foi possível acessar a câmera. Tente novamente.");
+      }
+    }
+  }
+
+  function openAppSettings() {
+    // Capacitor: abre as configurações do app no Android
+    if ((window as any).Capacitor?.Plugins?.App) {
+      (window as any).Capacitor.Plugins.App.openUrl({ url: "app-settings://" });
     }
   }
 
@@ -588,10 +606,40 @@ function ScannerScreen({ onQrLido, onBack, scanning, error, onClearError }: {
       {/* Câmera */}
       <div className="flex-1 relative overflow-hidden">
         {camError ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-900 px-8 text-center">
-            <Camera className="h-16 w-16 text-slate-600" />
-            <p className="text-white font-semibold">{camError}</p>
-            <button onClick={startCamera} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold">Tentar novamente</button>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-slate-900 px-8 text-center">
+            <div className="h-20 w-20 rounded-full bg-slate-800 flex items-center justify-center">
+              <Camera className="h-9 w-9 text-slate-500" />
+            </div>
+            {camError === "denied" ? (
+              <>
+                <div>
+                  <p className="text-white font-bold text-base">Permissão negada</p>
+                  <p className="text-slate-400 text-sm mt-2 leading-relaxed">
+                    Acesse{" "}
+                    <span className="text-white font-semibold">Configurações → Apps → Apontador de Campo → Permissões</span>
+                    {" "}e ative a Câmera.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 w-full">
+                  <button onClick={openAppSettings}
+                    className="bg-blue-600 active:bg-blue-700 text-white px-6 py-3.5 rounded-2xl font-bold text-sm">
+                    Abrir Configurações
+                  </button>
+                  <button onClick={startCamera}
+                    className="bg-slate-800 border border-slate-700 text-slate-300 px-6 py-3.5 rounded-2xl font-semibold text-sm">
+                    Tentar novamente
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-white font-semibold">{camError}</p>
+                <button onClick={startCamera}
+                  className="bg-blue-600 active:bg-blue-700 text-white px-6 py-3.5 rounded-2xl font-bold text-sm w-full">
+                  Tentar novamente
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <>
