@@ -1,6 +1,6 @@
 /**
- * Gera o ícone do Apontador de Campo (1024x1024 PNG) usando Canvas API do Node.
- * Executa: node generate-icon.mjs
+ * Gera o ícone do Apontador de Campo (1024x1024 PNG)
+ * Design: scanner QR corners + silhueta de pessoa + badge verde com checkmark
  */
 import { createCanvas } from "canvas"
 import { writeFileSync, mkdirSync } from "fs"
@@ -11,103 +11,154 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT_DIR   = join(__dirname, "assets")
 mkdirSync(OUT_DIR, { recursive: true })
 
-const SIZE = 1024
-const c    = createCanvas(SIZE, SIZE)
-const ctx  = c.getContext("2d")
+const S   = 1024
+const c   = createCanvas(S, S)
+const ctx = c.getContext("2d")
 
-// ── Fundo gradiente slate escuro ──────────────────────────────────────────────
-const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE)
-grad.addColorStop(0, "#1e293b")   // slate-800
-grad.addColorStop(1, "#0f172a")   // slate-900
-ctx.fillStyle = grad
-ctx.beginPath()
-if (ctx.roundRect) ctx.roundRect(0, 0, SIZE, SIZE, SIZE * 0.18)
-else ctx.rect(0, 0, SIZE, SIZE)
-ctx.fill()
-
-// ── Círculo suave de fundo ────────────────────────────────────────────────────
-ctx.fillStyle = "rgba(59,130,246,0.12)"   // blue-500 suave
-ctx.beginPath()
-ctx.arc(SIZE / 2, SIZE / 2 - SIZE * 0.04, SIZE * 0.42, 0, Math.PI * 2)
-ctx.fill()
-
-// ── Ícone de prancheta / clipboard ───────────────────────────────────────────
-const cx   = SIZE / 2
-const cy   = SIZE * 0.44
-const bw   = SIZE * 0.44    // largura da prancheta
-const bh   = SIZE * 0.52    // altura da prancheta
-const bx   = cx - bw / 2
-const by   = cy - bh / 2 + SIZE * 0.04
-const br   = SIZE * 0.045   // border-radius
-
-// Corpo da prancheta (branco)
-ctx.fillStyle = "#f1f5f9"   // slate-100
-ctx.beginPath()
-ctx.roundRect(bx, by, bw, bh, br)
-ctx.fill()
-
-// Clip superior (parte que prende o papel)
-const cw  = bw * 0.40
-const ch  = SIZE * 0.07
-const cx2 = cx - cw / 2
-const cy2 = by - ch * 0.55
-ctx.fillStyle = "#3b82f6"   // blue-500
-ctx.beginPath()
-ctx.roundRect(cx2, cy2, cw, ch, SIZE * 0.02)
-ctx.fill()
-
-// Buraco do clip (elipse branca)
-ctx.fillStyle = "#1e293b"
-ctx.beginPath()
-ctx.ellipse(cx, cy2 + ch * 0.5, SIZE * 0.045, SIZE * 0.025, 0, 0, Math.PI * 2)
-ctx.fill()
-
-// ── Linhas de texto simuladas ─────────────────────────────────────────────────
-const lineColor = "#94a3b8"   // slate-400
-const lineX     = bx + SIZE * 0.06
-const lineW     = bw - SIZE * 0.12
-const lineH     = SIZE * 0.022
-const lineR     = SIZE * 0.011
-const startY    = by + SIZE * 0.11
-
-const lines = [0.85, 1, 0.7, 1, 0.6]  // larguras relativas das linhas
-lines.forEach((rel, i) => {
-  ctx.fillStyle = i === 0 ? "#3b82f6" : lineColor
+// ── helpers ──────────────────────────────────────────────────────────────────
+function roundRect(x, y, w, h, r) {
   ctx.beginPath()
-  ctx.roundRect(lineX, startY + i * SIZE * 0.075, lineW * rel, lineH, lineR)
-  ctx.fill()
-})
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+}
 
-// ── Check mark (✓) no canto inferior direito da prancheta ────────────────────
-const ckSize = SIZE * 0.13
-const ckX    = bx + bw - ckSize - SIZE * 0.04
-const ckY    = by + bh - ckSize - SIZE * 0.04
+// ── 1. Fundo com borda arredondada ────────────────────────────────────────────
+const BG_RADIUS = S * 0.195   // ~200px arredondamento de ícone Android
 
-// Círculo verde
-ctx.fillStyle = "#22c55e"   // green-500
+// Sombra suave (opcional, para preview)
+ctx.shadowColor = "rgba(0,0,0,0.5)"
+ctx.shadowBlur  = 30
+roundRect(0, 0, S, S, BG_RADIUS)
+ctx.fillStyle = "#0f172a"
+ctx.fill()
+ctx.shadowBlur = 0
+
+// Gradiente radial de fundo: azul-noite no centro
+const bgGrad = ctx.createRadialGradient(S * 0.4, S * 0.35, 0, S * 0.5, S * 0.5, S * 0.72)
+bgGrad.addColorStop(0, "#1e3a5f")
+bgGrad.addColorStop(1, "#0f172a")
+roundRect(0, 0, S, S, BG_RADIUS)
+ctx.fillStyle = bgGrad
+ctx.fill()
+
+// ── 2. Brilho central (halo azul suave) ──────────────────────────────────────
+const halo = ctx.createRadialGradient(S * 0.5, S * 0.48, 0, S * 0.5, S * 0.48, S * 0.38)
+halo.addColorStop(0, "rgba(59,130,246,0.20)")
+halo.addColorStop(1, "rgba(59,130,246,0.00)")
+roundRect(0, 0, S, S, BG_RADIUS)
+ctx.fillStyle = halo
+ctx.fill()
+
+// ── 3. Cantos do scanner QR ───────────────────────────────────────────────────
+const cx  = S / 2
+const cy  = S * 0.45
+const ARM = S * 0.105    // comprimento de cada braço
+const GAP = S * 0.225    // metade do espaço do quadrado
+const R   = S * 0.045    // raio do canto interno
+const LW  = S * 0.038    // espessura da linha
+
+ctx.strokeStyle = "#3b82f6"
+ctx.lineWidth   = LW
+ctx.lineCap     = "round"
+ctx.lineJoin    = "round"
+
+const corners = [
+  // [startX, startY, cornerX, cornerY, endX, endY]
+  [cx - GAP, cy - GAP + ARM, cx - GAP, cy - GAP, cx - GAP + ARM, cy - GAP],  // topo-esq
+  [cx + GAP - ARM, cy - GAP, cx + GAP, cy - GAP, cx + GAP, cy - GAP + ARM],  // topo-dir
+  [cx - GAP, cy + GAP - ARM, cx - GAP, cy + GAP, cx - GAP + ARM, cy + GAP],  // base-esq
+  [cx + GAP - ARM, cy + GAP, cx + GAP, cy + GAP, cx + GAP, cy + GAP - ARM],  // base-dir
+]
+
+for (const [x1, y1, mx, my, x2, y2] of corners) {
+  ctx.beginPath()
+  ctx.moveTo(x1, y1)
+  ctx.quadraticCurveTo(mx, my, x2, y2)
+  ctx.stroke()
+}
+
+// ── 4. Silhueta de pessoa ─────────────────────────────────────────────────────
+ctx.fillStyle = "#e2e8f0"
+
+// Cabeça
+const headR = S * 0.112
+const headY = cy - S * 0.055
 ctx.beginPath()
-ctx.arc(ckX + ckSize / 2, ckY + ckSize / 2, ckSize / 2, 0, Math.PI * 2)
+ctx.arc(cx, headY, headR, 0, Math.PI * 2)
+ctx.fill()
+
+// Corpo (arco inferior)
+const bodyW  = S * 0.37
+const bodyY  = headY + headR + S * 0.02
+const bodyH  = S * 0.185
+ctx.beginPath()
+ctx.moveTo(cx - bodyW / 2, bodyY + bodyH)
+ctx.bezierCurveTo(
+  cx - bodyW / 2, bodyY,
+  cx - bodyW * 0.08, bodyY,
+  cx, bodyY
+)
+ctx.bezierCurveTo(
+  cx + bodyW * 0.08, bodyY,
+  cx + bodyW / 2, bodyY,
+  cx + bodyW / 2, bodyY + bodyH
+)
+ctx.closePath()
+ctx.fill()
+
+// ── 5. Badge verde com checkmark ─────────────────────────────────────────────
+const bx  = cx + GAP * 0.72    // centro do badge
+const by  = cy + GAP * 0.72
+const br  = S * 0.118           // raio externo
+
+// Círculo escuro (anel separador do fundo)
+ctx.beginPath()
+ctx.arc(bx, by, br + S * 0.018, 0, Math.PI * 2)
+ctx.fillStyle = "#0f172a"
+ctx.fill()
+
+// Círculo verde externo
+ctx.beginPath()
+ctx.arc(bx, by, br, 0, Math.PI * 2)
+ctx.fillStyle = "#15803d"
+ctx.fill()
+
+// Círculo verde interno (mais claro)
+ctx.beginPath()
+ctx.arc(bx, by, br * 0.84, 0, Math.PI * 2)
+ctx.fillStyle = "#16a34a"
 ctx.fill()
 
 // Checkmark branco
+const ck = br * 0.52
 ctx.strokeStyle = "#ffffff"
-ctx.lineWidth   = SIZE * 0.022
+ctx.lineWidth   = S * 0.032
 ctx.lineCap     = "round"
 ctx.lineJoin    = "round"
 ctx.beginPath()
-ctx.moveTo(ckX + ckSize * 0.22, ckY + ckSize * 0.52)
-ctx.lineTo(ckX + ckSize * 0.44, ckY + ckSize * 0.72)
-ctx.lineTo(ckX + ckSize * 0.78, ckY + ckSize * 0.28)
+ctx.moveTo(bx - ck * 0.55, by + ck * 0.05)
+ctx.lineTo(bx - ck * 0.05, by + ck * 0.58)
+ctx.lineTo(bx + ck * 0.65, by - ck * 0.52)
 ctx.stroke()
 
-// ── Texto "ÁPICE" na parte inferior ──────────────────────────────────────────
-ctx.fillStyle    = "#64748b"   // slate-500
-ctx.font         = `bold ${SIZE * 0.055}px Arial`
-ctx.textAlign    = "center"
-ctx.textBaseline = "alphabetic"
-ctx.fillText("ÁPICE GESTÃO", SIZE / 2, SIZE * 0.935)
-
-// Salva
+// ── 6. Salvar ─────────────────────────────────────────────────────────────────
 const buf = c.toBuffer("image/png")
 writeFileSync(join(OUT_DIR, "icon.png"), buf)
-console.log("✅ assets/icon.png gerado (1024×1024)")
+
+// foreground.png para Capacitor Assets (transparente + ícone centralizado)
+const fc   = createCanvas(S, S)
+const fctx = fc.getContext("2d")
+// Sem fundo (transparente), só o conteúdo centralizado menor
+fctx.drawImage(c, S * 0.1, S * 0.1, S * 0.8, S * 0.8)
+writeFileSync(join(OUT_DIR, "icon-foreground.png"), fc.toBuffer("image/png"))
+
+console.log("✅ assets/icon.png          (1024×1024 — ícone completo)")
+console.log("✅ assets/icon-foreground.png (1024×1024 — foreground adaptável)")
