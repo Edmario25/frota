@@ -8,7 +8,7 @@ import {
   QrCode, CheckCircle2, AlertTriangle, LogOut, RefreshCw,
   Users, ChevronRight, Camera, X, UserCheck, Clock,
   Building2, CalendarDays, ArrowLeft, Search, Sun, Moon,
-  ClipboardList, Zap, Menu, Loader2,
+  ClipboardList, Zap, Menu, Loader2, WifiOff, Upload, CloudOff,
 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -31,6 +31,63 @@ interface Apontamento {
   created_at: string;
   employees?: { nome: string; foto_url: string | null; cargos?: { nome: string } | null };
 }
+
+// ─── Cache offline ───────────────────────────────────────────────────────────
+interface CachedEmp {
+  id: string; nome: string; cargo: string | null; foto_url: string | null;
+}
+interface PendingItem {
+  localId: string;
+  obra_id: string; obra_nome: string;
+  employee_id: string; employee_nome: string; employee_cargo: string | null;
+  data: string; frente: string | null;
+  horas_trabalhadas: number; horas_extras: number;
+  motivo_ausencia: string | null;
+  registrado_por: string | null;
+  created_at: string;
+}
+
+const CACHE_TTL = 8 * 60 * 60 * 1000; // 8h
+const OfflineDB = {
+  empKey:  (id: string) => `campo_emp_${id}`,
+  PENDING: "campo_pending",
+
+  getEmps(obraId: string): CachedEmp[] {
+    try {
+      const raw = localStorage.getItem(OfflineDB.empKey(obraId));
+      if (!raw) return [];
+      const { emps, ts } = JSON.parse(raw);
+      return Date.now() - ts < CACHE_TTL ? emps : [];
+    } catch { return []; }
+  },
+  setEmps(obraId: string, emps: CachedEmp[]) {
+    localStorage.setItem(OfflineDB.empKey(obraId), JSON.stringify({ emps, ts: Date.now() }));
+  },
+  getCacheTs(obraId: string): number | null {
+    try {
+      const raw = localStorage.getItem(OfflineDB.empKey(obraId));
+      return raw ? JSON.parse(raw).ts : null;
+    } catch { return null; }
+  },
+  getPending(): PendingItem[] {
+    try { return JSON.parse(localStorage.getItem(OfflineDB.PENDING) ?? "[]"); }
+    catch { return []; }
+  },
+  addPending(item: PendingItem) {
+    const list = OfflineDB.getPending();
+    list.push(item);
+    localStorage.setItem(OfflineDB.PENDING, JSON.stringify(list));
+  },
+  removePending(ids: string[]) {
+    const list = OfflineDB.getPending().filter(i => !ids.includes(i.localId));
+    localStorage.setItem(OfflineDB.PENDING, JSON.stringify(list));
+  },
+  hasDuplicate(obraId: string, empId: string, dt: string) {
+    return OfflineDB.getPending().some(
+      i => i.obra_id === obraId && i.employee_id === empId && i.data === dt
+    );
+  },
+};
 
 const FRENTES_PADRAO = ["Fundação","Estrutura","Alvenaria","Instalações Elétricas",
   "Instalações Hidráulicas","Acabamento","Terraplanagem","Paisagismo","Outro"];
@@ -69,6 +126,14 @@ export default function AppCampo() {
   const [apontamentos, setApontamentos] = useState<Apontamento[]>([]);
   const [loadingLista, setLoadingLista] = useState(false);
 
+  // Offline
+  const [isOnline,     setIsOnline]     = useState(navigator.onLine);
+  const [pending,      setPending]      = useState<PendingItem[]>(OfflineDB.getPending());
+  const [syncing,      setSyncing]      = useState(false);
+  const [downloading,  setDownloading]  = useState(false);
+  const [cacheTs,      setCacheTs]      = useState<number | null>(null);
+  const [savedOffline, setSavedOffline] = useState(false);
+
   // ─── Auth ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -81,6 +146,22 @@ export default function AppCampo() {
       if (session?.user) fetchObras();
     });
     return () => subscription.unsubscribe();
+  }, []);
+
+  // ─── Rede: online/offline ──────────────────────────────────────────────────
+  useEffect(() => {
+    const goOnline = () => {
+      setIsOnline(true);
+      // Ao recuperar sinal, sincroniza automaticamente
+      syncPendingItems();
+    };
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online",  goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online",  goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
   }, []);
 
   async function fetchObras() {
@@ -122,52 +203,115 @@ export default function AppCampo() {
     setScreen("login"); setObraId(""); setObra(null);
   }
 
-  function selecionarObra(o: Obra) { setObra(o); setObraId(o.id); setScreen("home"); }
+  function selecionarObra(o: Obra) {
+    setObra(o); setObraId(o.id); setScreen("home");
+    setPending(OfflineDB.getPending());
+    setCacheTs(OfflineDB.getCacheTs(o.id));
+    if (navigator.onLine) downloadCache(o.id);
+  }
+
+  // ─── Cache de funcionários da obra ────────────────────────────────────────
+  async function downloadCache(id: string) {
+    setDownloading(true);
+    try {
+      const { data } = await (supabase as any)
+        .from("obra_funcionarios")
+        .select("employees(id, nome, foto_url, cargos(nome))")
+        .eq("obra_id", id)
+        .eq("status", true);
+      const emps: CachedEmp[] = (data ?? [])
+        .map((r: any) => r.employees).filter(Boolean)
+        .map((e: any) => ({ id: e.id, nome: e.nome,
+          cargo: e.cargos?.nome ?? null, foto_url: e.foto_url ?? null }));
+      OfflineDB.setEmps(id, emps);
+      setCacheTs(Date.now());
+    } catch { /* silencioso — cache anterior fica válido */ }
+    finally { setDownloading(false); }
+  }
+
+  // ─── Sincronizar fila offline ─────────────────────────────────────────────
+  async function syncPendingItems() {
+    const items = OfflineDB.getPending();
+    if (!items.length || !navigator.onLine) return;
+    setSyncing(true);
+    const synced: string[] = [];
+    for (const item of items) {
+      try {
+        const { error } = await (supabase as any).from("efetivo_ponto").upsert({
+          obra_id:           item.obra_id,
+          employee_id:       item.employee_id,
+          data:              item.data,
+          frente:            item.frente,
+          empresa:           null,
+          hora_entrada:      null,
+          hora_saida:        null,
+          horas_trabalhadas: item.horas_trabalhadas,
+          horas_extras:      item.horas_extras,
+          ausencia:          false,
+          motivo_ausencia:   item.motivo_ausencia,
+          registrado_por:    item.registrado_por,
+          fonte:             "campo",
+        }, { onConflict: "obra_id,employee_id,data" });
+        if (!error) synced.push(item.localId);
+      } catch { /* tenta o próximo */ }
+    }
+    if (synced.length) {
+      OfflineDB.removePending(synced);
+      setPending(OfflineDB.getPending());
+      toast.success(`✅ ${synced.length} apontamento${synced.length > 1 ? "s" : ""} sincronizado${synced.length > 1 ? "s" : ""}!`);
+    }
+    setSyncing(false);
+  }
 
   // ─── Scanner / QR ──────────────────────────────────────────────────────────
   async function onQrLido(raw: string) {
     if (scanning) return;
     setScanning(true); setScanError("");
     try {
-      // Extrai UUID do QR — o crachá contém o employees.id diretamente
       const uuidMatch = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
       if (!uuidMatch) { setScanError("QR inválido — não é um crachá do sistema"); setScanning(false); return; }
       const empId = uuidMatch[0];
 
-      // Verifica se já apontado hoje em efetivo_ponto
-      const { data: exist } = await (supabase as any)
-        .from("efetivo_ponto")
-        .select("id")
-        .eq("obra_id", obraId)
-        .eq("employee_id", empId)
-        .eq("data", data)
-        .maybeSingle();
+      // ── MODO OFFLINE ────────────────────────────────────────────────────────
+      if (!navigator.onLine) {
+        // Verificar duplicata na fila pendente
+        if (OfflineDB.hasDuplicate(obraId, empId, data)) {
+          setScanError("⚠️ Funcionário já registrado hoje (aguardando sync)");
+          setScanning(false); return;
+        }
+        // Buscar no cache local
+        const cached = OfflineDB.getEmps(obraId);
+        const emp = cached.find(e => e.id === empId);
+        if (!emp) {
+          setScanError(cached.length === 0
+            ? "Cache vazio. Conecte-se à internet uma vez para baixar os funcionários."
+            : "Funcionário não encontrado no cache desta obra.");
+          setScanning(false); return;
+        }
+        setFunc({ id: emp.id, nome: emp.nome, cargo: emp.cargo,
+          foto_url: emp.foto_url, matricula: null, departamento: null });
+        setFrente(""); setAtividade(""); setTurno("dia"); setHorasNorm("8"); setHorasExtra("0"); setObs("");
+        setScreen("confirm");
+        setScanning(false); return;
+      }
 
-      if (exist) {
+      // ── MODO ONLINE ─────────────────────────────────────────────────────────
+      const { data: exist } = await (supabase as any)
+        .from("efetivo_ponto").select("id")
+        .eq("obra_id", obraId).eq("employee_id", empId).eq("data", data).maybeSingle();
+      // Também verifica duplicata na fila local (pode ter sido salvo offline)
+      if (exist || OfflineDB.hasDuplicate(obraId, empId, data)) {
         setScanError("⚠️ Funcionário já registrado hoje nesta obra");
         setScanning(false); return;
       }
 
-      // Busca dados do funcionário na tabela employees (igual ao crachá)
       const { data: emp } = await (supabase as any)
-        .from("employees")
-        .select("id, nome, foto_url, cargos(nome)")
-        .eq("id", empId)
-        .maybeSingle();
-
+        .from("employees").select("id, nome, foto_url, cargos(nome)")
+        .eq("id", empId).maybeSingle();
       if (!emp) { setScanError("Funcionário não encontrado no sistema"); setScanning(false); return; }
 
-      // Adapta para o tipo Funcionario usado nas telas
-      const f: Funcionario = {
-        id:          emp.id,
-        nome:        emp.nome,
-        matricula:   null,
-        cargo:       emp.cargos?.nome ?? null,
-        foto_url:    emp.foto_url ?? null,
-        departamento: null,
-      };
-
-      setFunc(f);
+      setFunc({ id: emp.id, nome: emp.nome, matricula: null,
+        cargo: emp.cargos?.nome ?? null, foto_url: emp.foto_url ?? null, departamento: null });
       setFrente(""); setAtividade(""); setTurno("dia"); setHorasNorm("8"); setHorasExtra("0"); setObs("");
       setScreen("confirm");
     } catch (e: any) { setScanError(e.message); }
@@ -175,11 +319,36 @@ export default function AppCampo() {
   }
 
   // ─── Confirmar apontamento ──────────────────────────────────────────────────
-  // Grava diretamente em efetivo_ponto para integração com "Efetivo e Ponto"
   async function handleConfirmar() {
     if (!func || !obraId) return;
     setSaving(true);
     try {
+      // ── OFFLINE: salva na fila local ───────────────────────────────────────
+      if (!navigator.onLine) {
+        const item: PendingItem = {
+          localId:           crypto.randomUUID(),
+          obra_id:           obraId,
+          obra_nome:         obra?.nome ?? "",
+          employee_id:       func.id,
+          employee_nome:     func.nome,
+          employee_cargo:    func.cargo,
+          data,
+          frente:            frente || null,
+          horas_trabalhadas: parseFloat(horasNorm) || 8,
+          horas_extras:      parseFloat(horasExtra) || 0,
+          motivo_ausencia:   obs || null,
+          registrado_por:    user?.id ?? null,
+          created_at:        new Date().toISOString(),
+        };
+        OfflineDB.addPending(item);
+        setPending(OfflineDB.getPending());
+        setSavedOffline(true);
+        setScreen("sucesso");
+        return;
+      }
+
+      // ── ONLINE: grava direto no Supabase ──────────────────────────────────
+      setSavedOffline(false);
       const { data: { user: u } } = await supabase.auth.getUser();
       const { error } = await (supabase as any).from("efetivo_ponto").upsert({
         obra_id:           obraId,
@@ -187,14 +356,14 @@ export default function AppCampo() {
         data,
         frente:            frente || null,
         empresa:           null,
-        hora_entrada:      null,         // campo não captura horário de entrada/saída
+        hora_entrada:      null,
         hora_saida:        null,
         horas_trabalhadas: parseFloat(horasNorm) || 8,
         horas_extras:      parseFloat(horasExtra) || 0,
         ausencia:          false,
         motivo_ausencia:   obs || null,
         registrado_por:    u?.id,
-        fonte:             "campo",      // identifica origem na tela Efetivo e Ponto
+        fonte:             "campo",
       }, { onConflict: "obra_id,employee_id,data" });
       if (error) throw new Error(error.message);
       setScreen("sucesso");
@@ -236,6 +405,13 @@ export default function AppCampo() {
       onTrocarObra={() => { setObraId(""); setObra(null); }}
       onLogout={handleLogout}
       obraId={obraId}
+      isOnline={isOnline}
+      pending={pending}
+      syncing={syncing}
+      onSync={syncPendingItems}
+      downloading={downloading}
+      cacheTs={cacheTs}
+      onRefreshCache={() => downloadCache(obraId)}
     />
   );
 
@@ -261,6 +437,7 @@ export default function AppCampo() {
     <SucessoScreen func={func}
       onProximo={() => { setScanError(""); setScreen("scanner"); }}
       onLista={() => setScreen("lista")}
+      offline={savedOffline}
     />
   );
 
@@ -405,25 +582,46 @@ function ObraSelector({ obras, onSelect, onLogout }: { obras: Obra[]; onSelect: 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HOME
 // ═══════════════════════════════════════════════════════════════════════════════
-function HomeScreen({ obra, data, setData, onScanner, onLista, onTrocarObra, onLogout, obraId }: {
+function HomeScreen({ obra, data, setData, onScanner, onLista, onTrocarObra, onLogout, obraId,
+  isOnline, pending, syncing, onSync, downloading, cacheTs, onRefreshCache }: {
   obra: Obra; data: string; setData: (d: string) => void;
   onScanner: () => void; onLista: () => void; onTrocarObra: () => void; onLogout: () => void; obraId: string;
+  isOnline: boolean; pending: PendingItem[]; syncing: boolean; onSync: () => void;
+  downloading: boolean; cacheTs: number | null; onRefreshCache: () => void;
 }) {
   const [count, setCount] = useState<number | null>(null);
+  const pendingHoje = pending.filter(p => p.obra_id === obraId && p.data === data).length;
+  const pendingTotal = pending.filter(p => p.obra_id === obraId).length;
 
   useEffect(() => {
+    if (!isOnline) { setCount(null); return; }
     (async () => {
       const { count: c } = await (supabase as any)
         .from("efetivo_ponto").select("id", { count: "exact", head: true })
         .eq("obra_id", obraId).eq("data", data).eq("ausencia", false);
       setCount(c ?? 0);
     })();
-  }, [obraId, data]);
+  }, [obraId, data, isOnline]);
+
+  const cacheAge = cacheTs
+    ? Math.floor((Date.now() - cacheTs) / 60000) // minutos
+    : null;
 
   return (
     <div className={S.screen}>
+      {/* Banner offline */}
+      {!isOnline && (
+        <div className="bg-amber-900/80 border-b border-amber-700/60 px-5 py-2.5 flex items-center gap-2 pt-14">
+          <WifiOff className="h-4 w-4 text-amber-400 flex-shrink-0" />
+          <p className="text-amber-300 text-xs font-semibold flex-1">Modo offline — apontamentos salvos localmente</p>
+          {cacheAge !== null && (
+            <span className="text-amber-500 text-[10px]">cache {cacheAge < 60 ? `${cacheAge}min` : `${Math.floor(cacheAge/60)}h`}</span>
+          )}
+        </div>
+      )}
+
       {/* Header */}
-      <div className={cn(S.header, "pt-14")}>
+      <div className={cn(S.header, !isOnline ? "pt-3" : "pt-14")}>
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0 pr-3">
             <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Obra ativa</p>
@@ -431,12 +629,16 @@ function HomeScreen({ obra, data, setData, onScanner, onLista, onTrocarObra, onL
             <p className="text-blue-400 text-xs mt-1 capitalize">{fmtDataBR(data)}</p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <button onClick={onTrocarObra}
-              className={cn(S.back, "text-slate-400")} title="Trocar obra">
+            {isOnline && (
+              <button onClick={onRefreshCache} disabled={downloading}
+                className={cn(S.back, "text-slate-400")} title="Atualizar cache offline">
+                <RefreshCw className={cn("h-4 w-4", downloading && "animate-spin")} />
+              </button>
+            )}
+            <button onClick={onTrocarObra} className={cn(S.back, "text-slate-400")} title="Trocar obra">
               <Building2 className="h-4 w-4" />
             </button>
-            <button onClick={onLogout}
-              className={cn(S.back, "text-slate-400")} title="Sair">
+            <button onClick={onLogout} className={cn(S.back, "text-slate-400")} title="Sair">
               <LogOut className="h-4 w-4" />
             </button>
           </div>
@@ -450,24 +652,52 @@ function HomeScreen({ obra, data, setData, onScanner, onLista, onTrocarObra, onL
         </div>
       </div>
 
-      {/* KPI */}
+      {/* KPI apontados */}
       <div className="px-5 pt-5">
         <div className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-5 flex items-center gap-5">
           <div className="h-16 w-16 rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0">
             <Users className="h-9 w-9 text-white" />
           </div>
-          <div>
-            <p className="text-5xl font-black text-white tabular-nums">{count ?? "—"}</p>
+          <div className="flex-1">
+            <p className="text-5xl font-black text-white tabular-nums">
+              {isOnline ? (count ?? "—") : <span className="text-3xl text-slate-500">offline</span>}
+            </p>
             <p className="text-blue-300 text-sm font-semibold mt-0.5">
-              {count === 1 ? "funcionário apontado" : "funcionários apontados"}
+              {isOnline ? (count === 1 ? "funcionário apontado" : "funcionários apontados") : "conecte para ver o total"}
             </p>
           </div>
+          {/* Badge de pendentes */}
+          {pendingHoje > 0 && (
+            <div className="text-right flex-shrink-0">
+              <span className="bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold px-2.5 py-1.5 rounded-xl tabular-nums block">
+                +{pendingHoje} local
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Banner de pendentes para sync */}
+      {pendingTotal > 0 && isOnline && (
+        <div className="mx-5 mt-3">
+          <button onClick={onSync} disabled={syncing}
+            className="w-full bg-amber-600/15 border border-amber-500/40 rounded-2xl px-4 py-3 flex items-center gap-3">
+            {syncing
+              ? <Loader2 className="h-5 w-5 text-amber-400 animate-spin flex-shrink-0" />
+              : <Upload className="h-5 w-5 text-amber-400 flex-shrink-0" />
+            }
+            <div className="text-left flex-1">
+              <p className="text-amber-300 text-sm font-bold">
+                {syncing ? "Sincronizando..." : `${pendingTotal} apontamento${pendingTotal > 1 ? "s" : ""} para sincronizar`}
+              </p>
+              <p className="text-amber-600 text-xs">Toque para enviar ao servidor</p>
+            </div>
+          </button>
+        </div>
+      )}
+
       {/* Ações */}
-      <div className="flex-1 px-5 pt-5 space-y-3">
-        {/* Scanner — ação principal */}
+      <div className="flex-1 px-5 pt-4 space-y-3">
         <button onClick={onScanner}
           className="w-full bg-blue-600 active:bg-blue-700 text-white rounded-2xl p-5 flex items-center gap-4 transition-colors">
           <div className="h-12 w-12 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
@@ -475,12 +705,13 @@ function HomeScreen({ obra, data, setData, onScanner, onLista, onTrocarObra, onL
           </div>
           <div className="text-left flex-1">
             <p className="font-extrabold text-base leading-tight">Escanear Crachá</p>
-            <p className="text-blue-200 text-xs mt-0.5">Aponte a câmera para o QR code</p>
+            <p className="text-blue-200 text-xs mt-0.5">
+              {isOnline ? "Aponte a câmera para o QR code" : "Modo offline — usa cache local"}
+            </p>
           </div>
           <ChevronRight className="h-5 w-5 text-blue-300" />
         </button>
 
-        {/* Lista do dia */}
         <button onClick={onLista}
           className="w-full bg-slate-800 active:bg-slate-700 border border-slate-700/60 text-white rounded-2xl p-5 flex items-center gap-4 transition-colors">
           <div className="h-12 w-12 rounded-xl bg-slate-700 flex items-center justify-center flex-shrink-0">
@@ -491,15 +722,17 @@ function HomeScreen({ obra, data, setData, onScanner, onLista, onTrocarObra, onL
             <p className="text-slate-500 text-xs mt-0.5">Ver todos os apontamentos</p>
           </div>
           <div className="flex items-center gap-2">
-            {(count ?? 0) > 0 && (
-              <span className="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full tabular-nums">{count}</span>
+            {(count ?? 0) + pendingHoje > 0 && (
+              <span className="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full tabular-nums">
+                {(count ?? 0) + pendingHoje}
+              </span>
             )}
             <ChevronRight className="h-5 w-5 text-slate-500" />
           </div>
         </button>
       </div>
 
-      <p className="text-slate-700 text-xs text-center py-6">Ápice Gestão • Apontador de Campo</p>
+      <p className="text-slate-700 text-xs text-center py-5">Ápice Gestão • Apontador de Campo</p>
     </div>
   );
 }
@@ -845,8 +1078,8 @@ function ConfirmScreen({ func, frente, setFrente, atividade, setAtividade, turno
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUCESSO
 // ═══════════════════════════════════════════════════════════════════════════════
-function SucessoScreen({ func, onProximo, onLista }: {
-  func: Funcionario; onProximo: () => void; onLista: () => void;
+function SucessoScreen({ func, onProximo, onLista, offline = false }: {
+  func: Funcionario; onProximo: () => void; onLista: () => void; offline?: boolean;
 }) {
   const [secs, setSecs] = useState(3);
 
@@ -871,7 +1104,14 @@ function SucessoScreen({ func, onProximo, onLista }: {
 
       {/* Texto */}
       <div className="text-center">
-        <p className="text-green-400 text-xs font-bold uppercase tracking-widest mb-2">Apontado com sucesso</p>
+        {offline ? (
+          <div className="flex items-center gap-1.5 mb-2">
+            <CloudOff className="h-3.5 w-3.5 text-amber-400" />
+            <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">Salvo localmente — sincroniza ao conectar</p>
+          </div>
+        ) : (
+          <p className="text-green-400 text-xs font-bold uppercase tracking-widest mb-2">Apontado com sucesso</p>
+        )}
         <h2 className="text-white text-2xl font-extrabold leading-tight">{func.nome}</h2>
         {func.cargo && <p className="text-slate-400 text-sm mt-1">{func.cargo}</p>}
       </div>
