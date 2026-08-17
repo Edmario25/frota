@@ -252,17 +252,32 @@ export default function AppCampo() {
   return null;
 }
 
+// ─── Primitivos de layout ─────────────────────────────────────────────────────
+const S = {
+  screen:  "min-h-screen bg-slate-900 flex flex-col",
+  header:  "bg-slate-900 border-b border-slate-700/60 px-5 pb-4",
+  card:    "bg-slate-800 border border-slate-700/60 rounded-2xl",
+  input:   "w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-blue-500 placeholder:text-slate-500",
+  label:   "block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1.5",
+  btnPrim: "w-full bg-blue-600 active:bg-blue-700 disabled:opacity-40 text-white font-bold rounded-2xl py-4 text-sm flex items-center justify-center gap-2 transition-colors",
+  btnSec:  "w-full bg-slate-800 active:bg-slate-700 border border-slate-700 text-white font-bold rounded-2xl py-4 text-sm flex items-center justify-center gap-2 transition-colors",
+  back:    "h-10 w-10 rounded-xl bg-slate-800 border border-slate-700/60 flex items-center justify-center flex-shrink-0",
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SPLASH
 // ═══════════════════════════════════════════════════════════════════════════════
 function Splash() {
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4">
-      <div className="h-16 w-16 rounded-2xl bg-blue-600 flex items-center justify-center">
-        <ClipboardList className="h-9 w-9 text-white" />
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-5">
+      <div className="h-20 w-20 rounded-3xl bg-blue-600 flex items-center justify-center shadow-xl shadow-blue-900/50">
+        <ClipboardList className="h-11 w-11 text-white" />
       </div>
-      <p className="text-white font-bold text-lg">Apontador de Campo</p>
-      <Loader2 className="h-6 w-6 text-blue-400 animate-spin" />
+      <div className="text-center">
+        <p className="text-white font-extrabold text-xl">Apontador de Campo</p>
+        <p className="text-slate-500 text-sm mt-1">Ápice Gestão</p>
+      </div>
+      <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
     </div>
   );
 }
@@ -274,46 +289,41 @@ function LoginScreen({ onLogin, loading }: { onLogin: (e: string, s: string) => 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8">
-        {/* Logo */}
+    <div className={S.screen}>
+      {/* Topo com logo */}
+      <div className="flex-1 flex flex-col justify-center px-5 gap-10">
         <div className="text-center">
-          <div className="h-20 w-20 rounded-3xl bg-blue-600 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-blue-900/40">
+          <div className="h-20 w-20 rounded-3xl bg-blue-600 flex items-center justify-center mx-auto shadow-xl shadow-blue-900/50">
             <ClipboardList className="h-11 w-11 text-white" />
           </div>
-          <h1 className="text-white text-2xl font-extrabold">Apontador de Campo</h1>
-          <p className="text-slate-400 text-sm mt-1">Registro de presença e apontamento</p>
+          <h1 className="text-white text-2xl font-extrabold mt-5">Apontador de Campo</h1>
+          <p className="text-slate-500 text-sm mt-1">Ápice Gestão</p>
         </div>
 
-        {/* Form */}
-        <div className="w-full max-w-sm space-y-3">
-          <div className="space-y-1">
-            <label className="text-slate-300 text-xs font-semibold uppercase tracking-wide">E-mail</label>
-            <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="seu@email.com" autoComplete="email"
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-blue-500 placeholder:text-slate-500"
-            />
+        {/* Formulário */}
+        <div className="space-y-4">
+          <div>
+            <label className={S.label}>E-mail</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="seu@email.com" autoComplete="email" className={S.input} />
           </div>
-          <div className="space-y-1">
-            <label className="text-slate-300 text-xs font-semibold uppercase tracking-wide">Senha</label>
-            <input
-              type="password" value={senha} onChange={e => setSenha(e.target.value)}
-              placeholder="••••••••" autoComplete="current-password"
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-blue-500 placeholder:text-slate-500"
-              onKeyDown={e => e.key === "Enter" && onLogin(email, senha)}
-            />
+          <div>
+            <label className={S.label}>Senha</label>
+            <input type="password" value={senha} onChange={e => setSenha(e.target.value)}
+              placeholder="••••••••" autoComplete="current-password" className={S.input}
+              onKeyDown={e => e.key === "Enter" && onLogin(email, senha)} />
           </div>
-          <button
-            onClick={() => onLogin(email, senha)} disabled={loading || !email || !senha}
-            className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold rounded-xl py-3.5 text-sm transition-colors flex items-center justify-center gap-2 mt-2"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
+          <div className="pt-2">
+            <button onClick={() => onLogin(email, senha)} disabled={loading || !email || !senha}
+              className={S.btnPrim}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
+              {loading ? "Entrando..." : "Entrar"}
+            </button>
+          </div>
         </div>
       </div>
-      <p className="text-slate-600 text-xs text-center pb-6">Ápice Gestão • Apontador de Campo</p>
+
+      <p className="text-slate-600 text-xs text-center py-6">v1.0 • Ápice Gestão</p>
     </div>
   );
 }
@@ -325,41 +335,47 @@ function ObraSelector({ obras, onSelect, onLogout }: { obras: Obra[]; onSelect: 
   const [search, setSearch] = useState("");
   const filtered = obras.filter(o => o.nome.toLowerCase().includes(search.toLowerCase()));
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
-      <div className="bg-slate-800 border-b border-slate-700 px-4 py-4 flex items-center justify-between">
+    <div className={S.screen}>
+      {/* Header */}
+      <div className={cn(S.header, "pt-14 flex items-center justify-between")}>
         <div>
-          <h1 className="text-white font-bold text-base">Selecionar Obra</h1>
-          <p className="text-slate-400 text-xs">Escolha a obra para apontar</p>
+          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Ápice Gestão</p>
+          <h1 className="text-white font-extrabold text-xl mt-0.5">Selecionar Obra</h1>
         </div>
-        <button onClick={onLogout} className="text-slate-400 hover:text-white p-2">
-          <LogOut className="h-5 w-5" />
+        <button onClick={onLogout}
+          className="h-10 w-10 rounded-xl bg-slate-800 border border-slate-700/60 flex items-center justify-center">
+          <LogOut className="h-4 w-4 text-slate-400" />
         </button>
       </div>
 
-      <div className="px-4 pt-4">
+      {/* Search */}
+      <div className="px-5 pt-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar obra..." className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 pl-10 text-sm focus:outline-none focus:border-blue-500 placeholder:text-slate-500" />
+            placeholder="Buscar obra..."
+            className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:border-blue-500 placeholder:text-slate-500" />
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-6 space-y-2">
+      {/* Lista */}
+      <div className="flex-1 overflow-y-auto px-5 pt-3 pb-8 space-y-2">
+        {filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <Building2 className="h-10 w-10 text-slate-600" />
+            <p className="text-slate-500 text-sm">Nenhuma obra encontrada</p>
+          </div>
+        )}
         {filtered.map(o => (
           <button key={o.id} onClick={() => onSelect(o)}
-            className="w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 rounded-xl px-4 py-4 flex items-center justify-between gap-3 transition-colors text-left">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-blue-600/20 flex items-center justify-center flex-shrink-0">
-                <Building2 className="h-5 w-5 text-blue-400" />
-              </div>
-              <span className="text-white font-medium text-sm">{o.nome}</span>
+            className="w-full bg-slate-800 active:bg-slate-700 border border-slate-700/60 rounded-2xl px-4 py-4 flex items-center gap-4 transition-colors text-left">
+            <div className="h-10 w-10 rounded-xl bg-blue-600/15 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+              <Building2 className="h-5 w-5 text-blue-400" />
             </div>
-            <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
+            <span className="text-white font-semibold text-sm flex-1 min-w-0 truncate">{o.nome}</span>
+            <ChevronRight className="h-4 w-4 text-slate-500 flex-shrink-0" />
           </button>
         ))}
-        {filtered.length === 0 && (
-          <p className="text-slate-500 text-sm text-center py-8">Nenhuma obra encontrada</p>
-        )}
       </div>
     </div>
   );
@@ -384,80 +400,85 @@ function HomeScreen({ obra, data, setData, onScanner, onLista, onTrocarObra, onL
   }, [obraId, data]);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className={S.screen}>
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 pt-12 pb-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
-            <p className="text-slate-400 text-xs uppercase tracking-wide font-semibold">Obra</p>
-            <h1 className="text-white font-extrabold text-lg leading-tight truncate">{obra.nome}</h1>
-            <p className="text-blue-400 text-xs mt-0.5 capitalize">{fmtDataBR(data)}</p>
+      <div className={cn(S.header, "pt-14")}>
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1 min-w-0 pr-3">
+            <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Obra ativa</p>
+            <h1 className="text-white font-extrabold text-xl leading-tight truncate mt-0.5">{obra.nome}</h1>
+            <p className="text-blue-400 text-xs mt-1 capitalize">{fmtDataBR(data)}</p>
           </div>
-          <div className="flex gap-2 ml-3">
-            <button onClick={onTrocarObra} title="Trocar obra"
-              className="h-9 w-9 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
-              <Building2 className="h-4 w-4 text-slate-300" />
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={onTrocarObra}
+              className={cn(S.back, "text-slate-400")} title="Trocar obra">
+              <Building2 className="h-4 w-4" />
             </button>
-            <button onClick={onLogout} title="Sair"
-              className="h-9 w-9 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center">
-              <LogOut className="h-4 w-4 text-slate-300" />
+            <button onClick={onLogout}
+              className={cn(S.back, "text-slate-400")} title="Sair">
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        {/* Data picker */}
-        <div className="mt-3">
+        {/* Seletor de data */}
+        <div>
+          <label className={S.label}>Data de referência</label>
           <input type="date" value={data} onChange={e => setData(e.target.value)}
-            className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500" />
         </div>
       </div>
 
       {/* KPI */}
-      <div className="px-4 pt-4">
-        <div className="bg-blue-600/20 border border-blue-500/30 rounded-2xl p-5 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
-            <Users className="h-8 w-8 text-white" />
+      <div className="px-5 pt-5">
+        <div className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-5 flex items-center gap-5">
+          <div className="h-16 w-16 rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+            <Users className="h-9 w-9 text-white" />
           </div>
           <div>
-            <p className="text-4xl font-extrabold text-white">{count ?? "—"}</p>
-            <p className="text-blue-300 text-sm font-semibold">funcionário{count !== 1 ? "s" : ""} apontado{count !== 1 ? "s" : ""} hoje</p>
+            <p className="text-5xl font-black text-white tabular-nums">{count ?? "—"}</p>
+            <p className="text-blue-300 text-sm font-semibold mt-0.5">
+              {count === 1 ? "funcionário apontado" : "funcionários apontados"}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Botões principais */}
-      <div className="flex-1 px-4 pt-4 space-y-3">
+      {/* Ações */}
+      <div className="flex-1 px-5 pt-5 space-y-3">
+        {/* Scanner — ação principal */}
         <button onClick={onScanner}
-          className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl p-5 flex items-center gap-4 transition-colors shadow-lg shadow-blue-900/30">
-          <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+          className="w-full bg-blue-600 active:bg-blue-700 text-white rounded-2xl p-5 flex items-center gap-4 transition-colors">
+          <div className="h-12 w-12 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
             <QrCode className="h-7 w-7" />
           </div>
-          <div className="text-left">
-            <p className="font-extrabold text-lg leading-none">Escanear Crachá</p>
-            <p className="text-blue-200 text-xs mt-1">Aponta câmera para o QR code</p>
+          <div className="text-left flex-1">
+            <p className="font-extrabold text-base leading-tight">Escanear Crachá</p>
+            <p className="text-blue-200 text-xs mt-0.5">Aponte a câmera para o QR code</p>
           </div>
-          <ChevronRight className="h-5 w-5 ml-auto opacity-70" />
+          <ChevronRight className="h-5 w-5 text-blue-300" />
         </button>
 
+        {/* Lista do dia */}
         <button onClick={onLista}
-          className="w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 text-white rounded-2xl p-5 flex items-center gap-4 transition-colors">
+          className="w-full bg-slate-800 active:bg-slate-700 border border-slate-700/60 text-white rounded-2xl p-5 flex items-center gap-4 transition-colors">
           <div className="h-12 w-12 rounded-xl bg-slate-700 flex items-center justify-center flex-shrink-0">
             <ClipboardList className="h-7 w-7 text-slate-300" />
           </div>
-          <div className="text-left">
-            <p className="font-extrabold text-lg leading-none">Lista do Dia</p>
-            <p className="text-slate-400 text-xs mt-1">Ver todos os apontamentos</p>
+          <div className="text-left flex-1">
+            <p className="font-extrabold text-base leading-tight">Lista do Dia</p>
+            <p className="text-slate-500 text-xs mt-0.5">Ver todos os apontamentos</p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            {count != null && count > 0 && (
-              <span className="bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">{count}</span>
+          <div className="flex items-center gap-2">
+            {(count ?? 0) > 0 && (
+              <span className="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full tabular-nums">{count}</span>
             )}
-            <ChevronRight className="h-5 w-5 opacity-50" />
+            <ChevronRight className="h-5 w-5 text-slate-500" />
           </div>
         </button>
       </div>
 
-      <p className="text-slate-600 text-xs text-center pb-6 pt-4">Ápice Gestão • Apontador de Campo</p>
+      <p className="text-slate-700 text-xs text-center py-6">Ápice Gestão • Apontador de Campo</p>
     </div>
   );
 }
@@ -634,106 +655,116 @@ function ConfirmScreen({ func, frente, setFrente, atividade, setAtividade, turno
   obs: string; setObs: (v: string) => void;
   onConfirmar: () => void; onCancelar: () => void; saving: boolean;
 }) {
+  const inputNum = "w-full bg-slate-800 border border-slate-700 text-white text-center rounded-xl px-3 py-3.5 text-2xl font-black focus:outline-none focus:border-blue-500";
+  const select   = "w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-blue-500";
+
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className={S.screen}>
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 pt-12 pb-4 flex items-center gap-3">
-        <button onClick={onCancelar} className="h-9 w-9 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
-          <ArrowLeft className="h-5 w-5 text-white" />
+      <div className={cn(S.header, "pt-14 flex items-center gap-3")}>
+        <button onClick={onCancelar} className={S.back}>
+          <ArrowLeft className="h-4 w-4 text-slate-400" />
         </button>
         <div>
-          <h1 className="text-white font-bold">Confirmar Apontamento</h1>
-          <p className="text-slate-400 text-xs">Verifique os dados e confirme</p>
+          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Confirmar</p>
+          <h1 className="text-white font-extrabold text-lg leading-tight">Apontamento</h1>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {/* Card do funcionário */}
-        <div className="bg-green-900/30 border border-green-500/40 rounded-2xl p-4 flex items-center gap-4">
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+
+        {/* ── Funcionário ── */}
+        <div className={cn(S.card, "p-4 flex items-center gap-4 border-green-700/40 bg-green-950/30")}>
           {func.foto_url ? (
-            <img src={func.foto_url} alt={func.nome} className="h-16 w-16 rounded-xl object-cover flex-shrink-0" />
+            <img src={func.foto_url} alt={func.nome}
+              className="h-16 w-16 rounded-xl object-cover flex-shrink-0 border border-slate-600" />
           ) : (
-            <div className="h-16 w-16 rounded-xl bg-green-600/30 flex items-center justify-center flex-shrink-0">
-              <UserCheck className="h-9 w-9 text-green-400" />
+            <div className="h-16 w-16 rounded-xl bg-green-600/20 border border-green-600/30 flex items-center justify-center flex-shrink-0">
+              <UserCheck className="h-8 w-8 text-green-400" />
             </div>
           )}
-          <div className="min-w-0">
-            <p className="text-white font-extrabold text-lg leading-tight truncate">{func.nome}</p>
-            {func.cargo && <p className="text-slate-300 text-sm">{func.cargo}</p>}
-            {func.matricula && <p className="text-slate-400 text-xs font-mono">Matrícula: {func.matricula}</p>}
+          <div className="min-w-0 flex-1">
+            <p className="text-white font-extrabold text-base leading-tight truncate">{func.nome}</p>
+            {func.cargo && <p className="text-slate-400 text-sm mt-0.5">{func.cargo}</p>}
+            <div className="flex items-center gap-1.5 mt-2">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+              <span className="text-green-400 text-xs font-semibold">Crachá identificado</span>
+            </div>
           </div>
         </div>
 
-        {/* Turno */}
-        <div className="space-y-2">
-          <label className="text-slate-300 text-xs font-bold uppercase tracking-wide">Turno</label>
+        {/* ── Turno ── */}
+        <div>
+          <label className={S.label}>Turno</label>
           <div className="grid grid-cols-3 gap-2">
-            {([["dia","Dia",Sun],["noite","Noite",Moon],["misto","Misto",Zap]] as const).map(([v, label, Icon]) => (
+            {([["dia","☀️ Dia",Sun],["noite","🌙 Noite",Moon],["misto","⚡ Misto",Zap]] as const).map(([v, label]) => (
               <button key={v} onClick={() => setTurno(v)}
-                className={cn("rounded-xl border py-3 flex flex-col items-center gap-1 transition-colors",
-                  turno === v ? "bg-blue-600 border-blue-500 text-white" : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700"
+                className={cn("rounded-xl border py-3.5 text-sm font-bold transition-colors",
+                  turno === v
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-slate-800 border-slate-700 text-slate-400 active:bg-slate-700"
                 )}>
-                <Icon className="h-5 w-5" />
-                <span className="text-xs font-semibold">{label}</span>
+                {label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Horas */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-slate-300 text-xs font-bold uppercase tracking-wide">Horas normais</label>
-            <input type="number" min="0" max="24" step="0.5" value={horasNorm} onChange={e => setHorasNorm(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 text-white text-center rounded-xl px-3 py-3 text-lg font-bold focus:outline-none focus:border-blue-500" />
+        {/* ── Horas ── */}
+        <div>
+          <label className={S.label}>Horas trabalhadas</label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-slate-500 text-xs mb-1.5 text-center">Normais</p>
+              <input type="number" min="0" max="24" step="0.5" value={horasNorm}
+                onChange={e => setHorasNorm(e.target.value)} className={inputNum} />
+            </div>
+            <div>
+              <p className="text-slate-500 text-xs mb-1.5 text-center">Extras</p>
+              <input type="number" min="0" max="24" step="0.5" value={horasExtra}
+                onChange={e => setHorasExtra(e.target.value)} className={inputNum} />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-slate-300 text-xs font-bold uppercase tracking-wide">Horas extras</label>
-            <input type="number" min="0" max="24" step="0.5" value={horasExtra} onChange={e => setHorasExtra(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 text-white text-center rounded-xl px-3 py-3 text-lg font-bold focus:outline-none focus:border-blue-500" />
+          <p className="text-slate-600 text-xs text-center mt-2">
+            Total: <span className="text-slate-400 font-semibold">{(parseFloat(horasNorm)||0) + (parseFloat(horasExtra)||0)}h</span>
+          </p>
+        </div>
+
+        {/* ── Frente + Atividade ── */}
+        <div className="space-y-4">
+          <div>
+            <label className={S.label}>Frente de serviço</label>
+            <select value={frente} onChange={e => setFrente(e.target.value)} className={select}>
+              <option value="">Selecione a frente...</option>
+              {FRENTES_PADRAO.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={S.label}>Atividade / Função</label>
+            <select value={atividade} onChange={e => setAtividade(e.target.value)} className={select}>
+              <option value="">{func.cargo ?? "Selecione..."}</option>
+              {ATIVIDADES_PADRAO.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
           </div>
         </div>
 
-        {/* Frente */}
-        <div className="space-y-1.5">
-          <label className="text-slate-300 text-xs font-bold uppercase tracking-wide">Frente de trabalho</label>
-          <select value={frente} onChange={e => setFrente(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500">
-            <option value="">Selecione...</option>
-            {FRENTES_PADRAO.map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
-          {frente === "Outro" && (
-            <input placeholder="Qual frente?" value={frente === "Outro" ? "" : frente} onChange={e => setFrente(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 mt-2" />
-          )}
-        </div>
-
-        {/* Atividade */}
-        <div className="space-y-1.5">
-          <label className="text-slate-300 text-xs font-bold uppercase tracking-wide">Atividade / Função</label>
-          <select value={atividade} onChange={e => setAtividade(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500">
-            <option value="">{func.cargo ?? "Selecione..."}</option>
-            {ATIVIDADES_PADRAO.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </div>
-
-        {/* Obs */}
-        <div className="space-y-1.5">
-          <label className="text-slate-300 text-xs font-bold uppercase tracking-wide">Observação (opcional)</label>
-          <textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} placeholder="Alguma observação..."
-            className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 resize-none" />
+        {/* ── Observação ── */}
+        <div>
+          <label className={S.label}>Observação <span className="normal-case text-slate-600">(opcional)</span></label>
+          <textarea value={obs} onChange={e => setObs(e.target.value)} rows={2}
+            placeholder="Alguma observação sobre o funcionário..."
+            className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 resize-none placeholder:text-slate-600" />
         </div>
       </div>
 
       {/* Botões fixos */}
-      <div className="px-4 pb-8 pt-3 border-t border-slate-800 bg-slate-900 grid grid-cols-2 gap-3">
+      <div className="px-5 pb-8 pt-3 border-t border-slate-800 grid grid-cols-2 gap-3">
         <button onClick={onCancelar} disabled={saving}
-          className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-2xl py-4 font-bold text-sm transition-colors">
+          className="bg-slate-800 active:bg-slate-700 border border-slate-700 text-white rounded-2xl py-4 font-bold text-sm transition-colors">
           Cancelar
         </button>
         <button onClick={onConfirmar} disabled={saving}
-          className="bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-50 text-white rounded-2xl py-4 font-bold text-sm transition-colors flex items-center justify-center gap-2">
+          className="bg-green-600 active:bg-green-700 disabled:opacity-40 text-white rounded-2xl py-4 font-bold text-sm transition-colors flex items-center justify-center gap-2">
           {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
           {saving ? "Salvando..." : "Confirmar"}
         </button>
@@ -748,39 +779,45 @@ function ConfirmScreen({ func, frente, setFrente, atividade, setAtividade, turno
 function SucessoScreen({ func, onProximo, onLista }: {
   func: Funcionario; onProximo: () => void; onLista: () => void;
 }) {
+  const [secs, setSecs] = useState(3);
+
   useEffect(() => {
-    // Auto avança para scanner após 3s
-    const t = setTimeout(onProximo, 3000);
-    return () => clearTimeout(t);
+    const interval = setInterval(() => setSecs(s => s - 1), 1000);
+    const timeout  = setTimeout(onProximo, 3000);
+    return () => { clearInterval(interval); clearTimeout(timeout); };
   }, [onProximo]);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-6 gap-6">
-      {/* Ícone animado */}
-      <div className="h-24 w-24 rounded-full bg-green-500/20 flex items-center justify-center">
-        <div className="h-16 w-16 rounded-full bg-green-500 flex items-center justify-center animate-bounce">
-          <CheckCircle2 className="h-9 w-9 text-white" />
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-5 gap-8">
+      {/* Ícone */}
+      <div className="relative">
+        <div className="h-28 w-28 rounded-full bg-green-500/10 flex items-center justify-center">
+          <div className="h-20 w-20 rounded-full bg-green-500/20 flex items-center justify-center">
+            <div className="h-14 w-14 rounded-full bg-green-500 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-white" />
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Texto */}
       <div className="text-center">
-        <h2 className="text-white text-2xl font-extrabold">Registrado!</h2>
-        <p className="text-green-400 text-base font-semibold mt-1">{func.nome}</p>
-        <p className="text-slate-400 text-sm mt-2">Apontamento salvo com sucesso</p>
+        <p className="text-green-400 text-xs font-bold uppercase tracking-widest mb-2">Apontado com sucesso</p>
+        <h2 className="text-white text-2xl font-extrabold leading-tight">{func.nome}</h2>
+        {func.cargo && <p className="text-slate-400 text-sm mt-1">{func.cargo}</p>}
       </div>
 
+      {/* Ações */}
       <div className="w-full max-w-xs space-y-3">
-        <button onClick={onProximo}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-4 font-bold flex items-center justify-center gap-2">
-          <QrCode className="h-5 w-5" /> Próximo funcionário
+        <button onClick={onProximo} className={S.btnPrim}>
+          <QrCode className="h-5 w-5" /> Próximo crachá
         </button>
-        <button onClick={onLista}
-          className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-2xl py-4 font-bold flex items-center justify-center gap-2">
+        <button onClick={onLista} className={S.btnSec}>
           <ClipboardList className="h-5 w-5" /> Ver lista do dia
         </button>
       </div>
 
-      <p className="text-slate-600 text-xs">Avançando automaticamente em 3s...</p>
+      <p className="text-slate-700 text-xs">Próximo automaticamente em {secs}s...</p>
     </div>
   );
 }
@@ -793,88 +830,107 @@ function ListaScreen({ apontamentos, obra, data, loading, onBack, onRefresh }: {
   loading: boolean; onBack: () => void; onRefresh: () => void;
 }) {
   const presentes  = apontamentos.filter(a => !a.ausencia).length;
-  const totalHoras = apontamentos.reduce((s, a) => s + (a.horas_trabalhadas ?? 0) + (a.horas_extras ?? 0), 0);
+  const totalHoras = apontamentos.reduce((s, a) => s + (a.horas_trabalhadas ?? 0), 0);
   const totalExtra = apontamentos.reduce((s, a) => s + (a.horas_extras ?? 0), 0);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className={S.screen}>
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 pt-12 pb-4">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="h-9 w-9 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
-            <ArrowLeft className="h-5 w-5 text-white" />
+      <div className={cn(S.header, "pt-14")}>
+        <div className="flex items-center gap-3 mb-4">
+          <button onClick={onBack} className={S.back}>
+            <ArrowLeft className="h-4 w-4 text-slate-400" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-white font-bold truncate">{obra.nome}</h1>
-            <p className="text-slate-400 text-xs capitalize">{fmtDataBR(data)}</p>
+            <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Lista do dia</p>
+            <h1 className="text-white font-extrabold text-lg leading-tight truncate">{obra.nome}</h1>
           </div>
           <button onClick={onRefresh} disabled={loading}
-            className="h-9 w-9 rounded-lg bg-slate-700 flex items-center justify-center">
-            <RefreshCw className={cn("h-4 w-4 text-white", loading && "animate-spin")} />
+            className={cn(S.back, "text-slate-400")}>
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </button>
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-3 gap-2 mt-3">
+        <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "Presentes", value: presentes, color: "text-blue-400" },
-            { label: "Total horas", value: `${totalHoras}h`, color: "text-green-400" },
-            { label: "Extras", value: `${totalExtra}h`, color: "text-amber-400" },
+            { label: "Presentes",   value: String(presentes),        color: "text-blue-400",  bg: "bg-blue-600/10"  },
+            { label: "HH Normal",   value: `${totalHoras}h`,         color: "text-green-400", bg: "bg-green-600/10" },
+            { label: "HH Extra",    value: `${totalExtra}h`,         color: "text-amber-400", bg: "bg-amber-600/10" },
           ].map(k => (
-            <div key={k.label} className="bg-slate-700 rounded-xl px-3 py-2 text-center">
-              <p className={cn("text-xl font-extrabold", k.color)}>{k.value}</p>
-              <p className="text-slate-400 text-[10px]">{k.label}</p>
+            <div key={k.label} className={cn("rounded-xl px-3 py-2.5 text-center border border-slate-700/40", k.bg)}>
+              <p className={cn("text-2xl font-black tabular-nums", k.color)}>{k.value}</p>
+              <p className="text-slate-500 text-[10px] font-semibold mt-0.5 uppercase tracking-wider">{k.label}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Lista */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 pb-8">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2.5 pb-10">
         {loading && (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 text-blue-400 animate-spin" />
           </div>
         )}
         {!loading && apontamentos.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Users className="h-12 w-12 text-slate-600" />
-            <p className="text-slate-500 text-sm">Nenhum apontamento hoje</p>
+            <ClipboardList className="h-12 w-12 text-slate-700" />
+            <p className="text-slate-500 text-sm font-medium">Nenhum apontamento hoje</p>
+            <p className="text-slate-600 text-xs">Escaneie os crachás para registrar</p>
           </div>
         )}
-        {!loading && apontamentos.map(a => {
+        {!loading && apontamentos.map((a, i) => {
           const nome  = a.employees?.nome ?? "—";
           const foto  = a.employees?.foto_url;
           const cargo = a.employees?.cargos?.nome;
           const horas = a.horas_trabalhadas ?? 0;
           const extra = a.horas_extras ?? 0;
+          const iniciais = nome.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
           return (
             <div key={a.id} className={cn(
-              "border rounded-xl p-3 flex items-center gap-3",
-              a.ausencia
-                ? "bg-red-950/30 border-red-800/50"
-                : "bg-slate-800 border-slate-700"
+              S.card, "p-4 flex items-center gap-3",
+              a.ausencia && "border-red-800/40 bg-red-950/20"
             )}>
+              {/* Avatar */}
               {foto ? (
-                <img src={foto} alt={nome} className="h-11 w-11 rounded-lg object-cover flex-shrink-0" />
+                <img src={foto} alt={nome}
+                  className="h-12 w-12 rounded-xl object-cover flex-shrink-0 border border-slate-600/50" />
               ) : (
-                <div className="h-11 w-11 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
-                  <UserCheck className="h-6 w-6 text-slate-400" />
+                <div className="h-12 w-12 rounded-xl bg-slate-700 border border-slate-600/50 flex items-center justify-center flex-shrink-0">
+                  <span className="text-slate-300 text-sm font-bold">{iniciais}</span>
                 </div>
               )}
+
+              {/* Info */}
               <div className="flex-1 min-w-0">
                 <p className="text-white font-semibold text-sm truncate">{nome}</p>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  {a.ausencia && <span className="text-[10px] bg-red-900/60 text-red-300 px-1.5 py-0.5 rounded font-medium">Ausente</span>}
-                  {a.frente   && <span className="text-[10px] bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded font-medium">{a.frente}</span>}
-                  {cargo      && <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-medium">{cargo}</span>}
-                  {a.fonte === "campo" && <span className="text-[9px] bg-green-900/60 text-green-300 px-1.5 py-0.5 rounded font-bold">CAMPO</span>}
+                <p className="text-slate-500 text-xs truncate">{cargo ?? "—"}</p>
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {a.frente && (
+                    <span className="text-[10px] bg-blue-600/15 text-blue-300 border border-blue-600/20 px-2 py-0.5 rounded-full font-medium">
+                      {a.frente}
+                    </span>
+                  )}
+                  {a.ausencia && (
+                    <span className="text-[10px] bg-red-600/20 text-red-300 border border-red-600/20 px-2 py-0.5 rounded-full font-medium">
+                      Ausente
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                {!a.ausencia && <p className="text-white font-bold text-sm tabular-nums">{horas}h</p>}
-                {extra > 0   && <p className="text-amber-400 text-xs tabular-nums">+{extra}h extra</p>}
-                <p className="text-slate-500 text-[10px] tabular-nums">{fmtHora(a.created_at)}</p>
+
+              {/* Horas */}
+              <div className="text-right flex-shrink-0 min-w-[52px]">
+                {!a.ausencia && (
+                  <>
+                    <p className="text-white font-black text-base tabular-nums">{horas}h</p>
+                    {extra > 0 && (
+                      <p className="text-amber-400 text-[11px] font-semibold tabular-nums">+{extra}h</p>
+                    )}
+                  </>
+                )}
+                <p className="text-slate-600 text-[10px] tabular-nums mt-0.5">{fmtHora(a.created_at)}</p>
               </div>
             </div>
           );
