@@ -3,6 +3,42 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { Component, type ErrorInfo, type ReactNode } from "react";
+
+// ─── Error Boundary global — evita tela branca em crashes ────────────────────
+class AppErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[AppErrorBoundary]", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 bg-background text-foreground">
+          <div className="text-4xl">⚠️</div>
+          <h1 className="text-xl font-bold">Ocorreu um erro inesperado</h1>
+          <p className="text-muted-foreground text-sm text-center max-w-md">
+            {this.state.error.message}
+          </p>
+          <button
+            onClick={() => { this.setState({ error: null }); window.location.href = "/"; }}
+            className="mt-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+          >
+            Voltar ao início
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
 import Index from "./pages/Index";
@@ -80,6 +116,7 @@ loadBrandingFromDB().then((s) => {
 });
 
 const App = () => (
+  <AppErrorBoundary>
   <AuthProvider>
     <TooltipProvider>
       <Toaster />
@@ -411,6 +448,7 @@ const App = () => (
         </BrowserRouter>
     </TooltipProvider>
   </AuthProvider>
+  </AppErrorBoundary>
 );
 
 export default App;

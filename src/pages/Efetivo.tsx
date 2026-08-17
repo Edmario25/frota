@@ -193,14 +193,17 @@ export default function Efetivo() {
             id:                e.id ?? "",
             nome:              e.nome ?? "—",
             cargo_nome:        cargosObj?.nome ?? null,
-            ausencia:          ponto?.ausencia ?? false,
+            // Sem nenhum registro → Ausente por padrão (só fica Presente após registrar ponto)
+            // Tem totem (entrada QR) mas sem ponto salvo → considera Presente
+            ausencia:          ponto ? ponto.ausencia : (totem ? false : true),
             motivo_ausencia:   ponto?.motivo_ausencia ?? "",
             frente:            ponto?.frente ?? "",
             empresa:           ponto?.empresa ?? "",
             hora_entrada:      entrada,
             hora_saida:        saida,
             horas_extras:      ponto?.horas_extras?.toString() ?? "0",
-            horas_trabalhadas: calcHoras(entrada, saida),
+            // Usa horas já salvas (ex: app de campo) e só recalcula quando há horários
+            horas_trabalhadas: ponto?.horas_trabalhadas ?? calcHoras(entrada, saida),
             existing_id:       ponto?.id ?? null,
             fonte,
             expanded:          false,

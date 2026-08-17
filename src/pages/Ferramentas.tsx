@@ -384,10 +384,10 @@ function AlocacoesTab({ obras, employees, ferramentas, onRefresh }: {
                 {alocacoes.map(a => (
                   <TableRow key={a.id}>
                     <TableCell>
-                      <p className="font-medium text-sm">{a.ferramentas_catalogo.nome}</p>
-                      {a.ferramentas_catalogo.categoria && <p className="text-xs text-muted-foreground">{a.ferramentas_catalogo.categoria}</p>}
+                      <p className="font-medium text-sm">{a.ferramentas_catalogo?.nome ?? "—"}</p>
+                      {a.ferramentas_catalogo?.categoria && <p className="text-xs text-muted-foreground">{a.ferramentas_catalogo.categoria}</p>}
                     </TableCell>
-                    <TableCell className="text-sm">{a.obras.nome}</TableCell>
+                    <TableCell className="text-sm">{a.obras?.nome ?? "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{a.frente ?? "—"}</TableCell>
                     <TableCell className="text-sm">{a.employees?.nome ?? "—"}</TableCell>
                     <TableCell className="text-sm whitespace-nowrap">{format(parseISO(a.data_alocacao), "dd/MM/yyyy")}</TableCell>
@@ -500,7 +500,7 @@ function CertificacoesTab({ ferramentas, onRefresh }: { ferramentas: Ferramenta[
                   const dias = diasParaVencer(c.data_vencimento);
                   return (
                     <TableRow key={c.id} className={cn("border-l-2", dias < 0 ? "border-l-red-400 bg-red-50/40 dark:bg-red-950/10" : dias <= 30 ? "border-l-amber-400 bg-amber-50/40 dark:bg-amber-950/10" : "border-l-green-400")}>
-                      <TableCell className="font-medium text-sm">{c.ferramentas_catalogo.nome}</TableCell>
+                      <TableCell className="font-medium text-sm">{c.ferramentas_catalogo?.nome ?? "—"}</TableCell>
                       <TableCell className="text-sm">{c.tipo_certificacao}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{c.empresa_certificadora ?? "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{c.numero_certificado ?? "—"}</TableCell>

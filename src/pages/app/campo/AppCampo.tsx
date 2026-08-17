@@ -24,6 +24,8 @@ interface Apontamento {
   id: string;
   employee_id: string;
   frente: string | null;
+  hora_entrada: string | null;
+  hora_saida: string | null;
   horas_trabalhadas: number | null;
   horas_extras: number;
   ausencia: boolean;
@@ -41,6 +43,7 @@ interface PendingItem {
   obra_id: string; obra_nome: string;
   employee_id: string; employee_nome: string; employee_cargo: string | null;
   data: string; frente: string | null;
+  hora_entrada: string | null; hora_saida: string | null;
   horas_trabalhadas: number; horas_extras: number;
   motivo_ausencia: string | null;
   registrado_por: string | null;
@@ -98,6 +101,21 @@ const today = () => format(new Date(), "yyyy-MM-dd");
 const fmtHora = (d: string) => format(new Date(d), "HH:mm", { locale: ptBR });
 const fmtDataBR = (d: string) => format(new Date(d + "T12:00"), "EEEE, dd/MM/yyyy", { locale: ptBR });
 
+/** Calcula horas normais e extras a partir de entrada/saída (strings "HH:mm") */
+function calcHorasFromTime(entrada: string, saida: string): { norm: string; extra: string; total: number } {
+  if (!entrada || !saida) return { norm: "8", extra: "0", total: 8 };
+  const [eh, em] = entrada.split(":").map(Number);
+  const [sh, sm] = saida.split(":").map(Number);
+  let totalMin = (sh * 60 + sm) - (eh * 60 + em);
+  if (totalMin < 0) totalMin += 24 * 60; // turno que passa da meia-noite
+  if (totalMin <= 0) return { norm: "0", extra: "0", total: 0 };
+  const totalH  = totalMin / 60;
+  const norm    = Math.min(totalH, 8);
+  const extra   = Math.max(0, totalH - 8);
+  const round1  = (n: number) => String(Math.round(n * 10) / 10);
+  return { norm: round1(norm), extra: round1(extra), total: Math.round(totalH * 10) / 10 };
+}
+
 // ─── App Principal ────────────────────────────────────────────────────────────
 export default function AppCampo() {
   const [screen,     setScreen]    = useState<Screen>("login");
@@ -113,14 +131,17 @@ export default function AppCampo() {
   const [scanning,   setScanning]   = useState(false);
 
   // Confirmação
-  const [func,       setFunc]       = useState<Funcionario | null>(null);
-  const [frente,     setFrente]     = useState("");
-  const [atividade,  setAtividade]  = useState("");
-  const [turno,      setTurno]      = useState("dia");
-  const [horasNorm,  setHorasNorm]  = useState("8");
-  const [horasExtra, setHorasExtra] = useState("0");
-  const [obs,        setObs]        = useState("");
-  const [saving,     setSaving]     = useState(false);
+  const [func,        setFunc]        = useState<Funcionario | null>(null);
+  const [frente,      setFrente]      = useState("");
+  const [atividade,   setAtividade]   = useState("");
+  const [turno,       setTurno]       = useState("dia");
+  const [horaEntrada, setHoraEntrada] = useState("");
+  const [horaSaida,   setHoraSaida]   = useState("");
+  const [horasNorm,   setHorasNorm]   = useState("8");
+  const [horasExtra,  setHorasExtra]  = useState("0");
+  const [obs,         setObs]         = useState("");
+  const [saving,      setSaving]      = useState(false);
+  const [saveError,   setSaveError]   = useState("");
 
   // Lista
   const [apontamentos, setApontamentos] = useState<Apontamento[]>([]);
@@ -243,8 +264,8 @@ export default function AppCampo() {
           data:              item.data,
           frente:            item.frente,
           empresa:           null,
-          hora_entrada:      null,
-          hora_saida:        null,
+          hora_entrada:      item.hora_entrada,
+          hora_saida:        item.hora_saida,
           horas_trabalhadas: item.horas_trabalhadas,
           horas_extras:      item.horas_extras,
           ausencia:          false,
@@ -290,7 +311,7 @@ export default function AppCampo() {
         }
         setFunc({ id: emp.id, nome: emp.nome, cargo: emp.cargo,
           foto_url: emp.foto_url, matricula: null, departamento: null });
-        setFrente(""); setAtividade(""); setTurno("dia"); setHorasNorm("8"); setHorasExtra("0"); setObs("");
+        setFrente(""); setAtividade(""); setTurno("dia"); setHoraEntrada(""); setHoraSaida(""); setHorasNorm("8"); setHorasExtra("0"); setObs(""); setSaveError("");
         setScreen("confirm");
         setScanning(false); return;
       }
@@ -321,34 +342,45 @@ export default function AppCampo() {
   // ─── Confirmar apontamento ──────────────────────────────────────────────────
   async function handleConfirmar() {
     if (!func || !obraId) return;
-    setSaving(true);
-    try {
-      // ── OFFLINE: salva na fila local ───────────────────────────────────────
-      if (!navigator.onLine) {
-        const item: PendingItem = {
-          localId:           crypto.randomUUID(),
-          obra_id:           obraId,
-          obra_nome:         obra?.nome ?? "",
-          employee_id:       func.id,
-          employee_nome:     func.nome,
-          employee_cargo:    func.cargo,
-          data,
-          frente:            frente || null,
-          horas_trabalhadas: parseFloat(horasNorm) || 8,
-          horas_extras:      parseFloat(horasExtra) || 0,
-          motivo_ausencia:   obs || null,
-          registrado_por:    user?.id ?? null,
-          created_at:        new Date().toISOString(),
-        };
-        OfflineDB.addPending(item);
-        setPending(OfflineDB.getPending());
-        setSavedOffline(true);
-        setScreen("sucesso");
-        return;
-      }
+    setSaving(true); setSaveError("");
 
-      // ── ONLINE: grava direto no Supabase ──────────────────────────────────
-      setSavedOffline(false);
+    // Calcula horas a partir de entrada/saída (ou usa os campos manuais)
+    const calc = (horaEntrada && horaSaida)
+      ? calcHorasFromTime(horaEntrada, horaSaida)
+      : { norm: horasNorm, extra: horasExtra };
+    const normFinal  = parseFloat(calc.norm)  || 8;
+    const extraFinal = parseFloat(calc.extra) || 0;
+
+    const salvarOffline = () => {
+      const item: PendingItem = {
+        localId:           crypto.randomUUID(),
+        obra_id:           obraId,
+        obra_nome:         obra?.nome ?? "",
+        employee_id:       func!.id,
+        employee_nome:     func!.nome,
+        employee_cargo:    func!.cargo,
+        data,
+        frente:            frente || null,
+        hora_entrada:      horaEntrada || null,
+        hora_saida:        horaSaida   || null,
+        horas_trabalhadas: normFinal,
+        horas_extras:      extraFinal,
+        motivo_ausencia:   obs || null,
+        registrado_por:    user?.id ?? null,
+        created_at:        new Date().toISOString(),
+      };
+      OfflineDB.addPending(item);
+      setPending(OfflineDB.getPending());
+      setSavedOffline(true);
+      setSaving(false);
+      setScreen("sucesso");
+    };
+
+    // ── Sem internet: vai direto para fila offline ─────────────────────────
+    if (!navigator.onLine) { salvarOffline(); return; }
+
+    // ── Com internet: tenta Supabase; se falhar por rede → offline ─────────
+    try {
       const { data: { user: u } } = await supabase.auth.getUser();
       const { error } = await (supabase as any).from("efetivo_ponto").upsert({
         obra_id:           obraId,
@@ -356,19 +388,37 @@ export default function AppCampo() {
         data,
         frente:            frente || null,
         empresa:           null,
-        hora_entrada:      null,
-        hora_saida:        null,
-        horas_trabalhadas: parseFloat(horasNorm) || 8,
-        horas_extras:      parseFloat(horasExtra) || 0,
+        hora_entrada:      horaEntrada || null,
+        hora_saida:        horaSaida   || null,
+        horas_trabalhadas: normFinal,
+        horas_extras:      extraFinal,
         ausencia:          false,
         motivo_ausencia:   obs || null,
         registrado_por:    u?.id,
         fonte:             "campo",
       }, { onConflict: "obra_id,employee_id,data" });
-      if (error) throw new Error(error.message);
+
+      if (error) {
+        // Erro de rede (Failed to fetch) → tenta offline
+        const isNetwork = error.message?.toLowerCase().includes("fetch") ||
+                          error.message?.toLowerCase().includes("network") ||
+                          error.code === "PGRST301";
+        if (isNetwork) { salvarOffline(); return; }
+        // Erro de banco (RLS, coluna etc.) → mostra na tela
+        setSaveError(error.message);
+        setSaving(false); return;
+      }
+
+      setSavedOffline(false);
       setScreen("sucesso");
-    } catch (e: any) { toast.error(e.message); }
-    finally { setSaving(false); }
+    } catch (e: any) {
+      // Exception de rede → salva offline
+      const isNetwork = !navigator.onLine ||
+                        e.message?.toLowerCase().includes("fetch") ||
+                        e.message?.toLowerCase().includes("failed");
+      if (isNetwork) { salvarOffline(); return; }
+      setSaveError(e.message ?? "Erro desconhecido ao salvar.");
+    } finally { setSaving(false); }
   }
 
   // ─── Lista do dia ──────────────────────────────────────────────────────────
@@ -377,7 +427,7 @@ export default function AppCampo() {
     setLoadingLista(true);
     const { data: rows } = await (supabase as any)
       .from("efetivo_ponto")
-      .select("id, employee_id, frente, horas_trabalhadas, horas_extras, ausencia, fonte, created_at, employees(nome, foto_url, cargos(nome))")
+      .select("id, employee_id, frente, hora_entrada, hora_saida, horas_trabalhadas, horas_extras, ausencia, fonte, created_at, employees(nome, foto_url, cargos(nome))")
       .eq("obra_id", obraId)
       .eq("data", data)
       .order("created_at", { ascending: false });
@@ -425,11 +475,13 @@ export default function AppCampo() {
     <ConfirmScreen func={func} frente={frente} setFrente={setFrente}
       atividade={atividade} setAtividade={setAtividade}
       turno={turno} setTurno={setTurno}
+      horaEntrada={horaEntrada} setHoraEntrada={setHoraEntrada}
+      horaSaida={horaSaida}     setHoraSaida={setHoraSaida}
       horasNorm={horasNorm} setHorasNorm={setHorasNorm}
       horasExtra={horasExtra} setHorasExtra={setHorasExtra}
       obs={obs} setObs={setObs}
       onConfirmar={handleConfirmar} onCancelar={() => setScreen("scanner")}
-      saving={saving}
+      saving={saving} saveError={saveError}
     />
   );
 
@@ -948,17 +1000,32 @@ function ScannerScreen({ onQrLido, onBack, scanning, error, onClearError }: {
 // CONFIRMAÇÃO
 // ═══════════════════════════════════════════════════════════════════════════════
 function ConfirmScreen({ func, frente, setFrente, atividade, setAtividade, turno, setTurno,
-  horasNorm, setHorasNorm, horasExtra, setHorasExtra, obs, setObs, onConfirmar, onCancelar, saving }: {
+  horaEntrada, setHoraEntrada, horaSaida, setHoraSaida,
+  horasNorm, setHorasNorm, horasExtra, setHorasExtra,
+  obs, setObs, onConfirmar, onCancelar, saving, saveError }: {
   func: Funcionario; frente: string; setFrente: (v: string) => void;
   atividade: string; setAtividade: (v: string) => void;
   turno: string; setTurno: (v: string) => void;
+  horaEntrada: string; setHoraEntrada: (v: string) => void;
+  horaSaida: string; setHoraSaida: (v: string) => void;
   horasNorm: string; setHorasNorm: (v: string) => void;
   horasExtra: string; setHorasExtra: (v: string) => void;
   obs: string; setObs: (v: string) => void;
-  onConfirmar: () => void; onCancelar: () => void; saving: boolean;
+  onConfirmar: () => void; onCancelar: () => void; saving: boolean; saveError?: string;
 }) {
-  const inputNum = "w-full bg-slate-800 border border-slate-700 text-white text-center rounded-xl px-3 py-3.5 text-2xl font-black focus:outline-none focus:border-blue-500";
-  const select   = "w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-blue-500";
+  const inputNum  = "w-full bg-slate-800 border border-slate-700 text-white text-center rounded-xl px-3 py-3.5 text-2xl font-black focus:outline-none focus:border-blue-500";
+  const inputTime = "w-full bg-slate-800 border border-slate-700 text-white text-center rounded-xl px-3 py-3 text-xl font-black focus:outline-none focus:border-blue-500 [color-scheme:dark]";
+  const select    = "w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-blue-500";
+
+  // Quando entrada ou saída mudam → recalcula horas (mas só se o usuário não editou manualmente)
+  const [horasManual, setHorasManual] = useState(false);
+  const calc = calcHorasFromTime(horaEntrada, horaSaida);
+  useEffect(() => {
+    if (!horasManual && horaEntrada && horaSaida) {
+      setHorasNorm(calc.norm);
+      setHorasExtra(calc.extra);
+    }
+  }, [horaEntrada, horaSaida]); // eslint-disable-line
 
   return (
     <div className={S.screen}>
@@ -1012,19 +1079,59 @@ function ConfirmScreen({ func, frente, setFrente, atividade, setAtividade, turno
           </div>
         </div>
 
-        {/* ── Horas ── */}
+        {/* ── Entrada / Saída ── */}
         <div>
-          <label className={S.label}>Horas trabalhadas</label>
+          <label className={S.label}>Horário</label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-slate-500 text-xs mb-1.5 text-center">Entrada</p>
+              <input type="time" value={horaEntrada}
+                onChange={e => { setHoraEntrada(e.target.value); setHorasManual(false); }}
+                className={inputTime} />
+            </div>
+            <div>
+              <p className="text-slate-500 text-xs mb-1.5 text-center">Saída</p>
+              <input type="time" value={horaSaida}
+                onChange={e => { setHoraSaida(e.target.value); setHorasManual(false); }}
+                className={inputTime} />
+            </div>
+          </div>
+          {horaEntrada && horaSaida && (
+            <div className="flex items-center justify-center gap-3 mt-2 py-1.5 rounded-lg bg-slate-800/50">
+              <span className="text-slate-400 text-xs">Total</span>
+              <span className="text-white font-black text-sm tabular-nums">{calc.total}h</span>
+              <span className="text-slate-600 text-xs">·</span>
+              <span className="text-green-400 text-xs font-semibold tabular-nums">{calc.norm}h normais</span>
+              {parseFloat(calc.extra) > 0 && (
+                <>
+                  <span className="text-slate-600 text-xs">+</span>
+                  <span className="text-amber-400 text-xs font-semibold tabular-nums">{calc.extra}h extras</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Horas (ajuste manual) ── */}
+        <div>
+          <label className={S.label}>
+            Horas trabalhadas
+            {horaEntrada && horaSaida && (
+              <span className="normal-case text-slate-600 ml-1">(ajuste manual se necessário)</span>
+            )}
+          </label>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-slate-500 text-xs mb-1.5 text-center">Normais</p>
               <input type="number" min="0" max="24" step="0.5" value={horasNorm}
-                onChange={e => setHorasNorm(e.target.value)} className={inputNum} />
+                onChange={e => { setHorasNorm(e.target.value); setHorasManual(true); }}
+                className={inputNum} />
             </div>
             <div>
               <p className="text-slate-500 text-xs mb-1.5 text-center">Extras</p>
               <input type="number" min="0" max="24" step="0.5" value={horasExtra}
-                onChange={e => setHorasExtra(e.target.value)} className={inputNum} />
+                onChange={e => { setHorasExtra(e.target.value); setHorasManual(true); }}
+                className={inputNum} />
             </div>
           </div>
           <p className="text-slate-600 text-xs text-center mt-2">
@@ -1058,6 +1165,17 @@ function ConfirmScreen({ func, frente, setFrente, atividade, setAtividade, turno
             className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 resize-none placeholder:text-slate-600" />
         </div>
       </div>
+
+      {/* Erro de gravação — visível na tela (toast não aparece no WebView) */}
+      {saveError && (
+        <div className="mx-5 mb-2 p-3 rounded-xl bg-red-950/60 border border-red-700/50 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-red-400 text-xs font-bold">Erro ao salvar</p>
+            <p className="text-red-300 text-xs mt-0.5 break-all">{saveError}</p>
+          </div>
+        </div>
+      )}
 
       {/* Botões fixos */}
       <div className="px-5 pb-8 pt-3 border-t border-slate-800 grid grid-cols-2 gap-3">
@@ -1230,16 +1348,23 @@ function ListaScreen({ apontamentos, obra, data, loading, onBack, onRefresh }: {
               </div>
 
               {/* Horas */}
-              <div className="text-right flex-shrink-0 min-w-[52px]">
+              <div className="text-right flex-shrink-0 min-w-[64px]">
                 {!a.ausencia && (
                   <>
                     <p className="text-white font-black text-base tabular-nums">{horas}h</p>
                     {extra > 0 && (
-                      <p className="text-amber-400 text-[11px] font-semibold tabular-nums">+{extra}h</p>
+                      <p className="text-amber-400 text-[11px] font-semibold tabular-nums">+{extra}h extra</p>
                     )}
                   </>
                 )}
-                <p className="text-slate-600 text-[10px] tabular-nums mt-0.5">{fmtHora(a.created_at)}</p>
+                {/* Entrada → Saída */}
+                {a.hora_entrada && a.hora_saida ? (
+                  <p className="text-slate-500 text-[10px] tabular-nums mt-0.5">
+                    {a.hora_entrada.slice(0,5)} → {a.hora_saida.slice(0,5)}
+                  </p>
+                ) : (
+                  <p className="text-slate-600 text-[10px] tabular-nums mt-0.5">{fmtHora(a.created_at)}</p>
+                )}
               </div>
             </div>
           );
