@@ -12,7 +12,30 @@
     </style>
   </head>
   <body>
+    <!-- Fallback visível se o JS crashar -->
+    <div id="crash-msg" style="display:none;position:fixed;inset:0;background:#0f172a;color:#f87171;font-family:monospace;font-size:13px;padding:24px;white-space:pre-wrap;z-index:9999;overflow:auto;"></div>
     <div id="root"></div>
+    <script>
+      window.onerror = function(msg, src, line, col, err) {
+        var el = document.getElementById('crash-msg');
+        el.style.display = 'block';
+        el.textContent = 'JS ERROR:\n' + msg + '\n' + (src||'') + ':' + line + '\n\n' + (err && err.stack ? err.stack : '');
+      };
+      window.onunhandledrejection = function(e) {
+        var el = document.getElementById('crash-msg');
+        el.style.display = 'block';
+        el.textContent = 'PROMISE REJECTION:\n' + (e.reason && e.reason.stack ? e.reason.stack : String(e.reason));
+      };
+      // Mostra mensagem se React não montar em 5s
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 0) {
+          var el = document.getElementById('crash-msg');
+          el.style.display = 'block';
+          el.textContent = 'React nao montou em 5s.\nVerifique erros acima ou console.';
+        }
+      }, 5000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -10,6 +10,10 @@ export default defineConfig({
       // Aponta "@" para o src do app principal (onde ficam supabase, hooks, etc.)
       "@": resolve(__dirname, "../src"),
     },
+    // Garante uma única instância de React no bundle.
+    // Sem isso, o alias "@" faz AppCampo.tsx resolver react de ../node_modules
+    // enquanto main.tsx resolve de ./node_modules — dois Reacts = useState null.
+    dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
   build: {
     outDir: "dist",
