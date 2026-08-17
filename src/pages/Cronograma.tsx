@@ -624,10 +624,10 @@ function ItemModal({ open, onClose, editing, obraId, items, onSaved }: {
           </div>
           <div className="space-y-1.5">
             <Label>Atividade pai (opcional)</Label>
-            <Select value={paiId} onValueChange={setPaiId}>
+            <Select value={paiId || "__root__"} onValueChange={v => setPaiId(v === "__root__" ? "" : v)}>
               <SelectTrigger className="rounded-xl"><SelectValue placeholder="Nível raiz" /></SelectTrigger>
               <SelectContent className="max-h-48">
-                <SelectItem value="">— Raiz (sem pai) —</SelectItem>
+                <SelectItem value="__root__">— Raiz (sem pai) —</SelectItem>
                 {pais.map(i => <SelectItem key={i.id} value={i.id}>{i.codigo ? `${i.codigo} ` : ""}{i.descricao}</SelectItem>)}
               </SelectContent>
             </Select>

@@ -418,12 +418,12 @@ export function UserManagementTab() {
                 Vincular a um Funcionário
                 <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
               </Label>
-              <Select value={fEmployeeId} onValueChange={setFEmployeeId}>
+              <Select value={fEmployeeId || "__none__"} onValueChange={v => setFEmployeeId(v === "__none__" ? "" : v)}>
                 <SelectTrigger className="rounded-xl">
                   <SelectValue placeholder="Selecione o funcionário..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-56">
-                  <SelectItem value="">— Não vincular agora —</SelectItem>
+                  <SelectItem value="__none__">— Não vincular agora —</SelectItem>
                   {employees.filter(e => !e.user_id).map(e => (
                     <SelectItem key={e.id} value={e.id}>
                       {e.nome} {(e as any).cargos?.nome ? `· ${(e as any).cargos.nome}` : ""}
@@ -467,12 +467,12 @@ export function UserManagementTab() {
                 <User className="h-4 w-4 text-muted-foreground" />
                 Funcionário Vinculado
               </Label>
-              <Select value={eEmployeeId} onValueChange={v => { setEEmployeeId(v); setEObraIds([]); }}>
+              <Select value={eEmployeeId || "__none__"} onValueChange={v => { const val = v === "__none__" ? "" : v; setEEmployeeId(val); setEObraIds([]); }}>
                 <SelectTrigger className="rounded-xl">
                   <SelectValue placeholder="Selecione o funcionário..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-56">
-                  <SelectItem value="">— Sem vínculo —</SelectItem>
+                  <SelectItem value="__none__">— Sem vínculo —</SelectItem>
                   {availableEmployees.map(e => (
                     <SelectItem key={e.id} value={e.id}>
                       {e.nome} {(e as any).cargos?.nome ? `· ${(e as any).cargos.nome}` : "· Sem cargo"}

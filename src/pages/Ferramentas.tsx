@@ -220,10 +220,10 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input placeholder="Buscar por nome ou série..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 rounded-xl h-9 text-sm" />
             </div>
-            <Select value={catFiltro} onValueChange={setCatFiltro}>
+            <Select value={catFiltro || "__all__"} onValueChange={v => setCatFiltro(v === "__all__" ? "" : v)}>
               <SelectTrigger className="h-9 rounded-xl w-36 text-sm"><SelectValue placeholder="Categoria..." /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas</SelectItem>
+                <SelectItem value="__all__">Todas</SelectItem>
                 {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -344,10 +344,10 @@ function AlocacoesTab({ obras, employees, ferramentas, onRefresh }: {
           <div className="flex gap-4 items-end flex-wrap">
             <div className="flex-1 min-w-48 space-y-1.5">
               <Label>Filtrar por obra</Label>
-              <Select value={obraId} onValueChange={setObraId}>
+              <Select value={obraId || "__all__"} onValueChange={v => setObraId(v === "__all__" ? "" : v)}>
                 <SelectTrigger className="rounded-xl"><SelectValue placeholder="Todas as obras" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas</SelectItem>
+                  <SelectItem value="__all__">Todas</SelectItem>
                   {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -684,10 +684,10 @@ function AlocacaoModal({ open, onClose, obras, employees, ferramentas, preselFer
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Responsável</Label>
-              <Select value={respId} onValueChange={setRespId}>
+              <Select value={respId || "__none__"} onValueChange={v => setRespId(v === "__none__" ? "" : v)}>
                 <SelectTrigger className="rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent className="max-h-48">
-                  <SelectItem value="">— Nenhum —</SelectItem>
+                  <SelectItem value="__none__">— Nenhum —</SelectItem>
                   {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
