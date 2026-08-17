@@ -185,13 +185,13 @@ export default function AppCampo() {
   const fetchLista = useCallback(async () => {
     if (!obraId) return;
     setLoadingLista(true);
-    const { data } = await (supabase as any)
+    const { data: rows } = await (supabase as any)
       .from("efetivo_ponto")
       .select("id, employee_id, frente, horas_trabalhadas, horas_extras, ausencia, fonte, created_at, employees(nome, foto_url, cargos(nome))")
       .eq("obra_id", obraId)
       .eq("data", data)
       .order("created_at", { ascending: false });
-    setApontamentos((data ?? []) as Apontamento[]);
+    setApontamentos((rows ?? []) as Apontamento[]);
     setLoadingLista(false);
   }, [obraId, data]);
 
