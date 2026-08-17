@@ -84,8 +84,29 @@ export default function AppCampo() {
   }, []);
 
   async function fetchObras() {
-    const { data } = await (supabase as any).from("obras").select("id, nome").order("nome");
-    setObras((data ?? []) as Obra[]);
+    // Busca o employee vinculado ao usuário logado
+    const { data: { user: u } } = await supabase.auth.getUser();
+    const { data: emp } = await (supabase as any)
+      .from("employees")
+      .select("id")
+      .eq("user_id", u?.id)
+      .maybeSingle();
+
+    if (emp?.id) {
+      // Apontador de campo: somente obras onde está alocado e ativo
+      const { data: links } = await (supabase as any)
+        .from("obra_funcionarios")
+        .select("obras(id, nome)")
+        .eq("employee_id", emp.id)
+        .eq("status", true);
+      const obras = (links ?? []).map((l: any) => l.obras).filter(Boolean);
+      setObras(obras as Obra[]);
+    } else {
+      // Fallback (admin sem employee): todas as obras
+      const { data } = await (supabase as any)
+        .from("obras").select("id, nome").order("nome");
+      setObras((data ?? []) as Obra[]);
+    }
   }
 
   async function handleLogin(email: string, senha: string) {
