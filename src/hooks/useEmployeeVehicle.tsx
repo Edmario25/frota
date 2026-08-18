@@ -94,9 +94,25 @@ export const useEmployeeVehicle = () => {
           }
         : DEFAULT_FLEET_CONFIG;
 
+      // Ciclo base vindo do banco
+      const baseCycle = cycleRes.data?.[0] ?? null;
+
+      // km_rodados real: recalcula a partir do odômetro GPS (quilometragem_atual - km_inicial)
+      // Isso garante que o app sempre reflete o GPS mesmo antes do trigger processar.
+      // O trigger trg_sync_cycle_km_from_odometer mantém o banco em sincronia.
+      const kmCycle = baseCycle
+        ? {
+            ...baseCycle,
+            km_rodados:
+              vehicleData.quilometragem_atual != null
+                ? Math.max(0, vehicleData.quilometragem_atual - baseCycle.km_inicial)
+                : baseCycle.km_rodados,
+          }
+        : null;
+
       return {
         vehicle: vehicleData,
-        kmCycle: cycleRes.data?.[0] ?? null,
+        kmCycle,
         fleetConfig,
         lastMaintenance: (maintRes.data as LastMaintenance | null) ?? null,
       };
