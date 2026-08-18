@@ -95,58 +95,28 @@ export const useVehicleKmCycles = () => {
   };
 
   /**
-   * Cria um novo ciclo mensal de km para o veículo.
-   * cycle_start_date = hoje
-   * cycle_end_date   = hoje + 30 dias
-   * km_inicial       = quilometragem atual do veículo
-   * limite_km_mensal = limite configurado no veículo (ou 2000 como fallback)
+   * Cria ciclos mensais automaticamente para todos os veículos sem ciclo ativo.
+   * Chama a função SQL create_monthly_km_cycles() via RPC.
+   * Deve ser invocada no início de cada sessão do módulo de frota.
    */
-  const createCycle = useCallback(async (
-    vehicleId: string,
-    kmAtual: number,
-    limiteKm: number = 2000,
-  ): Promise<KmCycleInfo | null> => {
-    setLoading(true);
+  const createMonthlyCycles = useCallback(async (): Promise<number> => {
     try {
-      const hoje = new Date();
-      const fim  = new Date(hoje);
-      fim.setDate(fim.getDate() + 30);
-
-      const toDateStr = (d: Date) => d.toISOString().split("T")[0];
-
-      const { error } = await supabase
-        .from("vehicle_km_cycles")
-        .insert({
-          vehicle_id:        vehicleId,
-          cycle_start_date:  toDateStr(hoje),
-          cycle_end_date:    toDateStr(fim),
-          km_inicial:        kmAtual,
-          km_rodados:        0,
-          limite_km_mensal:  limiteKm,
-          status:            "ativo",
-        });
-
+      const { data, error } = await (supabase as any)
+        .rpc("create_monthly_km_cycles");
       if (error) throw error;
-
-      toast({
-        title: "Ciclo iniciado",
-        description: `Ciclo de ${limiteKm.toLocaleString("pt-BR")} km criado por 30 dias.`,
-      });
-
-      // Retorna o ciclo recém-criado via RPC
-      return await getCurrentCycleSilent(vehicleId);
+      const created = Number(data ?? 0);
+      if (created > 0) {
+        toast({
+          title: "Ciclos do mês criados",
+          description: `${created} ciclo(s) mensal(is) iniciado(s) automaticamente.`,
+        });
+      }
+      return created;
     } catch (error: any) {
-      console.error("Erro ao criar ciclo:", error);
-      toast({
-        title: "Erro ao iniciar ciclo",
-        description: error.message,
-        variant: "destructive",
-      });
-      return null;
-    } finally {
-      setLoading(false);
+      console.error("Erro ao criar ciclos mensais:", error);
+      return 0;
     }
-  }, [getCurrentCycleSilent, toast]);
+  }, [toast]);
 
   const closeExpiredCycles = async () => {
     try {
@@ -201,7 +171,7 @@ export const useVehicleKmCycles = () => {
     loading,
     getCurrentCycle,
     getCurrentCycleSilent,
-    createCycle,
+    createMonthlyCycles,
     getVehicleCycles,
     closeExpiredCycles,
     getKmProgress,

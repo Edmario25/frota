@@ -24,7 +24,7 @@ import {
 import {
   Car, MapPin, User, Building, Wrench, Package, TestTube, ClipboardCheck,
   CircleDot, CircleDollarSign, AlertTriangle, Calendar, Plus, MoreHorizontal,
-  Edit, Eye, Trash2, Droplets, Fuel, TrendingUp, Play, Check, X, RefreshCw
+  Edit, Eye, Trash2, Droplets, Fuel, TrendingUp, Play, Check, X
 } from "lucide-react";
 import { useVehicleKmCycles, KmCycleInfo } from "@/hooks/useVehicleKmCycles";
 import { useMaintenance } from "@/hooks/useMaintenance";
@@ -88,7 +88,7 @@ export function VehicleDetailModal({
   const [activeTab, setActiveTab] = useState("info");
   
   // Data hooks
-  const { getCurrentCycle, createCycle, getKmProgressColor, formatCycleDate, getDaysText } = useVehicleKmCycles();
+  const { getCurrentCycle, getKmProgressColor, formatCycleDate, getDaysText } = useVehicleKmCycles();
   const { maintenanceRecords, deleteMaintenanceRecord, updateMaintenanceRecord } = useMaintenance();
   const { accessories, deleteAccessory } = useVehicleAccessories();
   const { smokeTests, deleteSmokeTest } = useSmokeTests();
@@ -315,27 +315,10 @@ export function VehicleDetailModal({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between rounded-md border border-dashed px-4 py-3 bg-muted/30">
+                <div className="rounded-md border border-dashed px-4 py-3 bg-muted/30 text-center">
                   <p className="text-xs text-muted-foreground">
-                    Nenhum ciclo mensal ativo ainda.
+                    Nenhum ciclo ativo — ciclos são criados automaticamente no 1º dia de cada mês.
                   </p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 gap-1.5 text-xs"
-                    disabled={loading}
-                    onClick={async () => {
-                      const kmAtual  = vehicle?.quilometragem_atual ?? 0;
-                      const limite   = vehicle?.quilometragem_maxima_mensal ?? 2000;
-                      const novoCiclo = await createCycle(vehicle!.id, kmAtual, limite);
-                      if (novoCiclo) setCycleInfo(novoCiclo);
-                    }}
-                  >
-                    {loading
-                      ? <><RefreshCw className="h-3 w-3 animate-spin" />Criando...</>
-                      : <><RefreshCw className="h-3 w-3" />Iniciar Ciclo</>
-                    }
-                  </Button>
                 </div>
               )}
             </div>

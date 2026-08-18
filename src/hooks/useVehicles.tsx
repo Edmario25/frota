@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useVehicleKmCycles } from "@/hooks/useVehicleKmCycles";
@@ -14,7 +15,11 @@ type VehicleUpdate = Database['public']['Tables']['vehicles']['Update'];
 export const useVehicles = () => {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { getCurrentCycle, getCurrentCycleSilent } = useVehicleKmCycles();
+  const { getCurrentCycle, getCurrentCycleSilent, createMonthlyCycles } = useVehicleKmCycles();
+
+  // Cria ciclos mensais automaticamente para todos os veículos ao carregar o módulo
+  // A função SQL é idempotente: só cria se ainda não existe ciclo ativo no mês
+  useEffect(() => { createMonthlyCycles(); }, []);
   const { shouldFilterByObra, loading: loadingRole } = useUserRole();
   const { obraId, loading: loadingObra } = useUserObra();
 
