@@ -317,7 +317,7 @@ export function VehicleDetailModal({
               ) : (
                 <div className="rounded-md border border-dashed px-4 py-3 bg-muted/30 text-center">
                   <p className="text-xs text-muted-foreground">
-                    Nenhum ciclo ativo — ciclos são criados automaticamente no 1º dia de cada mês.
+                    Nenhum ciclo ativo — o ciclo é criado automaticamente na data de cadastro do veículo.
                   </p>
                 </div>
               )}
