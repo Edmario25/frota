@@ -1,6 +1,13 @@
-// ─── Hook: Status de liberação diária por veículo ───────────────────────────
-// Busca o último checklist de liberação de cada veículo e retorna um mapa
-// vehicleId → { status, data, responsavel }
+// ─── Hook: Status de liberação permanente por veículo ────────────────────────
+// A liberação é PERMANENTE — não vence diariamente.
+// O veículo precisa de nova liberação apenas após manutenção corretiva.
+//
+// Lógica:
+//   "aguardando" → nunca teve checklist de liberação aprovado
+//   "liberado"   → último checklist aprovado (sem itens reprovados) — válido indefinidamente
+//   "bloqueado"  → último checklist tem itens reprovados (veículo em manutenção/problema)
+//   "vencido"    → reservado: checklist aprovado mas veículo entrou em manutenção corretiva
+//                  depois da última liberação (quando houver integração com manutenção)
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/integrations/supabase/client"
@@ -12,8 +19,6 @@ export type VehicleLiberacaoInfo = {
   data: string | null
   responsavel: string | null
 }
-
-function hoje() { return new Date().toISOString().split("T")[0] }
 
 /**
  * Retorna um mapa de vehicleId → VehicleLiberacaoInfo.
@@ -34,7 +39,7 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
 
     ;(async () => {
       try {
-        // Busca todos os checklists de liberação para os veículos da lista
+        // Busca o checklist de liberação mais recente de cada veículo
         const { data, error } = await (supabase as any)
           .from("inspection_checklists")
           .select("id, vehicle_id, data_inspecao, responsavel_checklist, inspection_items(status)")
@@ -51,12 +56,9 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
 
           const itens: { status: string }[] = row.inspection_items ?? []
           const nc = itens.filter(i => i.status === "reprovado").length
-          const isHoje = row.data_inspecao >= hoje()
 
-          let status: LiberacaoStatus
-          if (!isHoje)    status = "vencido"
-          else if (nc > 0) status = "bloqueado"
-          else             status = "liberado"
+          // Liberação permanente: não verifica data — apenas se passou ou não na inspeção
+          const status: LiberacaoStatus = nc > 0 ? "bloqueado" : "liberado"
 
           result[row.vehicle_id] = {
             status,
@@ -65,7 +67,7 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
           }
         }
 
-        // Veículos sem nenhum checklist ficam como "aguardando"
+        // Veículos sem nenhum checklist de liberação ficam como "aguardando"
         for (const id of vehicleIds) {
           if (!result[id]) {
             result[id] = { status: "aguardando", data: null, responsavel: null }
