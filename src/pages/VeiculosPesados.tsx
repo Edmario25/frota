@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Truck, Plus, Eye, Edit, Trash2, Search, Filter, QrCode, Wrench } from "lucide-react";
+import { Truck, Plus, Eye, Edit, Trash2, Search, Filter, QrCode, Wrench, LogOut, ArrowLeftRight } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ import { ConfirmDeleteModal } from "@/components/veiculos-pesados/ConfirmDeleteM
 import { HeavyVehicleDetailModal } from "@/components/veiculos-pesados/HeavyVehicleDetailModal";
 import { QrCodeVeiculoDialog } from "@/components/frota/QrCodeVeiculoDialog";
 import { AvariaRapidaDialog } from "@/components/frota/AvariaRapidaDialog";
+import { DevolverVeiculoModal } from "@/components/frota/DevolverVeiculoModal";
+import { TransferirVeiculoModal } from "@/components/frota/TransferirVeiculoModal";
 import { useVehicleLiberacao } from "@/hooks/useVehicleLiberacao";
 import { getVehicleStatusColor, getVehicleStatusText } from "@/lib/statusHelpers";
 import type { Database } from "@/integrations/supabase/types";
@@ -43,6 +45,10 @@ export const VeiculosPesados: React.FC = () => {
   const [qrVehicle, setQrVehicle] = useState<Vehicle | null>(null);
   const [isAvariaOpen, setIsAvariaOpen] = useState(false);
   const [avariaVehicle, setAvariaVehicle] = useState<Vehicle | null>(null);
+  const [isDevolverOpen, setIsDevolverOpen] = useState(false);
+  const [devolverVehicle, setDevolverVehicle] = useState<Vehicle | null>(null);
+  const [isTransferirOpen, setIsTransferirOpen] = useState(false);
+  const [transferirVehicle, setTransferirVehicle] = useState<Vehicle | null>(null);
   
   const [stats, setStats] = useState({
     disponivel: 0,
@@ -254,6 +260,28 @@ export const VeiculosPesados: React.FC = () => {
                       >
                         <Wrench className="h-4 w-4" />
                       </Button>
+                      {/* Devolver (apenas veículos alugados) */}
+                      {vehicle.tipo_propriedade === "alugado" && (
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-8 w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                          title="Devolver veículo"
+                          onClick={(e) => { e.stopPropagation(); setDevolverVehicle(vehicle); setIsDevolverOpen(true); }}
+                        >
+                          <LogOut className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {/* Transferir (apenas veículos próprios) */}
+                      {vehicle.tipo_propriedade === "proprio" && (
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                          title="Transferir para outra obra"
+                          onClick={(e) => { e.stopPropagation(); setTransferirVehicle(vehicle); setIsTransferirOpen(true); }}
+                        >
+                          <ArrowLeftRight className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditModal(vehicle); }}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -315,6 +343,20 @@ export const VeiculosPesados: React.FC = () => {
         onOpenChange={(open) => { setIsAvariaOpen(open); if (!open) setAvariaVehicle(null); }}
         vehicle={avariaVehicle}
         onStatusChanged={refetchVehicles}
+      />
+
+      <DevolverVeiculoModal
+        open={isDevolverOpen}
+        onOpenChange={(open) => { setIsDevolverOpen(open); if (!open) setDevolverVehicle(null); }}
+        vehicle={devolverVehicle}
+        onSuccess={refetchVehicles}
+      />
+
+      <TransferirVeiculoModal
+        open={isTransferirOpen}
+        onOpenChange={(open) => { setIsTransferirOpen(open); if (!open) setTransferirVehicle(null); }}
+        vehicle={transferirVehicle}
+        onSuccess={refetchVehicles}
       />
     </Layout>
   );

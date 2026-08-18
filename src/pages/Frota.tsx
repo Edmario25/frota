@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Filter, Edit, Trash2, Eye, Download, QrCode, Wrench } from "lucide-react";
+import { Search, Plus, Filter, Edit, Trash2, Eye, Download, QrCode, Wrench, LogOut, ArrowLeftRight } from "lucide-react";
 import { 
   Table,
   TableBody,
@@ -30,6 +30,8 @@ import { getVehicleStatusColor, getVehicleStatusText } from "@/lib/statusHelpers
 import { downloadCsv } from "@/lib/exportCsv";
 import { useVehicleLiberacao } from "@/hooks/useVehicleLiberacao";
 import { AvariaRapidaDialog } from "@/components/frota/AvariaRapidaDialog";
+import { DevolverVeiculoModal } from "@/components/frota/DevolverVeiculoModal";
+import { TransferirVeiculoModal } from "@/components/frota/TransferirVeiculoModal";
 import type { Database } from "@/integrations/supabase/types";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -51,6 +53,10 @@ const Frota = () => {
   const [qrVehicle, setQrVehicle] = useState<Vehicle | null>(null);
   const [isAvariaOpen, setIsAvariaOpen] = useState(false);
   const [avariaVehicle, setAvariaVehicle] = useState<Vehicle | null>(null);
+  const [isDevolverOpen, setIsDevolverOpen] = useState(false);
+  const [devolverVehicle, setDevolverVehicle] = useState<Vehicle | null>(null);
+  const [isTransferirOpen, setIsTransferirOpen] = useState(false);
+  const [transferirVehicle, setTransferirVehicle] = useState<Vehicle | null>(null);
 
   const [stats, setStats] = useState({
     disponivel: 0,
@@ -307,6 +313,28 @@ const Frota = () => {
                       >
                         <Wrench className="h-4 w-4" />
                       </Button>
+                      {/* Devolver (apenas veículos alugados) */}
+                      {vehicle.tipo_propriedade === "alugado" && (
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-8 w-8 text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                          title="Devolver veículo"
+                          onClick={(e) => { e.stopPropagation(); setDevolverVehicle(vehicle); setIsDevolverOpen(true); }}
+                        >
+                          <LogOut className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {/* Transferir (apenas veículos próprios) */}
+                      {vehicle.tipo_propriedade === "proprio" && (
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                          title="Transferir para outra obra"
+                          onClick={(e) => { e.stopPropagation(); setTransferirVehicle(vehicle); setIsTransferirOpen(true); }}
+                        >
+                          <ArrowLeftRight className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEditModal(vehicle); }}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -374,6 +402,20 @@ const Frota = () => {
         onOpenChange={(open) => { setIsAvariaOpen(open); if (!open) setAvariaVehicle(null); }}
         vehicle={avariaVehicle}
         onStatusChanged={refetchVehicles}
+      />
+
+      <DevolverVeiculoModal
+        open={isDevolverOpen}
+        onOpenChange={(open) => { setIsDevolverOpen(open); if (!open) setDevolverVehicle(null); }}
+        vehicle={devolverVehicle}
+        onSuccess={refetchVehicles}
+      />
+
+      <TransferirVeiculoModal
+        open={isTransferirOpen}
+        onOpenChange={(open) => { setIsTransferirOpen(open); if (!open) setTransferirVehicle(null); }}
+        vehicle={transferirVehicle}
+        onSuccess={refetchVehicles}
       />
 
       {/* Painel GPS / Traccar */}
