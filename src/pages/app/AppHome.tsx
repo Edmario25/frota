@@ -1,8 +1,10 @@
-import { Car, Fuel, Wrench, MapPin, ChevronRight, Gauge, AlertCircle } from "lucide-react";
+import { Car, Fuel, Wrench, Gauge, AlertCircle, RefreshCw } from "lucide-react";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
+import { useTraccarVehicleSync } from "@/hooks/useTraccarVehicleSync";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useEscalas } from "@/hooks/useEscalas";
-import { format, isWithinInterval, parseISO, addDays } from "date-fns";
+import { useEffect } from "react";
+import { format, isWithinInterval, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +18,17 @@ function getInitials(name: string) {
 }
 
 export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: string) => void }) {
-  const { vehicle, kmCycle, fleetConfig, loading: vLoading } = useEmployeeVehicle();
+  const { vehicle, kmCycle, fleetConfig, loading: vLoading, refetch } = useEmployeeVehicle();
+  const { syncVehicleGps, syncing: gpsSyncing } = useTraccarVehicleSync();
   const { employee, loading: eLoading } = useCurrentEmployee();
   const { escalaPeriodos, loading: esLoading } = useEscalas();
+
+  // Sincroniza GPS ao abrir o app (silencioso — não bloqueia a UI)
+  useEffect(() => {
+    if (vehicle?.id) {
+      syncVehicleGps(vehicle.id, () => refetch());
+    }
+  }, [vehicle?.id]);
 
   // Escala atual do funcionário
   const myPeriodos = employee
@@ -122,16 +132,29 @@ export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: strin
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Meu Veículo</p>
-            {vehicle && (
-              <span className={cn(
-                "text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                vehicle.status === "em_uso"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-green-100 text-green-700"
-              )}>
-                {vehicle.status === "em_uso" ? "Em uso" : "Disponível"}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Botão sync GPS manual */}
+              {vehicle && (
+                <button
+                  onClick={() => vehicle?.id && syncVehicleGps(vehicle.id, () => refetch())}
+                  disabled={gpsSyncing}
+                  className="p-1 rounded-full text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                  title="Sincronizar com rastreador"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", gpsSyncing && "animate-spin text-blue-500")} />
+                </button>
+              )}
+              {vehicle && (
+                <span className={cn(
+                  "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+                  vehicle.status === "em_uso"
+                    ? "bg-blue-100 text-blue-700"
+                    : "bg-green-100 text-green-700"
+                )}>
+                  {vehicle.status === "em_uso" ? "Em uso" : "Disponível"}
+                </span>
+              )}
+            </div>
           </div>
 
           {loading ? (
