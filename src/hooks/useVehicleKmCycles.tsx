@@ -95,28 +95,32 @@ export const useVehicleKmCycles = () => {
   };
 
   /**
-   * Cria ciclos mensais automaticamente para todos os veículos sem ciclo ativo.
-   * Chama a função SQL create_monthly_km_cycles() via RPC.
+   * Fecha ciclos vencidos e abre o próximo ciclo para cada veículo,
+   * mantendo o aniversário de data (dia do cadastro do veículo).
+   * Também cria o primeiro ciclo para veículos que ainda não têm um.
    * Deve ser invocada no início de cada sessão do módulo de frota.
    */
-  const createMonthlyCycles = useCallback(async (): Promise<number> => {
+  const autoRenewCycles = useCallback(async (): Promise<number> => {
     try {
       const { data, error } = await (supabase as any)
-        .rpc("create_monthly_km_cycles");
+        .rpc("auto_renew_km_cycles");
       if (error) throw error;
       const created = Number(data ?? 0);
       if (created > 0) {
         toast({
-          title: "Ciclos do mês criados",
-          description: `${created} ciclo(s) mensal(is) iniciado(s) automaticamente.`,
+          title: "Ciclos de KM atualizados",
+          description: `${created} ciclo(s) renovado(s) automaticamente.`,
         });
       }
       return created;
     } catch (error: any) {
-      console.error("Erro ao criar ciclos mensais:", error);
+      console.error("Erro ao renovar ciclos de KM:", error);
       return 0;
     }
   }, [toast]);
+
+  /** @deprecated Use autoRenewCycles */
+  const createMonthlyCycles = autoRenewCycles;
 
   const closeExpiredCycles = async () => {
     try {
@@ -171,7 +175,8 @@ export const useVehicleKmCycles = () => {
     loading,
     getCurrentCycle,
     getCurrentCycleSilent,
-    createMonthlyCycles,
+    autoRenewCycles,
+    createMonthlyCycles, // alias deprecated
     getVehicleCycles,
     closeExpiredCycles,
     getKmProgress,

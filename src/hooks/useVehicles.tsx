@@ -15,11 +15,11 @@ type VehicleUpdate = Database['public']['Tables']['vehicles']['Update'];
 export const useVehicles = () => {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { getCurrentCycle, getCurrentCycleSilent, createMonthlyCycles } = useVehicleKmCycles();
+  const { getCurrentCycle, getCurrentCycleSilent, autoRenewCycles } = useVehicleKmCycles();
 
-  // Cria ciclos mensais automaticamente para todos os veículos ao carregar o módulo
-  // A função SQL é idempotente: só cria se ainda não existe ciclo ativo no mês
-  useEffect(() => { createMonthlyCycles(); }, []);
+  // Renova ciclos automaticamente ao carregar o módulo:
+  // fecha ciclos vencidos e abre o próximo mantendo o aniversário de cada veículo
+  useEffect(() => { autoRenewCycles(); }, []);
   const { shouldFilterByObra, loading: loadingRole } = useUserRole();
   const { obraId, loading: loadingObra } = useUserObra();
 
