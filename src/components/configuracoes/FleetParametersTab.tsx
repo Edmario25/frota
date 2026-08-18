@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,9 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Car, Gauge, Wrench, AlertTriangle, Save } from "lucide-react";
+import { Car, Gauge, Wrench, AlertTriangle, Save, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export function FleetParametersTab() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
   const [defaultKmLimit, setDefaultKmLimit] = useState("2000");
   const [kmAlertPercent, setKmAlertPercent] = useState("80");
   const [maintenanceIntervalKm, setMaintenanceIntervalKm] = useState("10000");
@@ -17,19 +21,81 @@ export function FleetParametersTab() {
   const [autoCreateCycles, setAutoCreateCycles] = useState(true);
   const [autoCloseExpiredCycles, setAutoCloseExpiredCycles] = useState(true);
 
-  const handleSave = () => {
-    const params = {
-      defaultKmLimit: parseInt(defaultKmLimit),
-      kmAlertPercent: parseInt(kmAlertPercent),
-      maintenanceIntervalKm: parseInt(maintenanceIntervalKm),
-      maintenanceIntervalDays: parseInt(maintenanceIntervalDays),
-      docAlertDays: parseInt(docAlertDays),
-      autoCreateCycles,
-      autoCloseExpiredCycles,
-    };
-    localStorage.setItem("fleet_parameters", JSON.stringify(params));
-    toast.success("Parâmetros de frota salvos com sucesso!");
+  // ─── Carregar do Supabase ao montar ────────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("fleet_config")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+
+      if (data) {
+        setDefaultKmLimit(String(data.limite_km_mensal_padrao));
+        setKmAlertPercent(String(data.alerta_km_percentual));
+        setMaintenanceIntervalKm(String(data.intervalo_manutencao_km));
+        setMaintenanceIntervalDays(String(data.intervalo_manutencao_dias));
+        setDocAlertDays(String(data.alerta_documentacao_dias));
+        setAutoCreateCycles(data.criar_ciclos_auto);
+        setAutoCloseExpiredCycles(data.fechar_ciclos_expirados);
+      } else {
+        // Migração: se ainda há valores em localStorage, usa como ponto de partida
+        const saved = localStorage.getItem("fleet_parameters");
+        if (saved) {
+          try {
+            const p = JSON.parse(saved);
+            if (p.defaultKmLimit) setDefaultKmLimit(String(p.defaultKmLimit));
+            if (p.kmAlertPercent) setKmAlertPercent(String(p.kmAlertPercent));
+            if (p.maintenanceIntervalKm) setMaintenanceIntervalKm(String(p.maintenanceIntervalKm));
+            if (p.maintenanceIntervalDays) setMaintenanceIntervalDays(String(p.maintenanceIntervalDays));
+            if (p.docAlertDays) setDocAlertDays(String(p.docAlertDays));
+            if (p.autoCreateCycles !== undefined) setAutoCreateCycles(p.autoCreateCycles);
+            if (p.autoCloseExpiredCycles !== undefined) setAutoCloseExpiredCycles(p.autoCloseExpiredCycles);
+          } catch {
+            // ignore parse error
+          }
+        }
+      }
+
+      setLoading(false);
+    })();
+  }, []);
+
+  // ─── Salvar no Supabase ────────────────────────────────────────────────────
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).from("fleet_config").upsert({
+        id: 1,
+        limite_km_mensal_padrao: parseInt(defaultKmLimit) || 2000,
+        alerta_km_percentual: parseInt(kmAlertPercent) || 80,
+        intervalo_manutencao_km: parseInt(maintenanceIntervalKm) || 10000,
+        intervalo_manutencao_dias: parseInt(maintenanceIntervalDays) || 180,
+        alerta_documentacao_dias: parseInt(docAlertDays) || 30,
+        criar_ciclos_auto: autoCreateCycles,
+        fechar_ciclos_expirados: autoCloseExpiredCycles,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) throw error;
+
+      // Remove dados antigos do localStorage (migração completa)
+      localStorage.removeItem("fleet_parameters");
+      toast.success("Parâmetros de frota salvos com sucesso!");
+    } catch (err: any) {
+      toast.error("Erro ao salvar: " + (err.message ?? "Tente novamente"));
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -76,7 +142,7 @@ export function FleetParametersTab() {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
               </div>
-              <p className="text-xs text-muted-foreground">Percentual do limite para gerar alerta</p>
+              <p className="text-xs text-muted-foreground">Percentual do limite para gerar alerta no app do motorista</p>
             </div>
           </div>
 
@@ -181,9 +247,9 @@ export function FleetParametersTab() {
 
       {/* Save */}
       <div className="flex justify-end">
-        <Button onClick={handleSave} className="gap-2 rounded-xl px-6">
-          <Save className="h-4 w-4" />
-          Salvar Parâmetros
+        <Button onClick={handleSave} disabled={saving} className="gap-2 rounded-xl px-6">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? "Salvando..." : "Salvar Parâmetros"}
         </Button>
       </div>
     </div>

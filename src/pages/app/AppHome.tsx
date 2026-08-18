@@ -16,7 +16,7 @@ function getInitials(name: string) {
 }
 
 export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: string) => void }) {
-  const { vehicle, kmCycle, loading: vLoading } = useEmployeeVehicle();
+  const { vehicle, kmCycle, fleetConfig, loading: vLoading } = useEmployeeVehicle();
   const { employee, loading: eLoading } = useCurrentEmployee();
   const { escalaPeriodos, loading: esLoading } = useEscalas();
 
@@ -25,16 +25,38 @@ export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: strin
     ? escalaPeriodos.filter(p => p.employee_id === employee.id)
     : [];
 
-  const currentPeriodo = myPeriodos.find(p =>
-    isWithinInterval(today, {
-      start: parseISO(p.data_inicio_trabalho),
-      end: parseISO(p.data_fim_trabalho),
-    })
-  );
+  // Verifica se está em folga agora (status explícito OU intervalo de folga ativo)
+  const periodoEmFolga = myPeriodos.find(p => {
+    try {
+      return p.status === "em_folga" ||
+        isWithinInterval(today, {
+          start: parseISO(p.data_inicio_folga),
+          end:   parseISO(p.data_fim_folga),
+        });
+    } catch { return false; }
+  });
 
-  const nextFolga = myPeriodos
-    .filter(p => parseISO(p.data_inicio_folga) >= today)
-    .sort((a, b) => a.data_inicio_folga.localeCompare(b.data_inicio_folga))[0];
+  // Período de trabalho ativo (só relevante quando NÃO está de folga)
+  const currentPeriodo = !periodoEmFolga
+    ? myPeriodos.find(p => {
+        try {
+          return isWithinInterval(today, {
+            start: parseISO(p.data_inicio_trabalho),
+            end:   parseISO(p.data_fim_trabalho),
+          });
+        } catch { return false; }
+      })
+    : undefined;
+
+  // Próxima folga: só calcula quando o funcionário NÃO está em folga ativa
+  const nextFolga = !periodoEmFolga
+    ? myPeriodos
+        .filter(p => {
+          try { return p.status !== "concluido" && parseISO(p.data_inicio_folga) > today; }
+          catch { return false; }
+        })
+        .sort((a, b) => a.data_inicio_folga.localeCompare(b.data_inicio_folga))[0]
+    : undefined;
 
   const loading = vLoading || eLoading || esLoading;
 
@@ -70,7 +92,18 @@ export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: strin
         </div>
 
         {/* Escala status */}
-        {currentPeriodo && (
+        {periodoEmFolga ? (
+          <div className="bg-white/10 rounded-xl px-3 py-2 flex items-center gap-2">
+            <span className="text-base">🌴</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-blue-100">Você está de folga</p>
+              <p className="text-sm font-medium truncate">
+                Retorno previsto:{" "}
+                {format(parseISO(periodoEmFolga.data_fim_folga), "dd 'de' MMMM", { locale: ptBR })}
+              </p>
+            </div>
+          </div>
+        ) : currentPeriodo ? (
           <div className="bg-white/10 rounded-xl px-3 py-2 flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
             <div className="flex-1 min-w-0">
@@ -81,7 +114,7 @@ export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: strin
               </p>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="px-4 -mt-4 space-y-4 pb-6">
@@ -107,6 +140,7 @@ export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: strin
             </div>
           ) : vehicle ? (
             <div className="p-4">
+              {/* Linha: ícone + identificação + odômetro */}
               <div className="flex items-start gap-3">
                 <div className="h-14 w-14 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
                   <Car className="h-7 w-7 text-blue-600" />
@@ -118,27 +152,67 @@ export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: strin
                   <p className="text-sm text-slate-500 truncate">
                     {vehicle.marca} {vehicle.modelo} · {vehicle.ano}
                   </p>
-                  <div className="flex items-center gap-1 mt-1">
+                  <div className="flex items-center gap-1 mt-0.5">
                     <Gauge className="h-3.5 w-3.5 text-slate-400" />
-                    <span className="text-xs text-slate-500">
-                      {vehicle.quilometragem_atual?.toLocaleString("pt-BR") ?? "—"} km
+                    <span className="text-xs text-slate-500 font-medium">
+                      {vehicle.quilometragem_atual?.toLocaleString("pt-BR") ?? "—"} km totais
                     </span>
                   </div>
                 </div>
               </div>
 
-              {kmCycle && (
-                <div className="mt-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-amber-700 font-medium">Ciclo de KM</p>
-                    <p className="text-xs text-amber-600">
-                      {Number(kmCycle.km_atual ?? 0).toLocaleString("pt-BR")} /
-                      {" "}{Number(kmCycle.km_limite ?? 0).toLocaleString("pt-BR")} km
-                    </p>
+              {/* Controle de KM — sempre visível */}
+              <div className="mt-3 border-t border-slate-100 dark:border-slate-700 pt-3">
+                {kmCycle ? (() => {
+                  const alertPct = fleetConfig.alerta_km_percentual;
+                  const kmPct = (kmCycle.km_rodados / kmCycle.limite_km_mensal) * 100;
+                  const isOver = kmPct > 100;
+                  const isNear = !isOver && kmPct >= alertPct;
+                  return (
+                    <div>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          KM do Mês
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {kmCycle.days_remaining} dias restantes
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span className="font-bold text-slate-800 dark:text-slate-100">
+                          {Number(kmCycle.km_rodados).toLocaleString("pt-BR")} km rodados
+                        </span>
+                        <span className="text-slate-400">
+                          / {Number(kmCycle.limite_km_mensal).toLocaleString("pt-BR")} km
+                        </span>
+                      </div>
+                      <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            isOver ? "bg-red-500" : isNear ? "bg-amber-500" : "bg-green-500"
+                          }`}
+                          style={{ width: `${Math.min(kmPct, 100)}%` }}
+                        />
+                      </div>
+                      {(isOver || isNear) && (
+                        <div className={`flex items-center gap-1 mt-1.5 text-xs font-medium ${isOver ? "text-red-600" : "text-amber-600"}`}>
+                          <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                          {isOver
+                            ? `Limite excedido em ${(kmCycle.km_rodados - kmCycle.limite_km_mensal).toLocaleString("pt-BR")} km`
+                            : `${Math.round(kmPct)}% do limite mensal utilizado`}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })() : (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">Sem ciclo de km ativo</span>
+                    <span className="text-xs text-slate-500">
+                      {vehicle.quilometragem_atual?.toLocaleString("pt-BR") ?? "—"} km
+                    </span>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ) : (
             <div className="p-6 text-center">

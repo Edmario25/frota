@@ -88,7 +88,7 @@ export function VehicleDetailModal({
   const [activeTab, setActiveTab] = useState("info");
   
   // Data hooks
-  const { getCurrentCycle, getKmProgressColor, formatCycleDate, getDaysText } = useVehicleKmCycles();
+  const { getCurrentCycle, createCycle, getKmProgressColor, formatCycleDate, getDaysText } = useVehicleKmCycles();
   const { maintenanceRecords, deleteMaintenanceRecord, updateMaintenanceRecord } = useMaintenance();
   const { accessories, deleteAccessory } = useVehicleAccessories();
   const { smokeTests, deleteSmokeTest } = useSmokeTests();
@@ -324,7 +324,12 @@ export function VehicleDetailModal({
                     variant="outline"
                     className="h-7 gap-1.5 text-xs"
                     disabled={loading}
-                    onClick={fetchCycleInfo}
+                    onClick={async () => {
+                      const kmAtual  = vehicle?.quilometragem_atual ?? 0;
+                      const limite   = vehicle?.quilometragem_maxima_mensal ?? 2000;
+                      const novoCiclo = await createCycle(vehicle!.id, kmAtual, limite);
+                      if (novoCiclo) setCycleInfo(novoCiclo);
+                    }}
                   >
                     {loading
                       ? <><RefreshCw className="h-3 w-3 animate-spin" />Criando...</>
