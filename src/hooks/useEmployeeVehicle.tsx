@@ -66,9 +66,17 @@ export const useEmployeeVehicle = () => {
         return { vehicle: null, kmCycle: null, fleetConfig: DEFAULT_FLEET_CONFIG, lastMaintenance: null };
       }
 
-      // 3. Busca paralela: ciclo de km, config de frota, última manutenção preventiva
+      // 3. Busca paralela: ciclo de km (query direta), config de frota, última manutenção preventiva
       const [cycleRes, configRes, maintRes] = await Promise.all([
-        supabase.rpc("get_current_km_cycle", { p_vehicle_id: vehicleData.id }),
+        // Query direta — mais robusta que RPC, igual ao useKmCyclesBatch do sistema gerencial
+        (supabase as any)
+          .from("vehicle_km_cycles")
+          .select("id, cycle_start_date, cycle_end_date, km_inicial, km_rodados, limite_km_mensal, status")
+          .eq("vehicle_id", vehicleData.id)
+          .eq("status", "ativo")
+          .order("cycle_start_date", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
         (supabase as any).from("fleet_config").select("*").eq("id", 1).maybeSingle(),
         (supabase as any)
           .from("maintenance_records")
@@ -94,19 +102,42 @@ export const useEmployeeVehicle = () => {
           }
         : DEFAULT_FLEET_CONFIG;
 
-      // Ciclo base vindo do banco
-      const baseCycle = cycleRes.data?.[0] ?? null;
+      // Ciclo ativo — calcula km_rodados a partir do odômetro GPS quando disponível
+      const baseCycle = cycleRes.data ?? null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-      // km_rodados real: recalcula a partir do odômetro GPS (quilometragem_atual - km_inicial)
-      // Isso garante que o app sempre reflete o GPS mesmo antes do trigger processar.
-      // O trigger trg_sync_cycle_km_from_odometer mantém o banco em sincronia.
       const kmCycle = baseCycle
         ? {
-            ...baseCycle,
+            cycle_id:         baseCycle.id,
+            cycle_start_date: baseCycle.cycle_start_date,
+            cycle_end_date:   baseCycle.cycle_end_date,
+            km_inicial:       baseCycle.km_inicial,
+            limite_km_mensal: baseCycle.limite_km_mensal,
+            // km_rodados real = odômetro atual − km inicial (reflete GPS em tempo real)
             km_rodados:
               vehicleData.quilometragem_atual != null
                 ? Math.max(0, vehicleData.quilometragem_atual - baseCycle.km_inicial)
-                : baseCycle.km_rodados,
+                : (baseCycle.km_rodados ?? 0),
+            days_remaining: Math.max(
+              0,
+              Math.round(
+                (new Date(baseCycle.cycle_end_date).getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )
+            ),
+            percentage_used: baseCycle.limite_km_mensal > 0
+              ? Math.round(
+                  (Math.max(
+                    0,
+                    vehicleData.quilometragem_atual != null
+                      ? vehicleData.quilometragem_atual - baseCycle.km_inicial
+                      : baseCycle.km_rodados ?? 0
+                  ) /
+                    baseCycle.limite_km_mensal) *
+                    100
+                )
+              : 0,
           }
         : null;
 
