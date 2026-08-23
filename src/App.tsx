@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, Suspense, lazy, type ErrorInfo, type ReactNode } from "react";
 
 // ─── Error Boundary global — evita tela branca em crashes ────────────────────
 class AppErrorBoundary extends Component<
@@ -41,57 +41,64 @@ class AppErrorBoundary extends Component<
 }
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
-import Index from "./pages/Index";
-import Funcionarios from "./pages/Funcionarios";
-import Cargos from "./pages/Cargos";
-import Frota from "./pages/Frota";
-import Manutencao from "./pages/Manutencao";
-import Escalas from "./pages/Escalas";
 import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
-import Acessorios from "./pages/Acessorios";
-import TesteFumaca from "./pages/TesteFumaca";
-import ChecklistInspecao from "./pages/ChecklistInspecao";
-import Borracharia from "./pages/Borracharia";
-import Multas from "./pages/Multas";
-import VeiculosPesados from "./pages/VeiculosPesados";
-import Obras from "./pages/Obras";
-import Fornecedores from "./pages/Fornecedores";
-import MinhasInformacoes from "./pages/MinhasInformacoes";
-import Consultas from "./pages/Consultas";
-import Configuracoes from "./pages/Configuracoes";
-import Departamentos from "./pages/Departamentos";
-import FundoFixo from "./pages/FundoFixo";
-import Relatorios from "./pages/Relatorios";
-import RelatorioEscalas from "./pages/RelatorioEscalas";
-import RelatorioFolha from "./pages/RelatorioFolha";
-import Chat from "./pages/Chat";
-import MobileApp from "./pages/app/MobileApp";
-import AppSms from "./pages/app/AppSms";
-import AppCampo from "./pages/app/campo/AppCampo";
-import SmsDashboard from "./pages/sms/SmsDashboard";
-import SmsDesvios from "./pages/sms/SmsDesvios";
-import SmsInspecoes from "./pages/sms/SmsInspecoes";
-import SmsDds from "./pages/sms/SmsDds";
-import SmsApr from "./pages/sms/SmsApr";
-import SmsEpis from "./pages/sms/SmsEpis";
-import SmsTreinamentos from "./pages/sms/SmsTreinamentos";
-import SmsConformidade from "./pages/sms/SmsConformidade";
-import SmsAdmissao from "./pages/sms/SmsAdmissao";
-import SmsRdo from "./pages/sms/SmsRdo";
-import Efetivo from "./pages/Efetivo";
-import EfetivoRelatorio from "./pages/EfetivoRelatorio";
-import PontoQr from "./pages/PontoQr";
-import Almoxarifado from "./pages/Almoxarifado";
-import Ferramentas from "./pages/Ferramentas";
-import Cronograma from "./pages/Cronograma";
-import Subcontratadas from "./pages/Subcontratadas";
-import OrcadoRealizado from "./pages/OrcadoRealizado";
-import PortalCliente from "./pages/PortalCliente";
-import NaoConformidades from "./pages/NaoConformidades";
-import Comunicados from "./pages/Comunicados";
-import Visitantes from "./pages/Visitantes";
 import { loadBrandingFromDB } from "./hooks/useSystemSettings";
+
+const Index = lazy(() => import("./pages/Index"));
+const Funcionarios = lazy(() => import("./pages/Funcionarios"));
+const Cargos = lazy(() => import("./pages/Cargos"));
+const Frota = lazy(() => import("./pages/Frota"));
+const Manutencao = lazy(() => import("./pages/Manutencao"));
+const Escalas = lazy(() => import("./pages/Escalas"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Acessorios = lazy(() => import("./pages/Acessorios"));
+const TesteFumaca = lazy(() => import("./pages/TesteFumaca"));
+const ChecklistInspecao = lazy(() => import("./pages/ChecklistInspecao"));
+const Borracharia = lazy(() => import("./pages/Borracharia"));
+const Multas = lazy(() => import("./pages/Multas"));
+const VeiculosPesados = lazy(() => import("./pages/VeiculosPesados"));
+const Obras = lazy(() => import("./pages/Obras"));
+const Fornecedores = lazy(() => import("./pages/Fornecedores"));
+const MinhasInformacoes = lazy(() => import("./pages/MinhasInformacoes"));
+const Consultas = lazy(() => import("./pages/Consultas"));
+const Configuracoes = lazy(() => import("./pages/Configuracoes"));
+const Departamentos = lazy(() => import("./pages/Departamentos"));
+const FundoFixo = lazy(() => import("./pages/FundoFixo"));
+const Relatorios = lazy(() => import("./pages/Relatorios"));
+const RelatorioEscalas = lazy(() => import("./pages/RelatorioEscalas"));
+const RelatorioFolha = lazy(() => import("./pages/RelatorioFolha"));
+const Chat = lazy(() => import("./pages/Chat"));
+const MobileApp = lazy(() => import("./pages/app/MobileApp"));
+const AppSms = lazy(() => import("./pages/app/AppSms"));
+const AppCampo = lazy(() => import("./pages/app/campo/AppCampo"));
+const SmsDashboard = lazy(() => import("./pages/sms/SmsDashboard"));
+const SmsDesvios = lazy(() => import("./pages/sms/SmsDesvios"));
+const SmsInspecoes = lazy(() => import("./pages/sms/SmsInspecoes"));
+const SmsDds = lazy(() => import("./pages/sms/SmsDds"));
+const SmsApr = lazy(() => import("./pages/sms/SmsApr"));
+const SmsEpis = lazy(() => import("./pages/sms/SmsEpis"));
+const SmsTreinamentos = lazy(() => import("./pages/sms/SmsTreinamentos"));
+const SmsConformidade = lazy(() => import("./pages/sms/SmsConformidade"));
+const SmsAdmissao = lazy(() => import("./pages/sms/SmsAdmissao"));
+const SmsRdo = lazy(() => import("./pages/sms/SmsRdo"));
+const Efetivo = lazy(() => import("./pages/Efetivo"));
+const EfetivoRelatorio = lazy(() => import("./pages/EfetivoRelatorio"));
+const PontoQr = lazy(() => import("./pages/PontoQr"));
+const Almoxarifado = lazy(() => import("./pages/Almoxarifado"));
+const Ferramentas = lazy(() => import("./pages/Ferramentas"));
+const Cronograma = lazy(() => import("./pages/Cronograma"));
+const Subcontratadas = lazy(() => import("./pages/Subcontratadas"));
+const OrcadoRealizado = lazy(() => import("./pages/OrcadoRealizado"));
+const PortalCliente = lazy(() => import("./pages/PortalCliente"));
+const NaoConformidades = lazy(() => import("./pages/NaoConformidades"));
+const Comunicados = lazy(() => import("./pages/Comunicados"));
+const Visitantes = lazy(() => import("./pages/Visitantes"));
+
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center" role="status" aria-label="Carregando página">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+  </div>
+);
 
 // 1. Aplica favicon do localStorage imediatamente (sem esperar rede)
 try {
@@ -122,6 +129,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={
@@ -248,7 +256,7 @@ const App = () => (
             } />
             <Route path="/relatorio-folha" element={
               <ProtectedRoute>
-                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota']}>
                   <RelatorioFolha />
                 </RoleProtectedRoute>
               </ProtectedRoute>
@@ -445,6 +453,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+        </Suspense>
         </BrowserRouter>
     </TooltipProvider>
   </AuthProvider>

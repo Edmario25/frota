@@ -1,15 +1,13 @@
-import { TOTEM_PRONTO } from "./supabaseClient"
 import { TotemScreen } from "./TotemScreen"
 
 const OBRA_ID = import.meta.env.VITE_OBRA_ID || null   // "" vira null
 
 // ─── App raiz do totem ────────────────────────────────────────────────────────
-// Usa service role key — sem necessidade de login de usuário.
-// O totem acessa o banco diretamente via chave de serviço embutida no APK.
+// Usa somente a chave pública e uma RPC limitada no banco.
 export function TotemApp() {
 
   // Service key não configurada no build
-  if (!TOTEM_PRONTO) {
+  if (!OBRA_ID) {
     return (
       <div style={{
         width: "100%", height: "100%",
@@ -28,7 +26,7 @@ export function TotemApp() {
           Erro de configuração
         </p>
         <p style={{ color: "#6b7280", fontSize: 13, maxWidth: 320 }}>
-          Configure VITE_SERVICE_KEY no arquivo .env antes de gerar o APK.
+          Configure VITE_OBRA_ID no arquivo .env antes de gerar o APK.
         </p>
       </div>
     )

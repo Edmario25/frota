@@ -113,7 +113,7 @@ export default function SmsDds() {
 
     // Buscar contagem de presentes por sessão
     const sessaoIds = (data ?? []).map((s: any) => s.id);
-    let presencaCounts: Record<string, number> = {};
+    const presencaCounts: Record<string, number> = {};
     if (sessaoIds.length > 0) {
       const { data: pData } = await (supabase as any)
         .from("sms_dds_presencas")

@@ -57,7 +57,7 @@ export function AppFumaca() {
       setDone(selected!.resultado as "aprovado" | "reprovado");
       setFotoUrl("");
       toast({ title: "Teste de fumaça registrado!" });
-    } catch { } finally { setSaving(false); }
+    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
   };
 
   if (vLoading) {

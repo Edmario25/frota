@@ -249,7 +249,7 @@ function FormManutencao({ vehicleId, employeeId, userId, km, onClose }: { vehicl
       }
       await createMaintenanceRecord(payload as any);
       onClose();
-    } catch { } finally { setSaving(false); }
+    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
   };
 
   return (
@@ -312,7 +312,7 @@ function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string
       }
       await createTireService(payload as any);
       onClose();
-    } catch { } finally { setSaving(false); }
+    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
   };
 
   return (
@@ -377,7 +377,7 @@ function FormLavagem({ vehicleId, employeeId, onClose }: { vehicleId: string; em
       }
       await createWashRecord(payload);
       onClose();
-    } catch { } finally { setSaving(false); }
+    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
   };
 
   return (
@@ -449,7 +449,7 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
       }
       await createTrafficFine(payload as any);
       onClose();
-    } catch { } finally { setSaving(false); }
+    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
   };
 
   return (
@@ -511,7 +511,7 @@ function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; emp
       }
       await createDamageReport(payload as any);
       onClose();
-    } catch { } finally { setSaving(false); }
+    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
   };
 
   return (

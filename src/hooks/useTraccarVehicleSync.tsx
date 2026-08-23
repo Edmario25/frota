@@ -49,7 +49,7 @@ export function useTraccarVehicleSync() {
 
       // 4. Calcula novo km incremental
       let novoKm: number = vehicle.quilometragem_atual ?? 0;
-      let newLastDistance: number = Math.round(currentGpsMeters);
+      const newLastDistance: number = Math.round(currentGpsMeters);
 
       if (vehicle.traccar_last_distance === null) {
         // Primeiro sync: não altera odômetro, só registra baseline

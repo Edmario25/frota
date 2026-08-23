@@ -68,7 +68,7 @@ export function QrCodeVeiculoDialog({ vehicle, open, onOpenChange }: Props) {
           <p>${vehicle.marca} ${vehicle.modelo}${vehicle.ano ? ` · ${vehicle.ano}` : ""}</p>
           <img src="${dataUrl}" alt="QR Code" />
           <p class="footer">Escaneie com o App SMS Campo para ver o histórico de segurança deste veículo</p>
-          <script>window.onload = () => { window.print(); window.close() }<\/script>
+          <script>window.onload = () => { window.print(); window.close() }</script>
         </body>
       </html>
     `)

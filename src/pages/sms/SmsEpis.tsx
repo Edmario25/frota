@@ -343,7 +343,7 @@ async function printFichaEpi(e: ColabEpi) {
     <div class="footer">
       Sistema de Gestão SMS — Documento gerado automaticamente em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
     </div>
-    <script>window.onload=()=>{window.print()}<\/script>
+    <script>window.onload=()=>{window.print()}</script>
   </body></html>`);
   w.document.close();
 }

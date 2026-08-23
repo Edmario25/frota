@@ -139,8 +139,8 @@ export default function SmsInspecoes() {
 
     // Buscar contagens de respostas por inspeção
     const ids = (data ?? []).map((i: any) => i.id);
-    let totalMap: Record<string, number> = {};
-    let conformeMap: Record<string, number> = {};
+    const totalMap: Record<string, number> = {};
+    const conformeMap: Record<string, number> = {};
     if (ids.length > 0) {
       const { data: rData } = await (supabase as any)
         .from("sms_inspecoes_respostas")

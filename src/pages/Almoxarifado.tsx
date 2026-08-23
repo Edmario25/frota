@@ -133,7 +133,7 @@ async function printOrdemCompra(oc: OrdemCompra) {
       const { data } = await (supabase as any).from("system_settings").select("logo_url,company_name").maybeSingle();
       if (data) { companyName = data.company_name ?? companyName; logoUrl = data.logo_url ?? ""; }
     }
-  } catch {}
+  } catch { /* Mantém a identidade visual padrão se a configuração estiver inválida. */ }
   const win = window.open("", "_blank", "width=820,height=900");
   if (!win) { toast.error("Habilite popups para imprimir"); return; }
   const itensHtml = (oc.ordens_compra_itens ?? []).map((it, i) => `

@@ -12,6 +12,8 @@ dist
 dist-ssr
 dist-sms-stub
 *.local
+test-results/
+playwright-report/
 
 # Capacitor Android (gerado automaticamente)
 android/

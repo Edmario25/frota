@@ -2,8 +2,11 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://dadosfrota.apicesystem.shop";
-const SUPABASE_PUBLISHABLE_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3OTEyNTUyMCwiZXhwIjo0OTM0Nzk5MTIwLCJyb2xlIjoiYW5vbiJ9.IqWNK7emQs5KOqcKqMVaDx2V_NtE6RKYKGjAXvCUqcE";
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL || "https://dadosfrota.apicesystem.shop";
+const SUPABASE_PUBLISHABLE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc3OTEyNTUyMCwiZXhwIjo0OTM0Nzk5MTIwLCJyb2xlIjoiYW5vbiJ9.IqWNK7emQs5KOqcKqMVaDx2V_NtE6RKYKGjAXvCUqcE";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";

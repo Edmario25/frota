@@ -144,8 +144,8 @@ export default function SmsApr() {
     if (error) toast({ title: "Erro ao carregar APRs", variant: "destructive" });
 
     const ids = (data ?? []).map((a: any) => a.id);
-    let riscosCount: Record<string, number> = {};
-    let envolvCount: Record<string, number> = {};
+    const riscosCount: Record<string, number> = {};
+    const envolvCount: Record<string, number> = {};
     if (ids.length > 0) {
       const [{ data: rData }, { data: eData }] = await Promise.all([
         (supabase as any).from("sms_apr_riscos_selecionados").select("apr_id").in("apr_id", ids),

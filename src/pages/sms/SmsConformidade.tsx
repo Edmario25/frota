@@ -86,7 +86,7 @@ export default function SmsConformidade() {
     setLoading(true)
     try {
       // Busca todos os treinamentos de colaboradores (com dados relacionados)
-      let q = (supabase as any)
+      const q = (supabase as any)
         .from("sms_colaborador_treinamentos")
         .select(`
           id, status, data_vencimento,
@@ -200,9 +200,19 @@ export default function SmsConformidade() {
 
   // ── Toggle expansão ─────────────────────────────────────────────────────────
   const toggleObra = (id: string) =>
-    setExpandidos(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setExpandidos(s => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
   const toggleFunc = (id: string) =>
-    setExpandFunc(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setExpandFunc(s => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
 
   // ── KPIs globais ────────────────────────────────────────────────────────────
   const todasFunc  = dados.flatMap(o => o.funcionarios)

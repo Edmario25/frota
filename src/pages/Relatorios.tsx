@@ -364,7 +364,7 @@ function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) 
       const hojeStr = new Date().toISOString().split("T")[0];
 
       // 1. Veículos + responsável
-      let vQ = (supabase as any)
+      const vQ = (supabase as any)
         .from("vehicles")
         .select("id, placa, modelo, marca, ano, tipo, status, quilometragem_atual, valor_aluguel_mensal, responsavel_id, employees(nome)")
         .order("tipo", { ascending: false }) // pesados primeiro
@@ -541,7 +541,7 @@ function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) 
         <tbody>${rowsHtml}</tbody>
       </table>
       <div class="print-footer">Sistema de Gestão de Frota — gerado em ${new Date().toLocaleString("pt-BR")}</div>
-      <script>window.onload=()=>{window.print()}<\/script>
+      <script>window.onload=()=>{window.print()}</script>
     </body></html>`);
     w.document.close();
   };
@@ -1286,7 +1286,7 @@ function RelatorioCustoFrota({ filters, hasFullAccess, userObraId }: ReportProps
         </tbody>
       </table>
       <div class="print-footer">Sistema de Gestão de Frota — gerado em ${new Date().toLocaleString('pt-BR')}</div>
-      <script>window.onload = () => { window.print(); }<\/script>
+      <script>window.onload = () => { window.print(); }</script>
     </body></html>`);
     w.document.close();
   };

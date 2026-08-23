@@ -82,6 +82,7 @@ serve(async (req: Request) => {
     const roleMapping: Record<string, string> = {
       gestor_contrato: "gestor_contrato",
       gestor_geral: "gestor_contrato",
+      gestor_frota: "gestor_frota",
       gestor_obra: "gestor_obra",
       colaborador: "funcionario",
       funcionario: "funcionario",
@@ -115,7 +116,13 @@ serve(async (req: Request) => {
 
       if (updateRoleError) {
         console.error("Erro ao atualizar role:", updateRoleError);
-        // Não lançar erro, pois o usuário foi criado
+        // Evita deixar uma conta ativa com permissão diferente da solicitada.
+        const { error: rollbackError } = await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+        if (rollbackError) {
+          console.error("Erro ao reverter criação do usuário:", rollbackError);
+          throw new Error("Falha ao atribuir o perfil e ao reverter a conta; revisão administrativa necessária");
+        }
+        throw new Error("Falha ao atribuir o perfil; a criação da conta foi revertida");
       }
     }
 

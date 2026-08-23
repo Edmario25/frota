@@ -112,68 +112,21 @@ export function TotemScreen({ obraId, registradoPor }: Props) {
   // ── Processar ponto ──────────────────────────────────────────────────────────
   async function processarPonto(employeeId: string) {
     try {
-      // 1. Dados do funcionário — busca sem join primeiro para isolar erros de RLS
-      const { data: emp, error: empErr } = await (supabase as any)
-        .from("employees")
-        .select("id, nome, foto_url, cargo_id")
-        .eq("id", employeeId)
-        .maybeSingle()
-
-      if (empErr) {
-        mostrarErro(`DB erro (id="${employeeId}"): ${empErr.message ?? empErr.code}`)
-        return
-      }
-      if (!emp) {
-        mostrarErro(`Não encontrado (id="${employeeId.slice(0,8)}…")`)
-        return
-      }
-
-      // 1b. Busca cargo separado (evita falha por RLS no join)
-      let cargoNome = ""
-      if (emp.cargo_id) {
-        const { data: cargo } = await (supabase as any)
-          .from("cargos")
-          .select("nome")
-          .eq("id", emp.cargo_id)
-          .maybeSingle()
-        cargoNome = cargo?.nome ?? ""
-      }
-
-      // 2. Último registro hoje → determina entrada ou saída
-      const hoje = new Date().toISOString().split("T")[0]
-      const { data: ultimo } = await (supabase as any)
-        .from("employee_ponto_qr")
-        .select("tipo")
-        .eq("employee_id", employeeId)
-        .gte("registrado_em", `${hoje}T00:00:00`)
-        .order("registrado_em", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const tipo: "entrada" | "saida" =
-        ultimo?.tipo === "entrada" ? "saida" : "entrada"
-
-      // 3. Grava o registro
-      const { error: insErr } = await (supabase as any)
-        .from("employee_ponto_qr")
-        .insert({
-          employee_id:    employeeId,
-          obra_id:        obraId || null,  // null se VITE_OBRA_ID em branco
-          tipo,
-          registrado_por: null,            // totem não tem sessão de usuário
-          metodo:         "qr",
-        })
-
-      if (insErr) throw insErr
+      if (!obraId) throw new Error("Totem sem obra configurada")
+      const { data, error } = await (supabase as any).rpc("registrar_ponto_totem", {
+        p_employee_id: employeeId,
+        p_obra_id: obraId,
+      })
+      if (error) throw error
 
       // 4. Mostra confirmação
       if (!mountedRef.current) return
       setConfirmacao({
-        nome:     emp.nome,
-        foto_url: emp.foto_url ?? null,
-        tipo,
+        nome:     data.nome,
+        foto_url: data.foto_url ?? null,
+        tipo:     data.tipo,
         hora:     new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        cargo:    cargoNome,
+        cargo:    data.cargo ?? "",
       })
       setEstado("confirmado")
       reiniciarApos(RESET_MS)

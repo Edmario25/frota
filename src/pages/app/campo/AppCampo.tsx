@@ -861,7 +861,7 @@ function ScannerScreen({ onQrLido, onBack, scanning, error, onClearError }: {
       if (!ctx) return;
       ctx.drawImage(video, 0, 0);
       try {
-        // @ts-ignore
+        // @ts-expect-error BarcodeDetector ainda não faz parte dos tipos DOM usados pelo projeto.
         const barcodeDetector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
         const codes = await barcodeDetector.detect(canvas);
         if (codes.length > 0) {

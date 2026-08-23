@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, Edit, Trash2, Eye, ShieldCheck, Shield, User, Download, CreditCard, ClipboardList } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Edit, UserX, Eye, ShieldCheck, Shield, User, Download, CreditCard, ClipboardList } from "lucide-react";
 import { CrachaFuncionarioDialog } from "@/components/funcionarios/CrachaFuncionarioDialog";
 import { PerfilRhSheet } from "@/components/funcionarios/PerfilRhSheet";
 import {
@@ -29,8 +29,15 @@ import { ConfirmDeleteEmployeeModal } from "@/components/funcionarios/ConfirmDel
 import { ViewEmployeeModal } from "@/components/funcionarios/ViewEmployeeModal";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { downloadCsv } from "@/lib/exportCsv";
+import { useUserRole } from "@/hooks/useUserRole";
 
 type Employee = EmployeeWithRelations;
+
+const maskCpf = (cpf: string) => {
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return '***.***.***-**';
+  return `***.${digits.slice(3, 6)}.${digits.slice(6, 9)}-**`;
+};
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   ativo:    { label: "Ativo",    color: "bg-emerald-100 text-emerald-700 border-0" },
@@ -49,7 +56,9 @@ const nivelAcessoConfig: Record<string, { label: string; color: string; icon: Re
 };
 
 const Funcionarios = () => {
-  const { employees, loading, createEmployee, updateEmployee, deleteEmployee, getEmployeeStats } = useEmployees();
+  const { employees, loading, createEmployee, updateEmployee, terminateEmployee, getEmployeeStats } = useEmployees();
+  const { role } = useUserRole();
+  const canAccessSensitiveRh = role === 'admin' || role === 'gestor_contrato' || role === 'gestor_frota';
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -78,9 +87,9 @@ const Funcionarios = () => {
     }
   };
 
-  const handleDeleteEmployee = async () => {
+  const handleTerminateEmployee = async (date: string, reason: string) => {
     if (selectedEmployee) {
-      await deleteEmployee(selectedEmployee.id);
+      await terminateEmployee(selectedEmployee.id, date, reason);
       setIsDeleteModalOpen(false);
       setSelectedEmployee(null);
     }
@@ -129,7 +138,7 @@ const Funcionarios = () => {
                 const headers = ['Nome', 'CPF', 'Email', 'Telefone', 'Cargo', 'Departamento', 'Status', 'Data Admissão', 'Tipo de Acesso'];
                 const rows = filteredEmployees.map(e => [
                   e.nome,
-                  e.cpf,
+                  canAccessSensitiveRh ? e.cpf : maskCpf(e.cpf),
                   e.email,
                   e.telefone ?? '',
                   e.cargos?.nome ?? '',
@@ -210,7 +219,7 @@ const Funcionarios = () => {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{employee.cpf}</TableCell>
+                  <TableCell>{canAccessSensitiveRh ? employee.cpf : maskCpf(employee.cpf)}</TableCell>
                   <TableCell>{employee.cargos?.nome || 'Não informado'}</TableCell>
                   <TableCell>
                     <div className="text-sm">
@@ -254,22 +263,28 @@ const Funcionarios = () => {
                           <Eye className="h-4 w-4 mr-2" />
                           Visualizar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setIsRhOpen(true); }}>
-                          <ClipboardList className="h-4 w-4 mr-2 text-blue-500" />
-                          Perfil RH
-                        </DropdownMenuItem>
+                        {canAccessSensitiveRh && (
+                          <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setIsRhOpen(true); }}>
+                            <ClipboardList className="h-4 w-4 mr-2 text-blue-500" />
+                            Perfil RH
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setIsCrachaOpen(true); }}>
                           <CreditCard className="h-4 w-4 mr-2 text-violet-500" />
                           Gerar Crachá
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => openDeleteModal(employee)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir
-                        </DropdownMenuItem>
+                        {canAccessSensitiveRh && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => openDeleteModal(employee)}
+                              className="text-destructive"
+                            >
+                              <UserX className="h-4 w-4 mr-2" />
+                              Desligar
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -300,7 +315,7 @@ const Funcionarios = () => {
           open={isDeleteModalOpen}
           onOpenChange={setIsDeleteModalOpen}
           employee={selectedEmployee}
-          onConfirm={handleDeleteEmployee}
+          onConfirm={handleTerminateEmployee}
         />
 
         <ViewEmployeeModal

@@ -16,8 +16,8 @@ export const downloadCsv = (
   filename: string,
 ): void => {
   const lines = [headers, ...rows].map(row => row.map(encodeCell).join(';'));
-  // ﻿ = UTF-8 BOM — Excel uses this to auto-detect the encoding
-  const content = '﻿' + lines.join('\r\n');
+  // UTF-8 BOM — Excel uses this to auto-detect the encoding
+  const content = '\uFEFF' + lines.join('\r\n');
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');

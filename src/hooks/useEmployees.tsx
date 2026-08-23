@@ -61,52 +61,26 @@ export const useEmployees = () => {
 
   const createMutation = useMutation({
     mutationFn: async (employeeData: any) => {
-      let userId: string | null = null;
-
-      if (employeeData.senha) {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('create_auth_user', {
-          p_email: employeeData.email,
-          p_password: employeeData.senha,
-          p_nome: employeeData.nome,
-          p_tipo_acesso: employeeData.tipo_acesso || 'colaborador',
-        });
-        if (rpcError) {
-          toast({ title: "Erro ao criar conta de acesso", description: rpcError.message, variant: "destructive" });
-          throw new Error(rpcError.message);
-        }
-        if (!rpcData?.success) {
-          toast({ title: "Erro ao criar conta de acesso", description: rpcData?.error || "Erro desconhecido", variant: "destructive" });
-          throw new Error(rpcData?.error || "Erro desconhecido");
-        }
-        userId = rpcData.user_id;
-      }
-
       const { senha, obra_id, ...employeeDataWithoutPassword } = employeeData;
-      const dataToInsert = userId
-        ? { ...employeeDataWithoutPassword, user_id: userId }
-        : employeeDataWithoutPassword;
+      const { data: result, error: createError } = await supabase.rpc(
+        'create_employee_professional' as any,
+        {
+          p_employee: employeeDataWithoutPassword,
+          p_password: senha || null,
+          p_obra_id: obra_id || null,
+        },
+      );
+      if (createError) throw createError;
+      if (!(result as any)?.success) throw new Error('Não foi possível cadastrar o funcionário.');
 
       const { data, error } = await supabase
-        .from('employees').insert([dataToInsert]).select(EMPLOYEE_SELECT).single();
+        .from('employees')
+        .select(EMPLOYEE_SELECT)
+        .eq('id', (result as any).employee_id)
+        .single();
       if (error) throw error;
 
-      if (obra_id && obra_id !== "") {
-        const { error: obraError } = await supabase.from('obra_funcionarios').insert([{
-          obra_id, employee_id: data.id,
-          funcao_obra: "Colaborador",
-          data_entrada: new Date().toISOString().split('T')[0],
-          status: true,
-        }]);
-        toast({
-          title: "Funcionário cadastrado",
-          description: obraError
-            ? "Funcionário criado, mas houve erro ao vincular à obra."
-            : "O funcionário foi cadastrado e vinculado à obra com sucesso.",
-        });
-      } else {
-        toast({ title: "Funcionário cadastrado", description: "O funcionário foi cadastrado com sucesso." });
-      }
-
+      toast({ title: "Funcionário cadastrado", description: "Cadastro, acesso e vínculo concluídos com segurança." });
       return data;
     },
     onSuccess: (novo) => {
@@ -138,13 +112,10 @@ export const useEmployees = () => {
       }
 
       if (data.user_id && data.cargo_id) {
-        const { data: cargo } = await supabase.from('cargos').select('nivel_acesso').eq('id', data.cargo_id).maybeSingle();
-        if ((cargo as any)?.nivel_acesso) {
-          await supabase.from('user_roles').upsert(
-            { user_id: data.user_id, role: (cargo as any).nivel_acesso },
-            { onConflict: 'user_id' }
-          );
-        }
+        const { error: roleError } = await supabase.rpc('sync_employee_access_role' as any, {
+          p_employee_id: data.id,
+        });
+        if (roleError) throw roleError;
       }
 
       return data;
@@ -159,18 +130,25 @@ export const useEmployees = () => {
     onError: (e: any) => toast({ title: "Erro ao atualizar funcionário", description: friendlyDbError(e), variant: "destructive" }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('employees').delete().eq('id', id);
+  const terminateMutation = useMutation({
+    mutationFn: async ({ id, date, reason }: { id: string; date: string; reason: string }) => {
+      const { data, error } = await supabase.rpc('terminate_employee' as any, {
+        p_employee_id: id,
+        p_termination_date: date,
+        p_reason: reason,
+      });
       if (error) throw error;
+      if (!(data as any)?.success) throw new Error('Não foi possível concluir o desligamento.');
       return id;
     },
     onSuccess: (_, id) => {
-      qc.setQueryData(['employees'], (old: any[] = []) => old.filter(e => e.id !== id));
+      qc.setQueryData(['employees'], (old: any[] = []) =>
+        old.map(e => e.id === id ? { ...e, status: 'inativo' } : e),
+      );
       invalidate();
-      toast({ title: "Funcionário excluído", description: "O funcionário foi excluído com sucesso." });
+      toast({ title: "Funcionário desligado", description: "Histórico preservado e acesso revogado." });
     },
-    onError: (e: any) => toast({ title: "Erro ao excluir funcionário", description: friendlyDbError(e), variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Erro ao desligar funcionário", description: friendlyDbError(e), variant: "destructive" }),
   });
 
   const getEmployeeStats = () => {
@@ -188,7 +166,8 @@ export const useEmployees = () => {
     loading: query.isLoading,
     createEmployee: (d: any) => createMutation.mutateAsync(d),
     updateEmployee: (id: string, d: EmployeeUpdate & { obra_id?: string }) => updateMutation.mutateAsync({ id, d }),
-    deleteEmployee: (id: string) => deleteMutation.mutateAsync(id),
+    terminateEmployee: (id: string, date: string, reason: string) =>
+      terminateMutation.mutateAsync({ id, date, reason }),
     refetchEmployees: query.refetch,
     getEmployeeStats,
   };

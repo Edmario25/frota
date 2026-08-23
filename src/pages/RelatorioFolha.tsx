@@ -250,7 +250,12 @@ export default function RelatorioFolha() {
 
   // ── Toggle obra expandida ───────────────────────────────────────────────────
   const toggleObra = (id: string) =>
-    setExpandidos(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setExpandidos(s => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
 
   // ── Abrir modal banco de horas ──────────────────────────────────────────────
   const abrirBanco = async (func: FuncCusto) => {
@@ -329,10 +334,10 @@ export default function RelatorioFolha() {
           <div>
             <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-emerald-500" />
-              Relatório de Folha e Custos
+              Estimativa de Custo de Pessoal
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Custo real de mão de obra por obra e por funcionário — folha, horas extras e banco de horas
+              Visão gerencial estimada por obra e funcionário — não substitui a folha de pagamento oficial
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={fetchDados} disabled={loading}>
@@ -383,7 +388,7 @@ export default function RelatorioFolha() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
             { icon: Users,     label: "Funcionários",  value: totalFuncs,              color: "text-foreground",  bg: "bg-muted/50",                         fmt: String },
-            { icon: DollarSign,label: "Folha Base",    value: totalSalarios,           color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/10",       fmt: fmt },
+            { icon: DollarSign,label: "Salário Base",  value: totalSalarios,           color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/10",       fmt: fmt },
             { icon: Clock,     label: "Horas Extras",  value: totalHe,                 color: "text-amber-600",   bg: "bg-amber-50 dark:bg-amber-900/10",     fmt: fmt },
             { icon: Wallet,    label: "Benefícios",    value: totalBeneficios,         color: "text-violet-600",  bg: "bg-violet-50 dark:bg-violet-900/10",   fmt: fmt },
             { icon: TrendingUp,label: "Custo Total",   value: totalGeral,              color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/10", fmt: fmt },

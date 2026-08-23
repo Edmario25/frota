@@ -61,7 +61,7 @@ export function MobilePhotoCapture({ label, bucket, vehicleId, value, onChange }
         const parts = url.pathname.split("/");
         const path  = parts.slice(-2).join("/");
         await supabase.storage.from(bucket).remove([path]);
-      } catch {}
+      } catch { /* A remoção é apenas uma limpeza de melhor esforço. */ }
     }
     setPreview("");
     onChange("");

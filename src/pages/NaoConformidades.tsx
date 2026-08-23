@@ -494,7 +494,8 @@ function ListaTab({
 
   const toggle = (id: string) => {
     const s = new Set(expanded);
-    s.has(id) ? s.delete(id) : s.add(id);
+    if (s.has(id)) s.delete(id);
+    else s.add(id);
     setExpanded(s);
   };
 

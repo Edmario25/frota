@@ -15,15 +15,13 @@ APK dedicado para tablet fixo na obra. Scanner de QR Code do crachá → registr
 
 ---
 
-## 1. Criar a conta de serviço no Supabase
+## 1. Preparar o banco
 
-1. Acesse **Supabase → Authentication → Users**
-2. Clique em **"Invite user"** (ou "Add user")
-3. E-mail: `totem@apicegestao.com`
-4. Defina uma senha forte (ex.: `T0tem@Apice2026!`)
-5. Copie o **UUID** do usuário criado — você usará no passo 4
+1. Aplique a migration `20260822000003_secure_totem_rpc.sql`.
+2. Confirme que o funcionário está vinculado à obra em `employee_obra_assignments` ou `obra_funcionarios`.
+3. Copie o UUID da obra que ficará configurada no tablet.
 
-> **Opcional:** Execute `supabase/create_totem_user.sql` no SQL Editor do Supabase para garantir as policies de RLS.
+O aplicativo usa somente a chave pública do Supabase. Nunca coloque uma chave `service_role` no `.env`, no APK ou em outro aplicativo cliente.
 
 ---
 
@@ -37,10 +35,9 @@ cp .env.example .env
 Edite `.env`:
 
 ```env
-VITE_TOTEM_EMAIL=totem@apicegestao.com
-VITE_TOTEM_SENHA=T0tem@Apice2026!
+VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-publica-anon
 
-# UUID da obra onde o tablet ficará fixo (opcional)
+# UUID obrigatório da obra onde o tablet ficará fixo
 # Copie de: Supabase → Table Editor → obras → coluna id
 VITE_OBRA_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
@@ -171,8 +168,8 @@ capacitor-totem/
 ├── src/
 │   ├── main.tsx            ← entry point React
 │   ├── index.css           ← estilos (sem Tailwind, CSS puro)
-│   ├── supabaseClient.ts   ← cliente Supabase + credenciais
-│   ├── TotemApp.tsx        ← auto-login → TotemScreen
+│   ├── supabaseClient.ts   ← cliente Supabase com chave pública
+│   ├── TotemApp.tsx        ← valida configuração → TotemScreen
 │   └── TotemScreen.tsx     ← scanner QR + confirmação
 ├── android-patches/
 │   ├── MainActivity.java   ← KEEP_SCREEN_ON + modo imersivo
@@ -195,4 +192,4 @@ capacitor-totem/
 | "Funcionário não encontrado" | QR lido não é UUID de funcionário — verifique o crachá |
 | Tela apaga | `FLAG_KEEP_SCREEN_ON` só funciona com o app em foreground |
 | App fecha ao pressionar voltar | `onBackPressed()` desabilitado — force stop via Settings se necessário |
-| Login falha | Verifique `VITE_TOTEM_SENHA` no `.env` e se o usuário existe no Supabase |
+| Registro recusado | Confirme a migration da RPC e o vínculo do funcionário com `VITE_OBRA_ID` |

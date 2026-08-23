@@ -101,7 +101,7 @@ const menuGroups = [
     items: [
       { title: "Relatórios",   icon: BarChart3, url: "/relatorios",        roles: OBRA_ACCESS, perm: "acesso_relatorios" as PermKey },
       { title: "Rel. Escalas", icon: Calendar,  url: "/relatorios-escala", roles: OBRA_ACCESS, perm: "acesso_relatorios" as PermKey },
-      { title: "Rel. Folha",   icon: Wallet,    url: "/relatorio-folha",   roles: OBRA_ACCESS, perm: "acesso_relatorios" as PermKey },
+      { title: "Custo de Pessoal", icon: Wallet, url: "/relatorio-folha", roles: FULL_ACCESS, perm: null },
     ]
   },
   {

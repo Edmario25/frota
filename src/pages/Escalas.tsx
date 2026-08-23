@@ -265,15 +265,6 @@ const Escalas = () => {
   const { escalaTipos, escalaPeriodos, loading, deleteEscalaTipo, deleteEscalaPeriodo, updateEscalaPeriodo } = useEscalas();
   const { criarNotificacao, enviarPush } = useEscalaNotificacoes();
 
-  // Funcionário vê apenas a própria escala
-  if (isFuncionario) {
-    return (
-      <Layout>
-        <MinhaEscalaView />
-      </Layout>
-    );
-  }
-
   const [activeTab, setActiveTab] = useState("periodos");
   const [tipoModalOpen, setTipoModalOpen] = useState(false);
   const [periodoModalOpen, setPeriodoModalOpen] = useState(false);
@@ -470,6 +461,16 @@ const Escalas = () => {
       : escalaPeriodos.filter(p => p.status === filtroStatus),
     [escalaPeriodos, filtroStatus]
   );
+
+  // A decisão de visualização precisa ocorrer depois de todos os hooks para
+  // preservar a mesma ordem entre renderizações enquanto o perfil é carregado.
+  if (isFuncionario) {
+    return (
+      <Layout>
+        <MinhaEscalaView />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
