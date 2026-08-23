@@ -46,6 +46,9 @@ interface PendingItem {
   hora_entrada: string | null; hora_saida: string | null;
   horas_trabalhadas: number; horas_extras: number;
   motivo_ausencia: string | null;
+  turno?: string | null;
+  atividade?: string | null;
+  observacao?: string | null;
   registrado_por: string | null;
   created_at: string;
 }
@@ -125,6 +128,7 @@ export default function AppCampo() {
   const [obra,       setObra]      = useState<Obra | null>(null);
   const [data,       setData]      = useState(today());
   const [loading,    setLoading]   = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   // Scanner
   const [scanError,  setScanError]  = useState("");
@@ -195,6 +199,17 @@ export default function AppCampo() {
       .maybeSingle();
 
     if (emp?.id) {
+      const [{ data: permissions }, { data: role }] = await Promise.all([
+        (supabase as any).rpc("get_user_permissions"),
+        (supabase as any).rpc("get_user_role"),
+      ]);
+      const gestor = ["admin", "gestor_contrato", "gestor_frota", "gestor_obra"].includes(role);
+      if (!gestor && !permissions?.acesso_efetivo) {
+        setAccessDenied(true);
+        setObras([]);
+        return;
+      }
+      setAccessDenied(false);
       // Apontador de campo: somente obras onde está alocado e ativo
       const { data: links } = await (supabase as any)
         .from("obra_funcionarios")
@@ -205,6 +220,7 @@ export default function AppCampo() {
       setObras(obras as Obra[]);
     } else {
       // Fallback (admin sem employee): todas as obras
+      setAccessDenied(false);
       const { data } = await (supabase as any)
         .from("obras").select("id, nome").order("nome");
       setObras((data ?? []) as Obra[]);
@@ -256,6 +272,7 @@ export default function AppCampo() {
     if (!items.length || !navigator.onLine) return;
     setSyncing(true);
     const synced: string[] = [];
+    let failed = 0;
     for (const item of items) {
       try {
         const { error } = await (supabase as any).from("efetivo_ponto").upsert({
@@ -270,16 +287,23 @@ export default function AppCampo() {
           horas_extras:      item.horas_extras,
           ausencia:          false,
           motivo_ausencia:   item.motivo_ausencia,
+          turno:             item.turno ?? null,
+          atividade:         item.atividade ?? null,
+          observacao:        item.observacao ?? item.motivo_ausencia,
           registrado_por:    item.registrado_por,
           fonte:             "campo",
         }, { onConflict: "obra_id,employee_id,data" });
         if (!error) synced.push(item.localId);
-      } catch { /* tenta o próximo */ }
+        else failed++;
+      } catch { failed++; }
     }
     if (synced.length) {
       OfflineDB.removePending(synced);
       setPending(OfflineDB.getPending());
       toast.success(`✅ ${synced.length} apontamento${synced.length > 1 ? "s" : ""} sincronizado${synced.length > 1 ? "s" : ""}!`);
+    }
+    if (failed > 0) {
+      toast.error(`${failed} apontamento${failed > 1 ? "s não foram sincronizados" : " não foi sincronizado"}. Verifique se já houve confirmação pelo supervisor.`);
     }
     setSyncing(false);
   }
@@ -331,6 +355,18 @@ export default function AppCampo() {
         .eq("id", empId).maybeSingle();
       if (!emp) { setScanError("Funcionário não encontrado no sistema"); setScanning(false); return; }
 
+      const { data: vinculo } = await (supabase as any)
+        .from("obra_funcionarios")
+        .select("employee_id")
+        .eq("obra_id", obraId)
+        .eq("employee_id", empId)
+        .eq("status", true)
+        .maybeSingle();
+      if (!vinculo) {
+        setScanError("Funcionário não está vinculado ativamente a esta obra");
+        setScanning(false); return;
+      }
+
       setFunc({ id: emp.id, nome: emp.nome, matricula: null,
         cargo: emp.cargos?.nome ?? null, foto_url: emp.foto_url ?? null, departamento: null });
       setFrente(""); setAtividade(""); setTurno("dia"); setHorasNorm("8"); setHorasExtra("0"); setObs("");
@@ -342,6 +378,7 @@ export default function AppCampo() {
   // ─── Confirmar apontamento ──────────────────────────────────────────────────
   async function handleConfirmar() {
     if (!func || !obraId) return;
+    if (!frente) { setSaveError("Selecione a frente de serviço."); return; }
     setSaving(true); setSaveError("");
 
     // Calcula horas a partir de entrada/saída (ou usa os campos manuais)
@@ -350,6 +387,7 @@ export default function AppCampo() {
       : { norm: horasNorm, extra: horasExtra };
     const normFinal  = parseFloat(calc.norm)  || 8;
     const extraFinal = parseFloat(calc.extra) || 0;
+    const totalFinal = normFinal + extraFinal;
 
     const salvarOffline = () => {
       const item: PendingItem = {
@@ -363,9 +401,12 @@ export default function AppCampo() {
         frente:            frente || null,
         hora_entrada:      horaEntrada || null,
         hora_saida:        horaSaida   || null,
-        horas_trabalhadas: normFinal,
+        horas_trabalhadas: totalFinal,
         horas_extras:      extraFinal,
-        motivo_ausencia:   obs || null,
+        motivo_ausencia:   null,
+        turno:             turno || null,
+        atividade:         atividade || func!.cargo,
+        observacao:        obs || null,
         registrado_por:    user?.id ?? null,
         created_at:        new Date().toISOString(),
       };
@@ -390,10 +431,13 @@ export default function AppCampo() {
         empresa:           null,
         hora_entrada:      horaEntrada || null,
         hora_saida:        horaSaida   || null,
-        horas_trabalhadas: normFinal,
+        horas_trabalhadas: totalFinal,
         horas_extras:      extraFinal,
         ausencia:          false,
-        motivo_ausencia:   obs || null,
+        motivo_ausencia:   null,
+        turno:             turno || null,
+        atividade:         atividade || func.cargo,
+        observacao:        obs || null,
         registrado_por:    u?.id,
         fonte:             "campo",
       }, { onConflict: "obra_id,employee_id,data" });
@@ -442,6 +486,17 @@ export default function AppCampo() {
 
   if (!user || screen === "login") return (
     <LoginScreen onLogin={handleLogin} loading={loading} />
+  );
+
+  if (accessDenied) return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-6">
+      <div className="max-w-sm text-center space-y-4">
+        <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto" />
+        <h1 className="text-white text-xl font-bold">Acesso não autorizado</h1>
+        <p className="text-slate-400 text-sm">Seu cargo não possui permissão para registrar o ponto da equipe.</p>
+        <button onClick={handleLogout} className={S.btnSec}>Sair</button>
+      </div>
+    </div>
   );
 
   if (!obraId || !obra) return (

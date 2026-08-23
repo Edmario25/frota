@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,6 +27,8 @@ interface Obra     { id: string; nome: string }
 interface Employee { id: string; nome: string; cargo_nome: string | null }
 
 interface PontoRow extends Employee {
+  apontado:         boolean;
+  dirty:            boolean;
   ausencia:         boolean;
   motivo_ausencia:  string;
   frente:           string;
@@ -193,9 +194,10 @@ export default function Efetivo() {
             id:                e.id ?? "",
             nome:              e.nome ?? "—",
             cargo_nome:        cargosObj?.nome ?? null,
-            // Sem nenhum registro → Ausente por padrão (só fica Presente após registrar ponto)
-            // Tem totem (entrada QR) mas sem ponto salvo → considera Presente
-            ausencia:          ponto ? ponto.ausencia : (totem ? false : true),
+            // Sem registro permanece pendente; ausência exige confirmação explícita.
+            apontado:          Boolean(ponto || totem),
+            dirty:             false,
+            ausencia:          ponto ? ponto.ausencia : false,
             motivo_ausencia:   ponto?.motivo_ausencia ?? "",
             frente:            ponto?.frente ?? "",
             empresa:           ponto?.empresa ?? "",
@@ -226,7 +228,8 @@ export default function Efetivo() {
   function updateRow(empId: string, changes: Partial<PontoRow>) {
     setRows(prev => prev.map(r => {
       if (r.id !== empId) return r;
-      const updated = { ...r, ...changes };
+      const materialChange = Object.keys(changes).some(key => key !== "expanded");
+      const updated = { ...r, ...changes, dirty: r.dirty || materialChange };
       // recalcular horas automaticamente
       if ("hora_entrada" in changes || "hora_saida" in changes) {
         updated.horas_trabalhadas = calcHoras(updated.hora_entrada, updated.hora_saida);
@@ -238,12 +241,17 @@ export default function Efetivo() {
   // ─── Salvar todos os apontamentos ──────────────────────────────────────
   async function handleSalvar() {
     if (!obraId || !data) return;
+    const rowsAlteradas = rows.filter(r => r.dirty && r.apontado);
+    if (rowsAlteradas.length === 0) {
+      toast.info("Nenhum apontamento foi confirmado ou alterado");
+      return;
+    }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const userId = user?.id ?? null;
 
-      const upsertData = rows.map(r => ({
+      const upsertData = rowsAlteradas.map(r => ({
         id:                r.existing_id ?? undefined,
         obra_id:           obraId,
         employee_id:       r.id,
@@ -408,10 +416,11 @@ export default function Efetivo() {
   }
 
   // ─── KPIs ──────────────────────────────────────────────────────────────
-  const presentes  = rows.filter(r => !r.ausencia).length;
-  const ausentes   = rows.filter(r => r.ausencia).length;
-  const hhtTotal   = rows.filter(r => !r.ausencia).reduce((s, r) => s + (r.horas_trabalhadas ?? 0), 0);
-  const hhExtras   = rows.filter(r => !r.ausencia).reduce((s, r) => s + (parseFloat(r.horas_extras) || 0), 0);
+  const presentes  = rows.filter(r => r.apontado && !r.ausencia).length;
+  const ausentes   = rows.filter(r => r.apontado && r.ausencia).length;
+  const pendentes  = rows.filter(r => !r.apontado).length;
+  const hhtTotal   = rows.filter(r => r.apontado && !r.ausencia).reduce((s, r) => s + (r.horas_trabalhadas ?? 0), 0);
+  const hhExtras   = rows.filter(r => r.apontado && !r.ausencia).reduce((s, r) => s + (parseFloat(r.horas_extras) || 0), 0);
 
   // ─── Filtro ────────────────────────────────────────────────────────────
   const filtered = rows.filter(r =>
@@ -510,10 +519,11 @@ export default function Efetivo() {
 
         {/* KPIs */}
         {loaded && !loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             {[
               { label: "Presentes",      value: presentes, sub: `de ${rows.length}`,    icon: CheckCircle2, color: "bg-green-100 text-green-600 dark:bg-green-900/30" },
               { label: "Ausências",      value: ausentes,  sub: "no dia",               icon: AlertCircle,  color: ausentes > 0 ? "bg-red-100 text-red-600 dark:bg-red-900/30" : "bg-muted/50 text-muted-foreground" },
+              { label: "Pendentes",       value: pendentes, sub: "sem confirmação",      icon: Timer,        color: pendentes > 0 ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30" : "bg-muted/50 text-muted-foreground" },
               { label: "HHT Total",      value: fmtHoras(hhtTotal), sub: "horas homem", icon: Clock,        color: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
               { label: "Horas Extras",   value: fmtHoras(hhExtras), sub: "no total",    icon: TrendingUp,   color: hhExtras > 0 ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30" : "bg-muted/50 text-muted-foreground" },
             ].map(s => (
@@ -752,16 +762,27 @@ function PontoCard({ row, onChange }: PontoCardProps) {
           </div>
         </div>
 
-        {/* Toggle presente/ausente */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className={cn("text-xs font-medium", row.ausencia ? "text-red-600" : "text-green-600")}>
-            {row.ausencia ? "Ausente" : "Presente"}
-          </span>
-          <Switch
-            checked={!row.ausencia}
-            onCheckedChange={v => onChange({ ausencia: !v })}
-            className="data-[state=checked]:bg-green-500"
-          />
+        {/* Situação explícita: pendente não é ausência */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            variant={row.apontado && !row.ausencia ? "default" : "outline"}
+            className="h-7 px-2 text-[11px]"
+            onClick={() => onChange({ apontado: true, ausencia: false })}
+          >
+            Presente
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={row.apontado && row.ausencia ? "destructive" : "outline"}
+            className="h-7 px-2 text-[11px]"
+            onClick={() => onChange({ apontado: true, ausencia: true })}
+          >
+            Ausente
+          </Button>
+          {!row.apontado && <Badge variant="outline" className="text-amber-600">Pendente</Badge>}
         </div>
 
         {/* Expandir */}
