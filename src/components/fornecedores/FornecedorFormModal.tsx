@@ -27,9 +27,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useFornecedores, Fornecedor } from "@/hooks/useFornecedores";
+import { formatCnpj, formatCpf, isValidCnpj, isValidCpf, onlyDigits } from "@/utils/documentValidation";
 
 const formSchema = z.object({
-  nome: z.string().min(1, "Nome é obrigatório"),
+  nome: z.string().trim().min(2, "Informe o nome do fornecedor"),
   cnpj: z.string().optional(),
   cpf: z.string().optional(),
   telefone: z.string().optional(),
@@ -41,6 +42,21 @@ const formSchema = z.object({
   categoria: z.string().optional(),
   observacoes: z.string().optional(),
   status: z.string().min(1, "Status é obrigatório"),
+}).superRefine((data, ctx) => {
+  const cnpj = onlyDigits(data.cnpj ?? "");
+  const cpf = onlyDigits(data.cpf ?? "");
+  if (!cnpj && !cpf) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cnpj"], message: "Informe CNPJ ou CPF" });
+  }
+  if (cnpj && cpf) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cpf"], message: "Informe apenas CNPJ ou CPF" });
+  }
+  if (cnpj && !isValidCnpj(cnpj)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cnpj"], message: "CNPJ inválido" });
+  }
+  if (cpf && !isValidCpf(cpf)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cpf"], message: "CPF inválido" });
+  }
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -102,8 +118,8 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
     if (fornecedor) {
       form.reset({
         nome: fornecedor.nome,
-        cnpj: fornecedor.cnpj || "",
-        cpf: fornecedor.cpf || "",
+        cnpj: fornecedor.cnpj ? formatCnpj(fornecedor.cnpj) : "",
+        cpf: fornecedor.cpf ? formatCpf(fornecedor.cpf) : "",
         telefone: fornecedor.telefone || "",
         email: fornecedor.email || "",
         endereco: fornecedor.endereco || "",
@@ -136,17 +152,17 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
     setIsSubmitting(true);
     try {
       const fornecedorData = {
-        nome: data.nome,
-        cnpj: data.cnpj || null,
-        cpf: data.cpf || null,
-        telefone: data.telefone || null,
-        email: data.email || null,
-        endereco: data.endereco || null,
-        cidade: data.cidade || null,
+        nome: data.nome.trim(),
+        cnpj: data.cnpj ? onlyDigits(data.cnpj) : null,
+        cpf: data.cpf ? onlyDigits(data.cpf) : null,
+        telefone: data.telefone?.trim() || null,
+        email: data.email?.trim().toLowerCase() || null,
+        endereco: data.endereco?.trim() || null,
+        cidade: data.cidade?.trim() || null,
         estado: data.estado || null,
         tipo_fornecedor: data.tipo_fornecedor,
-        categoria: data.categoria || null,
-        observacoes: data.observacoes || null,
+        categoria: data.categoria?.trim() || null,
+        observacoes: data.observacoes?.trim() || null,
         status: data.status,
       };
 
@@ -197,7 +213,7 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                   <FormItem>
                     <FormLabel>CNPJ</FormLabel>
                     <FormControl>
-                      <Input placeholder="00.000.000/0000-00" {...field} />
+                      <Input placeholder="00.000.000/0000-00" {...field} onChange={e => field.onChange(formatCnpj(e.target.value))} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -211,7 +227,7 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                   <FormItem>
                     <FormLabel>CPF</FormLabel>
                     <FormControl>
-                      <Input placeholder="000.000.000-00" {...field} />
+                      <Input placeholder="000.000.000-00" {...field} onChange={e => field.onChange(formatCpf(e.target.value))} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

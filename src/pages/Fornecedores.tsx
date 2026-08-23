@@ -16,6 +16,7 @@ import { useFornecedores, Fornecedor } from "@/hooks/useFornecedores";
 import { FornecedorFormModal } from "@/components/fornecedores/FornecedorFormModal";
 import { FornecedorDetailModal } from "@/components/fornecedores/FornecedorDetailModal";
 import { ConfirmDeleteFornecedorModal } from "@/components/fornecedores/ConfirmDeleteFornecedorModal";
+import { formatCnpj, formatCpf, onlyDigits } from "@/utils/documentValidation";
 
 const TIPO_LABELS: Record<string, string> = {
   materiais: "Materiais",
@@ -34,12 +35,18 @@ const Fornecedores = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedFornecedor, setSelectedFornecedor] = useState<Fornecedor | null>(null);
 
+  const normalizedSearch = searchTerm.toLowerCase().trim();
+  const digitSearch = onlyDigits(searchTerm);
   const filteredFornecedores = fornecedores.filter(
     (f) =>
       f.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      f.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (digitSearch && onlyDigits(f.cnpj ?? f.cpf ?? "").includes(digitSearch)) ||
       f.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      f.cidade?.toLowerCase().includes(searchTerm.toLowerCase())
+      f.telefone?.toLowerCase().includes(normalizedSearch) ||
+      f.cidade?.toLowerCase().includes(normalizedSearch) ||
+      f.estado?.toLowerCase().includes(normalizedSearch) ||
+      f.tipo_fornecedor?.toLowerCase().includes(normalizedSearch) ||
+      f.status?.toLowerCase().includes(normalizedSearch)
   );
 
   const handleView = (fornecedor: Fornecedor) => {
@@ -147,7 +154,7 @@ const Fornecedores = () => {
                     onClick={() => handleView(fornecedor)}
                   >
                     <TableCell className="font-medium">{fornecedor.nome}</TableCell>
-                    <TableCell>{fornecedor.cnpj || fornecedor.cpf || "-"}</TableCell>
+                    <TableCell>{fornecedor.cnpj ? formatCnpj(fornecedor.cnpj) : fornecedor.cpf ? formatCpf(fornecedor.cpf) : "-"}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {TIPO_LABELS[fornecedor.tipo_fornecedor] || fornecedor.tipo_fornecedor}
@@ -172,6 +179,8 @@ const Fornecedores = () => {
                         <Button
                           variant="ghost"
                           size="icon"
+                          title="Visualizar fornecedor"
+                          aria-label={`Visualizar ${fornecedor.nome}`}
                           onClick={() => handleView(fornecedor)}
                         >
                           <Eye className="h-4 w-4" />
@@ -179,6 +188,8 @@ const Fornecedores = () => {
                         <Button
                           variant="ghost"
                           size="icon"
+                          title="Editar fornecedor"
+                          aria-label={`Editar ${fornecedor.nome}`}
                           onClick={() => handleEdit(fornecedor)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -186,6 +197,8 @@ const Fornecedores = () => {
                         <Button
                           variant="ghost"
                           size="icon"
+                          title="Inativar fornecedor"
+                          aria-label={`Inativar ${fornecedor.nome}`}
                           onClick={() => handleDelete(fornecedor)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />

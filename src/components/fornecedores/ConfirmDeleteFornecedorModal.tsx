@@ -27,11 +27,11 @@ export const ConfirmDeleteFornecedorModal: React.FC<ConfirmDeleteFornecedorModal
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+          <AlertDialogTitle>Inativar fornecedor</AlertDialogTitle>
           <AlertDialogDescription>
-            Tem certeza que deseja excluir o fornecedor <strong>"{fornecedorName}"</strong>?
+            Tem certeza que deseja inativar o fornecedor <strong>"{fornecedorName}"</strong>?
             <br /><br />
-            Esta ação não pode ser desfeita. Todos os vínculos com obras serão removidos.
+            O histórico e os vínculos com obras serão preservados. O fornecedor deixará de aparecer nas seleções operacionais de fornecedores ativos.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -40,7 +40,7 @@ export const ConfirmDeleteFornecedorModal: React.FC<ConfirmDeleteFornecedorModal
             onClick={onConfirm}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Excluir
+            Inativar
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

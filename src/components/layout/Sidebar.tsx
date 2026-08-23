@@ -84,7 +84,7 @@ const menuGroups = [
     group: "Projetos",
     items: [
       { title: "Obras",          icon: Building2, url: "/obras",          roles: OBRA_ACCESS, perm: "acesso_colaboradores" as PermKey },
-      { title: "Fornecedores",   icon: Boxes,     url: "/fornecedores",   roles: OBRA_ACCESS, perm: "acesso_colaboradores" as PermKey },
+      { title: "Fornecedores",   icon: Boxes,     url: "/fornecedores",   roles: OBRA_ACCESS, perm: "acesso_fornecedores" as PermKey },
       { title: "Almoxarifado",   icon: Package,   url: "/almoxarifado",   roles: OBRA_ACCESS, perm: "acesso_almoxarifado" as PermKey },
       { title: "Ferramentas",    icon: Wrench,    url: "/ferramentas",    roles: OBRA_ACCESS, perm: "acesso_ferramentas" as PermKey },
       { title: "Cronograma",      icon: CalendarRange, url: "/cronograma",      roles: OBRA_ACCESS, perm: "acesso_cronograma" as PermKey },

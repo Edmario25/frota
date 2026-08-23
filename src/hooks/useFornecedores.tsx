@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUserObra } from "@/hooks/useUserObra";
 import { getFornecedorIdsByObra } from "@/utils/obraFilters";
+import { useCallback } from "react";
 
 export interface Fornecedor {
   id: string;
@@ -96,11 +97,11 @@ export const useFornecedores = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("fornecedores").delete().eq("id", id);
+      const { error } = await supabase.from("fornecedores").update({ status: "inativo" }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { invalidate(); toast({ title: "Sucesso", description: "Fornecedor excluído com sucesso!" }); },
-    onError: (e: any) => toast({ title: "Erro ao excluir fornecedor", description: e.message, variant: "destructive" }),
+    onSuccess: () => { invalidate(); toast({ title: "Sucesso", description: "Fornecedor inativado com sucesso!" }); },
+    onError: (e: any) => toast({ title: "Erro ao inativar fornecedor", description: e.message, variant: "destructive" }),
   });
 
   const linkFornecedorToObra = async (d: {
@@ -123,33 +124,36 @@ export const useFornecedores = () => {
   };
 
   const unlinkFornecedorFromObra = async (linkId: string) => {
-    const { error } = await supabase.from("obra_fornecedores").delete().eq("id", linkId);
+    const { error } = await supabase.from("obra_fornecedores").update({
+      status: false,
+      data_fim: new Date().toISOString().split("T")[0],
+    }).eq("id", linkId);
     if (error) {
       toast({ title: "Erro ao desvincular fornecedor", description: error.message, variant: "destructive" });
       throw error;
     }
-    toast({ title: "Sucesso", description: "Fornecedor desvinculado da obra!" });
+    toast({ title: "Sucesso", description: "Vínculo encerrado e mantido no histórico." });
   };
 
-  const getFornecedoresByObra = async (obraId: string): Promise<ObraFornecedor[]> => {
+  const getFornecedoresByObra = useCallback(async (obraId: string): Promise<ObraFornecedor[]> => {
     const { data, error } = await supabase
       .from("obra_fornecedores")
       .select(`*, fornecedor:fornecedores(*)`)
       .eq("obra_id", obraId)
       .order("created_at", { ascending: false });
-    if (error) return [];
+    if (error) throw error;
     return (data ?? []) as ObraFornecedor[];
-  };
+  }, []);
 
-  const getObrasByFornecedor = async (fornecedorId: string): Promise<ObraFornecedor[]> => {
+  const getObrasByFornecedor = useCallback(async (fornecedorId: string): Promise<ObraFornecedor[]> => {
     const { data, error } = await supabase
       .from("obra_fornecedores")
       .select(`*, obra:obras(id, nome, cliente_nome)`)
       .eq("fornecedor_id", fornecedorId)
       .order("created_at", { ascending: false });
-    if (error) return [];
+    if (error) throw error;
     return (data ?? []) as ObraFornecedor[];
-  };
+  }, []);
 
   return {
     fornecedores: query.data ?? [],

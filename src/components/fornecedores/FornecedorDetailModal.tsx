@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Fornecedor, useFornecedores, ObraFornecedor } from "@/hooks/useFornecedores";
 import { VinculacaoObraModal } from "./VinculacaoObraModal";
-import { useToast } from "@/hooks/use-toast";
+import { formatCnpj, formatCpf } from "@/utils/documentValidation";
 
 interface FornecedorDetailModalProps {
   isOpen: boolean;
@@ -38,7 +38,6 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
   onEdit,
 }) => {
   const { getObrasByFornecedor, unlinkFornecedorFromObra } = useFornecedores();
-  const { toast } = useToast();
   const [obrasVinculadas, setObrasVinculadas] = useState<ObraFornecedor[]>([]);
   const [loadingObras, setLoadingObras] = useState(false);
   const [isVinculacaoModalOpen, setIsVinculacaoModalOpen] = useState(false);
@@ -63,9 +62,10 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
   }, [isOpen, fornecedor?.id, loadObrasVinculadas]);
 
   const handleRemoveVinculo = async (linkId: string) => {
+    if (!window.confirm("Encerrar este vínculo com a obra? O histórico será preservado.")) return;
     try {
       await unlinkFornecedorFromObra(linkId);
-      setObrasVinculadas(prev => prev.filter(o => o.id !== linkId));
+      await loadObrasVinculadas();
     } catch (error) {
       console.error("Error removing vinculo:", error);
     }
@@ -126,7 +126,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                   <label className="text-sm font-medium text-muted-foreground">
                     {fornecedor.cnpj ? "CNPJ" : "CPF"}
                   </label>
-                  <p className="text-sm">{fornecedor.cnpj || fornecedor.cpf}</p>
+                  <p className="text-sm">{fornecedor.cnpj ? formatCnpj(fornecedor.cnpj) : formatCpf(fornecedor.cpf ?? "")}</p>
                 </div>
               )}
 
@@ -216,23 +216,27 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                           <Badge variant={link.status ? "default" : "secondary"}>
                             {link.status ? "Ativo" : "Inativo"}
                           </Badge>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => handleRemoveVinculo(link.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {link.status && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              title="Encerrar vínculo"
+                              aria-label={`Encerrar vínculo com ${link.obra?.nome ?? "a obra"}`}
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => handleRemoveVinculo(link.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        <span>Início: {format(new Date(link.data_inicio), "dd/MM/yyyy", { locale: ptBR })}</span>
+                        <span>Início: {format(new Date(`${link.data_inicio}T12:00:00`), "dd/MM/yyyy", { locale: ptBR })}</span>
                         {link.data_fim && (
-                          <span> | Fim: {format(new Date(link.data_fim), "dd/MM/yyyy", { locale: ptBR })}</span>
+                          <span> | Fim: {format(new Date(`${link.data_fim}T12:00:00`), "dd/MM/yyyy", { locale: ptBR })}</span>
                         )}
                         {link.valor_contrato && (
-                          <span> | Valor: R$ {link.valor_contrato.toLocaleString()}</span>
+                          <span> | Valor: {link.valor_contrato.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
                         )}
                         {link.tipo_contrato && (
                           <span> | Tipo: {link.tipo_contrato}</span>

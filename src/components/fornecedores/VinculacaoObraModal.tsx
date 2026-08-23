@@ -43,7 +43,7 @@ const formSchema = z.object({
   obra_id: z.string().min(1, "Selecione uma obra"),
   data_inicio: z.date(),
   tipo_contrato: z.string().optional(),
-  valor_contrato: z.number().optional(),
+  valor_contrato: z.number().positive("O valor deve ser maior que zero").optional(),
   observacoes: z.string().optional(),
 });
 
@@ -110,14 +110,15 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
       const loadObras = async () => {
         setLoadingObras(true);
         try {
-          const { data, error } = await supabase
-            .from('obras')
-            .select('id, nome, cliente_nome, status')
-            .neq('status', 'concluida')
-            .order('nome');
-          
+          const [{ data, error }, { data: links, error: linksError }] = await Promise.all([
+            supabase.from('obras').select('id, nome, cliente_nome, status').neq('status', 'concluida').order('nome'),
+            supabase.from('obra_fornecedores').select('obra_id').eq('fornecedor_id', fornecedorId).eq('status', true),
+          ]);
+
           if (error) throw error;
-          setObras(data || []);
+          if (linksError) throw linksError;
+          const vinculadas = new Set((links ?? []).map(link => link.obra_id));
+          setObras((data || []).filter(obra => !vinculadas.has(obra.id)));
         } catch (error) {
           console.error('Error loading obras:', error);
         } finally {
@@ -127,7 +128,7 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
       
       loadObras();
     }
-  }, [isOpen, form]);
+  }, [isOpen, form, fornecedorId]);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -135,7 +136,7 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
       await linkFornecedorToObra({
         obra_id: data.obra_id,
         fornecedor_id: fornecedorId,
-        data_inicio: data.data_inicio.toISOString().split('T')[0],
+        data_inicio: format(data.data_inicio, "yyyy-MM-dd"),
         tipo_contrato: data.tipo_contrato,
         valor_contrato: data.valor_contrato,
         observacoes: data.observacoes,

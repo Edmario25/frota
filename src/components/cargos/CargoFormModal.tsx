@@ -23,7 +23,7 @@ import {
   LayoutDashboard, Car, Calendar, Wrench, Users, Wallet,
   BarChart3, ShieldCheck, AlertOctagon, ClipboardList,
   BookOpen, FileWarning, Package, GraduationCap, UserCheck,
-  FileText, Globe, Shield, ShieldAlert,
+  FileText, Globe, Shield, ShieldAlert, Boxes,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -48,6 +48,7 @@ const schema = z.object({
   acesso_colaboradores:    z.boolean().default(false),
   acesso_fundo_fixo:       z.boolean().default(false),
   acesso_relatorios:       z.boolean().default(false),
+  acesso_fornecedores:     z.boolean().default(false),
 
   // SMS
   acesso_sms_dashboard:    z.boolean().default(false),
@@ -78,6 +79,7 @@ const PERM_GROUPS = [
       { key: "acesso_colaboradores", icon: Users,           label: "Funcionários",      desc: "Gestão de pessoas e RH" },
       { key: "acesso_fundo_fixo",    icon: Wallet,          label: "Fundo Fixo",        desc: "Lançar despesas no caixa da obra" },
       { key: "acesso_relatorios",    icon: BarChart3,       label: "Relatórios",        desc: "Relatórios gerenciais e exportações" },
+      { key: "acesso_fornecedores",  icon: Boxes,           label: "Fornecedores",      desc: "Cadastro e contratos de fornecedores" },
     ],
   },
   {
@@ -104,7 +106,7 @@ type BooleanField = keyof Pick<FormValues,
   | "acessa_todas_obras"
   | "acesso_dashboard" | "acesso_frota" | "acesso_escalas"
   | "acesso_manutencao" | "acesso_colaboradores" | "acesso_fundo_fixo"
-  | "acesso_relatorios" | "acesso_sms_dashboard" | "acesso_sms_desvios"
+  | "acesso_relatorios" | "acesso_fornecedores" | "acesso_sms_dashboard" | "acesso_sms_desvios"
   | "acesso_sms_inspecoes" | "acesso_sms_apr" | "acesso_sms_dds"
   | "acesso_sms_epis" | "acesso_sms_treinamentos" | "acesso_sms_admissao"
   | "acesso_sms_rdo"
@@ -116,6 +118,7 @@ const emptyForm = (): FormValues => ({
   acessa_todas_obras: false, acesso_dashboard: false, acesso_frota: false,
   acesso_escalas: false, acesso_manutencao: false, acesso_colaboradores: false,
   acesso_fundo_fixo: false, acesso_relatorios: false,
+  acesso_fornecedores: false,
   acesso_sms_dashboard: false, acesso_sms_desvios: false, acesso_sms_inspecoes: false,
   acesso_sms_apr: false, acesso_sms_dds: false, acesso_sms_epis: false,
   acesso_sms_treinamentos: false, acesso_sms_admissao: false, acesso_sms_rdo: false,
@@ -134,6 +137,7 @@ const fromCargo = (c: Cargo): FormValues => ({
   acesso_colaboradores:    (c as any).acesso_colaboradores    ?? false,
   acesso_fundo_fixo:       c.acesso_fundo_fixo               ?? false,
   acesso_relatorios:       (c as any).acesso_relatorios       ?? false,
+  acesso_fornecedores:     (c as any).acesso_fornecedores     ?? false,
   acesso_sms_dashboard:    (c as any).acesso_sms_dashboard    ?? false,
   acesso_sms_desvios:      (c as any).acesso_sms_desvios      ?? false,
   acesso_sms_inspecoes:    (c as any).acesso_sms_inspecoes    ?? false,
