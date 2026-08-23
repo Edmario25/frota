@@ -54,7 +54,6 @@ interface VeiculoVinculado {
   ano: number;
   status: string;
   tipo_propriedade: string | null;
-  vinculo_tipo: 'responsavel' | 'obra';
 }
 
 interface EscalaInfo {
@@ -143,53 +142,15 @@ export const ViewEmployeeModal = ({
           })));
         }
 
-        // Fetch veículos vinculados (direto como responsável)
+        // Busca somente veículos vinculados diretamente ao funcionário.
+        // Veículos da obra não representam um vínculo pessoal com ele.
         const { data: veiculosDiretos, error: errDiretos } = await supabase
           .from('vehicles')
           .select('id, placa, marca, modelo, ano, status, tipo_propriedade')
           .eq('responsavel_id', employee.id);
 
         if (errDiretos) console.error('Erro ao buscar veículos diretos:', errDiretos);
-
-        // Fetch veículos vinculados via obra — busca obras do funcionário e seus veículos
-        let veiculosViaObra: VeiculoVinculado[] = [];
-        const obrasDoFuncionario = obrasData
-          ?.filter((o: any) => o.status)
-          .map((o: any) => o.obra_id) ?? [];
-
-        if (obrasDoFuncionario.length > 0) {
-          const { data: veiculosObra, error: errObra } = await supabase
-            .from('obra_veiculos')
-            .select(`
-              vehicles:vehicle_id (
-                id, placa, marca, modelo, ano, status, tipo_propriedade
-              )
-            `)
-            .in('obra_id', obrasDoFuncionario)
-            .eq('status', true);
-
-          if (errObra) console.error('Erro ao buscar veículos por obra:', errObra);
-
-          veiculosViaObra = (veiculosObra ?? [])
-            .map((item: any) => item.vehicles)
-            .filter(Boolean)
-            .map((v: any) => ({ ...v, vinculo_tipo: 'obra' as const }));
-        }
-
-        // Combinar veículos de ambas as fontes (sem duplicatas)
-        const veiculosMap = new Map<string, VeiculoVinculado>();
-
-        veiculosDiretos?.forEach(v => {
-          veiculosMap.set(v.id, { ...v, vinculo_tipo: 'responsavel' });
-        });
-
-        veiculosViaObra.forEach(v => {
-          if (!veiculosMap.has(v.id)) {
-            veiculosMap.set(v.id, v);
-          }
-        });
-
-        setVeiculosVinculados(Array.from(veiculosMap.values()));
+        setVeiculosVinculados(veiculosDiretos ?? []);
 
         // Fetch escala info
         if (employee.escala_tipo_id) {
@@ -403,9 +364,6 @@ export const ViewEmployeeModal = ({
                             {veiculo.placa}
                           </CardTitle>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {veiculo.vinculo_tipo === 'responsavel' ? 'Responsável Direto' : 'Via Obra'}
-                            </Badge>
                             <Badge className={getVehicleStatusColor(veiculo.status)}>
                               {getVehicleStatusText(veiculo.status)}
                             </Badge>
