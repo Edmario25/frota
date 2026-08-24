@@ -1278,35 +1278,29 @@ function MovimentacaoModal({ open, onClose, obraId, obras, materiais, fornecedor
   async function handleSave() {
     if (!obraId)    { toast.error("Selecione uma obra"); return; }
     if (!materialId){ toast.error("Selecione o material"); return; }
-    if (!qtd || parseFloat(qtd) <= 0) { toast.error("Informe a quantidade"); return; }
+    const quantidade = parseFloat(qtd);
+    if (!qtd || !Number.isFinite(quantidade) || (tipo === "ajuste" ? quantidade === 0 : quantidade <= 0)) {
+      toast.error(tipo === "ajuste" ? "Informe um ajuste diferente de zero" : "Informe uma quantidade maior que zero"); return;
+    }
     if (tipo === "transferencia" && !obraDestino) { toast.error("Selecione a obra de destino"); return; }
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const payload: any = {
-        obra_id: obraId, material_id: materialId, tipo,
-        quantidade: parseFloat(qtd),
-        preco_unitario: preco ? parseFloat(preco) : null,
-        frente: frente || null,
-        fornecedor_id: fornId || null,
-        fornecedor: fornecedores.find(f => f.id === fornId)?.nome || null,
-        nota_fiscal: nf || null,
-        observacoes: obs || null,
-        registrado_por: user?.id,
-        data_movimento: dataMov,
-        obra_destino_id: tipo === "transferencia" ? obraDestino : null,
-      };
-      const { error } = await (supabase as any).from("almoxarifado_movimentos").insert(payload);
+      const fornecedorId = fornId && fornId !== "none" ? fornId : null;
+      const { error } = await (supabase as any).rpc("registrar_movimentacao_almoxarifado", {
+        p_obra_id: obraId,
+        p_material_id: materialId,
+        p_tipo: tipo,
+        p_quantidade: quantidade,
+        p_preco_unitario: preco ? parseFloat(preco) : null,
+        p_frente: frente || null,
+        p_fornecedor_id: fornecedorId,
+        p_fornecedor: fornecedores.find(f => f.id === fornecedorId)?.nome || null,
+        p_nota_fiscal: nf || null,
+        p_observacoes: obs || null,
+        p_data_movimento: dataMov,
+        p_obra_destino_id: tipo === "transferencia" ? obraDestino : null,
+      });
       if (error) throw new Error(error.message);
-
-      // Se transferência, soma no destino
-      if (tipo === "transferencia" && obraDestino) {
-        await (supabase as any).from("almoxarifado_movimentos").insert({
-          ...payload, obra_id: obraDestino, tipo: "entrada",
-          observacoes: `Transferência recebida de ${obras.find(o=>o.id===obraId)?.nome ?? obraId}`,
-          obra_destino_id: null,
-        });
-      }
 
       toast.success("Movimentação registrada!");
       onSaved(); onClose();
@@ -1351,7 +1345,8 @@ function MovimentacaoModal({ open, onClose, obraId, obras, materiais, fornecedor
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Quantidade <span className="text-red-500">*</span></Label>
-              <Input type="number" min="0.001" step="any" value={qtd} onChange={e => setQtd(e.target.value)} placeholder="0" />
+              <Input type="number" min={tipo === "ajuste" ? undefined : "0.001"} step="any" value={qtd} onChange={e => setQtd(e.target.value)} placeholder={tipo === "ajuste" ? "Ex.: -2 ou 3" : "0"} />
+              {tipo === "ajuste" && <p className="text-[11px] text-muted-foreground">Use valor negativo para reduzir e positivo para acrescentar.</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Data</Label>
@@ -1939,7 +1934,9 @@ function InventarioTab({ obras, obraId, setObraId, materiais, canEdit }: {
       const updates = Object.entries(contagens).filter(([_, v]) => v !== "").map(([id, v]) =>
         (supabase as any).from("inventario_itens").update({ quantidade_contada: parseFloat(v) }).eq("id", id)
       );
-      await Promise.all(updates);
+      const results = await Promise.all(updates);
+      const failed = results.find((result: any) => result.error);
+      if (failed?.error) throw new Error(failed.error.message);
       toast.success("Contagens salvas!");
       if (openInv) openInventario(openInv);
     } catch (e: any) { toast.error(e.message); }
@@ -1949,24 +1946,14 @@ function InventarioTab({ obras, obraId, setObraId, materiais, canEdit }: {
   async function aplicarAjustes() {
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       const divergentes = invItens.filter(it =>
         !it.ajustado && it.quantidade_contada != null && it.quantidade_contada !== it.quantidade_sistema
       );
       if (divergentes.length === 0) { toast.info("Sem divergências para ajustar"); setSaving(false); return; }
 
-      for (const it of divergentes) {
-        const diff = (it.quantidade_contada ?? 0) - it.quantidade_sistema;
-        const tipo = diff >= 0 ? "ajuste" : "ajuste";
-        await (supabase as any).from("almoxarifado_movimentos").insert({
-          obra_id: openInv!.obra_id, material_id: it.material_id,
-          tipo, quantidade: Math.abs(diff),
-          observacoes: `Ajuste de inventário — sistema: ${it.quantidade_sistema}, contado: ${it.quantidade_contada}`,
-          registrado_por: user?.id, data_movimento: openInv!.data_inventario,
-        });
-        await (supabase as any).from("inventario_itens").update({ ajustado: true }).eq("id", it.id);
-      }
-      toast.success(`${divergentes.length} ajuste(s) aplicado(s)!`);
+      const { data: total, error } = await (supabase as any).rpc("aplicar_ajustes_inventario", { p_inventario_id: openInv!.id });
+      if (error) throw new Error(error.message);
+      toast.success(`${total ?? divergentes.length} ajuste(s) aplicado(s)!`);
       if (openInv) openInventario(openInv);
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -1975,9 +1962,13 @@ function InventarioTab({ obras, obraId, setObraId, materiais, canEdit }: {
   async function fecharInventario() {
     if (!openInv) return;
     setSaving(true);
-    await (supabase as any).from("inventario_fisico").update({ status: "fechado" }).eq("id", openInv.id);
-    setSaving(false); toast.success("Inventário fechado!");
-    setOpenInv(null); fetchInventarios();
+    try {
+      const { error } = await (supabase as any).rpc("fechar_inventario_almoxarifado", { p_inventario_id: openInv.id });
+      if (error) throw new Error(error.message);
+      toast.success("Inventário fechado!");
+      setOpenInv(null); fetchInventarios();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSaving(false); }
   }
 
   // === Visualização interna do inventário aberto ===
@@ -2006,7 +1997,8 @@ function InventarioTab({ obras, obraId, setObraId, materiais, canEdit }: {
                   <RotateCcw className="h-3.5 w-3.5" /> Aplicar {divergentes.length} Ajuste(s)
                 </Button>
               )}
-              <Button size="sm" variant="outline" onClick={fecharInventario} disabled={saving} className="gap-1.5 text-red-600 border-red-300">
+              <Button size="sm" variant="outline" onClick={fecharInventario} disabled={saving || naoContados.length > 0 || divergentes.length > 0} className="gap-1.5 text-red-600 border-red-300"
+                title={naoContados.length > 0 ? "Conte todos os itens antes de fechar" : divergentes.length > 0 ? "Aplique as divergências antes de fechar" : "Fechar inventário"}>
                 <Ban className="h-3.5 w-3.5" /> Fechar Inventário
               </Button>
             </div>
