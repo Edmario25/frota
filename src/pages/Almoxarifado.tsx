@@ -30,6 +30,7 @@ import {
   Check, X, Boxes, Building2, ArrowLeftRight, Truck, BarChart3,
   Clock, ShieldCheck, Ban, Trash2, FileText, Printer, Send,
   ClipboardCheck, Zap, FlaskConical, TrendingUp,
+  Users, Eye,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -275,6 +276,7 @@ export default function Almoxarifado() {
             </TabsTrigger>
             <TabsTrigger value="ordens"        className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Ordens de Compra</TabsTrigger>
             <TabsTrigger value="fornecedores"  className="gap-1.5 text-xs"><Truck className="h-3.5 w-3.5" /> Fornecedores</TabsTrigger>
+            <TabsTrigger value="controle"      className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" /> Responsabilidades</TabsTrigger>
             <TabsTrigger value="relatorios"    className="gap-1.5 text-xs"><TrendingUp className="h-3.5 w-3.5" /> Relatórios</TabsTrigger>
             <TabsTrigger value="inventario"    className="gap-1.5 text-xs"><ClipboardCheck className="h-3.5 w-3.5" /> Inventário</TabsTrigger>
             <TabsTrigger value="catalogo"      className="gap-1.5 text-xs"><BookOpen className="h-3.5 w-3.5" /> Catálogo</TabsTrigger>
@@ -295,6 +297,9 @@ export default function Almoxarifado() {
           <TabsContent value="fornecedores">
             <FornecedoresTab fornecedores={fornecedores} onRefresh={fetchFornecedores} canEdit={canApprove} />
           </TabsContent>
+          <TabsContent value="controle">
+            <ControleEntregasTab obras={obras} obraId={obraId} setObraId={setObraId} />
+          </TabsContent>
           <TabsContent value="relatorios">
             <RelatoriosTab obras={obras} obraId={obraId} setObraId={setObraId} />
           </TabsContent>
@@ -308,6 +313,57 @@ export default function Almoxarifado() {
       </div>
     </Layout>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENTREGAS, RESPONSABILIDADES E DEVOLUÇÕES
+// ═══════════════════════════════════════════════════════════════════════════════
+function ControleEntregasTab({ obras, obraId, setObraId }: { obras: any[]; obraId: string; setObraId: (v: string) => void }) {
+  const [entregas, setEntregas] = useState<any[]>([]);
+  const [devolucoes, setDevolucoes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [comprovante, setComprovante] = useState<any | null>(null);
+
+  const load = useCallback(async () => {
+    if (!obraId) { setEntregas([]); setDevolucoes([]); return; }
+    setLoading(true);
+    const [deliveryResult, returnResult] = await Promise.all([
+      (supabase as any).from("almoxarifado_entregas").select("*, retirante:employees!almoxarifado_entregas_retirado_por_fkey(nome), operador:employees!almoxarifado_entregas_entregue_por_fkey(nome), almoxarifado_entrega_itens(id,quantidade,quantidade_devolvida,retornavel,materiais_catalogo(nome,unidade))").eq("obra_id", obraId).order("created_at", { ascending: false }),
+      (supabase as any).from("almoxarifado_devolucoes").select("*, funcionario:employees!almoxarifado_devolucoes_funcionario_id_fkey(nome), recebedor:employees!almoxarifado_devolucoes_recebido_por_fkey(nome), almoxarifado_devolucao_itens(quantidade,condicao,materiais_catalogo(nome,unidade))").eq("obra_id", obraId).order("created_at", { ascending: false }),
+    ]);
+    if (deliveryResult.error) toast.error(deliveryResult.error.message);
+    if (returnResult.error) toast.error(returnResult.error.message);
+    setEntregas(deliveryResult.data ?? []); setDevolucoes(returnResult.data ?? []); setLoading(false);
+  }, [obraId]);
+  useEffect(() => { load(); }, [load]);
+
+  const responsabilidades = useMemo(() => entregas.flatMap(entrega =>
+    (entrega.almoxarifado_entrega_itens ?? []).filter((item: any) => item.retornavel && Number(item.quantidade) > Number(item.quantidade_devolvida)).map((item: any) => ({
+      ...item, entrega, pendente: Number(item.quantidade) - Number(item.quantidade_devolvida),
+    }))
+  ), [entregas]);
+  const q = search.toLowerCase();
+  const match = (value: string) => !q || value.toLowerCase().includes(q);
+  const entregasFiltradas = entregas.filter(e => match(`${e.retirante?.nome ?? ""} ${e.frente ?? ""} ${e.numero ?? ""}`));
+  const respFiltradas = responsabilidades.filter(r => match(`${r.entrega.retirante?.nome ?? ""} ${r.materiais_catalogo?.nome ?? ""}`));
+  const devFiltradas = devolucoes.filter(d => match(`${d.funcionario?.nome ?? ""} ${d.numero ?? ""}`));
+  const atrasadas = responsabilidades.filter(r => Date.now() - new Date(r.entrega.created_at).getTime() > 7 * 86400000).length;
+  const avariadas = devolucoes.flatMap(d => d.almoxarifado_devolucao_itens ?? []).filter((i: any) => i.condicao !== "bom").length;
+
+  return <div className="space-y-4 mt-4">
+    <div className="flex gap-3 flex-wrap items-end"><div className="space-y-1.5 flex-1 min-w-60"><Label>Obra</Label><Select value={obraId} onValueChange={setObraId}><SelectTrigger><SelectValue placeholder="Selecione a obra..." /></SelectTrigger><SelectContent>{obras.map(o=><SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></div><div className="relative min-w-60"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/><Input className="pl-9" placeholder="Funcionário, material ou comprovante..." value={search} onChange={e=>setSearch(e.target.value)}/></div><Button variant="outline" onClick={load}><RefreshCw className="h-4 w-4"/></Button></div>
+    {!obraId ? <div className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">Selecione uma obra para acompanhar as entregas e responsabilidades.</div> : <>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{[
+        ["Entregas", entregas.length, "text-blue-600"], ["Itens sob responsabilidade", responsabilidades.length, "text-violet-600"], ["Pendentes +7 dias", atrasadas, "text-amber-600"], ["Avariados/Inutilizados", avariadas, "text-red-600"],
+      ].map(([label,value,color])=><Card key={String(label)}><CardContent className="p-4"><p className={cn("text-2xl font-bold",color)}>{value}</p><p className="text-xs text-muted-foreground">{label}</p></CardContent></Card>)}</div>
+      <Tabs defaultValue="responsabilidades"><TabsList><TabsTrigger value="responsabilidades">Responsabilidades</TabsTrigger><TabsTrigger value="entregas">Entregas</TabsTrigger><TabsTrigger value="devolucoes">Devoluções</TabsTrigger></TabsList>
+        <TabsContent value="responsabilidades"><Card><Table><TableHeader><TableRow><TableHead>Funcionário</TableHead><TableHead>Item</TableHead><TableHead>Retirado em</TableHead><TableHead>Frente</TableHead><TableHead className="text-right">Pendente</TableHead><TableHead>Situação</TableHead></TableRow></TableHeader><TableBody>{!loading&&respFiltradas.length===0&&<TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Nenhuma responsabilidade em aberto.</TableCell></TableRow>}{respFiltradas.map(r=>{const late=Date.now()-new Date(r.entrega.created_at).getTime()>7*86400000;return <TableRow key={r.id}><TableCell className="font-medium">{r.entrega.retirante?.nome}</TableCell><TableCell>{r.materiais_catalogo?.nome}</TableCell><TableCell>{new Date(r.entrega.created_at).toLocaleDateString("pt-BR")}</TableCell><TableCell>{r.entrega.frente}</TableCell><TableCell className="text-right font-semibold">{fmtQtd(r.pendente,r.materiais_catalogo?.unidade??"un")}</TableCell><TableCell><Badge className={late?"bg-amber-100 text-amber-700":"bg-violet-100 text-violet-700"}>{late?"Pendente +7 dias":"Em posse"}</Badge></TableCell></TableRow>})}</TableBody></Table></Card></TabsContent>
+        <TabsContent value="entregas"><Card><Table><TableHeader><TableRow><TableHead>Comprovante</TableHead><TableHead>Funcionário</TableHead><TableHead>Data</TableHead><TableHead>Frente</TableHead><TableHead>Itens</TableHead><TableHead>Entregue por</TableHead><TableHead/></TableRow></TableHeader><TableBody>{entregasFiltradas.map(e=><TableRow key={e.id}><TableCell className="font-mono">#{e.numero}</TableCell><TableCell className="font-medium">{e.retirante?.nome}</TableCell><TableCell>{new Date(e.created_at).toLocaleString("pt-BR")}</TableCell><TableCell>{e.frente}</TableCell><TableCell>{e.almoxarifado_entrega_itens?.length??0}</TableCell><TableCell>{e.operador?.nome}</TableCell><TableCell><Button variant="ghost" size="sm" onClick={()=>setComprovante(e)}><Eye className="h-4 w-4 mr-1"/>Ver</Button></TableCell></TableRow>)}</TableBody></Table></Card></TabsContent>
+        <TabsContent value="devolucoes"><Card><Table><TableHeader><TableRow><TableHead>Comprovante</TableHead><TableHead>Funcionário</TableHead><TableHead>Data</TableHead><TableHead>Itens</TableHead><TableHead>Recebido por</TableHead></TableRow></TableHeader><TableBody>{devFiltradas.length===0&&<TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Nenhuma devolução registrada.</TableCell></TableRow>}{devFiltradas.map(d=><TableRow key={d.id}><TableCell className="font-mono">#{d.numero}</TableCell><TableCell className="font-medium">{d.funcionario?.nome}</TableCell><TableCell>{new Date(d.created_at).toLocaleString("pt-BR")}</TableCell><TableCell>{(d.almoxarifado_devolucao_itens??[]).map((i:any)=><div key={`${i.materiais_catalogo?.nome}-${i.quantidade}`} className="text-xs">{i.materiais_catalogo?.nome}: {fmtQtd(Number(i.quantidade),i.materiais_catalogo?.unidade??"un")} · {i.condicao}</div>)}</TableCell><TableCell>{d.recebedor?.nome}</TableCell></TableRow>)}</TableBody></Table></Card></TabsContent>
+      </Tabs></>}
+    <Dialog open={!!comprovante} onOpenChange={()=>setComprovante(null)}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Comprovante de entrega #{comprovante?.numero}</DialogTitle></DialogHeader>{comprovante&&<div className="space-y-3 text-sm"><div className="grid grid-cols-2 gap-3"><div><Label>Funcionário</Label><p className="font-medium">{comprovante.retirante?.nome}</p></div><div><Label>Frente</Label><p>{comprovante.frente}</p></div></div><div className="rounded-lg border p-3">{(comprovante.almoxarifado_entrega_itens??[]).map((i:any)=><div key={i.id} className="flex justify-between py-1"><span>{i.materiais_catalogo?.nome}{i.retornavel&&<Badge variant="outline" className="ml-2 text-[10px]">Retornável</Badge>}</span><b>{fmtQtd(Number(i.quantidade),i.materiais_catalogo?.unidade??"un")}</b></div>)}</div><div><Label>Assinatura</Label><div className="border rounded-lg bg-white p-2 mt-1"><img src={comprovante.assinatura_base64} alt="Assinatura do recebedor" className="h-32 mx-auto object-contain"/></div></div><p className="text-xs text-muted-foreground">Registrado por {comprovante.operador?.nome} em {new Date(comprovante.created_at).toLocaleString("pt-BR")}</p></div>}</DialogContent></Dialog>
+  </div>;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
