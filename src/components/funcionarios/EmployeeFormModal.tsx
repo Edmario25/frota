@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PhotoUpload } from "@/components/ui/photo-upload";
-import { ShieldCheck, Shield, User, Info, KeyRound, ChevronDown, ChevronUp, Smartphone, HardHat } from "lucide-react";
+import { ShieldCheck, Shield, User, Info, KeyRound, ChevronDown, ChevronUp, Smartphone, HardHat, ClipboardList, Package } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCargos } from "@/hooks/useCargos";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
@@ -50,6 +50,8 @@ const schema = z.object({
   escala_tipo_id:        z.string().optional(),
   acesso_app_motorista:  z.boolean().default(false),
   acesso_app_sms:        z.boolean().default(false),
+  acesso_app_campo:      z.boolean().default(false),
+  acesso_app_almoxarifado: z.boolean().default(false),
 });
 
 interface Props {
@@ -83,6 +85,8 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
       status: "ativo", obra_id: "", escala_tipo_id: "",
       acesso_app_motorista: false,
       acesso_app_sms:       false,
+      acesso_app_campo:     false,
+      acesso_app_almoxarifado: false,
     },
   });
 
@@ -172,7 +176,9 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
           obra_id:              activeObraId,
           escala_tipo_id:       employee.escala_tipo_id ?? "",
           acesso_app_motorista: employee.acesso_app_motorista ?? false,
-          acesso_app_sms:       (employee as any).acesso_app_sms ?? false,
+          acesso_app_sms:       employee.acesso_app_sms ?? false,
+          acesso_app_campo:     employee.acesso_app_campo ?? false,
+          acesso_app_almoxarifado: employee.acesso_app_almoxarifado ?? false,
         });
         setPhotoUrl(employee.foto_url ?? "");
       } else {
@@ -180,6 +186,8 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
           nome: "", cpf: "", email: "", senha: "", telefone: "",
           cargo_id: "", departamento_id: "", data_admissao: "",
           status: "ativo", obra_id: "", escala_tipo_id: "",
+          acesso_app_motorista: false, acesso_app_sms: false,
+          acesso_app_campo: false, acesso_app_almoxarifado: false,
         });
         setPhotoUrl("");
       }
@@ -204,6 +212,8 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
         foto_url:             photoUrl || null,
         acesso_app_motorista: values.acesso_app_motorista ?? false,
         acesso_app_sms:       values.acesso_app_sms ?? false,
+        acesso_app_campo:     values.acesso_app_campo ?? false,
+        acesso_app_almoxarifado: values.acesso_app_almoxarifado ?? false,
       };
 
       const submitData = employee
@@ -375,6 +385,58 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Permite que este funcionário acesse o app de segurança do trabalho
                         para registrar DDS, desvios, inspeções, APR, RDO e ocorrências em campo.
+                      </p>
+                    </div>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {/* Acesso ao App Apontador de Campo */}
+            <FormField
+              control={form.control}
+              name="acesso_app_campo"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-4">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange}
+                        id="acesso_app_campo" className="mt-0.5" />
+                    </FormControl>
+                    <div className="flex-1">
+                      <label htmlFor="acesso_app_campo"
+                        className="text-sm font-semibold cursor-pointer flex items-center gap-2">
+                        <ClipboardList className="h-4 w-4 text-orange-600" />
+                        Acesso ao App Apontador de Campo
+                      </label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Permite registrar o ponto e o efetivo das equipes nas frentes de serviço da obra vinculada.
+                      </p>
+                    </div>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {/* Acesso ao App Almoxarifado */}
+            <FormField
+              control={form.control}
+              name="acesso_app_almoxarifado"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-4">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange}
+                        id="acesso_app_almoxarifado" className="mt-0.5" />
+                    </FormControl>
+                    <div className="flex-1">
+                      <label htmlFor="acesso_app_almoxarifado"
+                        className="text-sm font-semibold cursor-pointer flex items-center gap-2">
+                        <Package className="h-4 w-4 text-violet-600" />
+                        Acesso ao App Almoxarifado
+                      </label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Permite registrar saídas de materiais com conferência e assinatura na obra vinculada.
                       </p>
                     </div>
                   </div>

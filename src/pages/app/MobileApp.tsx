@@ -60,7 +60,7 @@ export default function MobileApp() {
   };
 
   const { user, loading: loadingAuth }          = useAuth();
-  const { isFuncionario, loading: loadingRole } = useUserRole();
+  const { loading: loadingRole } = useUserRole();
   const { employee, loading: loadingEmployee }  = useCurrentEmployee();
   const { isOnline, queueCount, syncQueue }     = useOnlineStatus();
   const { unreadCount: escalaUnread }           = useEscalaNotificacoes();
@@ -70,8 +70,7 @@ export default function MobileApp() {
 
   const loading = loadingAuth || loadingRole || loadingEmployee;
 
-  const metaAccess = user?.user_metadata?.acesso_app_motorista === true;
-  const temAcesso  = isFuncionario || metaAccess || (employee?.acesso_app_motorista === true);
+  const temAcesso = employee?.acesso_app_motorista === true;
 
   // ── Notificação global: toast quando gestor envia msg e motorista não está na aba chat ──
   // FIX: busca o valor inicial de prevNaoLidas ANTES de criar o canal para evitar

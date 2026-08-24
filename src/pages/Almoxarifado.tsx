@@ -36,7 +36,7 @@ import {
 interface Material {
   id: string; nome: string; unidade: string;
   categoria: string | null; codigo_interno: string | null;
-  ativo: boolean; descricao: string | null;
+  ativo: boolean; descricao: string | null; tipo_item?: "consumo" | "retornavel";
 }
 interface Estoque {
   id: string; obra_id: string; material_id: string;
@@ -1111,20 +1111,20 @@ function CatalogoTab({ materiais, onRefresh, canEdit }: { materiais: Material[];
   const [catFiltro, setCat]     = useState("all");
   const [open,      setOpen]    = useState(false);
   const [editing,   setEditing] = useState<Material | null>(null);
-  const [form, setForm] = useState({ nome:"", descricao:"", unidade:"un", categoria:"", codigo:"", ativo:true });
+  const [form, setForm] = useState({ nome:"", descricao:"", unidade:"un", categoria:"", codigo:"", tipo_item:"consumo", ativo:true });
   const [saving, setSaving] = useState(false);
 
-  function openNew()  { setEditing(null); setForm({nome:"",descricao:"",unidade:"un",categoria:"",codigo:"",ativo:true}); setOpen(true); }
+  function openNew()  { setEditing(null); setForm({nome:"",descricao:"",unidade:"un",categoria:"",codigo:"",tipo_item:"consumo",ativo:true}); setOpen(true); }
   function openEdit(m: Material) {
     setEditing(m);
-    setForm({nome:m.nome,descricao:m.descricao??"",unidade:m.unidade,categoria:m.categoria??"",codigo:m.codigo_interno??"",ativo:m.ativo});
+    setForm({nome:m.nome,descricao:m.descricao??"",unidade:m.unidade,categoria:m.categoria??"",codigo:m.codigo_interno??"",tipo_item:m.tipo_item??"consumo",ativo:m.ativo});
     setOpen(true);
   }
 
   async function handleSave() {
     if (!form.nome.trim()) { toast.error("Informe o nome do material"); return; }
     setSaving(true);
-    const payload = { nome:form.nome.trim(), descricao:form.descricao||null, unidade:form.unidade, categoria:form.categoria||null, codigo_interno:form.codigo||null, ativo:form.ativo };
+    const payload = { nome:form.nome.trim(), descricao:form.descricao||null, unidade:form.unidade, categoria:form.categoria||null, codigo_interno:form.codigo||null, tipo_item:form.tipo_item, ativo:form.ativo };
     const { error } = editing
       ? await (supabase as any).from("materiais_catalogo").update(payload).eq("id", editing.id)
       : await (supabase as any).from("materiais_catalogo").insert([payload]);
@@ -1233,6 +1233,7 @@ function CatalogoTab({ materiais, onRefresh, canEdit }: { materiais: Material[];
               </div>
             </div>
             <div className="space-y-1.5"><Label>Código interno</Label><Input value={form.codigo} onChange={e => setForm(f=>({...f,codigo:e.target.value}))} placeholder="MAT-001" /></div>
+            <div className="space-y-1.5"><Label>Controle do item</Label><Select value={form.tipo_item} onValueChange={v=>setForm(f=>({...f,tipo_item:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="consumo">Consumo — não retorna</SelectItem><SelectItem value="retornavel">Retornável — fica sob responsabilidade</SelectItem></SelectContent></Select><p className="text-xs text-muted-foreground">Ferramentas e equipamentos devem ser classificados como retornáveis.</p></div>
             <div className="flex items-center justify-between rounded-lg border px-4 py-2.5">
               <Label className="cursor-pointer">Material ativo</Label>
               <Switch checked={form.ativo} onCheckedChange={v => setForm(f=>({...f,ativo:v}))} />

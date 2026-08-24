@@ -262,7 +262,10 @@ export type Database = {
       }
       employees: {
         Row: {
+          acesso_app_almoxarifado: boolean
+          acesso_app_campo: boolean
           acesso_app_motorista: boolean
+          acesso_app_sms: boolean
           cargo_id: string | null
           cpf: string
           created_at: string
@@ -280,7 +283,10 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          acesso_app_almoxarifado?: boolean
+          acesso_app_campo?: boolean
           acesso_app_motorista?: boolean
+          acesso_app_sms?: boolean
           cargo_id?: string | null
           cpf: string
           created_at?: string
@@ -298,7 +304,10 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          acesso_app_almoxarifado?: boolean
+          acesso_app_campo?: boolean
           acesso_app_motorista?: boolean
+          acesso_app_sms?: boolean
           cargo_id?: string | null
           cpf?: string
           created_at?: string

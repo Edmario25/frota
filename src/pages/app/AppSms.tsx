@@ -143,12 +143,10 @@ export default function AppSms() {
       .eq('employee_id', emp.id).eq('status', true)
       .maybeSingle()
 
-    // 3. Verifica acesso_app_sms (coluna pode não existir se migration não rodou)
-    const { data: accessRow } = await (supabase as any)
-      .from('employees').select('acesso_app_sms').eq('id', emp.id).maybeSingle()
-
-    // Bloqueia APENAS quando coluna existe E está explicitamente false
-    if (accessRow !== null && accessRow.acesso_app_sms === false) {
+    // 3. Verifica a permissão exclusiva do App SMS no banco
+    const { data: hasAccess, error: accessError } = await (supabase as any)
+      .rpc('has_employee_app_access', { p_app: 'sms' })
+    if (accessError || hasAccess !== true) {
       setAuthState('sem_acesso')
       return
     }

@@ -199,12 +199,9 @@ export default function AppCampo() {
       .maybeSingle();
 
     if (emp?.id) {
-      const [{ data: permissions }, { data: role }] = await Promise.all([
-        (supabase as any).rpc("get_user_permissions"),
-        (supabase as any).rpc("get_user_role"),
-      ]);
-      const gestor = ["admin", "gestor_contrato", "gestor_frota", "gestor_obra"].includes(role);
-      if (!gestor && !permissions?.acesso_efetivo) {
+      const { data: hasAccess, error: accessError } = await (supabase as any)
+        .rpc("has_employee_app_access", { p_app: "campo" });
+      if (accessError || hasAccess !== true) {
         setAccessDenied(true);
         setObras([]);
         return;
@@ -219,10 +216,15 @@ export default function AppCampo() {
       const obras = (links ?? []).map((l: any) => l.obras).filter(Boolean);
       setObras(obras as Obra[]);
     } else {
-      // Fallback (admin sem employee): todas as obras
+      const [{ data: role }, { data: hasAccess }] = await Promise.all([
+        (supabase as any).rpc("get_user_role"),
+        (supabase as any).rpc("has_employee_app_access", { p_app: "campo" }),
+      ]);
+      if (role !== "admin" || hasAccess !== true) {
+        setAccessDenied(true); setObras([]); return;
+      }
       setAccessDenied(false);
-      const { data } = await (supabase as any)
-        .from("obras").select("id, nome").order("nome");
+      const { data } = await (supabase as any).from("obras").select("id, nome").order("nome");
       setObras((data ?? []) as Obra[]);
     }
   }

@@ -1,0 +1,9 @@
+.material em { font-size: 10px; color: #7c3aed; font-style: normal; font-weight: 800; }
+.return-row { display: grid; grid-template-columns: 1fr 90px 120px; gap: 9px; align-items: center; padding: 11px 0; border-bottom: 1px solid #e8edf4; }
+.return-row div { display: grid; gap: 3px; }
+.return-row span, .empty-note { font-size: 12px; color: #64748b; }
+.return-row input, .return-row select { padding: 9px; }
+@media (max-width: 520px) {
+  .return-row { grid-template-columns: 1fr 75px; }
+  .return-row select { grid-column: 1 / -1; }
+}
