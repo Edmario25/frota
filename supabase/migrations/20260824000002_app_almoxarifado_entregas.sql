@@ -79,7 +79,7 @@ CREATE OR REPLACE FUNCTION public.registrar_entrega_almoxarifado(
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
   operador_id uuid;

@@ -93,6 +93,7 @@ const OrcadoRealizado = lazy(() => import("./pages/OrcadoRealizado"));
 const PortalCliente = lazy(() => import("./pages/PortalCliente"));
 const NaoConformidades = lazy(() => import("./pages/NaoConformidades"));
 const Qualidade = lazy(() => import("./pages/Qualidade"));
+const QualidadeRegistros = lazy(() => import("./pages/QualidadeRegistros"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
 const Visitantes = lazy(() => import("./pages/Visitantes"));
 
@@ -368,6 +369,13 @@ const App = () => (
               <ProtectedRoute>
                 <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
                   <Qualidade />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/qualidade/:modulo" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <QualidadeRegistros />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />

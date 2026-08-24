@@ -22,11 +22,11 @@ type Nc = {
 
 const modules = [
   { title: "Não Conformidades", description: "Causa raiz, ações corretivas, prazos e verificação de eficácia.", icon: FileWarning, status: "Disponível", url: "/nao-conformidades" },
-  { title: "Inspeção de Serviços", description: "FVS, critérios de aceitação, evidências e liberação por etapa.", icon: ClipboardCheck, status: "Próxima etapa" },
-  { title: "Controle de Materiais", description: "Recebimento, lotes, certificados, ensaios e rastreabilidade de aplicação.", icon: FlaskConical, status: "Próxima etapa" },
-  { title: "Documentos da Qualidade", description: "PES, procedimentos, formulários, revisões e distribuição controlada.", icon: FileCheck2, status: "Planejado" },
-  { title: "Auditorias", description: "Plano de auditoria, constatações, evidências e acompanhamento das ações.", icon: ShieldCheck, status: "Planejado" },
-  { title: "Avaliação de Fornecedores", description: "Critérios, notas, ocorrências e qualificação por desempenho.", icon: Truck, status: "Planejado" },
+  { title: "Inspeção de Serviços", description: "FVS, critérios de aceitação, evidências e liberação por etapa.", icon: ClipboardCheck, status: "Disponível", url: "/qualidade/servicos" },
+  { title: "Controle de Materiais", description: "Recebimento, lotes, certificados, ensaios e rastreabilidade de aplicação.", icon: FlaskConical, status: "Disponível", url: "/qualidade/materiais" },
+  { title: "Documentos da Qualidade", description: "PES, procedimentos, formulários, revisões e distribuição controlada.", icon: FileCheck2, status: "Disponível", url: "/qualidade/documentos" },
+  { title: "Auditorias", description: "Plano de auditoria, constatações, evidências e acompanhamento das ações.", icon: ShieldCheck, status: "Disponível", url: "/qualidade/auditorias" },
+  { title: "Avaliação de Fornecedores", description: "Critérios, notas, ocorrências e qualificação por desempenho.", icon: Truck, status: "Disponível", url: "/qualidade/fornecedores" },
 ];
 
 export default function Qualidade() {
@@ -99,7 +99,7 @@ export default function Qualidade() {
         </div>
       </div>
 
-      <Card className="border-dashed"><CardContent className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between"><div className="flex items-start gap-3"><div className="rounded-lg bg-slate-100 p-2"><Users className="h-5 w-5 text-slate-600"/></div><div><p className="text-sm font-semibold">Próxima evolução recomendada</p><p className="text-xs text-muted-foreground">Implantar FVS e inspeção de recebimento de materiais antes dos demais módulos, pois alimentam automaticamente as não conformidades.</p></div></div><Badge variant="outline">Fase 2</Badge></CardContent></Card>
+      <Card className="border-dashed"><CardContent className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between"><div className="flex items-start gap-3"><div className="rounded-lg bg-slate-100 p-2"><Users className="h-5 w-5 text-slate-600"/></div><div><p className="text-sm font-semibold">Sistema de Gestão da Qualidade operacional</p><p className="text-xs text-muted-foreground">Centralize inspeções, recebimentos, documentos, auditorias, fornecedores e não conformidades com rastreabilidade por obra.</p></div></div><Badge variant="outline">6 módulos</Badge></CardContent></Card>
     </div>
   </Layout>;
 }

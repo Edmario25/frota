@@ -3,6 +3,13 @@
 .return-row div { display: grid; gap: 3px; }
 .return-row span, .empty-note { font-size: 12px; color: #64748b; }
 .return-row input, .return-row select { padding: 9px; }
+.section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.section-title h2 { margin-bottom: 15px; }
+.section-title span { margin-bottom: 15px; border-radius: 999px; background: #eef3ff; color: #2454db; padding: 4px 9px; font-size: 11px; font-weight: 800; }
+.stock-empty { border: 1px dashed #c7d2e3; border-radius: 12px; padding: 22px 14px; text-align: center; background: #f8fafc; }
+.stock-empty b { font-size: 13px; }
+.stock-empty p, .stock-limit { margin: 5px 0 0; color: #64748b; font-size: 11px; }
+.material small { margin: 0; color: #64748b; font-size: 10px; font-family: monospace; }
 @media (max-width: 520px) {
   .return-row { grid-template-columns: 1fr 75px; }
   .return-row select { grid-column: 1 / -1; }
