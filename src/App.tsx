@@ -71,6 +71,7 @@ const Chat = lazy(() => import("./pages/Chat"));
 const MobileApp = lazy(() => import("./pages/app/MobileApp"));
 const AppSms = lazy(() => import("./pages/app/AppSms"));
 const AppCampo = lazy(() => import("./pages/app/campo/AppCampo"));
+const AppAlmoxarifado = lazy(() => import("./pages/app/almoxarifado/AppAlmoxarifado"));
 const SmsDashboard = lazy(() => import("./pages/sms/SmsDashboard"));
 const SmsDesvios = lazy(() => import("./pages/sms/SmsDesvios"));
 const SmsInspecoes = lazy(() => import("./pages/sms/SmsInspecoes"));
@@ -132,6 +133,7 @@ const App = () => (
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/app-almoxarifado" element={<AppAlmoxarifado />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Index />
