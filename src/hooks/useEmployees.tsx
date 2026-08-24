@@ -48,6 +48,17 @@ export const useEmployees = () => {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['employees'] });
 
+  // Todas as consultas de funcionários incluem escopo/obra na chave.
+  // Atualizar apenas ['employees'] cria um cache paralelo que a tela não lê.
+  const updateEmployeeCaches = (
+    updater: (employees: EmployeeWithRelations[]) => EmployeeWithRelations[],
+  ) => {
+    qc.setQueriesData<EmployeeWithRelations[]>(
+      { queryKey: ['employees'] },
+      (old) => updater(old ?? []),
+    );
+  };
+
   // Traduz erros de constraint do PostgreSQL em mensagens amigáveis
   function friendlyDbError(e: any): string {
     const msg: string = e?.message ?? ''
@@ -85,7 +96,7 @@ export const useEmployees = () => {
     },
     onSuccess: (novo) => {
       // Atualiza o cache imediatamente — novo funcionário aparece sem esperar segundo request
-      qc.setQueryData(['employees'], (old: any[] = []) => [novo, ...old]);
+      updateEmployeeCaches((old) => [novo, ...old.filter(e => e.id !== novo.id)]);
       invalidate(); // confirma em background (atualiza relações, ordenação)
     },
     onError: (e: any) => toast({ title: "Erro ao cadastrar funcionário", description: friendlyDbError(e), variant: "destructive" }),
@@ -121,7 +132,7 @@ export const useEmployees = () => {
       return data;
     },
     onSuccess: (atualizado) => {
-      qc.setQueryData(['employees'], (old: any[] = []) =>
+      updateEmployeeCaches((old) =>
         old.map(e => e.id === atualizado.id ? atualizado : e),
       );
       invalidate();
@@ -142,7 +153,7 @@ export const useEmployees = () => {
       return id;
     },
     onSuccess: (_, id) => {
-      qc.setQueryData(['employees'], (old: any[] = []) =>
+      updateEmployeeCaches((old) =>
         old.map(e => e.id === id ? { ...e, status: 'inativo' } : e),
       );
       invalidate();
