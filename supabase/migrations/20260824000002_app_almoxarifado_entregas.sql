@@ -96,7 +96,7 @@ BEGIN
   SELECT id INTO operador_id FROM public.employees WHERE user_id = auth.uid() LIMIT 1;
   IF operador_id IS NULL THEN RAISE EXCEPTION 'Usuario sem cadastro de funcionario.'; END IF;
 
-  SELECT count(DISTINCT ofu.obra_id), min(ofu.obra_id)
+  SELECT count(DISTINCT ofu.obra_id), min(ofu.obra_id::text)::uuid
     INTO total_obras, obra_vinculada_id
   FROM public.obra_funcionarios ofu
   WHERE ofu.employee_id = operador_id AND ofu.status = true

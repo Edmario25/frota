@@ -9,6 +9,59 @@ type CartItem = { material_id: string; nome: string; unidade: string; quantidade
 type Delivery = { id: string; numero: number; frente: string; created_at: string; employees: { nome: string } | null };
 type Responsibility = { entrega_item_id: string; material_id: string; material_nome: string; unidade: string; quantidade_pendente: number; quantidade: number; condicao: "bom" | "avariado" | "inutilizado" };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function EmployeeQrScanner({ onScan, onClose }: { onScan: (employeeId: string) => void; onClose: () => void }) {
+  const scannerRef = useRef<any>(null);
+  const finishedRef = useRef(false);
+  const [error, setError] = useState("");
+  const [hint, setHint] = useState("Aponte a câmera para o QR Code do crachá");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function start() {
+      try {
+        const { Html5Qrcode } = await import("html5-qrcode");
+        const scanner = new Html5Qrcode("almox-employee-qr-reader");
+        scannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          async (decoded: string) => {
+            if (finishedRef.current || cancelled) return;
+            const employeeId = decoded.trim();
+            if (!UUID_RE.test(employeeId)) {
+              setHint("QR Code inválido. Utilize o crachá gerado pelo sistema.");
+              return;
+            }
+            finishedRef.current = true;
+            try { await scanner.stop(); } catch { /* câmera já encerrada */ }
+            scannerRef.current = null;
+            if (!cancelled) onScan(employeeId);
+          },
+          () => { /* frames sem QR são esperados */ },
+        );
+      } catch (scanError: any) {
+        if (cancelled) return;
+        const denied = String(scanError?.message ?? scanError).toLowerCase().includes("permission");
+        setError(denied ? "Permissão de câmera negada. Libere a câmera nas configurações do celular." : "Não foi possível abrir a câmera.");
+      }
+    }
+    start();
+    return () => {
+      cancelled = true;
+      const scanner = scannerRef.current;
+      scannerRef.current = null;
+      if (scanner) scanner.stop().catch(() => {});
+    };
+  }, [onScan]);
+
+  return <div className="qr-scanner-modal">
+    <div className="qr-scanner-head"><button type="button" onClick={onClose}>‹</button><strong>Identificar funcionário</strong></div>
+    {error ? <div className="qr-scanner-error"><span>📷</span><p>{error}</p><button type="button" onClick={onClose}>Fechar</button></div> : <><div id="almox-employee-qr-reader" className="qr-reader"/><p className="qr-scanner-hint">{hint}</p></>}
+  </div>;
+}
+
 function Signature({ onChange }: { onChange: (value: string) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -53,6 +106,7 @@ export default function AppAlmoxarifado() {
   const [search, setSearch] = useState(""); const [cart, setCart] = useState<CartItem[]>([]); const [signature, setSignature] = useState("");
   const [history, setHistory] = useState<Delivery[]>([]); const [tab, setTab] = useState<"delivery" | "return" | "history">("delivery");
   const [returnEmployee, setReturnEmployee] = useState(""); const [responsibilities, setResponsibilities] = useState<Responsibility[]>([]); const [returnNotes, setReturnNotes] = useState("");
+  const [scannerTarget, setScannerTarget] = useState<"delivery" | "return" | null>(null);
   const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [message, setMessage] = useState("");
 
   const load = useCallback(async (userId: string) => {
@@ -98,6 +152,19 @@ export default function AppAlmoxarifado() {
     if (error) setMessage(error.message); else setResponsibilities((data ?? []).map((item: any) => ({ ...item, quantidade_pendente: Number(item.quantidade_pendente), quantidade: Number(item.quantidade_pendente), condicao: "bom" })));
   }
 
+  const handleEmployeeScan = useCallback((employeeId: string) => {
+    const employee = employees.find(item => item.id.toLowerCase() === employeeId.toLowerCase());
+    if (!employee) {
+      setMessage("O QR Code pertence a um funcionário que não está ativo nesta obra.");
+      setScannerTarget(null);
+      return;
+    }
+    if (scannerTarget === "return") loadResponsibilities(employee.id);
+    else setReceiver(employee.id);
+    setMessage(`${employee.nome} identificado com sucesso.`);
+    setScannerTarget(null);
+  }, [employees, scannerTarget]);
+
   async function submitReturn() {
     const items = responsibilities.filter(item => item.quantidade > 0);
     if (!returnEmployee || !items.length) { setMessage("Selecione o funcionário e os itens devolvidos."); return; }
@@ -123,9 +190,9 @@ export default function AppAlmoxarifado() {
   const filteredStock = stock.filter(item => item.materiais_catalogo?.nome.toLowerCase().includes(search.toLowerCase()));
   return <main className="almox-shell"><header><div><span className="eyebrow">OBRA VINCULADA</span><h1>{obra?.nome ?? "Acesso bloqueado"}</h1><p>{operator?.nome}</p></div><button className="logout" onClick={()=>supabase.auth.signOut()}>Sair</button></header>
     {!obra ? <section className="blocked"><b>Acesso indisponível</b><p>{message}</p></section> : <><nav><button className={tab==="delivery"?"active":""} onClick={()=>setTab("delivery")}>Nova saída</button><button className={tab==="return"?"active":""} onClick={()=>setTab("return")}>Devolução</button><button className={tab==="history"?"active":""} onClick={()=>setTab("history")}>Histórico</button></nav>{message && <div className={message.includes("sucesso")?"success":"alert"}>{message}</div>}
-    {tab === "delivery" && <div className="content"><section className="card"><h2>1. Quem está retirando?</h2><select value={receiver} onChange={e=>setReceiver(e.target.value)}><option value="">Selecione o funcionário...</option>{employees.map(emp=><option key={emp.id} value={emp.id}>{emp.nome}{emp.cargo?` — ${emp.cargo}`:""}</option>)}</select><div className="two"><label>Frente de serviço<input value={front} onChange={e=>setFront(e.target.value)} placeholder="Ex.: Fundação" /></label><label>Finalidade<input value={purpose} onChange={e=>setPurpose(e.target.value)} placeholder="Atividade ou serviço" /></label></div></section>
+    {tab === "delivery" && <div className="content"><section className="card"><h2>1. Quem está retirando?</h2><div className="employee-picker"><select value={receiver} onChange={e=>setReceiver(e.target.value)}><option value="">Selecione o funcionário...</option>{employees.map(emp=><option key={emp.id} value={emp.id}>{emp.nome}{emp.cargo?` — ${emp.cargo}`:""}</option>)}</select><button type="button" className="scan-employee" onClick={()=>setScannerTarget("delivery")}><span>▦</span> Escanear crachá</button></div><div className="two"><label>Frente de serviço<input value={front} onChange={e=>setFront(e.target.value)} placeholder="Ex.: Fundação" /></label><label>Finalidade<input value={purpose} onChange={e=>setPurpose(e.target.value)} placeholder="Atividade ou serviço" /></label></div></section>
     <section className="card"><h2>2. Materiais</h2><input className="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar no estoque desta obra..."/><div className="material-grid">{filteredStock.slice(0,12).map(item=><button key={item.material_id} className="material" onClick={()=>add(item)}><b>{item.materiais_catalogo?.nome}</b><span>Disponível: {item.quantidade} {item.materiais_catalogo?.unidade}</span><em>{item.materiais_catalogo?.tipo_item==="retornavel"?"Retornável":"Consumo"}</em><i>+ Adicionar</i></button>)}</div>{cart.length>0&&<div className="cart"><h3>Itens da entrega</h3>{cart.map(item=><div className="cart-row" key={item.material_id}><div><b>{item.nome}</b><span>Saldo {item.saldo} {item.unidade}</span></div><input type="number" min="0.001" max={item.saldo} step="any" value={item.quantidade} onChange={e=>qty(item.material_id,Number(e.target.value))}/><button onClick={()=>setCart(rows=>rows.filter(row=>row.material_id!==item.material_id))}>×</button></div>)}</div>}</section>
     <section className="card"><h2>3. Conferência e assinatura</h2><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Observações opcionais"/><Signature onChange={setSignature}/><button className="primary confirm" disabled={saving} onClick={submit}>{saving?"Registrando...":`Confirmar entrega (${cart.length} ${cart.length===1?"item":"itens"})`}</button></section></div>}
-    {tab === "return" && <div className="content"><section className="card"><h2>1. Funcionário que está devolvendo</h2><select value={returnEmployee} onChange={e=>loadResponsibilities(e.target.value)}><option value="">Selecione o funcionário...</option>{employees.map(emp=><option key={emp.id} value={emp.id}>{emp.nome}{emp.cargo?` — ${emp.cargo}`:""}</option>)}</select></section><section className="card"><h2>2. Itens sob responsabilidade</h2>{returnEmployee && responsibilities.length===0?<p className="empty-note">Este funcionário não possui itens retornáveis pendentes.</p>:responsibilities.map((item,index)=><div className="return-row" key={item.entrega_item_id}><div><b>{item.material_nome}</b><span>Pendente: {item.quantidade_pendente} {item.unidade}</span></div><input type="number" min="0" max={item.quantidade_pendente} step="any" value={item.quantidade} onChange={e=>setResponsibilities(rows=>rows.map((row,i)=>i===index?{...row,quantidade:Math.min(item.quantidade_pendente,Number(e.target.value))}:row))}/><select value={item.condicao} onChange={e=>setResponsibilities(rows=>rows.map((row,i)=>i===index?{...row,condicao:e.target.value as Responsibility["condicao"]}:row))}><option value="bom">Bom</option><option value="avariado">Avariado</option><option value="inutilizado">Inutilizado</option></select></div>)}</section>{responsibilities.length>0&&<section className="card"><h2>3. Confirmar recebimento</h2><textarea value={returnNotes} onChange={e=>setReturnNotes(e.target.value)} placeholder="Observações sobre a devolução"/><button className="primary" disabled={saving} onClick={submitReturn}>{saving?"Registrando...":"Confirmar devolução"}</button></section>}</div>}
-    {tab === "history" && <section className="card history"><h2>Últimas entregas</h2>{history.length===0?<p>Nenhuma entrega registrada.</p>:history.map(row=><article key={row.id}><div><b>Comprovante #{row.numero}</b><span>{row.employees?.nome} · {row.frente}</span></div><time>{new Date(row.created_at).toLocaleString("pt-BR")}</time></article>)}</section>}</>}</main>;
+    {tab === "return" && <div className="content"><section className="card"><h2>1. Funcionário que está devolvendo</h2><div className="employee-picker"><select value={returnEmployee} onChange={e=>loadResponsibilities(e.target.value)}><option value="">Selecione o funcionário...</option>{employees.map(emp=><option key={emp.id} value={emp.id}>{emp.nome}{emp.cargo?` — ${emp.cargo}`:""}</option>)}</select><button type="button" className="scan-employee" onClick={()=>setScannerTarget("return")}><span>▦</span> Escanear crachá</button></div></section><section className="card"><h2>2. Itens sob responsabilidade</h2>{returnEmployee && responsibilities.length===0?<p className="empty-note">Este funcionário não possui itens retornáveis pendentes.</p>:responsibilities.map((item,index)=><div className="return-row" key={item.entrega_item_id}><div><b>{item.material_nome}</b><span>Pendente: {item.quantidade_pendente} {item.unidade}</span></div><input type="number" min="0" max={item.quantidade_pendente} step="any" value={item.quantidade} onChange={e=>setResponsibilities(rows=>rows.map((row,i)=>i===index?{...row,quantidade:Math.min(item.quantidade_pendente,Number(e.target.value))}:row))}/><select value={item.condicao} onChange={e=>setResponsibilities(rows=>rows.map((row,i)=>i===index?{...row,condicao:e.target.value as Responsibility["condicao"]}:row))}><option value="bom">Bom</option><option value="avariado">Avariado</option><option value="inutilizado">Inutilizado</option></select></div>)}</section>{responsibilities.length>0&&<section className="card"><h2>3. Confirmar recebimento</h2><textarea value={returnNotes} onChange={e=>setReturnNotes(e.target.value)} placeholder="Observações sobre a devolução"/><button className="primary" disabled={saving} onClick={submitReturn}>{saving?"Registrando...":"Confirmar devolução"}</button></section>}</div>}
+    {tab === "history" && <section className="card history"><h2>Últimas entregas</h2>{history.length===0?<p>Nenhuma entrega registrada.</p>:history.map(row=><article key={row.id}><div><b>Comprovante #{row.numero}</b><span>{row.employees?.nome} · {row.frente}</span></div><time>{new Date(row.created_at).toLocaleString("pt-BR")}</time></article>)}</section>}{scannerTarget && <EmployeeQrScanner onScan={handleEmployeeScan} onClose={()=>setScannerTarget(null)}/>}</>}</main>;
 }

@@ -34,6 +34,7 @@ import {
   ShieldAlert,
   Megaphone,
   QrCode,
+  Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -91,9 +92,15 @@ const menuGroups = [
       { title: "Subcontratadas",  icon: HardHat,    url: "/subcontratadas",   roles: OBRA_ACCESS, perm: "acesso_subcontratadas" as PermKey },
       { title: "Orçado × Realizado", icon: PieChart, url: "/orcado-realizado", roles: OBRA_ACCESS, perm: "acesso_financeiro" as PermKey },
       { title: "Portal do Cliente",   icon: Globe,       url: "/portal-cliente",    roles: OBRA_ACCESS, perm: "acesso_relatorios" as PermKey },
-      { title: "Não Conformidades",  icon: ShieldAlert, url: "/nao-conformidades", roles: OBRA_ACCESS, perm: "acesso_qualidade"   as PermKey },
       { title: "Visitantes",         icon: UserCheck,   url: "/visitantes",        roles: OBRA_ACCESS, perm: "acesso_visitantes"  as PermKey },
       { title: "Fundo Fixo",     icon: Wallet,    url: "/fundo-fixo",     roles: ALL_ROLES,   perm: "acesso_fundo_fixo" as PermKey },
+    ]
+  },
+  {
+    group: "Qualidade",
+    items: [
+      { title: "Painel da Qualidade", icon: Award,       url: "/qualidade",          roles: OBRA_ACCESS, perm: "acesso_qualidade" as PermKey },
+      { title: "Não Conformidades",   icon: ShieldAlert, url: "/nao-conformidades", roles: OBRA_ACCESS, perm: "acesso_qualidade" as PermKey },
     ]
   },
   {

@@ -49,7 +49,7 @@ DECLARE v_operador uuid; v_obra uuid; v_total int;
 BEGIN
   IF NOT public.has_employee_app_access('almoxarifado') THEN RAISE EXCEPTION 'Acesso nao autorizado.'; END IF;
   SELECT e.id INTO v_operador FROM public.employees e WHERE e.user_id = auth.uid() LIMIT 1;
-  SELECT count(DISTINCT ofu.obra_id), min(ofu.obra_id) INTO v_total, v_obra FROM public.obra_funcionarios ofu
+  SELECT count(DISTINCT ofu.obra_id), min(ofu.obra_id::text)::uuid INTO v_total, v_obra FROM public.obra_funcionarios ofu
     WHERE ofu.employee_id = v_operador AND ofu.status = true AND (ofu.data_saida IS NULL OR ofu.data_saida >= CURRENT_DATE);
   IF v_total <> 1 THEN RAISE EXCEPTION 'O operador deve possuir exatamente uma obra ativa.'; END IF;
   RETURN QUERY SELECT e.id, e.nome, c.nome FROM public.obra_funcionarios ofu
@@ -98,7 +98,7 @@ BEGIN
   IF NOT public.has_employee_app_access('almoxarifado') THEN RAISE EXCEPTION 'Acesso nao autorizado.'; END IF;
   IF p_itens IS NULL OR jsonb_array_length(p_itens) = 0 THEN RAISE EXCEPTION 'Selecione ao menos um item.'; END IF;
   SELECT e.id INTO v_operador FROM public.employees e WHERE e.user_id = auth.uid() LIMIT 1;
-  SELECT count(DISTINCT ofu.obra_id), min(ofu.obra_id) INTO v_total, v_obra FROM public.obra_funcionarios ofu WHERE ofu.employee_id = v_operador AND ofu.status = true;
+  SELECT count(DISTINCT ofu.obra_id), min(ofu.obra_id::text)::uuid INTO v_total, v_obra FROM public.obra_funcionarios ofu WHERE ofu.employee_id = v_operador AND ofu.status = true;
   IF v_total <> 1 THEN RAISE EXCEPTION 'O operador deve possuir exatamente uma obra ativa.'; END IF;
   INSERT INTO public.almoxarifado_devolucoes(obra_id, funcionario_id, recebido_por, observacoes, dispositivo_id)
     VALUES(v_obra, p_funcionario_id, v_operador, nullif(trim(p_observacoes),''), nullif(trim(p_dispositivo_id),'')) RETURNING id INTO v_devolucao;
