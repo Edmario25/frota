@@ -17,6 +17,7 @@ type DayType = "trabalho" | "folga" | "neutro";
 
 function getDayType(date: Date, periodos: EscalaPeriodo[]): DayType {
   for (const p of periodos) {
+    if (p.status === "pendente_aprovacao" || p.status === "negado" || p.status === "cancelado") continue;
     try {
       if (isWithinInterval(date, { start: parseISO(p.data_inicio_trabalho), end: parseISO(p.data_fim_trabalho) }))
         return "trabalho";
@@ -81,7 +82,7 @@ export function AppEscala() {
   // Próxima folga agendada (ainda não começou)
   const nextFolga = myPeriodos
     .filter(p => {
-      try { return p.status !== 'concluido' && parseISO(p.data_inicio_folga) > today; }
+      try { return p.status === 'agendado' && parseISO(p.data_inicio_folga) > today; }
       catch { return false; }
     })
     .sort((a, b) => a.data_inicio_folga.localeCompare(b.data_inicio_folga))[0];
@@ -359,11 +360,16 @@ export function AppEscala() {
                     "text-[10px] font-semibold px-2 py-1 rounded-full flex-shrink-0",
                     p.status === 'em_folga'  ? "bg-green-100 text-green-700" :
                     p.status === 'concluido' ? "bg-slate-100 text-slate-500" :
+                    p.status === 'pendente_aprovacao' ? "bg-amber-100 text-amber-700" :
+                    p.status === 'negado' ? "bg-red-100 text-red-700" :
                     "bg-blue-50 text-blue-600"
                   )}>
                     {p.status === 'em_folga' ? (
                       <span className="flex items-center gap-1"><PlaneTakeoff className="h-2.5 w-2.5" /> Em folga</span>
-                    ) : p.status === 'concluido' ? "Concluído" : "Agendado"}
+                    ) : p.status === 'concluido' ? "Concluído"
+                      : p.status === 'pendente_aprovacao' ? "Aguardando autorização"
+                      : p.status === 'negado' ? "Não autorizado"
+                      : "Agendado"}
                   </span>
                 </div>
               ))}

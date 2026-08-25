@@ -272,7 +272,8 @@ export const EscalaPeriodoFormModal = ({
         data_fim_folga:       format(dataFimFolga, 'yyyy-MM-dd'),
         // Ao editar, preserva o fluxo atual. Antes, qualquer alteração reabria
         // períodos em folga ou concluídos como "agendado".
-        status: resetStatusOnSave ? 'agendado' : (periodo?.status ?? 'agendado'),
+        status: resetStatusOnSave ? 'pendente_aprovacao' : (periodo?.status ?? 'pendente_aprovacao'),
+        ...(resetStatusOnSave ? { autorizado_por: null, autorizado_em: null, motivo_negativa: null } : {}),
         conflito_detectado: conflictInfo.hasConflict,
         conflito_autorizado: authorizeConflict,
         observacoes: data.observacoes || null,

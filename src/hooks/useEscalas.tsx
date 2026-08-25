@@ -25,6 +25,9 @@ export interface EscalaPeriodo {
   conflito_detectado: boolean;
   conflito_autorizado: boolean;
   observacoes: string | null;
+  autorizado_por?: string | null;
+  autorizado_em?: string | null;
+  motivo_negativa?: string | null;
   created_at: string;
   updated_at: string;
   employee?: { id: string; nome: string; cargo_id: string | null };
@@ -118,7 +121,7 @@ export const useEscalas = () => {
     mutationFn: async ({ id, d }: { id: string; d: EscalaPeriodoUpdate }) => {
       const { data, error } = await supabase
         .from("escala_periodos")
-        .update(d)
+        .update(d as any)
         .eq("id", id)
         .select(`*, employee:employees(id, nome, cargo_id), escala_tipo:escala_tipos(*)`)
         .single();
@@ -182,7 +185,7 @@ export const useEscalas = () => {
         .from("escala_periodos")
         .select(`*, employee:employees(id, nome, cargo_id), escala_tipo:escala_tipos(*)`)
         .in("employee_id", candidateIds)
-        .neq("status", "concluido")
+        .in("status", ["pendente_aprovacao", "agendado", "em_folga"])
         .or(`and(data_inicio_folga.lte.${dataFimFolga},data_fim_folga.gte.${dataInicioFolga})`);
 
       if (excludePeriodoId) query = query.neq("id", excludePeriodoId);

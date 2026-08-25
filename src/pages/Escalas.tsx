@@ -25,7 +25,7 @@ import {
   AlertTriangle, CheckCircle, Briefcase, Coffee,
   Bell, CalendarRange, MoreHorizontal, X,
   LogOut, RotateCcw, Coffee as CoffeeIcon, ArrowLeftRight,
-  PlaneTakeoff, PlaneLanding,
+  PlaneTakeoff, PlaneLanding, XCircle,
 } from "lucide-react";
 import { addDays, format, isWithinInterval, parseISO, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -84,6 +84,7 @@ const MinhaEscalaView = () => {
   const hoje = new Date();
 
   const periodoAtual = periodos.find(p => {
+    if (p.status === 'pendente_aprovacao' || p.status === 'negado' || p.status === 'cancelado') return false;
     try {
       return isWithinInterval(hoje, {
         start: parseISO(p.data_inicio_trabalho),
@@ -102,6 +103,10 @@ const MinhaEscalaView = () => {
     : false;
 
   const getStatusBadge = (p: EscalaPeriodo) => {
+    if (p.status === 'pendente_aprovacao')
+      return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Aguardando autorização</Badge>;
+    if (p.status === 'negado')
+      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Não autorizado</Badge>;
     if (p.conflito_detectado && !p.conflito_autorizado)
       return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Conflito</Badge>;
     if (p.conflito_detectado && p.conflito_autorizado)
@@ -261,6 +266,7 @@ const MinhaEscalaView = () => {
 
 // ─── View do gestor: visão completa ────────────────────────────────────────
 const Escalas = () => {
+  const { user } = useAuth();
   const { hasEscalaManagement, isFuncionario } = useUserRole();
   const { escalaTipos, escalaPeriodos, loading, deleteEscalaTipo, deleteEscalaPeriodo, updateEscalaPeriodo } = useEscalas();
   const { criarNotificacao, enviarPush } = useEscalaNotificacoes();
@@ -276,7 +282,7 @@ const Escalas = () => {
   const [alertasDismissed, setAlertasDismissed] = useState<string[]>([]);
   const [autorizando, setAutorizando] = useState<string | null>(null);
   const [atualizandoStatus, setAtualizandoStatus] = useState<string | null>(null);
-  const [filtroStatus, setFiltroStatus] = useState<"todos" | "agendado" | "em_folga" | "concluido">("todos");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "pendente_aprovacao" | "agendado" | "em_folga" | "concluido" | "negado">("todos");
 
   const diasAviso = useMemo(getDiasAviso, []);
   const hoje = new Date();
@@ -289,7 +295,7 @@ const Escalas = () => {
       const inicioFolga = new Date(p.data_inicio_folga);
       inicioFolga.setHours(0, 0, 0, 0);
       const diff = differenceInDays(inicioFolga, hoje);
-      return diff >= 0 && diff <= diasAviso;
+      return p.status === 'agendado' && diff >= 0 && diff <= diasAviso;
     });
   }, [escalaPeriodos, diasAviso, alertasDismissed, hoje]);
 
@@ -387,6 +393,33 @@ const Escalas = () => {
     }
   };
 
+  const handleDecisaoFolga = async (periodo: EscalaPeriodo, autorizar: boolean) => {
+    if (!user?.id || periodo.status !== 'pendente_aprovacao') return;
+    const motivo = autorizar ? null : window.prompt("Informe o motivo da negativa da folga:")?.trim();
+    if (!autorizar && !motivo) return;
+
+    setAtualizandoStatus(periodo.id);
+    try {
+      await updateEscalaPeriodo(periodo.id, {
+        status: autorizar ? 'agendado' : 'negado',
+        autorizado_por: user.id,
+        autorizado_em: new Date().toISOString(),
+        motivo_negativa: motivo,
+      });
+      const dataFolga = format(parseISO(periodo.data_inicio_folga), "dd/MM/yyyy", { locale: ptBR });
+      const titulo = autorizar ? "Folga autorizada ✅" : "Folga não autorizada";
+      const mensagem = autorizar
+        ? `Sua saída para folga em ${dataFolga} foi autorizada.`
+        : `Sua folga prevista para ${dataFolga} não foi autorizada. Motivo: ${motivo}`;
+      await criarNotificacao({ employee_id: periodo.employee_id, periodo_id: periodo.id, tipo: "escala_remarcada", titulo, mensagem });
+      await enviarPush(periodo.employee_id, titulo, mensagem);
+    } catch (e) {
+      console.error("Erro ao registrar decisão da folga:", e);
+    } finally {
+      setAtualizandoStatus(null);
+    }
+  };
+
   const handleAutorizar = async (periodo: EscalaPeriodo) => {
     setAutorizando(periodo.id);
     try {
@@ -434,6 +467,12 @@ const Escalas = () => {
   };
 
   const getStatusBadge = (periodo: EscalaPeriodo) => {
+    if (periodo.status === 'pendente_aprovacao') {
+      return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Aguardando autorização</Badge>;
+    }
+    if (periodo.status === 'negado') {
+      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Não autorizado</Badge>;
+    }
     if (periodo.status === 'em_folga') {
       return <Badge className="bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400"><PlaneTakeoff className="h-3 w-3 mr-1" />Em Folga</Badge>;
     }
@@ -665,9 +704,11 @@ const Escalas = () => {
                 <div className="flex gap-1 flex-wrap">
                   {([
                     { v: "todos",    label: "Todos" },
+                    { v: "pendente_aprovacao", label: "Aguardando" },
                     { v: "agendado", label: "Agendados" },
                     { v: "em_folga", label: "Em Folga" },
                     { v: "concluido",label: "Concluídos" },
+                    { v: "negado", label: "Negados" },
                   ] as const).map(({ v, label }) => (
                     <button
                       key={v}
@@ -724,6 +765,7 @@ const Escalas = () => {
                         const fimFolga    = new Date(periodo.data_fim_folga);
                         const podeConfirmarSaida   = periodo.status === 'agendado' && inicioFolga <= hoje;
                         const podeConfirmarRetorno = periodo.status === 'em_folga';
+                        const aguardaDecisao       = periodo.status === 'pendente_aprovacao';
                         return (
                         <TableRow
                           key={periodo.id}
@@ -747,6 +789,16 @@ const Escalas = () => {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {getStatusBadge(periodo)}
+                              {aguardaDecisao && hasEscalaManagement && (
+                                <>
+                                  <Button size="sm" className="h-6 px-2 text-[11px] bg-green-600 hover:bg-green-700" disabled={atualizandoStatus === periodo.id} onClick={() => handleDecisaoFolga(periodo, true)}>
+                                    <CheckCircle className="h-3 w-3 mr-1" />Autorizar
+                                  </Button>
+                                  <Button size="sm" variant="destructive" className="h-6 px-2 text-[11px]" disabled={atualizandoStatus === periodo.id} onClick={() => handleDecisaoFolga(periodo, false)}>
+                                    <XCircle className="h-3 w-3 mr-1" />Negar
+                                  </Button>
+                                </>
+                              )}
                               {/* Botão inline de confirmação — visível sem abrir o "..." */}
                               {podeConfirmarSaida && (
                                 <Button
@@ -783,6 +835,17 @@ const Escalas = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  {aguardaDecisao && (
+                                    <>
+                                      <DropdownMenuItem onClick={() => handleDecisaoFolga(periodo, true)} className="text-green-700 focus:text-green-700">
+                                        <CheckCircle className="mr-2 h-4 w-4" />Autorizar saída de folga
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDecisaoFolga(periodo, false)} className="text-destructive focus:text-destructive">
+                                        <XCircle className="mr-2 h-4 w-4" />Não autorizar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                    </>
+                                  )}
                                   {podeConfirmarSaida && (
                                     <DropdownMenuItem
                                       onClick={() => handleConfirmarSaida(periodo)}
