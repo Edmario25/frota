@@ -91,6 +91,7 @@ const Cronograma = lazy(() => import("./pages/Cronograma"));
 const Subcontratadas = lazy(() => import("./pages/Subcontratadas"));
 const OrcadoRealizado = lazy(() => import("./pages/OrcadoRealizado"));
 const PortalCliente = lazy(() => import("./pages/PortalCliente"));
+const PortalPublico = lazy(() => import("./pages/PortalPublico"));
 const NaoConformidades = lazy(() => import("./pages/NaoConformidades"));
 const Qualidade = lazy(() => import("./pages/Qualidade"));
 const QualidadeRegistros = lazy(() => import("./pages/QualidadeRegistros"));
@@ -135,6 +136,7 @@ const App = () => (
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/portal-publico/:token" element={<PortalPublico />} />
             <Route path="/app-almoxarifado" element={<AppAlmoxarifado />} />
             <Route path="/" element={
               <ProtectedRoute>

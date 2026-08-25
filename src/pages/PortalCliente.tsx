@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Globe, Plus, Pencil, Trash2, Image, FileText, Bell,
   Settings, Copy, Check, Star, Eye, EyeOff, ChevronRight,
-  ChevronDown, Link, Download,
+  ChevronDown, Link, Download, RefreshCw,
 } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ type PortalConfig = {
   id: string; obra_id: string; titulo_portal: string | null;
   mensagem_boas_vindas: string | null; exibir_cronograma: boolean;
   exibir_fotos: boolean; exibir_documentos: boolean; exibir_financeiro: boolean;
-  token_acesso: string | null; token_ativo: boolean;
+  token_acesso: string | null; token_ativo: boolean; token_expires_at: string | null;
 };
 
 type Foto = {
@@ -58,7 +58,8 @@ type PortalResumo = {
   exibir_cronograma: boolean; exibir_fotos: boolean; exibir_documentos: boolean; exibir_financeiro: boolean;
   token_acesso: string | null; token_ativo: boolean;
   perc_fisico_realizado: number; total_fotos: number; total_documentos: number;
-  ultima_atualizacao: string | null;
+  ultima_atualizacao: string | null; token_expires_at?: string | null;
+  ultimo_acesso?: string | null; total_acessos?: number;
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -91,7 +92,7 @@ function ConfigModal({
   const { toast } = useToast();
   const blank = {
     obra_id: "", titulo_portal: "", mensagem_boas_vindas: "",
-    exibir_cronograma: true, exibir_fotos: true, exibir_documentos: true, exibir_financeiro: false,
+    exibir_cronograma: true, exibir_fotos: true, exibir_documentos: true, exibir_financeiro: false, token_expires_at: "",
   };
   const [f, setF] = useState(blank);
   const [saving, setSaving] = useState(false);
@@ -107,8 +108,9 @@ function ConfigModal({
           exibir_fotos: editing.exibir_fotos,
           exibir_documentos: editing.exibir_documentos,
           exibir_financeiro: editing.exibir_financeiro,
+          token_expires_at: editing.token_expires_at?.slice(0, 10) ?? "",
         });
-      } else { setF(blank); }
+      } else { setF({ ...blank, obra_id: obras[0]?.id ?? "" }); }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing]);
@@ -126,6 +128,7 @@ function ConfigModal({
       exibir_fotos: f.exibir_fotos,
       exibir_documentos: f.exibir_documentos,
       exibir_financeiro: f.exibir_financeiro,
+      token_expires_at: f.token_expires_at ? `${f.token_expires_at}T23:59:59-03:00` : null,
     };
     const { error } = await (supabase as any)
       .from("portal_config")
@@ -173,6 +176,11 @@ function ConfigModal({
               </div>
             ))}
           </div>
+          <div>
+            <Label>Validade do link (opcional)</Label>
+            <Input type="date" value={f.token_expires_at} onChange={e => set("token_expires_at", e.target.value)} />
+            <p className="mt-1 text-xs text-muted-foreground">Sem data, o acesso permanece válido até ser desativado ou renovado.</p>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
@@ -195,6 +203,7 @@ function FotoModal({
   const blank = { obra_id: "", url: "", thumbnail: "", titulo: "", categoria: "geral", data_foto: new Date().toISOString().slice(0, 10), destaque: false };
   const [f, setF] = useState(blank);
   const [saving, setSaving] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -204,7 +213,8 @@ function FotoModal({
           titulo: editing.titulo ?? "", categoria: editing.categoria,
           data_foto: editing.data_foto, destaque: editing.destaque,
         });
-      } else { setF(blank); }
+      } else { setF({ ...blank, obra_id: obras[0]?.id ?? "" }); }
+      setFile(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing]);
@@ -212,11 +222,19 @@ function FotoModal({
   const set = (k: string, v: string | boolean) => setF(p => ({ ...p, [k]: v }));
 
   const save = async () => {
-    if (!f.obra_id || !f.url) { toast({ title: "Obra e URL são obrigatórios", variant: "destructive" }); return; }
+    if (!f.obra_id || (!f.url && !file)) { toast({ title: "Selecione a obra e uma imagem", variant: "destructive" }); return; }
     setSaving(true);
+    let fileUrl = f.url;
+    if (file) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${f.obra_id}/fotos/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("portal-cliente").upload(path, file, { contentType: file.type });
+      if (uploadError) { setSaving(false); toast({ title:"Erro no envio da imagem", description:uploadError.message, variant:"destructive" }); return; }
+      fileUrl = supabase.storage.from("portal-cliente").getPublicUrl(path).data.publicUrl;
+    }
     const { data: { user } } = await supabase.auth.getUser();
     const payload = {
-      obra_id: f.obra_id, url: f.url, thumbnail: f.thumbnail || null,
+      obra_id: f.obra_id, url: fileUrl, thumbnail: f.thumbnail || null,
       titulo: f.titulo || null, categoria: f.categoria, data_foto: f.data_foto,
       destaque: f.destaque, registrado_por: user?.id ?? null,
     };
@@ -242,9 +260,10 @@ function FotoModal({
               <SelectContent>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>URL da Imagem *</Label>
-            <Input value={f.url} onChange={e => set("url", e.target.value)} placeholder="https://..." />
+          <div className="rounded-lg border border-dashed p-3">
+            <Label>Enviar imagem *</Label>
+            <Input className="mt-2" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setFile(e.target.files?.[0]??null)}/>
+            {editing&&<p className="mt-1 text-xs text-muted-foreground">Deixe vazio para manter a imagem atual.</p>}
           </div>
           <div>
             <Label>URL Thumbnail (opcional)</Label>
@@ -297,6 +316,7 @@ function DocumentoModal({
   const blank = { obra_id: "", nome: "", descricao: "", categoria: "geral", url: "", tamanho_kb: "", visivel: true, data_doc: new Date().toISOString().slice(0, 10) };
   const [f, setF] = useState(blank);
   const [saving, setSaving] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -307,7 +327,8 @@ function DocumentoModal({
           tamanho_kb: editing.tamanho_kb != null ? String(editing.tamanho_kb) : "",
           visivel: editing.visivel, data_doc: editing.data_doc,
         });
-      } else { setF(blank); }
+      } else { setF({ ...blank, obra_id: obras[0]?.id ?? "" }); }
+      setFile(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing]);
@@ -315,13 +336,22 @@ function DocumentoModal({
   const set = (k: string, v: string | boolean) => setF(p => ({ ...p, [k]: v }));
 
   const save = async () => {
-    if (!f.obra_id || !f.nome || !f.url) { toast({ title: "Obra, nome e URL são obrigatórios", variant: "destructive" }); return; }
+    if (!f.obra_id || !f.nome || (!f.url && !file)) { toast({ title: "Obra, nome e arquivo são obrigatórios", variant: "destructive" }); return; }
     setSaving(true);
+    let fileUrl=f.url; let fileSize=f.tamanho_kb;
+    if(file){
+      const ext=file.name.split(".").pop()?.toLowerCase()||"bin";
+      const path=`${f.obra_id}/documentos/${crypto.randomUUID()}.${ext}`;
+      const {error:uploadError}=await supabase.storage.from("portal-cliente").upload(path,file,{contentType:file.type});
+      if(uploadError){setSaving(false);toast({title:"Erro no envio do documento",description:uploadError.message,variant:"destructive"});return;}
+      fileUrl=supabase.storage.from("portal-cliente").getPublicUrl(path).data.publicUrl;
+      fileSize=String(Math.ceil(file.size/1024));
+    }
     const { data: { user } } = await supabase.auth.getUser();
     const payload = {
       obra_id: f.obra_id, nome: f.nome, descricao: f.descricao || null,
-      categoria: f.categoria, url: f.url,
-      tamanho_kb: f.tamanho_kb ? parseInt(f.tamanho_kb as string) : null,
+      categoria: f.categoria, url: fileUrl,
+      tamanho_kb: fileSize ? parseInt(fileSize as string) : null,
       visivel: f.visivel, data_doc: f.data_doc, publicado_por: user?.id ?? null,
     };
     const q = editing
@@ -350,9 +380,10 @@ function DocumentoModal({
             <Label>Nome do Documento *</Label>
             <Input value={f.nome} onChange={e => set("nome", e.target.value)} placeholder="ex: Projeto Executivo Rev. 2" />
           </div>
-          <div>
-            <Label>URL do Arquivo *</Label>
-            <Input value={f.url} onChange={e => set("url", e.target.value)} placeholder="https://..." />
+          <div className="rounded-lg border border-dashed p-3">
+            <Label>Enviar documento *</Label>
+            <Input className="mt-2" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={e=>setFile(e.target.files?.[0]??null)}/>
+            {editing&&<p className="mt-1 text-xs text-muted-foreground">Deixe vazio para manter o documento atual.</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -407,7 +438,7 @@ function AtualizacaoModal({
           obra_id: editing.obra_id, titulo: editing.titulo, corpo: editing.corpo ?? "",
           tipo: editing.tipo, data_evento: editing.data_evento, publicado: editing.publicado,
         });
-      } else { setF(blank); }
+      } else { setF({ ...blank, obra_id: obras[0]?.id ?? "" }); }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing]);
@@ -484,8 +515,8 @@ function AtualizacaoModal({
 // ─── Tab: Painel de Portais ────────────────────────────────────────────────
 
 function PainelTab({
-  obras, refresh, triggerRefresh,
-}: { obras: Obra[]; refresh: number; triggerRefresh: () => void }) {
+  obras, obraId, refresh, triggerRefresh,
+}: { obras: Obra[]; obraId: string; refresh: number; triggerRefresh: () => void }) {
   const { toast } = useToast();
   const [data, setData] = useState<PortalResumo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -495,18 +526,21 @@ function PainelTab({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: rows } = await (supabase as any)
-      .from("v_portal_resumo").select("*").order("obra_nome");
-    setData(rows ?? []);
+    const [summary,configs] = await Promise.all([
+      (supabase as any).from("v_portal_resumo_seguro").select("*").eq("obra_id",obraId).order("obra_nome"),
+      (supabase as any).from("portal_config").select("obra_id,token_expires_at,ultimo_acesso,total_acessos").eq("obra_id",obraId),
+    ]);
+    const accessByWork=new Map((configs.data??[]).map((c:any)=>[c.obra_id,c]));
+    setData((summary.data??[]).map((row:PortalResumo)=>({...row,...accessByWork.get(row.obra_id)})));
     setLoading(false);
-  }, []);
+  }, [obraId]);
 
   useEffect(() => { load(); }, [load, refresh]);
 
   const copyLink = async (token: string | null, id: string) => {
     if (!token) return;
     const url = `${window.location.origin}/portal-publico/${token}`;
-    await navigator.clipboard.writeText(url);
+    try { await navigator.clipboard.writeText(url); } catch { window.prompt("Copie o link do portal:",url); }
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
     toast({ title: "Link copiado!" });
@@ -517,14 +551,16 @@ function PainelTab({
     triggerRefresh();
   };
 
+  const rotateToken = async (targetObraId:string) => {
+    if(!confirm("Gerar um novo link? O endereço anterior deixará de funcionar imediatamente.")) return;
+    const {data:token,error}=await (supabase as any).rpc("rotate_portal_token",{target_obra_id:targetObraId});
+    if(error){toast({title:"Não foi possível renovar o link",description:error.message,variant:"destructive"});return;}
+    await copyLink(token,targetObraId); triggerRefresh();
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-sm">Portais Configurados</h3>
-        <Button size="sm" onClick={() => { setEditing(null); setModal(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Configurar Portal
-        </Button>
-      </div>
+      <div><h3 className="font-semibold text-sm">Portal da obra selecionada</h3><p className="text-xs text-muted-foreground">Configure o conteúdo e compartilhe o acesso externo com o cliente.</p></div>
 
       {loading ? (
         <p className="text-sm text-muted-foreground py-8 text-center">Carregando…</p>
@@ -533,6 +569,7 @@ function PainelTab({
           {data.map(p => {
             const perc = Number(p.perc_fisico_realizado ?? 0);
             const hasConfig = !!p.token_acesso;
+            const expired = !!p.token_expires_at && new Date(p.token_expires_at) < new Date();
             return (
               <Card key={p.obra_id} className="overflow-hidden">
                 <CardContent className="p-4">
@@ -542,8 +579,8 @@ function PainelTab({
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold">{p.obra_nome}</span>
                         {hasConfig ? (
-                          <Badge className={p.token_ativo ? "bg-green-100 text-green-700 border-0" : "bg-slate-100 text-slate-600 border-0"}>
-                            {p.token_ativo ? "Portal Ativo" : "Portal Inativo"}
+                          <Badge className={p.token_ativo&&!expired ? "bg-green-100 text-green-700 border-0" : expired ? "bg-amber-100 text-amber-700 border-0" : "bg-slate-100 text-slate-600 border-0"}>
+                            {expired ? "Link expirado" : p.token_ativo ? "Portal Ativo" : "Portal Inativo"}
                           </Badge>
                         ) : (
                           <Badge className="bg-slate-100 text-slate-500 border-0">Sem portal</Badge>
@@ -560,7 +597,9 @@ function PainelTab({
                         <span>🖼 {p.total_fotos} fotos</span>
                         <span>📄 {p.total_documentos} docs</span>
                         {p.ultima_atualizacao && <span>📅 últ. atualização {p.ultima_atualizacao}</span>}
+                        {hasConfig && <span>👁 {p.total_acessos??0} acessos</span>}
                       </div>
+                      {p.ultimo_acesso&&<p className="mt-1 text-[11px] text-muted-foreground">Último acesso: {new Date(p.ultimo_acesso).toLocaleString("pt-BR")}</p>}
                       {/* Seções ativas */}
                       {hasConfig && (
                         <div className="flex gap-1 mt-2">
@@ -574,7 +613,7 @@ function PainelTab({
                     {/* Ações */}
                     <div className="flex flex-col gap-2 items-end">
                       <Button size="sm" variant="outline"
-                        onClick={() => { setEditing({ ...p, id: "" } as PortalConfig); setModal(true); }}>
+                        onClick={() => { setEditing(hasConfig ? { ...p, id: "" } as PortalConfig : null); setModal(true); }}>
                         <Settings className="h-3 w-3 mr-1" /> Configurar
                       </Button>
                       {hasConfig && (
@@ -585,6 +624,8 @@ function PainelTab({
                               ? <><Check className="h-3 w-3 mr-1 text-green-600" /> Copiado</>
                               : <><Copy className="h-3 w-3 mr-1" /> Copiar Link</>}
                           </Button>
+                          <Button size="sm" variant="ghost" className="text-xs" onClick={()=>window.open(`/portal-publico/${p.token_acesso}`,"_blank")}><Eye className="h-3 w-3 mr-1"/>Visualizar</Button>
+                          <Button size="sm" variant="ghost" className="text-xs" onClick={()=>rotateToken(p.obra_id)}><RefreshCw className="h-3 w-3 mr-1"/>Renovar link</Button>
                           <Button size="sm" variant="ghost" className="text-xs"
                             onClick={() => toggleToken(p.obra_id, p.token_ativo)}>
                             {p.token_ativo
@@ -601,7 +642,7 @@ function PainelTab({
           })}
           {data.length === 0 && (
             <p className="text-sm text-muted-foreground py-8 text-center">
-              Nenhum portal configurado. Clique em "Configurar Portal" para começar.
+              Nenhuma obra disponível para configurar.
             </p>
           )}
         </div>
@@ -610,7 +651,7 @@ function PainelTab({
       <ConfigModal
         open={modal} onClose={() => setModal(false)}
         onSaved={() => { setModal(false); triggerRefresh(); }}
-        obras={obras} editing={editing}
+        obras={obras.filter(o=>o.id===obraId)} editing={editing}
       />
     </div>
   );
@@ -1006,19 +1047,19 @@ export default function PortalCliente() {
           </TabsList>
 
           <TabsContent value="painel">
-            <PainelTab obras={obras} refresh={refresh} triggerRefresh={triggerRefresh} />
+            <PainelTab obras={obras} obraId={obraId} refresh={refresh} triggerRefresh={triggerRefresh} />
           </TabsContent>
 
           <TabsContent value="fotos">
-            <FotosTab obraId={obraId} obras={obras} refresh={refresh} triggerRefresh={triggerRefresh} />
+            <FotosTab obraId={obraId} obras={obras.filter(o=>o.id===obraId)} refresh={refresh} triggerRefresh={triggerRefresh} />
           </TabsContent>
 
           <TabsContent value="documentos">
-            <DocumentosTab obraId={obraId} obras={obras} refresh={refresh} triggerRefresh={triggerRefresh} />
+            <DocumentosTab obraId={obraId} obras={obras.filter(o=>o.id===obraId)} refresh={refresh} triggerRefresh={triggerRefresh} />
           </TabsContent>
 
           <TabsContent value="atualizacoes">
-            <AtualizacoesTab obraId={obraId} obras={obras} refresh={refresh} triggerRefresh={triggerRefresh} />
+            <AtualizacoesTab obraId={obraId} obras={obras.filter(o=>o.id===obraId)} refresh={refresh} triggerRefresh={triggerRefresh} />
           </TabsContent>
         </Tabs>
       </div>
