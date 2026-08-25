@@ -147,23 +147,51 @@ export const useEscalas = () => {
   ): Promise<EscalaPeriodo[]> => {
     if (!cargoId) return [];
     try {
+      // A cobertura operacional é por obra: pessoas do mesmo cargo em obras
+      // diferentes não representam conflito entre si.
+      const { data: employeeObras, error: obrasError } = await supabase
+        .from("obra_funcionarios")
+        .select("obra_id")
+        .eq("employee_id", employeeId)
+        .eq("status", true);
+      if (obrasError) throw obrasError;
+
       const { data: sameCargoEmployees, error: empError } = await supabase
-        .from("employees").select("id, nome").eq("cargo_id", cargoId).neq("id", employeeId);
+        .from("employees").select("id, nome").eq("cargo_id", cargoId).eq("status", "ativo").neq("id", employeeId);
       if (empError) throw empError;
-      if (!sameCargoEmployees?.length) return [];
+
+      let candidateIds = (sameCargoEmployees ?? []).map(e => e.id);
+      const obraIds = (employeeObras ?? []).map(o => o.obra_id);
+      if (obraIds.length && candidateIds.length) {
+        const { data: sameObraLinks, error: linksError } = await supabase
+          .from("obra_funcionarios")
+          .select("employee_id")
+          .in("obra_id", obraIds)
+          .in("employee_id", candidateIds)
+          .eq("status", true);
+        if (linksError) throw linksError;
+        candidateIds = [...new Set((sameObraLinks ?? []).map(link => link.employee_id))];
+      } else {
+        candidateIds = [];
+      }
+
+      // Também impede dois períodos sobrepostos para o próprio funcionário.
+      candidateIds.push(employeeId);
 
       let query = supabase
         .from("escala_periodos")
         .select(`*, employee:employees(id, nome, cargo_id), escala_tipo:escala_tipos(*)`)
-        .in("employee_id", sameCargoEmployees.map(e => e.id))
+        .in("employee_id", candidateIds)
+        .neq("status", "concluido")
         .or(`and(data_inicio_folga.lte.${dataFimFolga},data_fim_folga.gte.${dataInicioFolga})`);
 
       if (excludePeriodoId) query = query.neq("id", excludePeriodoId);
       const { data: conflicts, error } = await query;
       if (error) throw error;
       return (conflicts ?? []) as EscalaPeriodo[];
-    } catch {
-      return [];
+    } catch (error) {
+      console.error("Erro ao validar conflitos de escala:", error);
+      throw error;
     }
   };
 

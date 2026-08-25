@@ -27,7 +27,7 @@ import {
   LogOut, RotateCcw, Coffee as CoffeeIcon, ArrowLeftRight,
   PlaneTakeoff, PlaneLanding,
 } from "lucide-react";
-import { format, isWithinInterval, parseISO, differenceInDays } from "date-fns";
+import { addDays, format, isWithinInterval, parseISO, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
@@ -343,7 +343,7 @@ const Escalas = () => {
     try {
       await updateEscalaPeriodo(periodo.id, { status: 'em_folga' });
       const nome = periodo.employee?.nome ?? "Funcionário";
-      const dataRetorno = format(new Date(periodo.data_fim_folga), "dd/MM/yyyy", { locale: ptBR });
+      const dataRetorno = format(addDays(parseISO(periodo.data_fim_folga), 1), "dd/MM/yyyy", { locale: ptBR });
       await criarNotificacao({
         employee_id: periodo.employee_id,
         periodo_id: periodo.id,
@@ -444,7 +444,7 @@ const Escalas = () => {
       return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Conflito</Badge>;
     }
     if (periodo.conflito_detectado && periodo.conflito_autorizado) {
-      return <Badge variant="secondary"><CheckCircle className="h-3 w-3 mr-1" />Autorizado</Badge>;
+      return <div className="flex flex-wrap gap-1"><Badge variant="outline">Agendado</Badge><Badge variant="secondary"><CheckCircle className="h-3 w-3 mr-1" />Conflito autorizado</Badge></div>;
     }
     return <Badge variant="outline">Agendado</Badge>;
   };
@@ -930,6 +930,7 @@ const Escalas = () => {
         onClose={() => { setPeriodoModalOpen(false); setSelectedPeriodo(null); setIsRemarcando(false); }}
         periodo={selectedPeriodo}
         onSaved={handlePeriodoSaved}
+        resetStatusOnSave={isRemarcando}
       />
 
       <ConfirmDeleteModal

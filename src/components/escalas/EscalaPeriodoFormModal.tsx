@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -69,6 +69,7 @@ interface EscalaPeriodoFormModalProps {
   onClose: () => void;
   periodo?: EscalaPeriodo | null;
   onSaved?: (periodo: EscalaPeriodo) => void;
+  resetStatusOnSave?: boolean;
 }
 
 /** DatePicker reutilizável */
@@ -123,9 +124,14 @@ export const EscalaPeriodoFormModal = ({
   onClose,
   periodo,
   onSaved,
+  resetStatusOnSave = false,
 }: EscalaPeriodoFormModalProps) => {
   const { escalaTipos, createEscalaPeriodo, updateEscalaPeriodo, checkConflicts } = useEscalas();
   const { employees } = useEmployees();
+  const activeEmployees = useMemo(
+    () => employees.filter(e => e.status === "ativo"),
+    [employees],
+  );
 
   const [conflictInfo, setConflictInfo] = useState<ConflictInfo>({
     hasConflict: false,
@@ -195,7 +201,7 @@ export const EscalaPeriodoFormModal = ({
   useEffect(() => {
     const run = async () => {
       if (!selectedEmployeeId || !selectedEscalaTipoId || !datesEfetivas.dataInicioFolga || !datesEfetivas.dataFimFolga) return;
-      const employee = employees.find(e => e.id === selectedEmployeeId);
+      const employee = activeEmployees.find(e => e.id === selectedEmployeeId);
       const tipo = escalaTipos.find(e => e.id === selectedEscalaTipoId);
       if (!employee || !tipo) return;
 
@@ -208,8 +214,10 @@ export const EscalaPeriodoFormModal = ({
       );
       setConflictInfo({ hasConflict: conflicts.length > 0, conflicts, allowOverlap: tipo.permite_sobreposicao });
     };
-    run();
-  }, [selectedEmployeeId, selectedEscalaTipoId, datesEfetivas, employees, escalaTipos, checkConflicts, periodo]);
+    run().catch(() => {
+      setConflictInfo({ hasConflict: true, conflicts: [], allowOverlap: false });
+    });
+  }, [selectedEmployeeId, selectedEscalaTipoId, datesEfetivas, activeEmployees, escalaTipos, checkConflicts, periodo]);
 
   // Popula form ao editar
   useEffect(() => {
@@ -247,6 +255,13 @@ export const EscalaPeriodoFormModal = ({
       dataFimFolga    = addDays(dataInicioFolga, tipo.dias_folga - 1);
     }
 
+    if (dataFimTrabalho < data.data_inicio_trabalho || dataInicioFolga <= dataFimTrabalho || dataFimFolga < dataInicioFolga) {
+      form.setError("data_inicio_trabalho", {
+        message: "Revise as datas: a folga deve começar após o trabalho e terminar depois de começar.",
+      });
+      return;
+    }
+
     try {
       const periodoData = {
         employee_id: data.employee_id,
@@ -255,7 +270,9 @@ export const EscalaPeriodoFormModal = ({
         data_fim_trabalho:    format(dataFimTrabalho, 'yyyy-MM-dd'),
         data_inicio_folga:    format(dataInicioFolga, 'yyyy-MM-dd'),
         data_fim_folga:       format(dataFimFolga, 'yyyy-MM-dd'),
-        status: 'agendado',
+        // Ao editar, preserva o fluxo atual. Antes, qualquer alteração reabria
+        // períodos em folga ou concluídos como "agendado".
+        status: resetStatusOnSave ? 'agendado' : (periodo?.status ?? 'agendado'),
         conflito_detectado: conflictInfo.hasConflict,
         conflito_autorizado: authorizeConflict,
         observacoes: data.observacoes || null,
@@ -302,7 +319,7 @@ export const EscalaPeriodoFormModal = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {employees.map(e => (
+                      {activeEmployees.map(e => (
                         <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
                       ))}
                     </SelectContent>

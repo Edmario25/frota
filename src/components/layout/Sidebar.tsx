@@ -35,6 +35,7 @@ import {
   Megaphone,
   QrCode,
   Award,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -161,6 +162,14 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
   const { can, loading: loadingPerms, ready: permsReady } = usePermissions();
   const { settings: branding } = useSystemSettings();
   const chatUnread = useChatGestorBadge();
+  const [openGroups, setOpenGroups] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("sidebar-open-groups");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const loading = loadingRole || loadingPerms;
 
@@ -187,6 +196,29 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
       items: group.items.filter(itemVisible),
     }))
     .filter(group => group.items.length > 0);
+
+  // A seção da página atual permanece aberta, inclusive após navegação direta.
+  useEffect(() => {
+    const activeGroup = menuGroups.find(group =>
+      group.items.some(item => isActive(item.url)),
+    )?.group;
+    if (!activeGroup) return;
+    setOpenGroups(current =>
+      current.includes(activeGroup) ? current : [...current, activeGroup],
+    );
+  }, [location.pathname]);
+
+  useEffect(() => {
+    localStorage.setItem("sidebar-open-groups", JSON.stringify(openGroups));
+  }, [openGroups]);
+
+  const toggleGroup = (groupName: string) => {
+    setOpenGroups(current =>
+      current.includes(groupName)
+        ? current.filter(name => name !== groupName)
+        : [...current, groupName],
+    );
+  };
 
   const renderItem = (item: (typeof menuGroups[0]['items'][0]) & { badge?: "chat" }) => {
     const active = isActive(item.url);
@@ -311,21 +343,44 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 min-h-0 overflow-y-auto py-3 px-2 space-y-4 [scrollbar-width:thin] [scrollbar-color:hsl(var(--sidebar-border))_transparent]">
-          {filteredGroups.map((group, i) => (
+          {filteredGroups.map((group, i) => {
+            const groupOpen = collapsed || openGroups.includes(group.group);
+            const groupHasActiveItem = group.items.some(item => isActive(item.url));
+            return (
             <div key={group.group}>
               {!collapsed && (
-                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--sidebar-muted))]">
-                  {group.group}
-                </p>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.group)}
+                  aria-expanded={groupOpen}
+                  className={cn(
+                    "mb-1 flex w-full items-center justify-between rounded-md px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest transition-colors",
+                    groupHasActiveItem
+                      ? "text-[hsl(var(--sidebar-primary))]"
+                      : "text-[hsl(var(--sidebar-muted))] hover:bg-sidebar-accent/50 hover:text-white",
+                  )}
+                >
+                  <span>{group.group}</span>
+                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", !groupOpen && "-rotate-90")} />
+                </button>
               )}
               {collapsed && i > 0 && (
                 <div className="my-2 border-t border-[hsl(var(--sidebar-border))]" />
               )}
-              <div className={cn("space-y-0.5", collapsed && "flex flex-col items-center gap-0.5")}>
-                {group.items.map(renderItem)}
+              <div
+                className={cn(
+                  "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+                  groupOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  <div className={cn("space-y-0.5", collapsed && "flex flex-col items-center gap-0.5")}>
+                    {group.items.map(renderItem)}
+                  </div>
+                </div>
               </div>
             </div>
-          ))}
+          )})}
         </nav>
 
         {/* Toggle button at bottom */}
