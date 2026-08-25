@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import {
   Users, Car, AlertTriangle, DollarSign, BarChart3,
   Download, Search, TrendingDown, Fuel, Wrench, Wallet,
   FileText, Building2, RefreshCw, Printer, Truck, ShieldCheck,
+  LayoutDashboard, Clock3, Package, HardHat, ClipboardCheck, TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -56,6 +57,7 @@ interface Filters {
 export default function Relatorios() {
   const { hasFullAccess, isGestorObra } = useUserRole();
   const { obraId: userObraId } = useUserObra();
+  const [obras,setObras]=useState<Array<{id:string;nome:string}>>([]);
 
   const hoje = new Date();
   const [filters, setFilters] = useState<Filters>({
@@ -67,6 +69,8 @@ export default function Relatorios() {
 
   const setF = (k: keyof Filters, v: string) =>
     setFilters(p => ({ ...p, [k]: v }));
+
+  useEffect(()=>{(async()=>{let q=(supabase as any).from("obras").select("id,nome").order("nome");if(!hasFullAccess&&userObraId)q=q.eq("id",userObraId);const{data}=await q;setObras(data??[]);if(data?.length===1)setFilters(current=>current.obraId?current:{...current,obraId:data[0].id});})();},[hasFullAccess,userObraId]);
 
   return (
     <Layout>
@@ -120,19 +124,28 @@ export default function Relatorios() {
                   </Button>
                 ))}
               </div>
+              <div className="space-y-1 min-w-56">
+                <Label className="text-xs">Obra</Label>
+                <Select value={filters.obraId||"todas"} onValueChange={v=>setF("obraId",v==="todas"?"":v)}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue/></SelectTrigger><SelectContent>{hasFullAccess&&<SelectItem value="todas">Todas as obras</SelectItem>}{obras.map(o=><SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Abas */}
-        <Tabs defaultValue="frota" className="space-y-4">
-          <TabsList className="h-10 flex-wrap">
+        <Tabs defaultValue="executivo" className="space-y-4">
+          <TabsList className="h-auto flex-wrap justify-start">
+            <TabsTrigger value="executivo" className="gap-1.5 text-xs"><LayoutDashboard className="h-3.5 w-3.5"/>Executivo</TabsTrigger>
             <TabsTrigger value="frota"      className="gap-1.5 text-xs"><Truck className="h-3.5 w-3.5" />Frota</TabsTrigger>
-            <TabsTrigger value="efetivo"    className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Efetivo</TabsTrigger>
+            <TabsTrigger value="efetivo"    className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Colaboradores</TabsTrigger>
             <TabsTrigger value="avarias"    className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" />Avarias</TabsTrigger>
             <TabsTrigger value="custo-obra" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" />Custo por Obra</TabsTrigger>
             <TabsTrigger value="custo-frota" className="gap-1.5 text-xs"><DollarSign className="h-3.5 w-3.5" />Custo de Frota</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="executivo"><RelatorioExecutivo filters={filters} obras={obras}/></TabsContent>
 
           <TabsContent value="frota">
             <RelatorioVeiculos filters={filters} hasFullAccess={hasFullAccess} userObraId={userObraId} />
@@ -154,6 +167,40 @@ export default function Relatorios() {
       </div>
     </Layout>
   );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// RESUMO EXECUTIVO POR OBRA
+// ══════════════════════════════════════════════════════════════════════════════
+function RelatorioExecutivo({filters,obras}:{filters:Filters;obras:Array<{id:string;nome:string}>}){
+  const [loading,setLoading]=useState(false);const[fetched,setFetched]=useState(false);const[stats,setStats]=useState({efetivo:0,veiculos:0,progresso:0,previsto:0,realizado:0,ncs:0,desvios:0,inspecoes:0,consumo:0,manutencoes:0,atrasos:0});
+  const obraIds=useMemo(()=>filters.obraId?[filters.obraId]:obras.map(o=>o.id),[filters.obraId,obras]);
+  const title=filters.obraId?obras.find(o=>o.id===filters.obraId)?.nome??"Obra selecionada":"Todas as obras";
+  const fetchData=useCallback(async()=>{if(!obraIds.length)return;setLoading(true);
+    const [emp,veh,cron,cost,nc,dev,fvs,mov,maint]=await Promise.all([
+      (supabase as any).from("obra_funcionarios").select("employee_id",{count:"exact"}).in("obra_id",obraIds).eq("status",true),
+      (supabase as any).from("obra_veiculos").select("vehicle_id",{count:"exact"}).in("obra_id",obraIds).eq("status",true),
+      (supabase as any).from("v_cronograma_situacao").select("obra_id,peso_percentual,perc_realizado,status_item").in("obra_id",obraIds).is("pai_id",null),
+      (supabase as any).from("v_orcado_realizado").select("obra_id,valor_previsto,valor_realizado").in("obra_id",obraIds),
+      (supabase as any).from("nao_conformidades").select("id",{count:"exact",head:true}).in("obra_id",obraIds).not("status","in",'(encerrada,cancelada)'),
+      (supabase as any).from("sms_desvios").select("id",{count:"exact",head:true}).in("obra_id",obraIds).eq("status","aberto"),
+      (supabase as any).from("qualidade_inspecoes_servicos").select("id",{count:"exact",head:true}).in("obra_id",obraIds).eq("resultado","reprovado"),
+      (supabase as any).from("almoxarifado_movimentos").select("quantidade,preco_unitario").in("obra_id",obraIds).eq("tipo","saida").gte("data_movimento",filters.dataInicio).lte("data_movimento",filters.dataFim),
+      (supabase as any).from("maintenance_records").select("id,vehicle_id,status").eq("status","agendada"),
+    ]);
+    const cronRows=cron.data??[];const totalWeight=cronRows.reduce((s:any,r:any)=>s+Number(r.peso_percentual??0),0);const progress=totalWeight?cronRows.reduce((s:any,r:any)=>s+Number(r.peso_percentual??0)*Number(r.perc_realizado??0),0)/totalWeight:0;
+    const vehicleIds=new Set((veh.data??[]).map((v:any)=>v.vehicle_id));
+    setStats({efetivo:new Set((emp.data??[]).map((e:any)=>e.employee_id)).size,veiculos:vehicleIds.size,progresso:Math.round(progress),previsto:(cost.data??[]).reduce((s:any,r:any)=>s+Number(r.valor_previsto??0),0),realizado:(cost.data??[]).reduce((s:any,r:any)=>s+Number(r.valor_realizado??0),0),ncs:nc.count??0,desvios:dev.count??0,inspecoes:fvs.count??0,consumo:(mov.data??[]).reduce((s:any,r:any)=>s+Number(r.quantidade??0)*Number(r.preco_unitario??0),0),manutencoes:(maint.data??[]).filter((m:any)=>vehicleIds.has(m.vehicle_id)).length,atrasos:cronRows.filter((r:any)=>r.status_item==="atrasado").length});setFetched(true);setLoading(false);
+  },[obraIds,filters.dataInicio,filters.dataFim]);
+  const financial=stats.previsto?Math.round(stats.realizado/stats.previsto*100):0;const attention=stats.ncs+stats.desvios+stats.inspecoes+stats.atrasos;
+  return <div className="space-y-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-base font-bold">Resumo executivo — {title}</h2><p className="text-xs text-muted-foreground">Consolidado de {fmtDate(filters.dataInicio)} até {fmtDate(filters.dataFim)}</p></div><Button size="sm" onClick={fetchData} disabled={loading}>{loading?<RefreshCw className="mr-2 h-4 w-4 animate-spin"/>:<TrendingUp className="mr-2 h-4 w-4"/>}{fetched?"Atualizar consolidado":"Gerar consolidado"}</Button></div>
+    {!fetched?<EmptyPrompt icon={LayoutDashboard} label='Clique em "Gerar consolidado" para carregar a visão executiva da obra'/>:<>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">{[
+        [HardHat,"Avanço físico",`${stats.progresso}%`,"text-blue-600"],[DollarSign,"Orçamento realizado",`${financial}%`,financial>100?"text-red-600":"text-emerald-600"],[Users,"Efetivo atual",stats.efetivo,"text-violet-600"],[Truck,"Veículos vinculados",stats.veiculos,"text-cyan-600"],[AlertTriangle,"Pontos de atenção",attention,attention?"text-red-600":"text-emerald-600"],
+      ].map(([Icon,label,value,color])=><Card key={String(label)} className="border-0 shadow-sm"><CardContent className="p-4"><div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-muted"><Icon className={`h-4 w-4 ${color}`}/></div><p className="text-2xl font-extrabold">{String(value)}</p><p className="text-xs text-muted-foreground">{String(label)}</p></CardContent></Card>)}</div>
+      <div className="grid gap-4 lg:grid-cols-2"><Card><CardHeader><CardTitle className="text-sm">Desempenho físico-financeiro</CardTitle></CardHeader><CardContent className="space-y-5"><div><div className="mb-2 flex justify-between text-xs"><span>Avanço físico</span><strong>{stats.progresso}%</strong></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-blue-600" style={{width:`${Math.min(stats.progresso,100)}%`}}/></div></div><div><div className="mb-2 flex justify-between text-xs"><span>Consumo do orçamento</span><strong>{financial}%</strong></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className={cn("h-full",financial>100?"bg-red-500":"bg-emerald-500")} style={{width:`${Math.min(financial,100)}%`}}/></div></div><div className="grid grid-cols-2 gap-3"><div className="rounded-lg bg-muted/40 p-3"><p className="text-xs text-muted-foreground">Previsto</p><p className="font-bold">{fmt(stats.previsto)}</p></div><div className="rounded-lg bg-muted/40 p-3"><p className="text-xs text-muted-foreground">Realizado</p><p className="font-bold">{fmt(stats.realizado)}</p></div></div></CardContent></Card>
+      <Card><CardHeader><CardTitle className="text-sm">Pendências operacionais</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-3">{[[Clock3,"Etapas atrasadas",stats.atrasos],[ShieldCheck,"NCs abertas",stats.ncs],[ClipboardCheck,"Inspeções reprovadas",stats.inspecoes],[ShieldAlert,"Desvios de segurança",stats.desvios],[Wrench,"Manutenções agendadas",stats.manutencoes],[Package,"Consumo de materiais",fmt(stats.consumo)]].map(([Icon,label,value])=><div key={String(label)} className="flex items-center gap-3 rounded-lg border p-3"><Icon className="h-4 w-4 text-muted-foreground"/><div><p className="text-sm font-bold">{String(value)}</p><p className="text-[10px] text-muted-foreground">{String(label)}</p></div></div>)}</CardContent></Card></div>
+    </>}</div>;
 }
 
 // ─── props compartilhadas ─────────────────────────────────────────────────────
@@ -185,14 +232,12 @@ function RelatorioEfetivo({ filters, hasFullAccess, userObraId }: ReportProps) {
         `)
         .order("nome");
 
-      if (filters.dataInicio) q = q.gte("data_admissao", filters.dataInicio);
-      if (filters.dataFim)    q = q.lte("data_admissao", filters.dataFim);
-      if (!hasFullAccess && userObraId) {
-        // gestor de obra: só funcionários da sua obra
+      const scopedObraId=filters.obraId||(!hasFullAccess?userObraId:null);
+      if (scopedObraId) {
         const { data: emp } = await (supabase as any)
           .from("obra_funcionarios")
           .select("employee_id")
-          .eq("obra_id", userObraId)
+          .eq("obra_id", scopedObraId)
           .eq("status", true);
         const ids = (emp ?? []).map((e: any) => e.employee_id);
         if (ids.length) q = q.in("id", ids); else { setRows([]); setFetched(true); setLoading(false); return; }
@@ -226,7 +271,7 @@ function RelatorioEfetivo({ filters, hasFullAccess, userObraId }: ReportProps) {
       return [r.nome, r.cpf, r.cargo, r.status, r.departamento ?? "", fmtDate(r.data_admissao),
               of?.obras?.nome ?? "", of?.funcao_obra ?? ""];
     });
-    downloadCSV([header, ...data], `efetivo_${filters.dataInicio}_${filters.dataFim}.csv`);
+    downloadCSV([header, ...data], `efetivo_atual_${new Date().toISOString().slice(0,10)}.csv`);
   };
 
   return (
@@ -310,7 +355,7 @@ function RelatorioEfetivo({ filters, hasFullAccess, userObraId }: ReportProps) {
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                       <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      Nenhum registro encontrado para o período selecionado
+                      Nenhum colaborador encontrado para os filtros selecionados
                     </TableCell>
                   </TableRow>
                 )}
@@ -321,7 +366,7 @@ function RelatorioEfetivo({ filters, hasFullAccess, userObraId }: ReportProps) {
       )}
 
       {!fetched && !loading && (
-        <EmptyPrompt icon={Users} label='Clique em "Gerar Relatório" para carregar os dados de efetivo' />
+        <EmptyPrompt icon={Users} label='Clique em "Gerar Relatório" para carregar o efetivo atual da obra' />
       )}
     </div>
   );
@@ -385,11 +430,11 @@ function RelatorioVeiculos({ filters, hasFullAccess, userObraId }: ReportProps) 
       let veiculos = vRes.data ?? [];
       const allLibs: any[] = libRes.data ?? [];
 
-      // filtro por obra (gestor)
-      if (!hasFullAccess && userObraId) {
+      const scopedObraId=filters.obraId||(!hasFullAccess?userObraId:null);
+      if (scopedObraId) {
         const [{ data: ofData }, { data: ovData }] = await Promise.all([
-          (supabase as any).from("obra_funcionarios").select("employee_id").eq("obra_id", userObraId).eq("status", true),
-          (supabase as any).from("obra_veiculos").select("vehicle_id").eq("obra_id", userObraId).eq("status", true),
+          (supabase as any).from("obra_funcionarios").select("employee_id").eq("obra_id", scopedObraId).eq("status", true),
+          (supabase as any).from("obra_veiculos").select("vehicle_id").eq("obra_id", scopedObraId).eq("status", true),
         ]);
         const empIds     = (ofData ?? []).map((e: any) => e.employee_id);
         const obraVehIds = (ovData ?? []).map((v: any) => v.vehicle_id);
@@ -719,10 +764,11 @@ function RelatorioAvarias({ filters, hasFullAccess, userObraId }: ReportProps) {
         .lte("data_avaria", filters.dataFim + "T23:59:59")
         .order("data_avaria", { ascending: false });
 
-      if (!hasFullAccess && userObraId) {
+      const scopedObraId=filters.obraId||(!hasFullAccess?userObraId:null);
+      if (scopedObraId) {
         const [{ data: ofData }, { data: ovData }] = await Promise.all([
-          (supabase as any).from("obra_funcionarios").select("employee_id").eq("obra_id", userObraId).eq("status", true),
-          (supabase as any).from("obra_veiculos").select("vehicle_id").eq("obra_id", userObraId).eq("status", true),
+          (supabase as any).from("obra_funcionarios").select("employee_id").eq("obra_id", scopedObraId).eq("status", true),
+          (supabase as any).from("obra_veiculos").select("vehicle_id").eq("obra_id", scopedObraId).eq("status", true),
         ]);
         const empIds     = (ofData ?? []).map((e: any) => e.employee_id);
         const obraVehIds = (ovData ?? []).map((v: any) => v.vehicle_id);
@@ -867,7 +913,8 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
     try {
       // 1. buscar obras
       let obrasQ = (supabase as any).from("obras").select("id, nome, status");
-      if (!hasFullAccess && userObraId) obrasQ = obrasQ.eq("id", userObraId);
+      const scopedObraId=filters.obraId||(!hasFullAccess?userObraId:null);
+      if (scopedObraId) obrasQ = obrasQ.eq("id", scopedObraId);
       const { data: obras } = await obrasQ;
       if (!obras?.length) { setRows([]); setFetched(true); setLoading(false); return; }
 
@@ -1138,10 +1185,11 @@ function RelatorioCustoFrota({ filters, hasFullAccess, userObraId }: ReportProps
       const multas    = mulRes.data ?? [];
       let veiculos    = vRes.data ?? [];
 
-      if (!hasFullAccess && userObraId) {
+      const scopedObraId=filters.obraId||(!hasFullAccess?userObraId:null);
+      if (scopedObraId) {
         const [{ data: ofData }, { data: ovData }] = await Promise.all([
-          (supabase as any).from("obra_funcionarios").select("employee_id").eq("obra_id", userObraId).eq("status", true),
-          (supabase as any).from("obra_veiculos").select("vehicle_id").eq("obra_id", userObraId).eq("status", true),
+          (supabase as any).from("obra_funcionarios").select("employee_id").eq("obra_id", scopedObraId).eq("status", true),
+          (supabase as any).from("obra_veiculos").select("vehicle_id").eq("obra_id", scopedObraId).eq("status", true),
         ]);
         const empIds     = (ofData ?? []).map((e: any) => e.employee_id);
         const obraVehIds = (ovData ?? []).map((v: any) => v.vehicle_id);
