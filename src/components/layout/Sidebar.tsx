@@ -250,7 +250,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
     <TooltipProvider>
       <div
         className={cn(
-          "bg-[hsl(var(--sidebar-background))] flex flex-col h-full transition-all duration-200 ease-in-out",
+          "bg-[hsl(var(--sidebar-background))] flex flex-col h-screen overflow-hidden transition-all duration-200 ease-in-out",
           collapsed ? "w-16" : "w-60"
         )}
       >
@@ -310,7 +310,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+        <nav className="flex-1 min-h-0 overflow-y-auto py-3 px-2 space-y-4 [scrollbar-width:thin] [scrollbar-color:hsl(var(--sidebar-border))_transparent]">
           {filteredGroups.map((group, i) => (
             <div key={group.group}>
               {!collapsed && (

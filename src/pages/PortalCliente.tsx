@@ -525,15 +525,24 @@ function PainelTab({
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if(!obraId){setData([]);return;}
     setLoading(true);
-    const [summary,configs] = await Promise.all([
-      (supabase as any).from("v_portal_resumo_seguro").select("*").eq("obra_id",obraId).order("obra_nome"),
-      (supabase as any).from("portal_config").select("obra_id,token_expires_at,ultimo_acesso,total_acessos").eq("obra_id",obraId),
-    ]);
-    const accessByWork=new Map((configs.data??[]).map((c:any)=>[c.obra_id,c]));
-    setData((summary.data??[]).map((row:PortalResumo)=>({...row,...accessByWork.get(row.obra_id)})));
+    let summary=await (supabase as any).from("v_portal_resumo_seguro").select("*").eq("obra_id",obraId);
+    // Compatibilidade enquanto a migração do portal seguro ainda não foi aplicada.
+    if(summary.error) summary=await (supabase as any).from("v_portal_resumo").select("*").eq("obra_id",obraId);
+    const configs=await (supabase as any).from("portal_config").select("*").eq("obra_id",obraId);
+    const selectedWork=obras.find(o=>o.id===obraId);
+    const fallback:PortalResumo={
+      obra_id:obraId,obra_nome:selectedWork?.nome??"Obra",obra_status:"",
+      titulo_portal:null,mensagem_boas_vindas:null,exibir_cronograma:true,exibir_fotos:true,
+      exibir_documentos:true,exibir_financeiro:false,token_acesso:null,token_ativo:false,
+      perc_fisico_realizado:0,total_fotos:0,total_documentos:0,ultima_atualizacao:null,
+    };
+    const row=(summary.data?.[0]??fallback) as PortalResumo;
+    setData([{...row,...(configs.data?.[0]??{})}]);
+    if(summary.error) toast({title:"Não foi possível carregar os indicadores",description:summary.error.message,variant:"destructive"});
     setLoading(false);
-  }, [obraId]);
+  }, [obraId,obras,toast]);
 
   useEffect(() => { load(); }, [load, refresh]);
 

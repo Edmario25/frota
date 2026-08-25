@@ -22,6 +22,7 @@ import {
   Users, Car, Wrench, HardHat, Truck, AlertTriangle,
   ArrowRight, BarChart3, ShieldAlert, ClipboardCheck, TriangleAlert,
   GraduationCap,
+  Sparkles, Activity,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,14 +41,15 @@ function KpiCard({
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-border/50 bg-card p-5 shadow-card flex flex-col gap-3">
+    <div className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg flex flex-col gap-3">
+      <div className={cn("absolute inset-x-0 top-0 h-1 opacity-80", iconBg)} />
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
           <p className="text-3xl font-extrabold text-foreground tracking-tight leading-none">{value}</p>
           {sub && <p className={cn("text-xs mt-1.5 font-medium", subColor ?? "text-muted-foreground")}>{sub}</p>}
         </div>
-        <div className={cn("h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm", iconBg)}>
+        <div className={cn("h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm transition-transform group-hover:scale-105", iconBg)}>
           <Icon className="h-5 w-5 text-white" />
         </div>
       </div>
@@ -63,7 +65,7 @@ function QuickLink({ to, icon: Icon, color, label, sub }: {
   return (
     <Link
       to={to}
-      className="group flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-muted/60 transition-colors"
+      className="group flex items-center gap-3 px-3 py-3 rounded-xl border border-transparent hover:border-border/70 hover:bg-muted/50 transition-all"
     >
       <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm", color)}>
         <Icon className="h-4 w-4 text-white" />
@@ -150,17 +152,15 @@ const Index = () => {
 
   return (
     <Layout>
-      <div className="space-y-6 max-w-screen-xl mx-auto">
+      <div className="space-y-6 max-w-[1440px] mx-auto">
 
         {/* ── Saudação ─────────────────────────────────────────────── */}
-        <div className="rounded-xl border border-border/50 bg-gradient-to-r from-primary/5 via-background to-background px-6 py-5">
-          <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-1">
-            {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
-          </p>
-          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">{greeting}, {firstName}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {isFuncionario ? "Acompanhe seu veículo e suas atividades" : "Visão geral do sistema de gestão integrada"}
-          </p>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-blue-950 to-primary px-6 py-6 text-white shadow-lg md:px-8 md:py-7">
+          <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-blue-400/15 blur-3xl"/><div className="absolute bottom-0 right-1/3 h-28 w-28 rounded-full bg-violet-400/10 blur-2xl"/>
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div><div className="mb-3 flex items-center gap-2 text-blue-200"><Sparkles className="h-4 w-4"/><p className="text-xs font-bold uppercase tracking-[.16em]">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p></div><h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{greeting}, {firstName}</h1><p className="mt-1 text-sm text-slate-300">{isFuncionario ? "Acompanhe seu veículo e suas atividades" : "Visão executiva da operação, obras, pessoas e segurança"}</p></div>
+            {hasFullAccess&&<div className="grid grid-cols-3 gap-2 sm:gap-3">{[[HardHat,obraStats.em_andamento,"Obras"],[Users,empAtivos,"Pessoas"],[Activity,vehicles.length,"Veículos"]].map(([Icon,value,label])=><div key={String(label)} className="min-w-24 rounded-xl border border-white/10 bg-white/10 px-3 py-3 backdrop-blur-sm"><div className="flex items-center gap-2"><Icon className="h-4 w-4 text-blue-200"/><strong className="text-lg">{String(value)}</strong></div><p className="mt-1 text-[10px] uppercase tracking-wide text-slate-300">{String(label)}</p></div>)}</div>}
+          </div>
         </div>
 
         {/* ── Vista do funcionário ─────────────────────────────────── */}
@@ -185,6 +185,7 @@ const Index = () => {
         {/* ── Dashboard completo (admin / gestor_contrato) ─────────── */}
         {hasFullAccess && (
           <>
+            <div className="flex items-end justify-between"><div><h2 className="text-lg font-bold">Indicadores principais</h2><p className="text-xs text-muted-foreground">Situação consolidada da operação neste momento</p></div><span className="hidden text-xs text-muted-foreground sm:block">Atualização automática</span></div>
             {/* 5 KPIs principais */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
@@ -286,7 +287,7 @@ const Index = () => {
               <div className="space-y-5">
 
                 {/* Acesso Rápido */}
-                <div className="rounded-xl border border-border/50 bg-card shadow-card">
+                <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                   <div className="px-4 pt-4 pb-2 border-b border-border/50">
                     <p className="text-sm font-semibold text-foreground">Acesso Rápido</p>
                   </div>

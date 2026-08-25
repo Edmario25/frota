@@ -52,9 +52,9 @@ CREATE POLICY "portal_atu_wri" ON public.portal_atualizacoes FOR ALL TO authenti
 USING (public.can_manage_obra_data(obra_id)) WITH CHECK (public.can_manage_obra_data(obra_id));
 
 CREATE OR REPLACE VIEW public.v_portal_resumo_seguro
-WITH (security_invoker = true)
 AS SELECT * FROM public.v_portal_resumo
 WHERE public.can_manage_obra_data(obra_id);
+ALTER VIEW public.v_portal_resumo_seguro SET (security_invoker = false);
 REVOKE ALL ON public.v_portal_resumo FROM authenticated;
 GRANT SELECT ON public.v_portal_resumo_seguro TO authenticated;
 

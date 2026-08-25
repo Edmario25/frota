@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, User, LogOut, Settings, Menu } from "lucide-react";
+import { Bell, User, LogOut, Settings, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -33,9 +33,11 @@ interface HeaderProps {
   onMenuClick: () => void;
   alertCount?: number;
   onBellClick?: () => void;
+  onSidebarToggle?: () => void;
+  sidebarCollapsed?: boolean;
 }
 
-export function Header({ onMenuClick, alertCount = 0, onBellClick }: HeaderProps) {
+export function Header({ onMenuClick, alertCount = 0, onBellClick, onSidebarToggle, sidebarCollapsed }: HeaderProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -59,6 +61,10 @@ export function Header({ onMenuClick, alertCount = 0, onBellClick }: HeaderProps
         onClick={onMenuClick}
       >
         <Menu className="h-4 w-4" />
+      </Button>
+
+      <Button variant="ghost" size="icon" className="hidden md:flex h-8 w-8 flex-shrink-0" onClick={onSidebarToggle} title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}>
+        {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4"/> : <PanelLeftClose className="h-4 w-4"/>}
       </Button>
 
       {/* Page title */}
