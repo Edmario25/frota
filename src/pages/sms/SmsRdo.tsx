@@ -34,8 +34,9 @@ import { FotoUploader } from "@/components/sms/FotoUploader";
 type Clima = "ensolarado" | "parcialmente_nublado" | "nublado" | "chuva_leve" | "chuva_forte";
 
 interface MaoDeObraItem  { tipo: string; quantidade: string }
-interface EquipItem      { descricao: string; quantidade: string }
+interface EquipItem      { descricao: string; quantidade: string; origem?: "cadastro" | "frota" | "externo"; referencia_id?: string; horimetro_inicial?: string; horimetro_final?: string; horas_paradas?: string; motivo_parada?: string }
 interface AtividadeItem  { setor: string; descricao: string; percentual: string }
+interface EquipOption { id: string; origem: "cadastro" | "frota"; nome: string; detalhe: string; bloqueado?: boolean }
 
 interface Rdo {
   id: string;
@@ -194,6 +195,8 @@ export default function SmsRdo() {
   const [filtroStatus, setFiltroStatus] = useState("all");
   const [detailRdo, setDetailRdo] = useState<Rdo | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [equipOptions, setEquipOptions] = useState<EquipOption[]>([]);
+  const [equipSelecionado, setEquipSelecionado] = useState("");
 
   // ─── Fetch ────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -239,11 +242,40 @@ export default function SmsRdo() {
     }));
   }
 
+  async function carregarEquipamentosObra(obraId: string) {
+    if (!obraId) { setEquipOptions([]); return; }
+    const [catalogoResult, vinculosResult] = await Promise.all([
+      (supabase as any).from("v_ferramentas_situacao").select("id,nome,tipo_item,codigo_patrimonio,numero_serie,status_operacional,cert_status").eq("obra_atual_id", obraId),
+      (supabase as any).from("obra_veiculos").select("vehicle_id,vehicles(id,placa,marca,modelo,status,tipo_medicao,horimetro_atual)").eq("obra_id", obraId).eq("status", true),
+    ]);
+    const catalogo = (catalogoResult.data ?? []).map((item: any) => ({
+      id: item.id, origem: "cadastro" as const, nome: item.nome,
+      detalhe: [item.tipo_item, item.codigo_patrimonio || item.numero_serie].filter(Boolean).join(" · "),
+      bloqueado: ["manutencao","bloqueado","inativo"].includes(item.status_operacional) || ["vencido","sem_cert"].includes(item.cert_status),
+    }));
+    const frota = (vinculosResult.data ?? []).flatMap((link: any) => link.vehicles ? [{
+      id: link.vehicles.id, origem: "frota" as const,
+      nome: `${link.vehicles.placa} — ${link.vehicles.marca} ${link.vehicles.modelo}`,
+      detalhe: link.vehicles.tipo_medicao === "horimetro" ? `${link.vehicles.horimetro_atual ?? 0} h` : "Frota vinculada",
+      bloqueado: ["manutencao","inativo"].includes(String(link.vehicles.status)),
+    }] : []);
+    setEquipOptions([...catalogo, ...frota]);
+  }
+
+  function adicionarEquipamentoCadastrado(value: string) {
+    const [origem, id] = value.split(":");
+    const item = equipOptions.find(e => e.origem === origem && e.id === id);
+    if (!item || item.bloqueado || form.equipamentos.some(e => e.origem === item.origem && e.referencia_id === item.id)) return;
+    setForm(f => ({ ...f, equipamentos: [...f.equipamentos, { descricao: item.nome, quantidade: "1", origem: item.origem, referencia_id: item.id, horimetro_inicial: "", horimetro_final: "", horas_paradas: "", motivo_parada: "" }] }));
+    setEquipSelecionado("");
+  }
+
   // ─── Open modal ───────────────────────────────────────────────────────────
   function openNew() {
     const f = defaultForm();
     setEditId(null);
     setForm(f);
+    setEquipOptions([]);
     setModalOpen(true);
   }
 
@@ -270,6 +302,7 @@ export default function SmsRdo() {
       desvios_registrados:  r.desvios_registrados.toString(),
       fotos:              r.fotos ?? [],
     });
+    if (r.obra_id) carregarEquipamentosObra(r.obra_id);
     setModalOpen(true);
   }
 
@@ -290,6 +323,10 @@ export default function SmsRdo() {
     }
     if (atividadesValidas.some(a => Number(a.percentual) < 0 || Number(a.percentual) > 100)) {
       toast({ title: "O avanço das atividades deve ficar entre 0% e 100%", variant: "destructive" });
+      return;
+    }
+    if (form.equipamentos.some(e => e.horimetro_inicial && e.horimetro_final && Number(e.horimetro_final) < Number(e.horimetro_inicial))) {
+      toast({ title: "O horímetro final não pode ser menor que o inicial", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -357,7 +394,7 @@ export default function SmsRdo() {
     setForm(f => { const arr = [...f.mao_de_obra]; arr[i] = { ...arr[i], [k]: v }; return { ...f, mao_de_obra: arr }; });
   }
 
-  function addEquip()  { setForm(f => ({ ...f, equipamentos: [...f.equipamentos, { descricao: "", quantidade: "1" }] })); }
+  function addEquip()  { setForm(f => ({ ...f, equipamentos: [...f.equipamentos, { descricao: "", quantidade: "1", origem: "externo" }] })); }
   function rmEquip(i: number) { setForm(f => ({ ...f, equipamentos: f.equipamentos.filter((_, idx) => idx !== i) })); }
   function updateEquip(i: number, k: keyof EquipItem, v: string) {
     setForm(f => { const arr = [...f.equipamentos]; arr[i] = { ...arr[i], [k]: v }; return { ...f, equipamentos: arr }; });
@@ -557,6 +594,7 @@ export default function SmsRdo() {
                 {detailRdo.atividades?.length ? detailRdo.atividades.map((a, i) => <div key={i} className="rounded-lg border p-3"><div className="flex justify-between gap-3"><b className="text-sm">{a.setor || "Área não informada"}</b><span className="text-xs text-primary font-semibold">{a.percentual || 0}%</span></div><p className="text-sm text-muted-foreground mt-1">{a.descricao}</p></div>) : <p className="text-sm text-muted-foreground">{detailRdo.atividades_executadas || "Sem atividades registradas."}</p>}
               </div>
             </div>
+            {detailRdo.equipamentos?.length > 0 && <div><h3 className="font-semibold mb-2">Equipamentos e máquinas</h3><div className="grid sm:grid-cols-2 gap-2">{detailRdo.equipamentos.map((e, i) => <div key={i} className="rounded-lg border p-3 text-sm"><b>{e.descricao}</b><p className="text-xs text-muted-foreground">Quantidade: {e.quantidade || 1}{e.horimetro_inicial || e.horimetro_final ? ` · Horímetro: ${e.horimetro_inicial || "—"} → ${e.horimetro_final || "—"}` : ""}{e.horas_paradas ? ` · Parado: ${e.horas_paradas}h` : ""}</p>{e.motivo_parada && <p className="text-xs text-orange-700 mt-1">{e.motivo_parada}</p>}</div>)}</div></div>}
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="rounded-lg bg-muted/30 p-3"><h3 className="font-semibold text-sm mb-1">Ocorrências</h3><p className="text-sm text-muted-foreground whitespace-pre-wrap">{detailRdo.ocorrencias || "Sem ocorrências."}</p></div>
               <div className="rounded-lg bg-muted/30 p-3"><h3 className="font-semibold text-sm mb-1">Resumo SMS</h3><p className="text-sm text-muted-foreground">DDS: {detailRdo.dds_realizado ? "Realizado" : "Não registrado"}<br />APRs: {detailRdo.aprs_realizadas} · Inspeções: {detailRdo.inspecoes_realizadas}<br />Desvios: {detailRdo.desvios_registrados}</p></div>
@@ -593,6 +631,7 @@ export default function SmsRdo() {
                   <Select value={form.obra_id} onValueChange={v => {
                     setForm(f => ({ ...f, obra_id: v }));
                     carregarSnapshot(v, form.data_rdo);
+                    carregarEquipamentosObra(v);
                   }} disabled={!!editId}>
                     <SelectTrigger><SelectValue placeholder="Selecione a obra" /></SelectTrigger>
                     <SelectContent>
@@ -723,24 +762,42 @@ export default function SmsRdo() {
             <div className="space-y-3">
               <SectionHeader icon={Wrench} title="4 — Equipamentos e Máquinas" color="text-slate-600 dark:text-slate-400" />
 
+              <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                <Label>Selecionar da obra</Label>
+                <Select value={equipSelecionado} onValueChange={adicionarEquipamentoCadastrado} disabled={!form.obra_id}>
+                  <SelectTrigger><SelectValue placeholder={form.obra_id ? "Selecione um equipamento ou veículo vinculado" : "Selecione primeiro a obra"} /></SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {equipOptions.map(item => <SelectItem key={`${item.origem}:${item.id}`} value={`${item.origem}:${item.id}`} disabled={item.bloqueado}>{item.nome} — {item.detalhe}{item.bloqueado ? " (indisponível)" : ""}</SelectItem>)}
+                    {equipOptions.length === 0 && <SelectItem value="__empty" disabled>Nenhum equipamento vinculado à obra</SelectItem>}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Itens bloqueados, em manutenção ou com certificação irregular não podem ser utilizados.</p>
+              </div>
+
               {form.equipamentos.length > 0 && (
                 <div className="space-y-2">
                   {form.equipamentos.map((e, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Input className="flex-1 h-8 text-xs" placeholder="Nome do equipamento/máquina"
-                        value={e.descricao} onChange={v => updateEquip(i, "descricao", v.target.value)} />
-                      <Input type="number" className="w-20 h-8 text-xs" placeholder="Qtd"
-                        value={e.quantidade} onChange={v => updateEquip(i, "quantidade", v.target.value)} />
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => rmEquip(i)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <div key={i} className="rounded-lg border p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input className="flex-1 h-8 text-xs" placeholder="Nome do equipamento/máquina" readOnly={e.origem !== "externo"}
+                          value={e.descricao} onChange={v => updateEquip(i, "descricao", v.target.value)} />
+                        <Badge variant="outline" className="text-[10px] capitalize">{e.origem === "frota" ? "Frota" : e.origem === "cadastro" ? "Cadastro" : "Externo"}</Badge>
+                        <Input type="number" min="1" className="w-20 h-8 text-xs" placeholder="Qtd"
+                          value={e.quantidade} onChange={v => updateEquip(i, "quantidade", v.target.value)} />
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => rmEquip(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <Input type="number" min="0" className="h-8 text-xs" placeholder="Horímetro inicial" value={e.horimetro_inicial ?? ""} onChange={v => updateEquip(i, "horimetro_inicial", v.target.value)} />
+                        <Input type="number" min="0" className="h-8 text-xs" placeholder="Horímetro final" value={e.horimetro_final ?? ""} onChange={v => updateEquip(i, "horimetro_final", v.target.value)} />
+                        <Input type="number" min="0" className="h-8 text-xs" placeholder="Horas paradas" value={e.horas_paradas ?? ""} onChange={v => updateEquip(i, "horas_paradas", v.target.value)} />
+                        <Input className="h-8 text-xs" placeholder="Motivo da parada" value={e.motivo_parada ?? ""} onChange={v => updateEquip(i, "motivo_parada", v.target.value)} />
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
               <Button type="button" variant="outline" size="sm" className="gap-1.5 h-8 text-xs" onClick={addEquip}>
-                <Plus className="h-3 w-3" /> Adicionar equipamento
+                <Plus className="h-3 w-3" /> Informar equipamento externo
               </Button>
             </div>
 

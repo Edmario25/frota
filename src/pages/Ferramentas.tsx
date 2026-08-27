@@ -31,6 +31,10 @@ interface Ferramenta {
   id: string; nome: string; descricao: string | null; categoria: string | null;
   numero_serie: string | null; fabricante: string | null; modelo: string | null;
   capacidade: string | null; exige_certificacao: boolean; ativo: boolean;
+  tipo_item: "ferramenta" | "equipamento" | "maquina"; codigo_patrimonio: string | null;
+  unidade_medicao: "unidade" | "horimetro"; horimetro_atual: number | null;
+  status_operacional: "disponivel" | "operando" | "manutencao" | "bloqueado" | "inativo";
+  periodicidade_inspecao_dias: number | null; proxima_inspecao: string | null;
   // da view
   obra_atual_nome: string | null; frente_atual: string | null; condicao: string | null;
   data_alocacao: string | null; cert_status: string; proximo_vencimento: string | null;
@@ -53,7 +57,17 @@ interface Certificacao {
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
-const CATEGORIAS   = ["Içamento","Corte","Medição","Elétrico","Hidráulico","Pneumático","Segurança","Outro"];
+const CATEGORIAS   = ["Içamento","Corte","Medição","Elétrico","Hidráulico","Pneumático","Compactação","Geração de Energia","Concretagem","Terraplenagem","Segurança","Outro"];
+const TIPOS_ITEM = [
+  { value: "ferramenta", label: "Ferramenta" },
+  { value: "equipamento", label: "Equipamento" },
+  { value: "maquina", label: "Máquina" },
+];
+const STATUS_OPERACIONAL = [
+  { value: "disponivel", label: "Disponível" }, { value: "operando", label: "Operando" },
+  { value: "manutencao", label: "Em manutenção" }, { value: "bloqueado", label: "Bloqueado" },
+  { value: "inativo", label: "Inativo" },
+];
 const TIPOS_CERT   = ["Lacre","Certificado de Carga","Inspeção NR-11","Inspeção NR-18","Teste Dielétrico","Laudo Técnico","Outro"];
 const CONDICOES    = [
   { value: "otimo",      label: "Ótimo",     color: "text-green-600 bg-green-50 border-green-200" },
@@ -235,7 +249,7 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
               <TableHeader>
                 <TableRow className="bg-muted/30">
                   <TableHead>Equipamento</TableHead>
-                  <TableHead>Categoria</TableHead>
+                  <TableHead>Tipo / Categoria</TableHead>
                   <TableHead>Localização atual</TableHead>
                   <TableHead>Condição</TableHead>
                   <TableHead>Certificação</TableHead>
@@ -250,11 +264,12 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
                       <p className="font-medium text-sm">{f.nome}</p>
                       <div className="flex gap-1.5 mt-0.5 flex-wrap">
                         {f.numero_serie && <span className="text-xs text-muted-foreground">Série: {f.numero_serie}</span>}
+                        {f.codigo_patrimonio && <span className="text-xs font-mono text-muted-foreground">Patrimônio: {f.codigo_patrimonio}</span>}
                         {f.capacidade && <Badge variant="outline" className="text-[10px] rounded-full px-1.5">{f.capacidade}</Badge>}
                       </div>
                     </TableCell>
                     <TableCell>
-                      {f.categoria ? <Badge variant="outline" className="text-xs rounded-full">{f.categoria}</Badge> : <span className="text-muted-foreground text-sm">—</span>}
+                      <div className="space-y-1"><Badge className="text-[10px] rounded-full capitalize">{f.tipo_item}</Badge>{f.categoria && <p className="text-xs text-muted-foreground">{f.categoria}</p>}</div>
                     </TableCell>
                     <TableCell>
                       {f.obra_atual_nome ? (
@@ -265,9 +280,11 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
                       ) : <span className="text-xs text-muted-foreground italic">Disponível</span>}
                     </TableCell>
                     <TableCell>
-                      {f.condicao
+                      <div className="space-y-1">{f.condicao
                         ? <Badge variant="outline" className={cn("text-xs rounded-full", condicaoColor(f.condicao))}>{condicaoLabel(f.condicao)}</Badge>
                         : <span className="text-muted-foreground text-sm">—</span>}
+                        <p className="text-[10px] text-muted-foreground">{STATUS_OPERACIONAL.find(s => s.value === f.status_operacional)?.label ?? f.status_operacional}</p>
+                        {f.unidade_medicao === "horimetro" && <p className="text-[10px] font-medium">{f.horimetro_atual ?? 0} h</p>}</div>
                     </TableCell>
                     <TableCell>
                       {certBadge(f.cert_status, f.proximo_vencimento) ?? <span className="text-muted-foreground text-xs">—</span>}
@@ -539,6 +556,12 @@ function EquipamentoModal({ open, onClose, editing, onSaved }: { open: boolean; 
   const [fabricante, setFabricante] = useState("");
   const [modelo, setModelo]         = useState("");
   const [capacidade, setCapacidade] = useState("");
+  const [tipoItem, setTipoItem]     = useState("equipamento");
+  const [patrimonio, setPatrimonio] = useState("");
+  const [unidadeMedicao, setUnidadeMedicao] = useState("unidade");
+  const [horimetro, setHorimetro]   = useState("");
+  const [statusOperacional, setStatusOperacional] = useState("disponivel");
+  const [periodicidade, setPeriodicidade] = useState("");
   const [exigeCert, setExigeCert]   = useState(false);
   const [ativo, setAtivo]           = useState(true);
   const [saving, setSaving]         = useState(false);
@@ -548,9 +571,13 @@ function EquipamentoModal({ open, onClose, editing, onSaved }: { open: boolean; 
       setNome(editing.nome); setDesc(editing.descricao ?? ""); setCategoria(editing.categoria ?? "");
       setSerie(editing.numero_serie ?? ""); setFabricante(editing.fabricante ?? "");
       setModelo(editing.modelo ?? ""); setCapacidade(editing.capacidade ?? "");
+      setTipoItem(editing.tipo_item ?? "equipamento"); setPatrimonio(editing.codigo_patrimonio ?? "");
+      setUnidadeMedicao(editing.unidade_medicao ?? "unidade"); setHorimetro(editing.horimetro_atual?.toString() ?? "");
+      setStatusOperacional(editing.status_operacional ?? "disponivel"); setPeriodicidade(editing.periodicidade_inspecao_dias?.toString() ?? "");
       setExigeCert(editing.exige_certificacao); setAtivo(editing.ativo);
     } else if (open) {
       setNome(""); setDesc(""); setCategoria(""); setSerie(""); setFabricante(""); setModelo(""); setCapacidade(""); setExigeCert(false); setAtivo(true);
+      setTipoItem("equipamento"); setPatrimonio(""); setUnidadeMedicao("unidade"); setHorimetro(""); setStatusOperacional("disponivel"); setPeriodicidade("");
     }
   }, [open, editing]);
 
@@ -558,7 +585,7 @@ function EquipamentoModal({ open, onClose, editing, onSaved }: { open: boolean; 
     if (!nome.trim()) { toast.error("Informe o nome do equipamento"); return; }
     setSaving(true);
     try {
-      const payload = { nome: nome.trim(), descricao: descricao || null, categoria: categoria || null, numero_serie: serie || null, fabricante: fabricante || null, modelo: modelo || null, capacidade: capacidade || null, exige_certificacao: exigeCert, ativo };
+      const payload = { nome: nome.trim(), descricao: descricao || null, categoria: categoria || null, numero_serie: serie || null, fabricante: fabricante || null, modelo: modelo || null, capacidade: capacidade || null, exige_certificacao: exigeCert, ativo, tipo_item: tipoItem, codigo_patrimonio: patrimonio || null, unidade_medicao: unidadeMedicao, horimetro_atual: unidadeMedicao === "horimetro" ? Number(horimetro || 0) : null, status_operacional: statusOperacional, periodicidade_inspecao_dias: periodicidade ? Number(periodicidade) : null };
       const { error } = editing
         ? await (supabase as any).from("ferramentas_catalogo").update(payload).eq("id", editing.id)
         : await (supabase as any).from("ferramentas_catalogo").insert(payload);
@@ -579,6 +606,10 @@ function EquipamentoModal({ open, onClose, editing, onSaved }: { open: boolean; 
           <div className="space-y-1.5"><Label>Nome <span className="text-red-500">*</span></Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Talha Elétrica 5t" className="rounded-xl" /></div>
           <div className="space-y-1.5"><Label>Descrição</Label><Textarea value={descricao} onChange={e => setDesc(e.target.value)} rows={2} className="rounded-xl resize-none text-sm" /></div>
           <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>Classificação *</Label><Select value={tipoItem} onValueChange={setTipoItem}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_ITEM.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1.5"><Label>Código patrimonial</Label><Input value={patrimonio} onChange={e => setPatrimonio(e.target.value)} placeholder="PAT-0001" className="rounded-xl" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Categoria</Label>
               <Select value={categoria} onValueChange={setCategoria}>
@@ -593,6 +624,12 @@ function EquipamentoModal({ open, onClose, editing, onSaved }: { open: boolean; 
             <div className="space-y-1.5"><Label>Fabricante</Label><Input value={fabricante} onChange={e => setFabricante(e.target.value)} className="rounded-xl" /></div>
             <div className="space-y-1.5"><Label>Modelo</Label><Input value={modelo} onChange={e => setModelo(e.target.value)} className="rounded-xl" /></div>
           </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5"><Label>Controle</Label><Select value={unidadeMedicao} onValueChange={setUnidadeMedicao}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unidade">Por unidade</SelectItem><SelectItem value="horimetro">Por horímetro</SelectItem></SelectContent></Select></div>
+            <div className="space-y-1.5"><Label>Horímetro atual</Label><Input type="number" min="0" value={horimetro} onChange={e => setHorimetro(e.target.value)} disabled={unidadeMedicao !== "horimetro"} className="rounded-xl" /></div>
+            <div className="space-y-1.5"><Label>Inspeção a cada</Label><Input type="number" min="1" value={periodicidade} onChange={e => setPeriodicidade(e.target.value)} placeholder="dias" className="rounded-xl" /></div>
+          </div>
+          <div className="space-y-1.5"><Label>Status operacional</Label><Select value={statusOperacional} onValueChange={setStatusOperacional}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPERACIONAL.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
           <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
             <div>
               <Label className="cursor-pointer">Exige certificação de segurança</Label>
