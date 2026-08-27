@@ -99,7 +99,8 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
           area:             d.area || null,
           data_inspecao:    d.data,
           hora:             d.hora         || null,
-          status:           'concluida',
+          status:           'em_andamento',
+          ferramenta_id:    d.ferramenta_id || null,
           observacoes_gerais: d.obs_geral  || null,
           fotos,
           registrado_por:   userId,
@@ -122,6 +123,8 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
           )
           if (respostasError) return { ok: false, error: respostasError.message }
         }
+        const { error: concluirError } = await (supabase as any).from('sms_inspecoes').update({ status: 'concluida' }).eq('id', rec.id)
+        if (concluirError) return { ok: false, error: concluirError.message }
         return { ok: true }
       }
 

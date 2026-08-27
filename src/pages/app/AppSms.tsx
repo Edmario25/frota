@@ -15,11 +15,13 @@ import { QrScannerModal }              from "./sms/QrScannerModal"
 import { VeiculoHistoricoScreen }      from "./sms/VeiculoHistoricoScreen"
 import { FuncionarioHistoricoScreen }  from "./sms/FuncionarioHistoricoScreen"
 import { LiberacaoVeiculoForm }        from "./sms/LiberacaoVeiculoForm"
+import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/hooks/useEscalaNotificacoes"
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type Employee = { id: string; nome: string; obra_id: string | null }
 type Obra = { id: string; nome: string }
 type Veiculo = { id: string; placa: string; marca: string; modelo: string }
+type Equipamento = { id: string; nome: string; codigo_patrimonio: string | null; status_operacional: string }
 type Screen =
   | 'home'
   | 'hist'
@@ -30,6 +32,7 @@ type Screen =
   | 'form-rdo' | 'form-near_miss' | 'form-acidente' | 'form-pt'
 
 type AuthState = 'loading' | 'unauth' | 'sem_acesso' | 'ok'
+type SmsAlert = { id: string; titulo: string; mensagem: string; referencia_id: string | null; created_at: string }
 
 const MENU_ITEMS: { type: RecordType; label: string; emoji: string; desc: string; color: string }[] = [
   { type: 'dds',       label: 'DDS',          emoji: '🎓', desc: 'Diálogo Diário de Segurança',        color: 'bg-blue-50 border-blue-200 text-blue-800' },
@@ -67,6 +70,7 @@ export default function AppSms() {
   const [histRecords, setHist]    = useState<Awaited<ReturnType<typeof smsDb.getAll>>>([])
   const [veiculos, setVeiculos]   = useState<Veiculo[]>([])
   const [equipe, setEquipe]       = useState<{ id: string; nome: string }[]>([])
+  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([])
   const [showQrScanner, setQrScan]         = useState(false)
   const [showCrachaScanner, setCrachaScan] = useState(false)
   const [scannedVehicleId, setScanVehicle]  = useState<string | null>(null)
@@ -75,6 +79,8 @@ export default function AppSms() {
   const [password, setPassword]   = useState('')
   const [loginErr, setLoginErr]   = useState('')
   const [loggingIn, setLoggingIn] = useState(false)
+  const [smsAlerts, setSmsAlerts] = useState<SmsAlert[]>([])
+  const [pushAtivo, setPushAtivo] = useState(false)
 
   // reference data
   const [ddsTemas, setDdsTemas]                 = useState<{ id: string; titulo: string; nr_relacionada?: string | null }[]>([])
@@ -161,6 +167,13 @@ export default function AppSms() {
     setEmployee(data)
     setAuthState('ok')
     setObras(obrasVinculadas)
+    const { data: alertas } = await (supabase as any).from('sms_notificacoes')
+      .select('id,titulo,mensagem,referencia_id,created_at').eq('destinatario_id', emp.id)
+      .eq('tipo', 'inspecao_equipamento').in('status', ['pendente','enviado']).order('created_at', { ascending: false }).limit(10)
+    setSmsAlerts((alertas ?? []) as SmsAlert[])
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => setPushAtivo(!!sub)).catch(() => setPushAtivo(false))
+    }
     if (obrasVinculadas.length) {
       const { data: equipeData } = await (supabase as any)
         .from('obra_funcionarios')
@@ -174,9 +187,16 @@ export default function AppSms() {
       setEquipe(equipeUnica)
     } else setEquipe([])
     // load ref data when online
-    if (navigator.onLine) { loadRefData(); loadVeiculos(obraPrincipalId) }
+    if (navigator.onLine) {
+      loadRefData(); loadVeiculos(obraPrincipalId)
+      if (obraPrincipalId) {
+        const { data: equips } = await (supabase as any).from('v_ferramentas_situacao').select('id,nome,codigo_patrimonio,status_operacional').eq('obra_atual_id', obraPrincipalId).order('nome')
+        setEquipamentos((equips ?? []) as Equipamento[])
+      } else setEquipamentos([])
+    }
     // restore from IndexedDB cache
     else {
+      setEquipamentos([])
       const cached = await smsDb.getRef<typeof ddsTemas>('sms_dds_temas')
       if (cached) setDdsTemas(cached)
       const cTipos = await smsDb.getRef<typeof tiposAtividade>('sms_apr_tipos_atividade')
@@ -191,6 +211,19 @@ export default function AppSms() {
       if (cVeiculos) setVeiculos(cVeiculos)
     }
     refreshCounts()
+  }
+
+  const ativarPushSms = async () => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) })
+    const raw = sub.toJSON()
+    await (supabase as any).from('push_subscriptions').upsert({ user_id: user.id, endpoint: raw.endpoint, p256dh: raw.keys?.p256dh, auth_key: raw.keys?.auth }, { onConflict: 'endpoint' })
+    setPushAtivo(true)
   }
 
   const loadVeiculos = async (obraId: string | null) => {
@@ -420,7 +453,7 @@ export default function AppSms() {
   if (screen === 'form-desvio')
     return <DesvioForm {...formProps} onSave={handleSave} onBack={() => setScreen('home')} />
   if (screen === 'form-inspecao')
-    return <InspecaoForm {...formProps} catalogoInspecoes={catalogoInspecoes} itensCatalogo={itensCatalogo} onSave={handleSave} onBack={() => setScreen('home')} />
+    return <InspecaoForm {...formProps} equipamentos={equipamentos} catalogoInspecoes={catalogoInspecoes} itensCatalogo={itensCatalogo} onSave={handleSave} onBack={() => setScreen('home')} />
   if (screen === 'form-apr')
     return <AprForm {...formProps} tiposAtividade={tiposAtividade} riscosCatalogo={riscosCatalogo} onSave={handleSave} onBack={() => setScreen('home')} />
   if (screen === 'form-rdo')
@@ -508,6 +541,11 @@ export default function AppSms() {
 
       {/* grid de ações */}
       <div className="flex-1 overflow-y-auto p-4 pb-24">
+
+        {smsAlerts.length > 0 && <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-3">
+          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-amber-900">🔔 Inspeções de equipamentos</p><p className="text-[11px] text-amber-800 mt-0.5">{smsAlerts.length} alerta{smsAlerts.length > 1 ? 's' : ''} requer atenção</p></div>{!pushAtivo && <button onClick={ativarPushSms} className="rounded-lg bg-amber-700 text-white text-[10px] font-bold px-2.5 py-1.5">Ativar push</button>}</div>
+          <div className="mt-2 space-y-2">{smsAlerts.slice(0,3).map(a => <div key={a.id} className="rounded-xl bg-white border border-amber-200 px-3 py-2"><p className="text-xs font-bold text-gray-900">{a.titulo}</p><p className="text-[11px] text-gray-600 mt-0.5">{a.mensagem}</p></div>)}</div>
+        </div>}
 
         {/* QR Code scanners */}
         <div className="grid grid-cols-2 gap-2 mb-4">

@@ -8,6 +8,7 @@ import {
   ArrowRight, TrendingUp, AlertTriangle, CheckCircle2,
   Siren,
   Leaf,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,11 @@ interface KpiData {
   aprs_abertas: number;
   inspecoes_pendentes: number;
   dds_mes: number;
+  inspecoes_equip_vencidas: number;
+  inspecoes_equip_30d: number;
 }
+
+interface AlertaEquipamento { id: string; nome: string; codigo_patrimonio: string | null; proxima_inspecao: string; obra_nome: string | null; nivel_alerta: string; dias_restantes: number }
 
 interface DesvioRecente {
   id: string;
@@ -103,6 +108,7 @@ export default function SmsDashboard() {
   const [recentes, setRecentes] = useState<DesvioRecente[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [alertasEquipamentos, setAlertasEquipamentos] = useState<AlertaEquipamento[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -111,6 +117,8 @@ export default function SmsDashboard() {
       const hoje = new Date().toISOString().split("T")[0];
       const umMesAtras = new Date(Date.now() - 30 * 24 * 3600_000).toISOString().split("T")[0];
       const umMesAfrente = new Date(Date.now() + 30 * 24 * 3600_000).toISOString().split("T")[0];
+
+      await (supabase as any).rpc("processar_alertas_inspecao_equipamentos");
 
       const results = await Promise.all([
         (supabase as any).from("sms_desvios").select("id", { count: "exact", head: true }).in("status", ["aberto", "em_tratamento"]),
@@ -126,8 +134,10 @@ export default function SmsDashboard() {
           .in("status", ["aberto", "em_tratamento"])
           .order("data_ocorrencia", { ascending: false })
           .limit(6),
+        (supabase as any).from("v_alertas_inspecao_equipamentos").select("id,nome,codigo_patrimonio,proxima_inspecao,obra_nome,nivel_alerta,dias_restantes").neq("nivel_alerta", "em_dia").order("dias_restantes").limit(8),
+        (supabase as any).from("sms_notificacoes").select("id,destinatario_id,titulo,mensagem").eq("tipo", "inspecao_equipamento").eq("status", "pendente").limit(30),
       ]);
-      const [desvAbertosRes, desvCriticosRes, trVencidosRes, trAVencerRes, aprsAbertasRes, inspPendentesRes, ddsMesRes, devsRes] = results;
+      const [desvAbertosRes, desvCriticosRes, trVencidosRes, trAVencerRes, aprsAbertasRes, inspPendentesRes, ddsMesRes, devsRes, equipAlertasRes, notificacoesRes] = results;
       const firstError = results.find(result => result.error)?.error;
       if (firstError) setLoadError(`Alguns indicadores não puderam ser carregados: ${firstError.message}`);
 
@@ -139,8 +149,17 @@ export default function SmsDashboard() {
         aprs_abertas:         aprsAbertasRes.count ?? 0,
         inspecoes_pendentes:  inspPendentesRes.count ?? 0,
         dds_mes:              ddsMesRes.count ?? 0,
+        inspecoes_equip_vencidas: (equipAlertasRes.data ?? []).filter((a: any) => a.nivel_alerta === "vencida").length,
+        inspecoes_equip_30d: (equipAlertasRes.data ?? []).length,
       });
       setRecentes((devsRes.data ?? []) as DesvioRecente[]);
+      setAlertasEquipamentos((equipAlertasRes.data ?? []) as AlertaEquipamento[]);
+
+      // Entrega push usando a infraestrutura já habilitada no app.
+      await Promise.allSettled((notificacoesRes.data ?? []).map(async (n: any) => {
+        const { error } = await supabase.functions.invoke("send-escala-push", { body: { employeeId: n.destinatario_id, titulo: n.titulo, mensagem: n.mensagem } });
+        if (!error) await (supabase as any).from("sms_notificacoes").update({ status: "enviado", enviado_em: new Date().toISOString() }).eq("id", n.id);
+      }));
       setLoading(false);
     }
     load();
@@ -158,6 +177,11 @@ export default function SmsDashboard() {
             Gestão integrada de saúde, segurança e meio ambiente
           </p>
         </div>
+
+        {alertasEquipamentos.length > 0 && <div className="rounded-xl border border-amber-300 bg-amber-50/70 dark:bg-amber-950/20 overflow-hidden">
+          <div className="px-5 py-3 border-b border-amber-200 flex items-center justify-between"><div className="flex items-center gap-2"><Wrench className="h-4 w-4 text-amber-700" /><p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Inspeções de equipamentos</p></div><Link to="/sms/inspecoes" className="text-xs text-primary hover:underline">Abrir inspeções</Link></div>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-px bg-amber-200/60">{alertasEquipamentos.map(a => <div key={a.id} className="bg-card px-4 py-3"><div className="flex justify-between gap-2"><p className="text-sm font-semibold truncate">{a.nome}</p><Badge className={a.nivel_alerta === "vencida" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}>{a.nivel_alerta === "vencida" ? "Vencida" : `${a.dias_restantes} dias`}</Badge></div><p className="text-xs text-muted-foreground mt-1">{a.codigo_patrimonio || "Sem patrimônio"} · {a.obra_nome || "Sem obra"}</p></div>)}</div>
+        </div>}
 
         {loadError && <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"><strong>Atenção:</strong> {loadError}</div>}
 

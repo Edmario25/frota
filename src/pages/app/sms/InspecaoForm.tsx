@@ -5,12 +5,14 @@ type CatalogoInspecao = { id: string; nome: string }
 type ItemCatalogo = { id: string; catalogo_id: string; item: string; criterio?: string | null }
 
 type Veiculo = { id: string; placa: string; marca: string; modelo: string }
+type Equipamento = { id: string; nome: string; codigo_patrimonio: string | null; status_operacional: string }
 
 interface Props {
   employee: { id: string; nome: string }
   obraId: string
   obras: { id: string; nome: string }[]
   veiculos?: Veiculo[]
+  equipamentos?: Equipamento[]
   preselectedVehicleId?: string
   catalogoInspecoes: CatalogoInspecao[]
   itensCatalogo: ItemCatalogo[]
@@ -37,10 +39,11 @@ const ITENS_PADRAO: Record<string, string[]> = {
   eletrica: ['Quadro com DPS e DR instalados', 'Cabos sem emendas expostas', 'Tomadas com proteção', 'Aterramento verificado'],
 }
 
-export function InspecaoForm({ employee, obraId, obras, veiculos = [], preselectedVehicleId, catalogoInspecoes, itensCatalogo, onSave, onBack }: Props) {
+export function InspecaoForm({ employee, obraId, obras, veiculos = [], equipamentos = [], preselectedVehicleId, catalogoInspecoes, itensCatalogo, onSave, onBack }: Props) {
   const today = new Date().toISOString().split('T')[0]
   const [obra, setObra]             = useState(obraId || obras[0]?.id || '')
   const [veiculoId, setVeiculoId]   = useState(preselectedVehicleId ?? '')
+  const [ferramentaId, setFerramentaId] = useState('')
   const [tipo, setTipo]             = useState(
     catalogoInspecoes.length > 0 ? catalogoInspecoes[0].id : TIPOS_PADRAO[0].id,
   )
@@ -68,6 +71,7 @@ export function InspecaoForm({ employee, obraId, obras, veiculos = [], preselect
     await onSave('inspecao', {
       obra_id:    obra,
       veiculo_id: veiculoId || null,
+      ferramenta_id: ferramentaId || null,
       catalogo_id: usandoCatalogo ? tipo : null,
       tipo_nome:  usandoCatalogo
         ? catalogoInspecoes.find(c => c.id === tipo)?.nome
@@ -107,6 +111,15 @@ export function InspecaoForm({ employee, obraId, obras, veiculos = [], preselect
           <select className={`w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm`} value={veiculoId} onChange={e => setVeiculoId(e.target.value)}>
             <option value="">— Não é inspeção de veículo —</option>
             {veiculos.map(v => <option key={v.id} value={v.id}>{v.placa} · {v.marca} {v.modelo}</option>)}
+          </select>
+        </Field>
+      )}
+
+      {equipamentos.length > 0 && (
+        <Field label="🔧 Equipamento ou máquina inspecionada">
+          <select className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" value={ferramentaId} onChange={e => setFerramentaId(e.target.value)}>
+            <option value="">— Inspeção geral da área —</option>
+            {equipamentos.map(e => <option key={e.id} value={e.id}>{e.nome}{e.codigo_patrimonio ? ` · ${e.codigo_patrimonio}` : ''}</option>)}
           </select>
         </Field>
       )}

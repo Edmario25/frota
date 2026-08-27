@@ -57,6 +57,8 @@ interface Inspecao {
   observacoes_gerais: string | null;
   obras: { nome: string } | null;
   sms_inspecoes_catalogo: { titulo: string } | null;
+  ferramenta_id: string | null;
+  ferramentas_catalogo: { nome: string; codigo_patrimonio: string | null } | null;
   total_itens?: number;
   itens_conformes?: number;
 }
@@ -67,7 +69,10 @@ interface CriarForm {
   realizada_por: string;
   data_inspecao: string;
   observacoes_gerais: string;
+  ferramenta_id: string;
 }
+
+interface EquipamentoInspecao { id: string; nome: string; codigo_patrimonio: string | null; cert_status: string }
 
 const criarDefault: CriarForm = {
   catalogo_id: "",
@@ -75,6 +80,7 @@ const criarDefault: CriarForm = {
   realizada_por: "",
   data_inspecao: new Date().toISOString().split("T")[0],
   observacoes_gerais: "",
+  ferramenta_id: "",
 };
 
 const statusLabel: Record<string, string> = {
@@ -108,6 +114,7 @@ export default function SmsInspecoes() {
   // Modal criar
   const [criarOpen, setCriarOpen] = useState(false);
   const [criarForm, setCriarForm] = useState<CriarForm>(criarDefault);
+  const [equipamentos, setEquipamentos] = useState<EquipamentoInspecao[]>([]);
 
   // Modal preencher itens
   const [preencherInsp, setPreencherInsp] = useState<Inspecao | null>(null);
@@ -127,7 +134,7 @@ export default function SmsInspecoes() {
     setLoading(true);
     let q = (supabase as any)
       .from("sms_inspecoes")
-      .select("id, catalogo_id, obra_id, realizada_por, data_inspecao, status, observacoes_gerais, obras(nome), sms_inspecoes_catalogo(titulo)")
+      .select("id, catalogo_id, obra_id, ferramenta_id, realizada_por, data_inspecao, status, observacoes_gerais, obras(nome), sms_inspecoes_catalogo(titulo), ferramentas_catalogo(nome,codigo_patrimonio)")
       .order("data_inspecao", { ascending: false })
       .limit(200);
 
@@ -172,6 +179,13 @@ export default function SmsInspecoes() {
   useEffect(() => { fetchInspecoes(); }, [fetchInspecoes]);
   useEffect(() => { fetchCatalogos(); }, [fetchCatalogos]);
 
+  async function fetchEquipamentos(obraId: string) {
+    if (!obraId) { setEquipamentos([]); return; }
+    const { data } = await (supabase as any).from("v_ferramentas_situacao")
+      .select("id,nome,codigo_patrimonio,cert_status").eq("obra_atual_id", obraId).order("nome");
+    setEquipamentos((data ?? []) as EquipamentoInspecao[]);
+  }
+
   // ─── Criar inspeção ───────────────────────────────────────────────────────
   async function handleCriar() {
     if (!criarForm.realizada_por || !criarForm.data_inspecao) {
@@ -186,6 +200,7 @@ export default function SmsInspecoes() {
       data_inspecao:     criarForm.data_inspecao,
       status:            "pendente",
       observacoes_gerais: criarForm.observacoes_gerais || null,
+      ferramenta_id:     criarForm.ferramenta_id || null,
     }]);
     setSaving(false);
     if (error) {
@@ -414,6 +429,7 @@ export default function SmsInspecoes() {
                       </TableCell>
                       <TableCell className="text-sm max-w-[180px]">
                         <p className="font-medium truncate">{i.sms_inspecoes_catalogo?.titulo ?? "Inspeção avulsa"}</p>
+                        {i.ferramentas_catalogo && <p className="text-xs text-muted-foreground truncate">{i.ferramentas_catalogo.nome}{i.ferramentas_catalogo.codigo_patrimonio ? ` · ${i.ferramentas_catalogo.codigo_patrimonio}` : ""}</p>}
                       </TableCell>
                       <TableCell className="text-sm">{i.realizada_por}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{i.obras?.nome ?? "–"}</TableCell>
@@ -488,10 +504,18 @@ export default function SmsInspecoes() {
             </div>
             <div className="space-y-1.5">
               <Label>Obra</Label>
-              <Select value={criarForm.obra_id} onValueChange={v => setCriarForm(f => ({ ...f, obra_id: v }))}>
+              <Select value={criarForm.obra_id} onValueChange={v => { setCriarForm(f => ({ ...f, obra_id: v, ferramenta_id: "" })); fetchEquipamentos(v); }}>
                 <SelectTrigger><SelectValue placeholder="Selecione a obra (opcional)" /></SelectTrigger>
                 <SelectContent>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ferramenta, equipamento ou máquina</Label>
+              <Select value={criarForm.ferramenta_id} onValueChange={v => setCriarForm(f => ({ ...f, ferramenta_id: v }))} disabled={!criarForm.obra_id}>
+                <SelectTrigger><SelectValue placeholder={criarForm.obra_id ? "Selecione o patrimônio inspecionado" : "Selecione primeiro a obra"} /></SelectTrigger>
+                <SelectContent>{equipamentos.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}{e.codigo_patrimonio ? ` · ${e.codigo_patrimonio}` : ""}</SelectItem>)}</SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Ao concluir, a próxima inspeção será calculada e itens não conformes serão bloqueados.</p>
             </div>
             <div className="space-y-1.5">
               <Label>Observações gerais</Label>
