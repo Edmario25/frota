@@ -82,6 +82,8 @@ const SmsTreinamentos = lazy(() => import("./pages/sms/SmsTreinamentos"));
 const SmsConformidade = lazy(() => import("./pages/sms/SmsConformidade"));
 const SmsAdmissao = lazy(() => import("./pages/sms/SmsAdmissao"));
 const SmsRdo = lazy(() => import("./pages/sms/SmsRdo"));
+const SmsOcorrencias = lazy(() => import("./pages/sms/SmsOcorrencias"));
+const SmsGestaoLegal = lazy(() => import("./pages/sms/SmsGestaoLegal"));
 const Efetivo = lazy(() => import("./pages/Efetivo"));
 const EfetivoRelatorio = lazy(() => import("./pages/EfetivoRelatorio"));
 const PontoQr = lazy(() => import("./pages/PontoQr"));
@@ -407,6 +409,20 @@ const App = () => (
               <ProtectedRoute>
                 <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
                   <SmsDesvios />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/ocorrencias" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsOcorrencias />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/sms/gestao-legal" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'tecnico_sms']}>
+                  <SmsGestaoLegal />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />

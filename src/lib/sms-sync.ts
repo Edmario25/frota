@@ -37,6 +37,9 @@ async function resolvePhotos(recordId: string, type: string, fotos: string[]): P
 export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; error?: string }> {
   try {
     const d     = { ...rec.data } as Record<string, unknown>
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+    if (authError || !authData.user) return { ok: false, error: 'Sessão expirada. Entre novamente para sincronizar.' }
+    const userId = authData.user.id
     const fotos = Array.isArray(d.fotos)
       ? await resolvePhotos(rec.id, rec.type, d.fotos as string[])
       : []
@@ -44,112 +47,140 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
     switch (rec.type) {
 
       case 'dds': {
-        const { error } = await (supabase as any).from('sms_dds_sessoes').insert({
+        const { error } = await (supabase as any).from('sms_dds_sessoes').upsert({
           id:             rec.id,
           obra_id:        rec.obra_id,
           tema_id:        d.tema_id,
-          encarregado_id: rec.employee_id,
-          data:           d.data,
+          data_sessao:    d.data,
+          condutor:       d.condutor_nome || 'Responsável de campo',
           hora_inicio:    d.hora_inicio || null,
           duracao_min:    d.duracao_min || null,
+          participantes_nomes: d.participantes_nomes || null,
           observacoes:    d.observacoes || null,
-          status:         'realizado',
+          fotos,
+          registrado_por: userId,
           device_id:      d.device_id || null,
           sync_status:    'synced',
-        })
+        }, { onConflict: 'id' })
         if (error) return { ok: false, error: error.message }
         // Presenças manuais (nomes livres) → não persistidas em sms_dds_presencas pois exigem employee FK
         return { ok: true }
       }
 
       case 'desvio': {
-        const { error } = await (supabase as any).from('sms_desvios').insert({
+        const gravidade = ({ baixa: 'leve', media: 'moderado', alta: 'grave', critica: 'critico' } as Record<string, string>)[String(d.gravidade)] || 'moderado'
+        const { error } = await (supabase as any).from('sms_desvios').upsert({
           id:            rec.id,
           obra_id:       rec.obra_id,
-          tipo:          d.tipo,
+          colaborador_id: rec.employee_id,
+          tipo_desvio:   d.tipo,
           descricao:     d.descricao,
-          gravidade:     d.gravidade,
+          local:          d.local || 'Não informado',
+          severidade:     gravidade,
           fotos,
-          data_abertura: d.data_abertura || new Date().toISOString().split('T')[0],
-          autor_id:      rec.employee_id,
-          origem:        'registro_livre',
+          data_ocorrencia: d.data_abertura || new Date().toISOString(),
+          acao_imediata: d.acao_imediata || null,
+          registrado_por: userId,
           status:        'aberto',
           device_id:     d.device_id || null,
           sync_status:   'synced',
-        })
+        }, { onConflict: 'id' })
         if (error) return { ok: false, error: error.message }
         return { ok: true }
       }
 
       case 'inspecao': {
-        const { error: e1 } = await (supabase as any).from('sms_inspecoes').insert({
+        const { error: e1 } = await (supabase as any).from('sms_inspecoes').upsert({
           id:               rec.id,
           obra_id:          rec.obra_id,
           veiculo_id:       d.veiculo_id   || null,
-          checklist_id:     d.checklist_id || null,
-          tipo:             d.tipo         || null,
-          responsavel_id:   rec.employee_id,
-          condutor:         d.condutor     || null,
-          data:             d.data,
+          catalogo_id:      d.catalogo_id || null,
+          realizada_por:    d.responsavel_nome || 'Inspetor de campo',
+          area:             d.area || null,
+          data_inspecao:    d.data,
           hora:             d.hora         || null,
           status:           'concluida',
-          status_liberacao: d.status_liberacao || null,
-          observacoes:      d.observacoes  || null,
+          observacoes_gerais: d.obs_geral  || null,
+          fotos,
+          registrado_por:   userId,
           device_id:        d.device_id    || null,
           sync_status:      'synced',
-        })
+        }, { onConflict: 'id' })
         if (e1) return { ok: false, error: e1.message }
-        const respostas = d.respostas as Array<{ item_id: string; resposta: string; observacao?: string }> | undefined
+        const respostas = d.itens as Array<{ item_id: string; descricao: string; resposta: string; observacao?: string }> | undefined
         if (respostas?.length) {
-          await (supabase as any).from('sms_inspecoes_respostas').insert(
+          await (supabase as any).from('sms_inspecoes_respostas').delete().eq('inspecao_id', rec.id)
+          const { error: respostasError } = await (supabase as any).from('sms_inspecoes_respostas').insert(
             respostas.map(r => ({
               inspecao_id: rec.id,
-              item_id:     r.item_id,
-              resposta:    r.resposta,
+              item_catalogo_id: /^[0-9a-f-]{36}$/i.test(r.item_id) ? r.item_id : null,
+              item_descricao: r.descricao,
+              resposta_original: r.resposta,
+              conforme: r.resposta === 'C' ? true : r.resposta === 'NC' ? false : null,
               observacao:  r.observacao || null,
             })),
           )
+          if (respostasError) return { ok: false, error: respostasError.message }
         }
         return { ok: true }
       }
 
       case 'apr': {
-        const { error } = await (supabase as any).from('sms_aprs').insert({
+        const inicio = `${d.data}T${d.hora_inicio || '00:00'}:00`
+        const { error } = await (supabase as any).from('sms_aprs').upsert({
           id:                 rec.id,
           obra_id:            rec.obra_id,
           tipo_atividade_id:  d.tipo_atividade_id,
           descricao_trabalho: d.descricao_trabalho,
-          data:               d.data,
-          hora_inicio:        d.hora_inicio || null,
+          local:              d.descricao_trabalho || 'Local não informado',
+          data_hora_inicio:   inicio,
+          data_hora_fim:      d.validade || null,
           validade:           d.validade || null,
           emitente_id:        rec.employee_id,
+          responsavel:        d.responsavel_nome || 'Responsável de campo',
+          observacoes:        d.descricao_trabalho || null,
+          registrado_por:     userId,
           status:             'aberta',
           device_id:          d.device_id || null,
           sync_status:        'synced',
-        })
+        }, { onConflict: 'id' })
         if (error) return { ok: false, error: error.message }
         const riscos = d.riscos_selecionados as Array<{ risco_id: string; resposta: string }> | undefined
         if (riscos?.length) {
-          await (supabase as any).from('sms_apr_riscos_selecionados').insert(
-            riscos.map(r => ({ apr_id: rec.id, risco_id: r.risco_id, resposta: r.resposta })),
+          await (supabase as any).from('sms_apr_riscos_selecionados').delete().eq('apr_id', rec.id)
+          const { error: riscosError } = await (supabase as any).from('sms_apr_riscos_selecionados').insert(
+            riscos.map(r => ({ apr_id: rec.id, risco_id: r.risco_id, resposta: r.resposta, eliminado: r.resposta === 'N' })),
           )
+          if (riscosError) return { ok: false, error: riscosError.message }
         }
         return { ok: true }
       }
 
       case 'rdo': {
-        const { error } = await (supabase as any).from('sms_rdo').insert({
+        const clima = ({ sol: 'ensolarado', nublado: 'nublado', chuva_leve: 'chuva_leve', chuva_forte: 'chuva_forte', vento_forte: 'parcialmente_nublado' } as Record<string, string>)[String(d.condicao_tempo)] || null
+        const ocorrencias = Array.isArray(d.ocorrencias_sms) ? d.ocorrencias_sms as string[] : []
+        const { error } = await (supabase as any).from('sms_rdo').upsert({
           id:                   rec.id,
           obra_id:              rec.obra_id,
-          data:                 d.data,
-          encarregado_id:       rec.employee_id,
-          efetivo_presente:     d.efetivo_presente || 0,
-          clima:                d.clima || null,
-          atividades_executadas: d.atividades_executadas || null,
-          status:               d.status || 'rascunho',
+          data_rdo:             d.data,
+          responsavel:          d.responsavel_nome || 'Responsável de campo',
+          condicao_climatica:   clima,
+          chuva:                ['chuva_leve', 'chuva_forte'].includes(String(d.condicao_tempo)),
+          efetivo_total:        d.total_trabalhadores || 0,
+          hora_inicio:          d.hora_inicio || null,
+          hora_fim:             d.hora_fim || null,
+          atividades_executadas: d.atividades_hoje || null,
+          mao_de_obra:          d.mao_de_obra || [],
+          ocorrencias_sms:      ocorrencias,
+          ocorrencias:          ocorrencias.join(', ') || null,
+          paralisacoes:         d.paralisacoes || null,
+          observacoes:          d.observacoes || null,
+          dds_realizado:        ocorrencias.includes('dds_realizado'),
+          fotos,
+          registrado_por:       userId,
           device_id:            d.device_id || null,
           sync_status:          'synced',
-        })
+        }, { onConflict: 'id' })
         if (error) return { ok: false, error: error.message }
         return { ok: true }
       }

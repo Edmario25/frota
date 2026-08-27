@@ -35,6 +35,7 @@ export function DdsForm({ employee, obraId, obras, temas = [], onSave, onBack }:
       duracao_min:          parseInt(duracaoMin) || 10,
       participantes_nomes:  participantes,
       observacoes:          observacoes || null,
+      condutor_nome:        employee.nome,
       fotos:                foto.photos,
       device_id:            navigator.userAgent.slice(0, 40),
     })

@@ -24,6 +24,7 @@ export function AprForm({ employee, obraId, obras, tiposAtividade, riscosCatalog
   const [validade, setValidade] = useState('')
   const [respostas, setResp]    = useState<Record<string, 'S' | 'N' | 'NA'>>({})
   const [saving, setSaving]     = useState(false)
+  const [validation, setValidation] = useState('')
 
   const riscosFiltrados = riscosCatalogo.filter(r =>
     tiposAtividade.find(t => t.id === tipoId)
@@ -35,7 +36,19 @@ export function AprForm({ employee, obraId, obras, tiposAtividade, riscosCatalog
     setResp(p => ({ ...p, [id]: v }))
 
   const handleSave = async () => {
-    if (!obra || !tipoId || !descTrabalho.trim()) return
+    if (!obra || !tipoId || !descTrabalho.trim()) {
+      setValidation('Informe a obra, a atividade e a descrição do trabalho.')
+      return
+    }
+    if (riscosFiltrados.length > 0 && Object.keys(respostas).length !== riscosFiltrados.length) {
+      setValidation('Avalie todos os riscos como Sim, Não ou Não aplicável antes de concluir.')
+      return
+    }
+    if (riscosFiltrados.length > 0 && !Object.values(respostas).includes('S')) {
+      setValidation('Identifique ao menos um risco aplicável ou revise a atividade selecionada.')
+      return
+    }
+    setValidation('')
     setSaving(true)
     await onSave('apr', {
       obra_id:           obra,
@@ -44,6 +57,7 @@ export function AprForm({ employee, obraId, obras, tiposAtividade, riscosCatalog
       data,
       hora_inicio:       horaInicio || null,
       validade:          validade || null,
+      responsavel_nome:  employee.nome,
       riscos_selecionados: Object.entries(respostas).map(([risco_id, resposta]) => ({ risco_id, resposta })),
       device_id:         navigator.userAgent.slice(0, 40),
     })
@@ -62,6 +76,7 @@ export function AprForm({ employee, obraId, obras, tiposAtividade, riscosCatalog
 
   return (
     <FormShell title="APR — Análise Preliminar de Risco" emoji="📋" onBack={onBack} onSave={handleSave} saving={saving}>
+      {validation && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">{validation}</div>}
       {obras.length > 1 && (
         <Field label="Obra">
           <select className={`w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm`} value={obra} onChange={e => setObra(e.target.value)}>

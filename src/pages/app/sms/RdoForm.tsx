@@ -71,6 +71,7 @@ export function RdoForm({ employee, obraId, obras, onSave, onBack }: Props) {
       ocorrencias_sms:   Object.entries(ocorrenciasSms).filter(([, v]) => v).map(([k]) => k),
       paralisacoes:      paralisacoes || null,
       observacoes:       observacoes || null,
+      responsavel_nome:  employee.nome,
       fotos:             foto.photos,
       device_id:         navigator.userAgent.slice(0, 40),
     })

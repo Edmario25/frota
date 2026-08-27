@@ -204,7 +204,14 @@ export default function SmsApr() {
   async function handleSalvarRiscos() {
     if (!aprCriada) return;
     const riscos = Object.values(riscosSel);
-    if (riscos.length === 0) { setStep(3); return; }
+    if (riscos.length === 0) {
+      toast({ title: "Identifique ao menos um risco", description: "Uma APR não pode ser emitida sem riscos e medidas de controle.", variant: "destructive" });
+      return;
+    }
+    if (riscos.some(r => !r.medida_controle?.trim())) {
+      toast({ title: "Informe todas as medidas de controle", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     const { error } = await (supabase as any).from("sms_apr_riscos_selecionados").insert(
       riscos.map(r => ({
@@ -222,17 +229,20 @@ export default function SmsApr() {
   // ─── Step 3: Salvar envolvidos + fechar ───────────────────────────────────
   async function handleSalvarEnvolvidos() {
     if (!aprCriada) return;
+    if (envolvidosSel.size === 0) {
+      toast({ title: "Selecione a equipe envolvida", description: "A APR precisa registrar quem recebeu a orientação.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
-    if (envolvidosSel.size > 0) {
-      await (supabase as any).from("sms_apr_envolvidos").insert(
+    const { error } = await (supabase as any).from("sms_apr_envolvidos").insert(
         Array.from(envolvidosSel).map(cid => ({
           apr_id:         aprCriada,
           colaborador_id: cid,
           assinou:        false,
         }))
       );
-    }
     setSaving(false);
+    if (error) { toast({ title: "Erro ao vincular a equipe", description: error.message, variant: "destructive" }); return; }
     toast({ title: "APR criada com sucesso!" });
     setModalOpen(false);
     resetModal();

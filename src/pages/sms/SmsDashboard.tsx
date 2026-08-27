@@ -6,6 +6,8 @@ import {
   ShieldCheck, AlertOctagon, ClipboardList, BookOpen,
   FileWarning, Package, GraduationCap, UserCheck, FileText,
   ArrowRight, TrendingUp, AlertTriangle, CheckCircle2,
+  Siren,
+  Leaf,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -100,24 +102,17 @@ export default function SmsDashboard() {
   const [kpi, setKpi] = useState<KpiData | null>(null);
   const [recentes, setRecentes] = useState<DesvioRecente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     async function load() {
       setLoading(true);
+      setLoadError("");
       const hoje = new Date().toISOString().split("T")[0];
       const umMesAtras = new Date(Date.now() - 30 * 24 * 3600_000).toISOString().split("T")[0];
       const umMesAfrente = new Date(Date.now() + 30 * 24 * 3600_000).toISOString().split("T")[0];
 
-      const [
-        { count: desvAbertos },
-        { count: desvCriticos },
-        { count: trVencidos },
-        { count: trAVencer },
-        { count: aprsAbertas },
-        { count: inspPendentes },
-        { count: ddsMes },
-        { data: devs },
-      ] = await Promise.all([
+      const results = await Promise.all([
         (supabase as any).from("sms_desvios").select("id", { count: "exact", head: true }).in("status", ["aberto", "em_tratamento"]),
         (supabase as any).from("sms_desvios").select("id", { count: "exact", head: true }).eq("status", "aberto").eq("severidade", "critico"),
         (supabase as any).from("sms_colaborador_treinamentos").select("id", { count: "exact", head: true }).eq("status", "vencido"),
@@ -132,17 +127,20 @@ export default function SmsDashboard() {
           .order("data_ocorrencia", { ascending: false })
           .limit(6),
       ]);
+      const [desvAbertosRes, desvCriticosRes, trVencidosRes, trAVencerRes, aprsAbertasRes, inspPendentesRes, ddsMesRes, devsRes] = results;
+      const firstError = results.find(result => result.error)?.error;
+      if (firstError) setLoadError(`Alguns indicadores não puderam ser carregados: ${firstError.message}`);
 
       setKpi({
-        desvios_abertos:      desvAbertos ?? 0,
-        desvios_criticos:     desvCriticos ?? 0,
-        treinamentos_vencidos: trVencidos ?? 0,
-        treinamentos_a_vencer: trAVencer ?? 0,
-        aprs_abertas:         aprsAbertas ?? 0,
-        inspecoes_pendentes:  inspPendentes ?? 0,
-        dds_mes:              ddsMes ?? 0,
+        desvios_abertos:      desvAbertosRes.count ?? 0,
+        desvios_criticos:     desvCriticosRes.count ?? 0,
+        treinamentos_vencidos: trVencidosRes.count ?? 0,
+        treinamentos_a_vencer: trAVencerRes.count ?? 0,
+        aprs_abertas:         aprsAbertasRes.count ?? 0,
+        inspecoes_pendentes:  inspPendentesRes.count ?? 0,
+        dds_mes:              ddsMesRes.count ?? 0,
       });
-      setRecentes((devs ?? []) as DesvioRecente[]);
+      setRecentes((devsRes.data ?? []) as DesvioRecente[]);
       setLoading(false);
     }
     load();
@@ -160,6 +158,8 @@ export default function SmsDashboard() {
             Gestão integrada de saúde, segurança e meio ambiente
           </p>
         </div>
+
+        {loadError && <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"><strong>Atenção:</strong> {loadError}</div>}
 
         {/* KPIs */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -253,6 +253,8 @@ export default function SmsDashboard() {
           <div className="space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-3">Módulos</p>
             <ModuleCard to="/sms/desvios"      icon={AlertOctagon}   color="bg-orange-500" label="Desvios"              desc="Registro e tratamento de não-conformidades" />
+            <ModuleCard to="/sms/ocorrencias"  icon={Siren}          color="bg-red-500"    label="Ocorrências / PT"     desc="Quase-acidentes, acidentes, CAT e permissões" />
+            <ModuleCard to="/sms/gestao-legal" icon={Leaf}           color="bg-green-600"  label="Gestão Legal"         desc="GRO/PGR, saúde ocupacional e meio ambiente" />
             <ModuleCard to="/sms/inspecoes"    icon={ClipboardList}  color="bg-blue-500"   label="Inspeções"            desc="Listas de verificação e auditorias" />
             <ModuleCard to="/sms/dds"          icon={BookOpen}       color="bg-teal-500"   label="DDS"                  desc="Diálogo Diário de Segurança" />
             <ModuleCard to="/sms/apr"          icon={FileWarning}    color="bg-violet-500" label="APR"                  desc="Análise Preliminar de Riscos" />

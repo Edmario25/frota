@@ -83,6 +83,7 @@ export function InspecaoForm({ employee, obraId, obras, veiculos = [], preselect
       total_c:  countC,
       total_nc: countNC,
       obs_geral:  obsGeral || null,
+      responsavel_nome: employee.nome,
       fotos:      foto.photos,
       device_id:  navigator.userAgent.slice(0, 40),
     })

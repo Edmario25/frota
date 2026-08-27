@@ -36,6 +36,8 @@ import {
   QrCode,
   Award,
   ChevronDown,
+  Siren,
+  Leaf,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -124,6 +126,8 @@ const menuGroups = [
     items: [
       { title: "Painel SMS",        icon: ShieldCheck,   url: "/sms",              roles: SMS_ROLES, perm: "acesso_sms_dashboard" as PermKey },
       { title: "Desvios",           icon: AlertOctagon,  url: "/sms/desvios",      roles: SMS_ROLES, perm: "acesso_sms_desvios" as PermKey },
+      { title: "Ocorrências / PT",  icon: Siren,         url: "/sms/ocorrencias",  roles: SMS_ROLES, perm: "acesso_sms_desvios" as PermKey },
+      { title: "Gestão Legal",      icon: Leaf,          url: "/sms/gestao-legal", roles: SMS_ROLES, perm: "acesso_sms_dashboard" as PermKey },
       { title: "Inspeções",         icon: ClipboardList, url: "/sms/inspecoes",    roles: SMS_ROLES, perm: "acesso_sms_inspecoes" as PermKey },
       { title: "DDS",               icon: BookOpen,      url: "/sms/dds",          roles: SMS_ROLES, perm: "acesso_sms_dds" as PermKey },
       { title: "APR",               icon: FileWarning,   url: "/sms/apr",          roles: SMS_ROLES, perm: "acesso_sms_apr" as PermKey },

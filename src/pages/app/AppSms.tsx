@@ -138,10 +138,15 @@ export default function AppSms() {
     if (!emp) { setAuthState('unauth'); return }
 
     // 2. Obra atual via obra_funcionarios
-    const { data: vinculo } = await (supabase as any)
-      .from('obra_funcionarios').select('obra_id')
+    const { data: vinculos } = await (supabase as any)
+      .from('obra_funcionarios').select('obra_id, obras(id, nome, status)')
       .eq('employee_id', emp.id).eq('status', true)
-      .maybeSingle()
+
+    const obrasVinculadas: Obra[] = (vinculos ?? [])
+      .map((v: any) => v.obras)
+      .filter((o: any) => o && !['concluida', 'cancelada'].includes(o.status))
+      .map((o: any) => ({ id: o.id, nome: o.nome }))
+    const obraPrincipalId = obrasVinculadas[0]?.id ?? null
 
     // 3. Verifica a permissão exclusiva do App SMS no banco
     const { data: hasAccess, error: accessError } = await (supabase as any)
@@ -151,17 +156,12 @@ export default function AppSms() {
       return
     }
 
-    const data = { ...emp, obra_id: vinculo?.obra_id ?? null }
+    const data = { ...emp, obra_id: obraPrincipalId }
     setEmployee(data)
     setAuthState('ok')
-    // load obras ativas (status != concluida/cancelada)
-    const { data: obrasData } = await (supabase as any)
-      .from('obras').select('id, nome, status')
-      .not('status', 'in', '("concluida","cancelada")')
-      .order('nome')
-    if (obrasData) setObras(obrasData)
+    setObras(obrasVinculadas)
     // load ref data when online
-    if (navigator.onLine) { loadRefData(); loadVeiculos(vinculo?.obra_id ?? null) }
+    if (navigator.onLine) { loadRefData(); loadVeiculos(obraPrincipalId) }
     // restore from IndexedDB cache
     else {
       const cached = await smsDb.getRef<typeof ddsTemas>('sms_dds_temas')
@@ -203,9 +203,9 @@ export default function AppSms() {
       const [r1, r2, r3, r4, r5] = await Promise.all([
         (supabase as any).from('sms_dds_temas').select('id, titulo, nr_relacionada').order('titulo'),
         (supabase as any).from('sms_apr_tipos_atividade').select('id, nome').order('nome'),
-        (supabase as any).from('sms_apr_riscos_catalogo').select('id, risco, categoria, recomendacao').order('categoria, risco'),
-        (supabase as any).from('sms_inspecoes_catalogo').select('id, nome').order('nome'),
-        (supabase as any).from('sms_inspecoes_itens_catalogo').select('id, catalogo_id, item, criterio').order('item'),
+        (supabase as any).from('sms_apr_riscos_catalogo').select('id, risco:nome, categoria, recomendacao:descricao').eq('ativo', true).order('categoria').order('nome'),
+        (supabase as any).from('sms_inspecoes_catalogo').select('id, nome:titulo').eq('ativo', true).order('titulo'),
+        (supabase as any).from('sms_inspecoes_itens_catalogo').select('id, catalogo_id:inspecao_catalogo_id, item:descricao, criterio:categoria').order('ordem'),
       ])
       if (r1.data) { setDdsTemas(r1.data); await smsDb.setRef('sms_dds_temas', r1.data) }
       if (r2.data) { setTiposAtiv(r2.data); await smsDb.setRef('sms_apr_tipos_atividade', r2.data) }
