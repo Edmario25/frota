@@ -25,7 +25,7 @@ import {
   Sun, Cloud, CloudRain, CloudLightning, PartlyCloudyIcon,
   Users, Wrench, ClipboardList, AlertTriangle,
   CheckCircle2, BookOpen, FileWarning, AlertOctagon,
-  MapPin, Calendar, Hash,
+  MapPin, Calendar, Hash, Eye, Send, ShieldCheck, Undo2, Printer,
 } from "lucide-react";
 import { useObras } from "@/hooks/useObras";
 import { FotoUploader } from "@/components/sms/FotoUploader";
@@ -59,6 +59,14 @@ interface Rdo {
   inspecoes_realizadas: number;
   desvios_registrados: number;
   fotos: string[];
+  atividades_executadas?: string | null;
+  status: "rascunho" | "enviado" | "devolvido" | "aprovado" | "cancelado";
+  versao: number;
+  enviado_em?: string | null;
+  aprovado_em?: string | null;
+  motivo_devolucao?: string | null;
+  snapshot_sms?: Record<string, number>;
+  snapshot_efetivo?: Record<string, number>;
   obras: { nome: string; endereco?: string; cidade?: string; estado?: string } | null;
 }
 
@@ -105,6 +113,14 @@ const SETORES_PADRAO = [
 ];
 
 const today = () => new Date().toISOString().split("T")[0];
+
+const STATUS_RDO = {
+  rascunho: { label: "Rascunho", className: "bg-slate-100 text-slate-700" },
+  enviado: { label: "Aguardando aprovação", className: "bg-amber-100 text-amber-800" },
+  devolvido: { label: "Devolvido", className: "bg-orange-100 text-orange-800" },
+  aprovado: { label: "Aprovado", className: "bg-emerald-100 text-emerald-800" },
+  cancelado: { label: "Cancelado", className: "bg-red-100 text-red-700" },
+} as const;
 
 const defaultForm = (): RdoForm => ({
   obra_id: "",
@@ -175,6 +191,9 @@ export default function SmsRdo() {
   const [form, setForm] = useState<RdoForm>(defaultForm());
   const [search, setSearch] = useState("");
   const [filtroObra, setFiltroObra] = useState("all");
+  const [filtroStatus, setFiltroStatus] = useState("all");
+  const [detailRdo, setDetailRdo] = useState<Rdo | null>(null);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
 
   // ─── Fetch ────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -184,10 +203,11 @@ export default function SmsRdo() {
       .select(`
         id, obra_id, data_rdo, numero_relatorio, responsavel,
         clima_manha, clima_tarde, condicao_climatica, temperatura_c, chuva,
-        efetivo_total, mao_de_obra, equipamentos, atividades,
+        efetivo_total, mao_de_obra, equipamentos, atividades, atividades_executadas,
         ocorrencias, observacoes,
         dds_realizado, aprs_realizadas, inspecoes_realizadas, desvios_registrados,
-        fotos,
+        fotos, status, versao, enviado_em, aprovado_em, motivo_devolucao,
+        snapshot_sms, snapshot_efetivo,
         obras(nome, endereco, cidade, estado)
       `)
       .order("data_rdo", { ascending: false })
@@ -203,12 +223,20 @@ export default function SmsRdo() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ─── Auto-number ─────────────────────────────────────────────────────────
-  function autoNumero() {
-    const seq = (rdos.length + 1).toString().padStart(3, "0");
-    const obra = obras.find(o => o.id === form.obra_id);
-    const prefix = obra?.codigo_interno ?? "RDO";
-    return `${prefix}-${seq}`;
+  async function carregarSnapshot(obraId: string, data: string) {
+    if (!obraId || !data) return;
+    setSnapshotLoading(true);
+    const { data: snapshot, error } = await (supabase as any).rpc("sms_rdo_snapshot", { p_obra_id: obraId, p_data: data });
+    setSnapshotLoading(false);
+    if (error || !snapshot) return;
+    setForm(f => ({
+      ...f,
+      efetivo_total: String(snapshot.efetivo?.presentes ?? 0),
+      dds_realizado: (snapshot.sms?.dds ?? 0) > 0,
+      aprs_realizadas: String(snapshot.sms?.aprs ?? 0),
+      inspecoes_realizadas: String(snapshot.sms?.inspecoes ?? 0),
+      desvios_registrados: String(snapshot.sms?.desvios ?? 0),
+    }));
   }
 
   // ─── Open modal ───────────────────────────────────────────────────────────
@@ -247,8 +275,21 @@ export default function SmsRdo() {
 
   // ─── Save ─────────────────────────────────────────────────────────────────
   async function handleSave() {
-    if (!form.responsavel) {
-      toast({ title: "Informe o responsável", variant: "destructive" });
+    if (!form.obra_id || !form.data_rdo || !form.responsavel.trim()) {
+      toast({ title: "Preencha obra, data e responsável", variant: "destructive" });
+      return;
+    }
+    if (form.data_rdo > today()) {
+      toast({ title: "A data do RDO não pode estar no futuro", variant: "destructive" });
+      return;
+    }
+    const atividadesValidas = form.atividades.filter(a => a.descricao.trim());
+    if (atividadesValidas.length === 0) {
+      toast({ title: "Registre ao menos uma atividade executada", variant: "destructive" });
+      return;
+    }
+    if (atividadesValidas.some(a => Number(a.percentual) < 0 || Number(a.percentual) > 100)) {
+      toast({ title: "O avanço das atividades deve ficar entre 0% e 100%", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -256,7 +297,7 @@ export default function SmsRdo() {
     const payload = {
       obra_id:             form.obra_id || null,
       data_rdo:            form.data_rdo,
-      numero_relatorio:    form.numero_relatorio || null,
+      numero_relatorio:    editId ? (form.numero_relatorio || null) : null,
       responsavel:         form.responsavel,
       clima_manha:         form.clima_manha,
       clima_tarde:         form.clima_tarde,
@@ -266,13 +307,9 @@ export default function SmsRdo() {
       efetivo_total:       parseInt(form.efetivo_total) || 0,
       mao_de_obra:         form.mao_de_obra.filter(m => m.tipo && m.quantidade),
       equipamentos:        form.equipamentos.filter(e => e.descricao),
-      atividades:          form.atividades.filter(a => a.descricao),
+      atividades:          atividadesValidas,
       ocorrencias:         form.ocorrencias || null,
       observacoes:         form.observacoes || null,
-      dds_realizado:       form.dds_realizado,
-      aprs_realizadas:     parseInt(form.aprs_realizadas) || 0,
-      inspecoes_realizadas:parseInt(form.inspecoes_realizadas) || 0,
-      desvios_registrados: parseInt(form.desvios_registrados) || 0,
       fotos:               form.fotos,
     };
 
@@ -288,6 +325,29 @@ export default function SmsRdo() {
     toast({ title: editId ? "RDO atualizado!" : "RDO registrado!" });
     setModalOpen(false);
     fetchData();
+  }
+
+  async function mudarStatus(rdo: Rdo, acao: "enviar" | "aprovar" | "devolver" | "cancelar") {
+    let motivo: string | null = null;
+    if (acao === "devolver" || acao === "cancelar") {
+      motivo = window.prompt(acao === "devolver" ? "Informe o que precisa ser corrigido:" : "Informe o motivo do cancelamento:");
+      if (!motivo?.trim()) return;
+    }
+    const { error } = await (supabase as any).rpc("sms_rdo_mudar_status", { p_rdo_id: rdo.id, p_acao: acao, p_motivo: motivo });
+    if (error) {
+      toast({ title: "Não foi possível atualizar o RDO", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: acao === "aprovar" ? "RDO aprovado" : acao === "enviar" ? "RDO enviado para aprovação" : "RDO atualizado" });
+    fetchData();
+  }
+
+  function imprimirRdo(r: Rdo) {
+    const atividades = (r.atividades ?? []).map(a => `<tr><td>${a.setor || "—"}</td><td>${a.descricao}</td><td>${a.percentual || 0}%</td></tr>`).join("");
+    const popup = window.open("", "_blank", "width=1000,height=760");
+    if (!popup) return;
+    popup.document.write(`<!doctype html><html><head><title>${r.numero_relatorio ?? "RDO"}</title><style>body{font-family:Arial,sans-serif;color:#172033;padding:32px}h1{margin:0;font-size:24px}.meta{color:#64748b;margin:6px 0 24px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.box{border:1px solid #cbd5e1;border-radius:8px;padding:12px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border:1px solid #cbd5e1;padding:8px;text-align:left;font-size:12px}h2{font-size:16px;margin-top:24px}.sign{display:grid;grid-template-columns:1fr 1fr;gap:50px;margin-top:70px}.line{border-top:1px solid #334155;text-align:center;padding-top:6px;font-size:12px}@media print{button{display:none}}</style></head><body><button onclick="window.print()">Imprimir / Salvar PDF</button><h1>Relatório Diário de Obra</h1><div class="meta">${r.numero_relatorio ?? "Numeração pendente"} · versão ${r.versao ?? 1} · ${STATUS_RDO[r.status]?.label ?? r.status}</div><div class="grid"><div class="box"><b>Obra</b><br>${r.obras?.nome ?? "—"}</div><div class="box"><b>Data</b><br>${new Date(r.data_rdo + "T12:00:00").toLocaleDateString("pt-BR")}</div><div class="box"><b>Responsável</b><br>${r.responsavel}</div><div class="box"><b>Efetivo</b><br>${r.efetivo_total}</div><div class="box"><b>Clima manhã</b><br>${r.clima_manha ?? "—"}</div><div class="box"><b>Clima tarde</b><br>${r.clima_tarde ?? "—"}</div></div><h2>Atividades executadas</h2><table><thead><tr><th>Área</th><th>Descrição</th><th>Avanço</th></tr></thead><tbody>${atividades || `<tr><td colspan="3">${r.atividades_executadas || "Sem registro"}</td></tr>`}</tbody></table><h2>Ocorrências</h2><p>${r.ocorrencias || "Sem ocorrências registradas."}</p><h2>SMS consolidado</h2><p>DDS: ${r.dds_realizado ? "Sim" : "Não"} · APRs: ${r.aprs_realizadas} · Inspeções: ${r.inspecoes_realizadas} · Desvios: ${r.desvios_registrados}</p><div class="sign"><div class="line">Responsável pelo RDO</div><div class="line">Aprovação / Fiscalização</div></div></body></html>`);
+    popup.document.close();
   }
 
   // ─── Helpers: dynamic lists ───────────────────────────────────────────────
@@ -318,6 +378,7 @@ export default function SmsRdo() {
   // ─── Filtro ──────────────────────────────────────────────────────────────
   const obraMap = new Map(obras.map(o => [o.id, o]));
   const filtered = rdos.filter(r => {
+    if (filtroStatus !== "all" && r.status !== filtroStatus) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -376,6 +437,13 @@ export default function SmsRdo() {
                 {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="w-48 h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                {Object.entries(STATUS_RDO).map(([value, item]) => <SelectItem key={value} value={value}>{item.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={fetchData}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -393,20 +461,21 @@ export default function SmsRdo() {
                   <TableHead className="text-center">Efetivo</TableHead>
                   <TableHead className="text-center">Atividades</TableHead>
                   <TableHead className="text-center">SMS</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 9 }).map((_, j) => (
+                    {Array.from({ length: 10 }).map((_, j) => (
                       <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
                     ))}
                   </TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
                       <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
                       Nenhum RDO encontrado
                     </TableCell>
@@ -435,7 +504,7 @@ export default function SmsRdo() {
                     </TableCell>
                     <TableCell className="text-center font-semibold">{r.efetivo_total}</TableCell>
                     <TableCell className="text-center text-xs text-muted-foreground">
-                      {Array.isArray(r.atividades) ? r.atividades.length : 0}
+                      {Array.isArray(r.atividades) && r.atividades.length ? r.atividades.length : r.atividades_executadas ? 1 : 0}
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-2 text-xs">
@@ -445,9 +514,18 @@ export default function SmsRdo() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => openEdit(r)}>
-                        Editar
-                      </Button>
+                      <Badge className={cn("border-0 whitespace-nowrap", STATUS_RDO[r.status]?.className)}>{STATUS_RDO[r.status]?.label ?? r.status}</Badge>
+                      {r.status === "devolvido" && r.motivo_devolucao && <p className="text-[10px] text-orange-700 mt-1 max-w-36 truncate" title={r.motivo_devolucao}>{r.motivo_devolucao}</p>}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1 flex-wrap min-w-36">
+                        <Button title="Visualizar" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailRdo(r)}><Eye className="h-4 w-4" /></Button>
+                        <Button title="Imprimir / PDF" variant="ghost" size="icon" className="h-8 w-8" onClick={() => imprimirRdo(r)}><Printer className="h-4 w-4" /></Button>
+                        {(r.status === "rascunho" || r.status === "devolvido") && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => openEdit(r)}>Editar</Button>}
+                        {(r.status === "rascunho" || r.status === "devolvido") && <Button title="Enviar para aprovação" variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => mudarStatus(r, "enviar")}><Send className="h-4 w-4" /></Button>}
+                        {r.status === "enviado" && <Button title="Aprovar" variant="ghost" size="icon" className="h-8 w-8 text-emerald-600" onClick={() => mudarStatus(r, "aprovar")}><ShieldCheck className="h-4 w-4" /></Button>}
+                        {r.status === "enviado" && <Button title="Devolver para correção" variant="ghost" size="icon" className="h-8 w-8 text-orange-600" onClick={() => mudarStatus(r, "devolver")}><Undo2 className="h-4 w-4" /></Button>}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -456,6 +534,41 @@ export default function SmsRdo() {
           </div>
         </div>
       </div>
+
+      <Dialog open={!!detailRdo} onOpenChange={open => !open && setDetailRdo(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {detailRdo && <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between gap-3 pr-6">
+                <span>{detailRdo.numero_relatorio ?? "RDO"}</span>
+                <Badge className={cn("border-0", STATUS_RDO[detailRdo.status]?.className)}>{STATUS_RDO[detailRdo.status]?.label}</Badge>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid sm:grid-cols-3 gap-3 text-sm">
+              <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Obra</p><b>{detailRdo.obras?.nome ?? "—"}</b></div>
+              <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Data</p><b>{new Date(detailRdo.data_rdo + "T12:00:00").toLocaleDateString("pt-BR")}</b></div>
+              <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Versão</p><b>{detailRdo.versao ?? 1}</b></div>
+              <div className="rounded-lg border p-3 sm:col-span-2"><p className="text-xs text-muted-foreground">Responsável</p><b>{detailRdo.responsavel}</b></div>
+              <div className="rounded-lg border p-3"><p className="text-xs text-muted-foreground">Efetivo confirmado</p><b>{detailRdo.efetivo_total}</b></div>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2">Atividades executadas</h3>
+              <div className="space-y-2">
+                {detailRdo.atividades?.length ? detailRdo.atividades.map((a, i) => <div key={i} className="rounded-lg border p-3"><div className="flex justify-between gap-3"><b className="text-sm">{a.setor || "Área não informada"}</b><span className="text-xs text-primary font-semibold">{a.percentual || 0}%</span></div><p className="text-sm text-muted-foreground mt-1">{a.descricao}</p></div>) : <p className="text-sm text-muted-foreground">{detailRdo.atividades_executadas || "Sem atividades registradas."}</p>}
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="rounded-lg bg-muted/30 p-3"><h3 className="font-semibold text-sm mb-1">Ocorrências</h3><p className="text-sm text-muted-foreground whitespace-pre-wrap">{detailRdo.ocorrencias || "Sem ocorrências."}</p></div>
+              <div className="rounded-lg bg-muted/30 p-3"><h3 className="font-semibold text-sm mb-1">Resumo SMS</h3><p className="text-sm text-muted-foreground">DDS: {detailRdo.dds_realizado ? "Realizado" : "Não registrado"}<br />APRs: {detailRdo.aprs_realizadas} · Inspeções: {detailRdo.inspecoes_realizadas}<br />Desvios: {detailRdo.desvios_registrados}</p></div>
+            </div>
+            {detailRdo.status === "devolvido" && detailRdo.motivo_devolucao && <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900"><b>Correção solicitada:</b> {detailRdo.motivo_devolucao}</div>}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => imprimirRdo(detailRdo)} className="gap-2"><Printer className="h-4 w-4" />Imprimir / PDF</Button>
+              <Button onClick={() => setDetailRdo(null)}>Fechar</Button>
+            </DialogFooter>
+          </>}
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Modal ──────────────────────────────────────────────────────── */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
@@ -478,16 +591,9 @@ export default function SmsRdo() {
                 <div className="col-span-2 space-y-1.5">
                   <Label>Obra</Label>
                   <Select value={form.obra_id} onValueChange={v => {
-                    const obra = obras.find(o => o.id === v);
-                    setForm(f => ({
-                      ...f,
-                      obra_id: v,
-                      numero_relatorio: f.numero_relatorio || (() => {
-                        const seq = (rdos.length + 1).toString().padStart(3, "0");
-                        return `${obra?.codigo_interno ?? "RDO"}-${seq}`;
-                      })(),
-                    }));
-                  }}>
+                    setForm(f => ({ ...f, obra_id: v }));
+                    carregarSnapshot(v, form.data_rdo);
+                  }} disabled={!!editId}>
                     <SelectTrigger><SelectValue placeholder="Selecione a obra" /></SelectTrigger>
                     <SelectContent>
                       {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}
@@ -511,23 +617,13 @@ export default function SmsRdo() {
                 <div className="space-y-1.5">
                   <Label>Data</Label>
                   <Input type="date" value={form.data_rdo}
-                    onChange={e => setForm(f => ({ ...f, data_rdo: e.target.value }))} />
+                    onChange={e => { setForm(f => ({ ...f, data_rdo: e.target.value })); carregarSnapshot(form.obra_id, e.target.value); }} />
                 </div>
 
                 {/* Número relatório */}
                 <div className="space-y-1.5">
                   <Label>N° do Relatório</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="ex: RDO-001"
-                      value={form.numero_relatorio}
-                      onChange={e => setForm(f => ({ ...f, numero_relatorio: e.target.value }))}
-                    />
-                    <Button type="button" variant="outline" size="sm" className="px-3 text-xs whitespace-nowrap"
-                      onClick={() => setForm(f => ({ ...f, numero_relatorio: autoNumero() }))}>
-                      Auto
-                    </Button>
-                  </div>
+                  <Input value={form.numero_relatorio || "Gerado automaticamente ao salvar"} disabled className="bg-muted/40" />
                 </div>
 
                 {/* Responsável */}
@@ -582,7 +678,8 @@ export default function SmsRdo() {
                   <Label>Total de Profissionais</Label>
                   <Input type="number" className="w-28" placeholder="0"
                     value={form.efetivo_total}
-                    onChange={e => setForm(f => ({ ...f, efetivo_total: e.target.value }))} />
+                    readOnly disabled />
+                  <p className="text-xs text-muted-foreground">{snapshotLoading ? "Consultando o apontamento…" : "Consolidado automaticamente do Efetivo/Ponto."}</p>
                 </div>
               </div>
 
@@ -719,10 +816,10 @@ export default function SmsRdo() {
               <SectionHeader icon={CheckCircle2} title="7 — SMS do Dia" color="text-green-600 dark:text-green-400" />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="col-span-2 sm:col-span-4 flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-                  <Switch checked={form.dds_realizado} onCheckedChange={v => setForm(f => ({ ...f, dds_realizado: v }))} />
+                  <Switch checked={form.dds_realizado} disabled />
                   <div>
                     <p className="text-sm font-medium">DDS Realizado</p>
-                    <p className="text-xs text-muted-foreground">Diálogo Diário de Segurança foi conduzido?</p>
+                    <p className="text-xs text-muted-foreground">Consolidado automaticamente dos registros de SMS.</p>
                   </div>
                 </div>
                 {[
@@ -736,7 +833,7 @@ export default function SmsRdo() {
                     </Label>
                     <Input type="number" min="0" className="h-9"
                       value={form[key]}
-                      onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} />
+                      readOnly disabled />
                   </div>
                 ))}
               </div>
