@@ -9,6 +9,7 @@ interface Props {
   obras: { id: string; nome: string }[]
   veiculos?: Veiculo[]
   preselectedVehicleId?: string
+  funcionarios?: { id: string; nome: string }[]
   onSave: (type: 'acidente', data: Record<string, unknown>) => Promise<void>
   onBack: () => void
 }
@@ -27,7 +28,7 @@ const PARTES_CORPO = [
   'Quadril', 'Coxa', 'Joelho', 'Perna / pé', 'Tornozelo', 'Dedo(s) do pé', 'Múltiplas',
 ]
 
-export function AcidenteForm({ employee, obraId, obras, veiculos = [], preselectedVehicleId, onSave, onBack }: Props) {
+export function AcidenteForm({ employee, obraId, obras, veiculos = [], preselectedVehicleId, funcionarios = [], onSave, onBack }: Props) {
   const now = new Date()
   const localDT = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 
@@ -42,6 +43,7 @@ export function AcidenteForm({ employee, obraId, obras, veiculos = [], preselect
   const [diasAfasta, setDias]     = useState('')
   const [testemunhas, setTest]    = useState('')
   const [catGerada, setCat]       = useState(false)
+  const [colaboradorId, setColaboradorId] = useState(employee.id)
   const [saving, setSaving]       = useState(false)
   const foto = usePhotoCapture(5)
 
@@ -60,6 +62,7 @@ export function AcidenteForm({ employee, obraId, obras, veiculos = [], preselect
       dias_afastamento: afastamento ? parseInt(diasAfasta) || null : null,
       testemunhas:      testemunhas || null,
       cat_gerada:       catGerada,
+      colaborador_id:   colaboradorId || null,
       fotos:            foto.photos,
       device_id:        navigator.userAgent.slice(0, 40),
     })
@@ -93,6 +96,15 @@ export function AcidenteForm({ employee, obraId, obras, veiculos = [], preselect
         <select className={`w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm`} value={tipo} onChange={e => setTipo(e.target.value)}>
           {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
         </select>
+      </Field>
+
+      <Field label="Funcionário envolvido">
+        <select className="w-full rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm" value={colaboradorId} onChange={e => setColaboradorId(e.target.value)}>
+          <option value="">— Ocorrência sem funcionário identificado —</option>
+          {funcionarios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+          {!funcionarios.some(f => f.id === employee.id) && <option value={employee.id}>{employee.nome}</option>}
+        </select>
+        <p className="mt-1 text-xs text-blue-700">Se houver afastamento, o registro será encaminhado automaticamente ao RH.</p>
       </Field>
 
       <Field label="Data e hora do evento *">

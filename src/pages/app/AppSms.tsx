@@ -66,6 +66,7 @@ export default function AppSms() {
   const [syncMsg, setSyncMsg]     = useState('')
   const [histRecords, setHist]    = useState<Awaited<ReturnType<typeof smsDb.getAll>>>([])
   const [veiculos, setVeiculos]   = useState<Veiculo[]>([])
+  const [equipe, setEquipe]       = useState<{ id: string; nome: string }[]>([])
   const [showQrScanner, setQrScan]         = useState(false)
   const [showCrachaScanner, setCrachaScan] = useState(false)
   const [scannedVehicleId, setScanVehicle]  = useState<string | null>(null)
@@ -160,6 +161,18 @@ export default function AppSms() {
     setEmployee(data)
     setAuthState('ok')
     setObras(obrasVinculadas)
+    if (obrasVinculadas.length) {
+      const { data: equipeData } = await (supabase as any)
+        .from('obra_funcionarios')
+        .select('employees(id,nome,status)')
+        .in('obra_id', obrasVinculadas.map(o => o.id))
+        .eq('status', true)
+      const equipeUnica = Array.from(new Map((equipeData ?? [])
+        .map((v: any) => v.employees)
+        .filter((e: any) => e?.status === 'ativo')
+        .map((e: any) => [e.id, { id: e.id, nome: e.nome }])).values()) as { id: string; nome: string }[]
+      setEquipe(equipeUnica)
+    } else setEquipe([])
     // load ref data when online
     if (navigator.onLine) { loadRefData(); loadVeiculos(obraPrincipalId) }
     // restore from IndexedDB cache
@@ -415,7 +428,7 @@ export default function AppSms() {
   if (screen === 'form-near_miss')
     return <NearMissForm {...formProps} onSave={handleSave} onBack={() => setScreen('home')} />
   if (screen === 'form-acidente')
-    return <AcidenteForm {...formProps} onSave={handleSave} onBack={() => setScreen('home')} />
+    return <AcidenteForm {...formProps} funcionarios={equipe} onSave={handleSave} onBack={() => setScreen('home')} />
   if (screen === 'form-pt')
     return <PtForm {...formProps} onSave={handleSave} onBack={() => setScreen('home')} />
 

@@ -231,6 +231,7 @@ export default function SmsDds() {
 
   // Employees filtrados para busca na lista de presença
   const empFiltrados = employees.filter(e => {
+    if (e.status !== 'ativo') return false;
     if (!presencaSearch) return true;
     return e.nome.toLowerCase().includes(presencaSearch.toLowerCase());
   });

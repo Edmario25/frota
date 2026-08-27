@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/select"
 import {
   AlertTriangle, Trash2, Plus, Save, User, Briefcase,
-  Landmark, FileText, CalendarDays, ExternalLink,
+  Landmark, FileText, CalendarDays, ExternalLink, ShieldCheck,
 } from "lucide-react"
+import { supabase } from "@/integrations/supabase/client"
 import { useEmployeeRh, type DadosRh, type Documento, type FeriasAusencia } from "@/hooks/useEmployeeRh"
 import type { EmployeeWithRelations } from "@/hooks/useEmployees"
 
@@ -657,10 +658,49 @@ interface Props {
   employee: EmployeeWithRelations | null
 }
 
+interface SmsResumo {
+  treinamentos_vencidos: number
+  epis_em_responsabilidade: number
+  dds_participacoes: number
+  apr_participacoes: number
+  acidentes: number
+  aso_aptidao: string | null
+  aso_vencimento: string | null
+}
+
+function TabSms({ resumo }: { resumo: SmsResumo | null }) {
+  if (!resumo) return <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Resumo SMS ainda não disponível. Execute a integração do banco.</div>
+  const asoVencido = resumo.aso_vencimento && resumo.aso_vencimento < new Date().toISOString().slice(0, 10)
+  return <div className="space-y-4">
+    <div className={`rounded-lg border p-4 ${resumo.aso_aptidao === 'inapto' || asoVencido ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'}`}>
+      <p className="text-xs font-medium text-muted-foreground">Aptidão ocupacional</p>
+      <p className="mt-1 font-semibold capitalize">{resumo.aso_aptidao?.replaceAll('_', ' ') ?? 'Sem ASO registrado'}</p>
+      <p className="text-xs text-muted-foreground">Vencimento: {fmt(resumo.aso_vencimento)}</p>
+    </div>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {[
+        ['Treinamentos vencidos', resumo.treinamentos_vencidos],
+        ['EPIs sob responsabilidade', resumo.epis_em_responsabilidade],
+        ['Participações em DDS', resumo.dds_participacoes],
+        ['Participações em APR', resumo.apr_participacoes],
+        ['Acidentes vinculados', resumo.acidentes],
+      ].map(([label, value]) => <div key={String(label)} className="rounded-lg border p-3"><p className="text-xl font-bold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>)}
+    </div>
+  </div>
+}
+
 export function PerfilRhSheet({ open, onOpenChange, employee }: Props) {
   const { loading, saving, dadosRh, documentos, ferias, documentosVencendo,
           saveDadosRh, addDocumento, removeDocumento, addFerias, removeFerias,
   } = useEmployeeRh(open && employee ? employee.id : null)
+  const [smsResumo, setSmsResumo] = useState<SmsResumo | null>(null)
+  const employeeId = employee?.id ?? null
+
+  useEffect(() => {
+    if (!open || !employeeId) { setSmsResumo(null); return }
+    ;(supabase as any).from('vw_employee_sms_resumo').select('*').eq('employee_id', employeeId).maybeSingle()
+      .then(({ data }: { data: SmsResumo | null }) => setSmsResumo(data ?? null))
+  }, [open, employeeId])
 
   if (!employee) return null
 
@@ -702,7 +742,7 @@ export function PerfilRhSheet({ open, onOpenChange, employee }: Props) {
             </div>
           ) : (
             <Tabs defaultValue="pessoal" className="w-full">
-              <TabsList className="grid grid-cols-5 w-full mb-4">
+              <TabsList className="grid grid-cols-6 w-full mb-4">
                 <TabsTrigger value="pessoal" className="text-xs px-1">
                   <User className="h-3.5 w-3.5 sm:mr-1" />
                   <span className="hidden sm:inline">Pessoal</span>
@@ -728,6 +768,10 @@ export function PerfilRhSheet({ open, onOpenChange, employee }: Props) {
                   <CalendarDays className="h-3.5 w-3.5 sm:mr-1" />
                   <span className="hidden sm:inline">Férias</span>
                 </TabsTrigger>
+                <TabsTrigger value="sms" className="text-xs px-1">
+                  <ShieldCheck className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">SMS</span>
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="pessoal">
@@ -750,6 +794,9 @@ export function PerfilRhSheet({ open, onOpenChange, employee }: Props) {
                   ferias={ferias} saving={saving}
                   onAdd={addFerias} onRemove={removeFerias}
                 />
+              </TabsContent>
+              <TabsContent value="sms">
+                <TabSms resumo={smsResumo} />
               </TabsContent>
             </Tabs>
           )}

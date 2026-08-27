@@ -282,7 +282,7 @@ export default function SmsApr() {
   );
 
   const empsFiltrados = employees.filter(e =>
-    !empSearch || e.nome.toLowerCase().includes(empSearch.toLowerCase())
+    e.status === 'ativo' && (!empSearch || e.nome.toLowerCase().includes(empSearch.toLowerCase()))
   );
 
   // Agrupar riscos por categoria

@@ -208,6 +208,7 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
           id:               rec.id,
           obra_id:          rec.obra_id,
           registrado_por:   rec.employee_id,
+          colaborador_id:    d.colaborador_id || null,
           data_hora:        d.data_hora,
           tipo:             d.tipo,
           descricao:        d.descricao,
