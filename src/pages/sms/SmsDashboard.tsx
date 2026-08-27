@@ -126,7 +126,7 @@ export default function SmsDashboard() {
         (supabase as any).from("sms_colaborador_treinamentos").select("id", { count: "exact", head: true }).eq("status", "vencido"),
         (supabase as any).from("sms_colaborador_treinamentos").select("id", { count: "exact", head: true }).eq("status", "a_vencer"),
         (supabase as any).from("sms_aprs").select("id", { count: "exact", head: true }).eq("status", "aberta"),
-        (supabase as any).from("sms_inspecoes").select("id", { count: "exact", head: true }).eq("status", "pendente"),
+        (supabase as any).from("sms_inspecoes").select("id", { count: "exact", head: true }).in("status", ["pendente", "em_andamento", "aguardando_tratamento", "aguardando_revisao"]),
         (supabase as any).from("sms_dds_sessoes").select("id", { count: "exact", head: true }).gte("data_sessao", umMesAtras).lte("data_sessao", hoje),
         (supabase as any)
           .from("sms_desvios")

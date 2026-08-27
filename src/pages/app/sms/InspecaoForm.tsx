@@ -2,7 +2,7 @@ import { useState } from "react"
 import { FormShell, Field, inputCls, textareaCls, PhotoStrip, usePhotoCapture } from "./shared"
 
 type CatalogoInspecao = { id: string; nome: string }
-type ItemCatalogo = { id: string; catalogo_id: string; item: string; criterio?: string | null }
+type ItemCatalogo = { id: string; catalogo_id: string; item: string; criterio?: string | null; obrigatorio?: boolean; exige_observacao_nc?: boolean; exige_foto?: boolean; criticidade?: string }
 
 type Veiculo = { id: string; placa: string; marca: string; modelo: string }
 type Equipamento = { id: string; nome: string; codigo_patrimonio: string | null; status_operacional: string }
@@ -51,24 +51,38 @@ export function InspecaoForm({ employee, obraId, obras, veiculos = [], equipamen
   const [data, setData]             = useState(today)
   const [hora, setHora]             = useState('')
   const [respostas, setResp]        = useState<Record<string, Resp>>({})
+  const [observacoes, setObservacoes] = useState<Record<string, string>>({})
+  const [evidencias, setEvidencias] = useState<Record<string, string[]>>({})
   const [obsGeral, setObs]          = useState('')
   const [saving, setSaving]         = useState(false)
   const foto = usePhotoCapture(5)
 
   const usandoCatalogo = catalogoInspecoes.length > 0
-  const itensDoTipo: { id: string; item: string; criterio?: string | null }[] = usandoCatalogo
+  const itensDoTipo: ItemCatalogo[] = usandoCatalogo
     ? itensCatalogo.filter(i => i.catalogo_id === tipo)
     : (ITENS_PADRAO[tipo] ?? []).map((item, idx) => ({ id: `${tipo}-${idx}`, item, criterio: null }))
 
   const setResposta = (id: string, v: Resp) => setResp(p => ({ ...p, [id]: v }))
+  const adicionarEvidencia = (itemId: string, file?: File) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setEvidencias(p => ({ ...p, [itemId]: [...(p[itemId] ?? []), String(reader.result)] }))
+    reader.readAsDataURL(file)
+  }
 
   const countNC = Object.values(respostas).filter(v => v === 'NC').length
   const countC  = Object.values(respostas).filter(v => v === 'C').length
 
   const handleSave = async () => {
-    if (!obra || !area.trim()) return
+    if (!obra || !area.trim()) return window.alert('Informe a obra e a área inspecionada.')
+    const itensPendentes = itensDoTipo.filter(i => !respostas[i.id])
+    if (itensPendentes.length) return window.alert(`Responda os ${itensPendentes.length} item(ns) restantes. Use N/A quando não for aplicável.`)
+    const ncSemDescricao = itensDoTipo.filter(i => respostas[i.id] === 'NC' && i.exige_observacao_nc !== false && !observacoes[i.id]?.trim())
+    if (ncSemDescricao.length) return window.alert('Descreva todas as não conformidades antes de concluir.')
+    const semEvidencia = itensDoTipo.filter(i => respostas[i.id] === 'NC' && i.exige_foto && !(evidencias[i.id]?.length))
+    if (semEvidencia.length) return window.alert('Anexe uma foto nos itens não conformes que exigem evidência.')
     setSaving(true)
-    await onSave('inspecao', {
+    try { await onSave('inspecao', {
       obra_id:    obra,
       veiculo_id: veiculoId || null,
       ferramenta_id: ferramentaId || null,
@@ -82,7 +96,9 @@ export function InspecaoForm({ employee, obraId, obras, veiculos = [], equipamen
       itens: itensDoTipo.map(i => ({
         item_id:   i.id,
         descricao: i.item,
-        resposta:  respostas[i.id] ?? 'NA',
+        resposta:  respostas[i.id],
+        observacao: observacoes[i.id] || null,
+        evidencias: evidencias[i.id] ?? [],
       })),
       total_c:  countC,
       total_nc: countNC,
@@ -90,8 +106,7 @@ export function InspecaoForm({ employee, obraId, obras, veiculos = [], equipamen
       responsavel_nome: employee.nome,
       fotos:      foto.photos,
       device_id:  navigator.userAgent.slice(0, 40),
-    })
-    setSaving(false)
+    }) } finally { setSaving(false) }
   }
 
   const tipos = usandoCatalogo ? catalogoInspecoes : TIPOS_PADRAO
@@ -163,6 +178,7 @@ export function InspecaoForm({ employee, obraId, obras, veiculos = [], equipamen
               <div key={item.id} className="px-3 py-3">
                 <p className="text-sm font-medium text-gray-800">{item.item}</p>
                 {item.criterio && <p className="text-xs text-gray-400 mt-0.5">{item.criterio}</p>}
+                {item.criticidade && <p className={`text-[10px] mt-1 font-semibold uppercase ${item.criticidade === 'impeditiva' ? 'text-red-600' : 'text-gray-400'}`}>Criticidade: {item.criticidade}</p>}
                 <div className="flex gap-3 mt-2">
                   {(['C', 'NC', 'NA'] as Resp[]).map(v => {
                     const colors = {
@@ -187,6 +203,22 @@ export function InspecaoForm({ employee, obraId, obras, veiculos = [], equipamen
                     )
                   })}
                 </div>
+                {respostas[item.id] === 'NC' && (
+                  <div className="mt-2 space-y-2">
+                    <textarea
+                      className={textareaCls}
+                      rows={2}
+                      placeholder="Descreva a não conformidade e a condição encontrada *"
+                      value={observacoes[item.id] ?? ''}
+                      onChange={e => setObservacoes(p => ({ ...p, [item.id]: e.target.value }))}
+                    />
+                    <label className="inline-flex rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 cursor-pointer">
+                      📷 Evidência do item
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => adicionarEvidencia(item.id, e.target.files?.[0])} />
+                    </label>
+                    {(evidencias[item.id] ?? []).length > 0 && <span className="ml-2 text-xs text-green-700">Foto anexada</span>}
+                  </div>
+                )}
               </div>
             ))}
           </div>

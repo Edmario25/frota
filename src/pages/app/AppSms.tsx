@@ -87,7 +87,7 @@ export default function AppSms() {
   const [tiposAtividade, setTiposAtiv]          = useState<{ id: string; nome: string }[]>([])
   const [riscosCatalogo, setRiscosCatalog]      = useState<{ id: string; risco: string; categoria: string; recomendacao: string | null }[]>([])
   const [catalogoInspecoes, setCatalogoInsp]    = useState<{ id: string; nome: string }[]>([])
-  const [itensCatalogo, setItensCatalog]        = useState<{ id: string; catalogo_id: string; item: string; criterio?: string | null }[]>([])
+  const [itensCatalogo, setItensCatalog]        = useState<{ id: string; catalogo_id: string; item: string; criterio?: string | null; obrigatorio?: boolean; exige_observacao_nc?: boolean; exige_foto?: boolean; criticidade?: string }[]>([])
 
   const online = useOnlineStatus()
   const syncLock = useRef(false)
@@ -251,7 +251,7 @@ export default function AppSms() {
         (supabase as any).from('sms_apr_tipos_atividade').select('id, nome').order('nome'),
         (supabase as any).from('sms_apr_riscos_catalogo').select('id, risco:nome, categoria, recomendacao:descricao').eq('ativo', true).order('categoria').order('nome'),
         (supabase as any).from('sms_inspecoes_catalogo').select('id, nome:titulo').eq('ativo', true).order('titulo'),
-        (supabase as any).from('sms_inspecoes_itens_catalogo').select('id, catalogo_id:inspecao_catalogo_id, item:descricao, criterio:categoria').order('ordem'),
+        (supabase as any).from('sms_inspecoes_itens_catalogo').select('id, catalogo_id:inspecao_catalogo_id, item:descricao, criterio:criterio_aceitacao, obrigatorio, exige_observacao_nc, exige_foto, criticidade').order('ordem'),
       ])
       if (r1.data) { setDdsTemas(r1.data); await smsDb.setRef('sms_dds_temas', r1.data) }
       if (r2.data) { setTiposAtiv(r2.data); await smsDb.setRef('sms_apr_tipos_atividade', r2.data) }

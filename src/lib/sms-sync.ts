@@ -90,6 +90,8 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
       }
 
       case 'inspecao': {
+        const { data: existente } = await (supabase as any).from('sms_inspecoes').select('status').eq('id', rec.id).maybeSingle()
+        if (existente && !['pendente', 'em_andamento'].includes(existente.status)) return { ok: true }
         const { error: e1 } = await (supabase as any).from('sms_inspecoes').upsert({
           id:               rec.id,
           obra_id:          rec.obra_id,
@@ -108,7 +110,7 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
           sync_status:      'synced',
         }, { onConflict: 'id' })
         if (e1) return { ok: false, error: e1.message }
-        const respostas = d.itens as Array<{ item_id: string; descricao: string; resposta: string; observacao?: string }> | undefined
+        const respostas = d.itens as Array<{ item_id: string; descricao: string; resposta: string; observacao?: string; evidencias?: string[] }> | undefined
         if (respostas?.length) {
           await (supabase as any).from('sms_inspecoes_respostas').delete().eq('inspecao_id', rec.id)
           const { error: respostasError } = await (supabase as any).from('sms_inspecoes_respostas').insert(
@@ -119,6 +121,7 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
               resposta_original: r.resposta,
               conforme: r.resposta === 'C' ? true : r.resposta === 'NC' ? false : null,
               observacao:  r.observacao || null,
+              evidencias:  r.evidencias || [],
             })),
           )
           if (respostasError) return { ok: false, error: respostasError.message }
