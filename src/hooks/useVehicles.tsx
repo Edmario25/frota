@@ -31,14 +31,14 @@ export const useVehicles = () => {
       if (shouldFilterByObra && obraId) {
         const vehicleIds = await getVehicleIdsByObra(obraId);
         if (!vehicleIds.length) return [];
-        const { data, error } = await supabase
-          .from('vehicles').select('*').in('id', vehicleIds).order('created_at', { ascending: false });
+        const { data, error } = await (supabase as any)
+          .from('vehicles').select('*').in('id', vehicleIds).is('baixado_em', null).order('created_at', { ascending: false });
         if (error) throw error;
         return data ?? [];
       }
       if (!shouldFilterByObra) {
-        const { data, error } = await supabase
-          .from('vehicles').select('*').order('created_at', { ascending: false });
+        const { data, error } = await (supabase as any)
+          .from('vehicles').select('*').is('baixado_em', null).order('created_at', { ascending: false });
         if (error) throw error;
         return data ?? [];
       }
@@ -56,18 +56,17 @@ export const useVehicles = () => {
       if (error) throw error;
 
       if (obra_id && obra_id !== "") {
-        const { error: obraError } = await supabase.from('obra_veiculos').insert([{
-          obra_id, vehicle_id: data.id,
-          tipo_vinculo: 'compartilhado',
-          data_entrada: new Date().toISOString().split('T')[0],
-          status: true,
-        }]);
-        toast({
-          title: "Veículo cadastrado",
-          description: obraError
-            ? "Veículo criado, mas houve erro ao vincular à obra."
-            : "O veículo foi cadastrado e vinculado à obra com sucesso.",
+        const { error: obraError } = await (supabase as any).rpc('vincular_veiculo_obra', {
+          p_vehicle_id: data.id,
+          p_obra_id: obra_id,
+          p_tipo_vinculo: 'compartilhado',
         });
+        if (obraError) {
+          // Compensacao: nao deixa cadastro orfao quando o vinculo obrigatorio falhar.
+          await supabase.from('vehicles').delete().eq('id', data.id);
+          throw new Error(`Não foi possível vincular o veículo à obra: ${obraError.message}`);
+        }
+        toast({ title: "Veículo cadastrado", description: "Cadastro e vínculo com a obra concluídos com sucesso." });
       } else {
         toast({ title: "Veículo cadastrado", description: "O veículo foi cadastrado com sucesso." });
       }
@@ -99,18 +98,12 @@ export const useVehicles = () => {
       const { data, error } = await supabase.from('vehicles').update(vehicleDataWithoutObra).eq('id', id).select().single();
       if (error) throw error;
 
-      if (obra_id && obra_id !== "") {
-        const { data: existingLink } = await supabase
-          .from('obra_veiculos').select('id').eq('vehicle_id', id).eq('status', true).single();
-        if (existingLink) {
-          await supabase.from('obra_veiculos').update({ obra_id, updated_at: new Date().toISOString() }).eq('id', existingLink.id);
-        } else {
-          await supabase.from('obra_veiculos').insert([{
-            obra_id, vehicle_id: id, tipo_vinculo: 'compartilhado',
-            data_entrada: new Date().toISOString().split('T')[0], status: true,
-          }]);
-        }
-      }
+      const { error: linkError } = await (supabase as any).rpc('vincular_veiculo_obra', {
+        p_vehicle_id: id,
+        p_obra_id: obra_id || null,
+        p_tipo_vinculo: 'compartilhado',
+      });
+      if (linkError) throw new Error(`Veículo atualizado, mas a alocação não pôde ser concluída: ${linkError.message}`);
       return data;
     },
     onSuccess: () => {
@@ -120,16 +113,19 @@ export const useVehicles = () => {
     onError: (e: any) => toast({ title: "Erro ao atualizar veículo", description: e.message, variant: "destructive" }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('vehicles').delete().eq('id', id);
+  const retireMutation = useMutation({
+    mutationFn: async ({ id, motivo }: { id: string; motivo?: string }) => {
+      const { error } = await (supabase as any).rpc('baixar_veiculo', {
+        p_vehicle_id: id,
+        p_motivo: motivo || 'Baixa administrativa solicitada na gestão de frota',
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       invalidate();
-      toast({ title: "Veículo excluído", description: "O veículo foi excluído com sucesso." });
+      toast({ title: "Veículo baixado", description: "O ativo foi retirado da operação e seu histórico foi preservado." });
     },
-    onError: (e: any) => toast({ title: "Erro ao excluir veículo", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Erro ao baixar veículo", description: e.message, variant: "destructive" }),
   });
 
   const getVehicleStats = async (filterType?: 'leve' | 'pesado') => {
@@ -179,7 +175,7 @@ export const useVehicles = () => {
     loading: query.isLoading,
     createVehicle: (d: any) => createMutation.mutateAsync(d),
     updateVehicle: (id: string, vehicleData: any) => updateMutation.mutateAsync({ id, vehicleData }),
-    deleteVehicle: (id: string) => deleteMutation.mutateAsync(id),
+    deleteVehicle: (id: string, motivo?: string) => retireMutation.mutateAsync({ id, motivo }),
     refetchVehicles: query.refetch,
     getVehicleStats,
     getVehicleKmInfo,

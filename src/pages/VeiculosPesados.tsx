@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Truck, Plus, Eye, Edit, Trash2, Search, Filter, QrCode, Wrench, LogOut, ArrowLeftRight } from "lucide-react";
+import { Truck, Plus, Eye, Edit, Archive, Search, Filter, QrCode, Wrench, LogOut, ArrowLeftRight } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,9 +94,9 @@ export const VeiculosPesados: React.FC = () => {
     }
   };
 
-  const handleDeleteVehicle = async () => {
+  const handleDeleteVehicle = async (motivo?: string) => {
     if (selectedVehicle) {
-      await deleteVehicle(selectedVehicle.id);
+      await deleteVehicle(selectedVehicle.id, motivo);
       setIsDeleteModalOpen(false);
       setSelectedVehicle(null);
     }
@@ -286,7 +286,7 @@ export const VeiculosPesados: React.FC = () => {
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); openDeleteModal(vehicle); }}>
-                        <Trash2 className="h-4 w-4" />
+                        <Archive className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>

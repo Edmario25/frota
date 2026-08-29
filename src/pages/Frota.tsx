@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Filter, Edit, Trash2, Eye, Download, QrCode, Wrench, LogOut, ArrowLeftRight } from "lucide-react";
+import { Search, Plus, Filter, Edit, Archive, Eye, Download, QrCode, Wrench, LogOut, ArrowLeftRight } from "lucide-react";
 import { 
   Table,
   TableBody,
@@ -102,9 +102,9 @@ const Frota = () => {
     }
   };
 
-  const handleDeleteVehicle = async () => {
+  const handleDeleteVehicle = async (motivo?: string) => {
     if (selectedVehicle) {
-      await deleteVehicle(selectedVehicle.id);
+      await deleteVehicle(selectedVehicle.id, motivo);
       setIsDeleteModalOpen(false);
       setSelectedVehicle(null);
     }
@@ -339,7 +339,7 @@ const Frota = () => {
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => { e.stopPropagation(); openDeleteModal(vehicle); }}>
-                        <Trash2 className="h-4 w-4" />
+                        <Archive className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>

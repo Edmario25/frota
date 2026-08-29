@@ -1,6 +1,6 @@
 // ─── Hook: Status de liberação permanente por veículo ────────────────────────
-// A liberação é PERMANENTE — não vence diariamente.
-// O veículo precisa de nova liberação apenas após manutenção corretiva.
+// A liberacao continua valida ate surgir um evento que exija nova verificacao:
+// manutencao corretiva posterior, item nao conforme ou documento vencido.
 //
 // Lógica:
 //   "aguardando" → nunca teve checklist de liberação aprovado
@@ -40,14 +40,35 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
     ;(async () => {
       try {
         // Busca o checklist de liberação mais recente de cada veículo
-        const { data, error } = await (supabase as any)
-          .from("inspection_checklists")
-          .select("id, vehicle_id, data_inspecao, responsavel_checklist, inspection_items(status)")
-          .eq("tipo_servico", "liberacao_veiculo")
-          .in("vehicle_id", vehicleIds)
-          .order("data_inspecao", { ascending: false })
+        const [{ data, error }, { data: manutencoes }, { data: documentos }] = await Promise.all([
+          (supabase as any)
+            .from("inspection_checklists")
+            .select("id, vehicle_id, data_inspecao, responsavel_checklist, inspection_items(status)")
+            .eq("tipo_servico", "liberacao_veiculo")
+            .in("vehicle_id", vehicleIds)
+            .order("data_inspecao", { ascending: false }),
+          supabase
+            .from("maintenance_records")
+            .select("vehicle_id, tipo, status, created_at, data_realizada")
+            .in("vehicle_id", vehicleIds)
+            .eq("tipo", "corretiva")
+            .neq("status", "cancelada"),
+          supabase
+            .from("vehicle_documents")
+            .select("vehicle_id, data_vencimento")
+            .in("vehicle_id", vehicleIds)
+            .lt("data_vencimento", new Date().toISOString().slice(0, 10)),
+        ])
 
         if (error || cancelled) return
+
+        const manutencaoPosterior = new Map<string, string>()
+        for (const m of manutencoes ?? []) {
+          const dataEvento = m.data_realizada || m.created_at
+          const atual = manutencaoPosterior.get(m.vehicle_id)
+          if (!atual || dataEvento > atual) manutencaoPosterior.set(m.vehicle_id, dataEvento)
+        }
+        const documentoVencido = new Set((documentos ?? []).map(d => d.vehicle_id))
 
         // Para cada veículo, pega o registro mais recente (results já vem ordenados desc)
         const result: Record<string, VehicleLiberacaoInfo> = {}
@@ -55,10 +76,15 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
           if (result[row.vehicle_id]) continue  // já processamos este veículo (mais recente)
 
           const itens: { status: string }[] = row.inspection_items ?? []
-          const nc = itens.filter(i => i.status === "reprovado").length
+          const nc = itens.filter(i => i.status === "nao_conforme" || i.status === "reprovado").length
+          const ultimaCorretiva = manutencaoPosterior.get(row.vehicle_id)
+          const exigeNovaLiberacao = Boolean(ultimaCorretiva && ultimaCorretiva > row.data_inspecao)
 
-          // Liberação permanente: não verifica data — apenas se passou ou não na inspeção
-          const status: LiberacaoStatus = nc > 0 ? "bloqueado" : "liberado"
+          let status: LiberacaoStatus
+          if (itens.length === 0) status = "aguardando"
+          else if (nc > 0 || documentoVencido.has(row.vehicle_id)) status = "bloqueado"
+          else if (exigeNovaLiberacao) status = "vencido"
+          else status = "liberado"
 
           result[row.vehicle_id] = {
             status,
