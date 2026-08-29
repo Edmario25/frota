@@ -97,20 +97,29 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('obra_veiculos' as any)
-        .insert([{
-          obra_id: obra.id,
-          ...formData,
-          responsavel_id: formData.responsavel_id || null,
-          data_saida: formData.data_saida || null,
-        }]);
+      const { error } = await (supabase as any).rpc('vincular_veiculo_obra', {
+        p_vehicle_id: formData.vehicle_id,
+        p_obra_id: obra.id,
+        p_tipo_vinculo: formData.tipo_vinculo,
+      });
 
       if (error) throw error;
 
+      const { error: detalhesError } = await supabase
+        .from('obra_veiculos' as any)
+        .update({
+          responsavel_id: formData.responsavel_id || null,
+          data_entrada: formData.data_entrada,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('vehicle_id', formData.vehicle_id)
+        .eq('obra_id', obra.id)
+        .eq('status', true);
+      if (detalhesError) throw detalhesError;
+
       toast({
         title: "Sucesso",
-        description: "Veículo vinculado com sucesso",
+        description: "Veículo alocado com sucesso; vínculos anteriores foram encerrados",
       });
 
       setFormData({
@@ -139,14 +148,15 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
     try {
       const { error } = await supabase
         .from('obra_veiculos' as any)
-        .delete()
-        .eq('id', id);
+        .update({ status: false, data_saida: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('status', true);
 
       if (error) throw error;
 
       toast({
         title: "Sucesso",
-        description: "Vinculação removida com sucesso",
+        description: "Alocação encerrada e histórico preservado",
       });
       fetchVinculacoes();
     } catch (error) {

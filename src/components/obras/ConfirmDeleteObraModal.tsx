@@ -8,11 +8,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useState } from "react";
 
 interface ConfirmDeleteObraModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (motivo: string) => void;
   obraNome: string;
 }
 
@@ -22,21 +25,21 @@ export function ConfirmDeleteObraModal({
   onConfirm, 
   obraNome 
 }: ConfirmDeleteObraModalProps) {
+  const [motivo, setMotivo] = useState("");
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+          <AlertDialogTitle>Arquivar obra concluída</AlertDialogTitle>
           <AlertDialogDescription>
-            Tem certeza que deseja excluir a obra "{obraNome}"? 
-            Esta ação não pode ser desfeita e todos os dados relacionados 
-            (funcionários e veículos vinculados) também serão removidos.
+            A obra "{obraNome}" sairá da operação, mas todos os registros técnicos, financeiros e trabalhistas serão preservados. Somente obras concluídas e sem pendências podem ser arquivadas.
           </AlertDialogDescription>
+          <div className="space-y-2 text-left"><Label htmlFor="motivo-arquivo-obra">Motivo do arquivamento *</Label><Textarea id="motivo-arquivo-obra" value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Ex.: contrato encerrado e desmobilização concluída" rows={3}/></div>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onClose}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Excluir
+          <AlertDialogAction disabled={motivo.trim().length < 5} onClick={() => { onConfirm(motivo.trim()); setMotivo(""); }} className="bg-amber-600 text-white hover:bg-amber-700">
+            Arquivar
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

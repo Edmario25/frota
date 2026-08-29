@@ -158,14 +158,15 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
     try {
       const { error } = await supabase
         .from('obra_funcionarios' as any)
-        .delete()
-        .eq('id', id);
+        .update({ status: false, data_saida: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('status', true);
 
       if (error) throw error;
 
       toast({
         title: "Sucesso",
-        description: "Vinculação removida com sucesso",
+        description: "Vínculo encerrado e histórico preservado",
       });
       fetchVinculacoes();
     } catch (error) {

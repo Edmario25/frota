@@ -33,6 +33,20 @@ export function ObraFormModal({ isOpen, onClose, obra }: ObraFormModalProps) {
     status: "planejada",
     responsavel_tecnico: "",
     responsavel_tecnico_id: "",
+    numero_contrato: "",
+    objeto_contrato: "",
+    valor_contrato: "",
+    centro_custo: "",
+    tipo_obra: "",
+    data_inicio_real: "",
+    data_termino_real: "",
+    gerente_obra_id: "",
+    responsavel_sms_id: "",
+    responsavel_qualidade_id: "",
+    contato_cliente_nome: "",
+    contato_cliente_email: "",
+    contato_cliente_telefone: "",
+    motivo_status: "",
     observacoes: "",
   });
 
@@ -56,6 +70,13 @@ export function ObraFormModal({ isOpen, onClose, obra }: ObraFormModalProps) {
         status: obra.status || "planejada",
         responsavel_tecnico: obra.responsavel_tecnico || "",
         responsavel_tecnico_id: obra.responsavel_tecnico_id || "",
+        numero_contrato: obra.numero_contrato || "", objeto_contrato: obra.objeto_contrato || "",
+        valor_contrato: obra.valor_contrato?.toString() || "", centro_custo: obra.centro_custo || "", tipo_obra: obra.tipo_obra || "",
+        data_inicio_real: obra.data_inicio_real || "", data_termino_real: obra.data_termino_real || "",
+        gerente_obra_id: obra.gerente_obra_id || "", responsavel_sms_id: obra.responsavel_sms_id || "",
+        responsavel_qualidade_id: obra.responsavel_qualidade_id || "", contato_cliente_nome: obra.contato_cliente_nome || "",
+        contato_cliente_email: obra.contato_cliente_email || "", contato_cliente_telefone: obra.contato_cliente_telefone || "",
+        motivo_status: "",
         observacoes: obra.observacoes || "",
       });
     } else {
@@ -73,6 +94,9 @@ export function ObraFormModal({ isOpen, onClose, obra }: ObraFormModalProps) {
         status: "planejada",
         responsavel_tecnico: "",
         responsavel_tecnico_id: "",
+        numero_contrato: "", objeto_contrato: "", valor_contrato: "", centro_custo: "", tipo_obra: "",
+        data_inicio_real: "", data_termino_real: "", gerente_obra_id: "", responsavel_sms_id: "",
+        responsavel_qualidade_id: "", contato_cliente_nome: "", contato_cliente_email: "", contato_cliente_telefone: "", motivo_status: "",
         observacoes: "",
       });
     }
@@ -88,6 +112,12 @@ export function ObraFormModal({ isOpen, onClose, obra }: ObraFormModalProps) {
         data_inicio_prevista: formData.data_inicio_prevista || null,
         data_termino_prevista: formData.data_termino_prevista || null,
         responsavel_tecnico_id: formData.responsavel_tecnico_id || null,
+        gerente_obra_id: formData.gerente_obra_id || null,
+        responsavel_sms_id: formData.responsavel_sms_id || null,
+        responsavel_qualidade_id: formData.responsavel_qualidade_id || null,
+        data_inicio_real: formData.data_inicio_real || null,
+        data_termino_real: formData.data_termino_real || null,
+        valor_contrato: formData.valor_contrato ? Number(formData.valor_contrato) : null,
       };
 
       if (obra) {
@@ -115,6 +145,10 @@ export function ObraFormModal({ isOpen, onClose, obra }: ObraFormModalProps) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <p className="text-sm font-semibold">Identificação e contrato</p>
+            <p className="text-xs text-muted-foreground">Dados usados em RDOs, relatórios, orçamento e portal do cliente.</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="nome">Nome da Obra *</Label>
@@ -135,6 +169,14 @@ export function ObraFormModal({ isOpen, onClose, obra }: ObraFormModalProps) {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><Label htmlFor="numero_contrato">Nº do Contrato</Label><Input id="numero_contrato" value={formData.numero_contrato} onChange={e => handleChange("numero_contrato", e.target.value)} /></div>
+            <div><Label htmlFor="centro_custo">Centro de Custo</Label><Input id="centro_custo" value={formData.centro_custo} onChange={e => handleChange("centro_custo", e.target.value)} /></div>
+            <div><Label htmlFor="tipo_obra">Tipo de Obra</Label><Input id="tipo_obra" value={formData.tipo_obra} onChange={e => handleChange("tipo_obra", e.target.value)} placeholder="Ex.: civil, industrial" /></div>
+          </div>
+          <div><Label htmlFor="objeto_contrato">Objeto do Contrato</Label><Textarea id="objeto_contrato" value={formData.objeto_contrato} onChange={e => handleChange("objeto_contrato", e.target.value)} rows={2} /></div>
+          <div><Label htmlFor="valor_contrato">Valor Contratado (R$)</Label><Input id="valor_contrato" type="number" min="0" step="0.01" value={formData.valor_contrato} onChange={e => handleChange("valor_contrato", e.target.value)} /></div>
+
           <div>
             <Label htmlFor="endereco">Endereço</Label>
             <Input
@@ -142,6 +184,11 @@ export function ObraFormModal({ isOpen, onClose, obra }: ObraFormModalProps) {
               value={formData.endereco}
               onChange={(e) => handleChange("endereco", e.target.value)}
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><Label htmlFor="data_inicio_real">Início Real</Label><Input id="data_inicio_real" type="date" value={formData.data_inicio_real} onChange={e => handleChange("data_inicio_real", e.target.value)} /></div>
+            <div><Label htmlFor="data_termino_real">Término Real</Label><Input id="data_termino_real" type="date" value={formData.data_termino_real} onChange={e => handleChange("data_termino_real", e.target.value)} /></div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -161,6 +208,25 @@ export function ObraFormModal({ isOpen, onClose, obra }: ObraFormModalProps) {
                 onChange={(e) => handleChange("estado", e.target.value)}
               />
             </div>
+          </div>
+
+          {(formData.status === "pausada" || formData.status === "concluida") && obra?.status !== formData.status && (
+            <div><Label htmlFor="motivo_status">Justificativa da alteração *</Label><Textarea id="motivo_status" value={formData.motivo_status} onChange={e => handleChange("motivo_status", e.target.value)} required rows={2} placeholder="Informe o motivo e as condições da mudança de fase" /></div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              ["gerente_obra_id", "Gerente da Obra"], ["responsavel_sms_id", "Responsável SMS"], ["responsavel_qualidade_id", "Responsável Qualidade"],
+            ].map(([field, label]) => (
+              <div key={field}><Label>{label}</Label><Select value={(formData as any)[field]} onValueChange={value => handleChange(field, value)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{employees.filter(e => e.status === "ativo").map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent></Select></div>
+            ))}
+          </div>
+
+          <div className="rounded-lg border bg-muted/20 p-3"><p className="text-sm font-semibold">Contato do cliente</p></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><Label>Responsável</Label><Input value={formData.contato_cliente_nome} onChange={e => handleChange("contato_cliente_nome", e.target.value)} /></div>
+            <div><Label>E-mail</Label><Input type="email" value={formData.contato_cliente_email} onChange={e => handleChange("contato_cliente_email", e.target.value)} /></div>
+            <div><Label>Telefone</Label><Input value={formData.contato_cliente_telefone} onChange={e => handleChange("contato_cliente_telefone", e.target.value)} /></div>
           </div>
 
           <div>

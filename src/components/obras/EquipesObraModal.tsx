@@ -82,6 +82,7 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
         )
       `)
       .eq("obra_id", obra.id)
+      .eq("ativo", true)
       .order("nome")
 
     setEquipes(
@@ -100,13 +101,14 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
   }
 
   const fetchFuncionarios = async () => {
-    const { data } = await supabase
-      .from("employees")
-      .select("id, nome, cargos(nome)")
-      .eq("status", "ativo")
-      .order("nome")
-    setFuncionarios((data ?? []).map((e: any) => ({
-      id: e.id, nome: e.nome, cargo: e.cargos?.nome ?? null,
+    if (!obra) return
+    const { data } = await (supabase as any)
+      .from("obra_funcionarios")
+      .select("employee_id, employees(id, nome, cargos(nome), status)")
+      .eq("obra_id", obra.id)
+      .eq("status", true)
+    setFuncionarios((data ?? []).filter((v: any) => v.employees?.status === "ativo").map((v: any) => ({
+      id: v.employees.id, nome: v.employees.nome, cargo: v.employees.cargos?.nome ?? null,
     })))
   }
 
@@ -130,7 +132,7 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
   }
 
   const excluirEquipe = async (id: string) => {
-    const { error } = await (supabase as any).from("obra_equipes").delete().eq("id", id)
+    const { error } = await (supabase as any).from("obra_equipes").update({ ativo: false }).eq("id", id)
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return }
     toast({ title: "Equipe removida" })
     fetchEquipes()
@@ -140,9 +142,11 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
 
   const adicionarMembro = async (equipeId: string) => {
     if (!membroSel) return
-    const { error } = await (supabase as any).from("obra_equipe_membros").insert({
-      equipe_id: equipeId, employee_id: membroSel, funcao: funcaoSel.trim() || null,
-    })
+    const { data: anterior } = await (supabase as any).from("obra_equipe_membros").select("id").eq("equipe_id", equipeId).eq("employee_id", membroSel).maybeSingle()
+    const operacao = anterior
+      ? (supabase as any).from("obra_equipe_membros").update({ ativo: true, funcao: funcaoSel.trim() || null }).eq("id", anterior.id)
+      : (supabase as any).from("obra_equipe_membros").insert({ equipe_id: equipeId, employee_id: membroSel, funcao: funcaoSel.trim() || null })
+    const { error } = await operacao
     if (error) {
       toast({ title: "Erro", description: error.message.includes("unique") ? "Funcionário já está nessa equipe." : error.message, variant: "destructive" })
       return
@@ -153,7 +157,7 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
   }
 
   const removerMembro = async (membroId: string) => {
-    await (supabase as any).from("obra_equipe_membros").delete().eq("id", membroId)
+    await (supabase as any).from("obra_equipe_membros").update({ ativo: false }).eq("id", membroId)
     fetchEquipes()
   }
 

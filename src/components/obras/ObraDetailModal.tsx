@@ -1,5 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Users, Car, HardHat, Package, AlertTriangle, Wrench } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -10,6 +14,22 @@ interface ObraDetailModalProps {
 }
 
 export function ObraDetailModal({ isOpen, onClose, obra }: ObraDetailModalProps) {
+  const [resumo, setResumo] = useState<Record<string, number>>({});
+  const [responsaveis, setResponsaveis] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!isOpen || !obra?.id) return;
+    (async () => {
+      const ids = [obra.responsavel_tecnico_id, obra.gerente_obra_id, obra.responsavel_sms_id, obra.responsavel_qualidade_id].filter(Boolean);
+      const [summary, people] = await Promise.all([
+        (supabase as any).rpc("obra_resumo_360", { p_obra_id: obra.id }),
+        ids.length ? supabase.from("employees").select("id,nome").in("id", ids) : Promise.resolve({ data: [] }),
+      ]);
+      setResumo(summary.data ?? {});
+      setResponsaveis(Object.fromEntries((people.data ?? []).map((p: any) => [p.id, p.nome])));
+    })();
+  }, [isOpen, obra?.id]);
+
   if (!obra) return null;
 
   const getStatusBadgeVariant = (status: string) => {
@@ -40,6 +60,23 @@ export function ObraDetailModal({ isOpen, onClose, obra }: ObraDetailModalProps)
         </DialogHeader>
 
         <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {[
+              [Users, "Funcionários", resumo.funcionarios ?? 0], [Car, "Veículos", resumo.veiculos ?? 0],
+              [HardHat, "Equipes", resumo.equipes ?? 0], [Package, "Itens em estoque", resumo.estoque_itens ?? 0],
+              [Wrench, "Ferramentas", resumo.ferramentas ?? 0], [AlertTriangle, "NCs abertas", resumo.ncs_abertas ?? 0],
+            ].map(([Icon, label, value]: any) => <Card key={label}><CardContent className="flex items-center gap-3 p-3"><Icon className="h-4 w-4 text-primary"/><div><p className="text-xl font-bold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div></CardContent></Card>)}
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-3">
+            <h3 className="font-semibold">Contrato e controle</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div><span className="text-muted-foreground">Contrato</span><p>{obra.numero_contrato || "—"}</p></div>
+              <div><span className="text-muted-foreground">Centro de custo</span><p>{obra.centro_custo || "—"}</p></div>
+              <div><span className="text-muted-foreground">Valor</span><p>{obra.valor_contrato != null ? Number(obra.valor_contrato).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</p></div>
+            </div>
+            {obra.objeto_contrato && <div className="text-sm"><span className="text-muted-foreground">Objeto</span><p>{obra.objeto_contrato}</p></div>}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Nome da Obra</label>
@@ -108,8 +145,14 @@ export function ObraDetailModal({ isOpen, onClose, obra }: ObraDetailModalProps)
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Responsável Técnico</label>
-              <p className="text-sm mt-1">{obra.responsavel_tecnico || "-"}</p>
+              <p className="text-sm mt-1">{responsaveis[obra.responsavel_tecnico_id] || obra.responsavel_tecnico || "-"}</p>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><label className="text-sm font-medium text-muted-foreground">Gerente da Obra</label><p className="text-sm mt-1">{responsaveis[obra.gerente_obra_id] || "—"}</p></div>
+            <div><label className="text-sm font-medium text-muted-foreground">Responsável SMS</label><p className="text-sm mt-1">{responsaveis[obra.responsavel_sms_id] || "—"}</p></div>
+            <div><label className="text-sm font-medium text-muted-foreground">Responsável Qualidade</label><p className="text-sm mt-1">{responsaveis[obra.responsavel_qualidade_id] || "—"}</p></div>
           </div>
 
           {obra.observacoes && (

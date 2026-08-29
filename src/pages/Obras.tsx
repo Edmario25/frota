@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, Edit, Trash2, Users, Car } from "lucide-react";
+import { Plus, Search, Eye, Edit, Archive, Users, Car, Building2 } from "lucide-react";
 import { useObras } from "@/hooks/useObras";
 import { useUserRole } from "@/hooks/useUserRole";
 import { ObraFormModal } from "@/components/obras/ObraFormModal";
@@ -14,12 +14,14 @@ import { ObraDetailModal } from "@/components/obras/ObraDetailModal";
 import { VinculacaoFuncionarioModal } from "@/components/obras/VinculacaoFuncionarioModal";
 import { VinculacaoVeiculoModal } from "@/components/obras/VinculacaoVeiculoModal";
 import { ConfirmDeleteObraModal } from "@/components/obras/ConfirmDeleteObraModal";
+import { VinculacaoFornecedorModal } from "@/components/obras/VinculacaoFornecedorModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function Obras() {
   const { obras, loading, deleteObra, getObraStats } = useObras();
-  const { hasObraManagement, isAdmin } = useUserRole();
+  const { hasObraManagement, role } = useUserRole();
+  const canCreateArchive = role === "admin" || role === "gestor_contrato";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -27,6 +29,7 @@ export default function Obras() {
   const [isFuncionarioModalOpen, setIsFuncionarioModalOpen] = useState(false);
   const [isVeiculoModalOpen, setIsVeiculoModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isFornecedorModalOpen, setIsFornecedorModalOpen] = useState(false);
   const [selectedObra, setSelectedObra] = useState<any>(null);
 
   const stats = getObraStats();
@@ -69,9 +72,9 @@ export default function Obras() {
     setIsVeiculoModalOpen(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = async (motivo: string) => {
     if (selectedObra) {
-      await deleteObra(selectedObra.id);
+      await deleteObra(selectedObra.id, motivo);
       setIsDeleteModalOpen(false);
       setSelectedObra(null);
     }
@@ -102,7 +105,7 @@ export default function Obras() {
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Gestão de Obras</h1>
-          <Button onClick={handleNewObra} disabled={!isAdmin}>
+          <Button onClick={handleNewObra} disabled={!canCreateArchive}>
             <Plus className="mr-2 h-4 w-4" />
             Nova Obra
           </Button>
@@ -245,6 +248,7 @@ export default function Obras() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            disabled={!hasObraManagement}
                             onClick={() => handleVincularFuncionarios(obra)}
                           >
                             <Users className="h-4 w-4" />
@@ -252,13 +256,18 @@ export default function Obras() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            disabled={!hasObraManagement}
                             onClick={() => handleVincularVeiculos(obra)}
                           >
                             <Car className="h-4 w-4" />
                           </Button>
+                          <Button variant="ghost" size="sm" disabled={!hasObraManagement} title="Fornecedores e contratos" onClick={() => { setSelectedObra(obra); setIsFornecedorModalOpen(true); }}>
+                            <Building2 className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            disabled={!hasObraManagement}
                             onClick={() => handleEditObra(obra)}
                           >
                             <Edit className="h-4 w-4" />
@@ -266,9 +275,11 @@ export default function Obras() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            disabled={!canCreateArchive || obra.status !== "concluida"}
                             onClick={() => handleDeleteObra(obra)}
+                            title={obra.status === "concluida" ? "Arquivar obra" : "Conclua a obra antes de arquivar"}
                           >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Archive className="h-4 w-4 text-amber-600" />
                           </Button>
                         </div>
                       </TableCell>
@@ -311,6 +322,7 @@ export default function Obras() {
         onConfirm={confirmDelete}
         obraNome={selectedObra?.nome || ""}
       />
+      {selectedObra && <VinculacaoFornecedorModal isOpen={isFornecedorModalOpen} onClose={() => setIsFornecedorModalOpen(false)} obraId={selectedObra.id} obraNome={selectedObra.nome} />}
     </Layout>
   );
 }
