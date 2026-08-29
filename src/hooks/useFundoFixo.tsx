@@ -184,21 +184,53 @@ export const useFundoFixo = () => {
     }
   };
 
-  const deleteLancamento = async (id: string) => {
+  const cancelarLancamento = async (id: string, motivo: string) => {
     try {
-      const { error } = await (supabase as any)
-        .from('fundo_fixo_lancamentos')
-        .delete()
-        .eq('id', id);
+      const { error } = await (supabase as any).rpc('cancelar_lancamento_fundo', { p_id: id, p_motivo: motivo });
 
       if (error) throw error;
-      setLancamentos(prev => prev.filter(l => l.id !== id));
-      if (fundo) await fetchFundo();
-      toast({ title: "Lançamento excluído" });
+      if (fundo) { await fetchLancamentos(fundo.id); await fetchFundo(); }
+      toast({ title: "Lançamento estornado", description: "O histórico original foi preservado." });
     } catch (error: any) {
-      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao estornar", description: error.message, variant: "destructive" });
       throw error;
     }
+  };
+
+  const aprovarLancamento = async (id: string, aprovar: boolean, motivo?: string) => {
+    const { error } = await (supabase as any).rpc('aprovar_lancamento_fundo', {
+      p_id: id, p_aprovar: aprovar, p_motivo: motivo || null,
+    });
+    if (error) {
+      toast({ title: "Não foi possível processar", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    if (fundo) { await fetchLancamentos(fundo.id); await fetchFundo(); }
+    toast({ title: aprovar ? "Despesa aprovada" : "Despesa rejeitada" });
+  };
+
+  const conciliarFundo = async (saldoFisico: number, justificativa?: string) => {
+    if (!fundo) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from('fundo_fixo_conciliacoes').insert({
+      fundo_fixo_id: fundo.id, saldo_sistema: fundo.saldo_atual, saldo_fisico: saldoFisico,
+      justificativa: justificativa || null, conferido_por: user?.id,
+    });
+    if (error) throw error;
+    toast({ title: "Conciliação registrada" });
+  };
+
+  const encerrarFundo = async (saldoFisico: number, justificativa?: string) => {
+    if (!fundo) return;
+    const { error } = await (supabase as any).rpc('encerrar_fundo_fixo', {
+      p_id: fundo.id, p_saldo_fisico: saldoFisico, p_justificativa: justificativa || null,
+    });
+    if (error) {
+      toast({ title: "Não foi possível encerrar", description: error.message, variant: "destructive" });
+      throw error;
+    }
+    toast({ title: "Fundo encerrado", description: "Saldo final e conciliação foram registrados." });
+    if (hasFullAccess) { clearFundo(); await fetchAllFundos(); } else await fetchFundo();
   };
 
   useEffect(() => {
@@ -230,7 +262,10 @@ export const useFundoFixo = () => {
     updateFundo,
     createLancamento,
     updateLancamento,
-    deleteLancamento,
+    cancelarLancamento,
+    aprovarLancamento,
+    conciliarFundo,
+    encerrarFundo,
     refetch: fetchFundo,
     refetchLancamentos: () => fundo ? fetchLancamentos(fundo.id) : Promise.resolve(),
     selectFundo,

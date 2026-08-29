@@ -948,7 +948,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
         (supabase as any).from("traffic_fines").select("vehicle_id, valor")
           .gte("data_multa", filters.dataInicio).lte("data_multa", filters.dataFim),
         (supabase as any).from("fundo_fixo").select("id, obra_id"),
-        (supabase as any).from("fundo_fixo_lancamentos").select("fundo_fixo_id, valor, tipo")
+        (supabase as any).from("fundo_fixo_lancamentos").select("fundo_fixo_id, valor, tipo, status").eq("status", "aprovado")
           .gte("data_lancamento", filters.dataInicio).lte("data_lancamento", filters.dataFim).eq("tipo", "saida"),
       ]);
 

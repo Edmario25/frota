@@ -34,6 +34,12 @@ const schema = z.object({
   recibo_url:      z.string().optional(),
   nf_url:          z.string().optional(),
   observacoes:     z.string().optional(),
+  fornecedor:      z.string().optional(),
+  fornecedor_documento: z.string().optional(),
+  numero_documento: z.string().optional(),
+  forma_pagamento: z.string().min(1, "Forma de pagamento obrigatória"),
+  frente_servico:  z.string().optional(),
+  favorecido:      z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -46,10 +52,11 @@ interface Props {
   apenasGestores?: boolean;
   lancamento?: FundoFixoLancamento | null;
   onSubmit: (data: any) => Promise<void>;
+  comprovanteObrigatorioAcima?: number;
 }
 
 export const FundoFixoLancamentoModal = ({
-  open, onOpenChange, fundoId, apenasGestores = false, lancamento, onSubmit,
+  open, onOpenChange, fundoId, apenasGestores = false, lancamento, onSubmit, comprovanteObrigatorioAcima = 0,
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -64,6 +71,8 @@ export const FundoFixoLancamentoModal = ({
       recibo_url: "",
       nf_url: "",
       observacoes: "",
+      fornecedor: "", fornecedor_documento: "", numero_documento: "",
+      forma_pagamento: "dinheiro", frente_servico: "", favorecido: "",
     },
   });
 
@@ -79,6 +88,12 @@ export const FundoFixoLancamentoModal = ({
           recibo_url:      lancamento.recibo_url ?? "",
           nf_url:          lancamento.nf_url ?? "",
           observacoes:     lancamento.observacoes ?? "",
+          fornecedor:      (lancamento as any).fornecedor ?? "",
+          fornecedor_documento: (lancamento as any).fornecedor_documento ?? "",
+          numero_documento: (lancamento as any).numero_documento ?? "",
+          forma_pagamento: (lancamento as any).forma_pagamento ?? "dinheiro",
+          frente_servico:  (lancamento as any).frente_servico ?? "",
+          favorecido:      (lancamento as any).favorecido ?? "",
         });
       } else {
         form.reset({
@@ -90,6 +105,8 @@ export const FundoFixoLancamentoModal = ({
           recibo_url: "",
           nf_url: "",
           observacoes: "",
+          fornecedor: "", fornecedor_documento: "", numero_documento: "",
+          forma_pagamento: "dinheiro", frente_servico: "", favorecido: "",
         });
       }
     }
@@ -98,6 +115,10 @@ export const FundoFixoLancamentoModal = ({
   const tipoAtual = form.watch("tipo");
 
   const handleSubmit = async (values: FormValues) => {
+    if (values.tipo === "saida" && values.valor >= comprovanteObrigatorioAcima && !values.recibo_url && !values.nf_url) {
+      form.setError("recibo_url", { message: "Anexe um recibo ou nota fiscal para esta despesa" });
+      return;
+    }
     setIsSubmitting(true);
     try {
       await onSubmit({
@@ -110,6 +131,12 @@ export const FundoFixoLancamentoModal = ({
         recibo_url:      values.recibo_url || null,
         nf_url:          values.nf_url || null,
         observacoes:     values.observacoes || null,
+        fornecedor:      values.fornecedor || null,
+        fornecedor_documento: values.fornecedor_documento || null,
+        numero_documento: values.numero_documento || null,
+        forma_pagamento: values.forma_pagamento,
+        frente_servico:  values.frente_servico || null,
+        favorecido:      values.favorecido || null,
       });
       onOpenChange(false);
     } finally {
@@ -220,12 +247,33 @@ export const FundoFixoLancamentoModal = ({
               </FormItem>
             )} />
 
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="fornecedor" render={({ field }) => (
+                <FormItem><FormLabel>Fornecedor</FormLabel><FormControl><Input placeholder="Nome ou razão social" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="fornecedor_documento" render={({ field }) => (
+                <FormItem><FormLabel>CPF/CNPJ</FormLabel><FormControl><Input placeholder="Documento" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="numero_documento" render={({ field }) => (
+                <FormItem><FormLabel>Nº nota/recibo</FormLabel><FormControl><Input placeholder="Número" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="forma_pagamento" render={({ field }) => (
+                <FormItem><FormLabel>Forma de pagamento</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["dinheiro","pix","cartao","transferencia"].map(v => <SelectItem key={v} value={v}>{v.toUpperCase()}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="frente_servico" render={({ field }) => (
+                <FormItem><FormLabel>Frente de serviço</FormLabel><FormControl><Input placeholder="Local de aplicação" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="favorecido" render={({ field }) => (
+                <FormItem><FormLabel>Favorecido</FormLabel><FormControl><Input placeholder="Quem recebeu" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            </div>
+
             {/* Recibo / Comprovante */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Recibo / Comprovante</span>
-                <Badge variant="outline" className="text-xs">opcional</Badge>
+                <Badge variant="outline" className="text-xs">obrigatório conforme limite</Badge>
               </div>
               <FormField control={form.control} name="recibo_url" render={({ field }) => (
                 <FormItem>

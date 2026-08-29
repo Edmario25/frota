@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Wallet, Plus, ArrowDownCircle, ArrowUpCircle,
-  DollarSign, Edit, Trash2, MoreHorizontal,
-  Eye, Receipt, FileText, Settings2, AlertTriangle, ChevronLeft, ExternalLink,
+  DollarSign, Edit, MoreHorizontal, CheckCircle2, XCircle,
+  Eye, Receipt, FileText, Settings2, AlertTriangle, ChevronLeft, ExternalLink, Scale,
 } from "lucide-react";
 import { useFundoFixo } from "@/hooks/useFundoFixo";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -32,6 +32,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { supabase } from "@/integrations/supabase/client";
 
 const categoriaLabel: Record<string, string> = {
   alimentacao: "Alimentação",
@@ -59,7 +60,8 @@ export default function FundoFixo() {
   const { obras } = useObras();
   const {
     fundo, lancamentos, allFundos, loading,
-    createFundo, updateFundo, createLancamento, updateLancamento, deleteLancamento,
+    createFundo, updateFundo, createLancamento, updateLancamento, cancelarLancamento,
+    aprovarLancamento, conciliarFundo, encerrarFundo,
     selectFundo, clearFundo,
   } = useFundoFixo();
 
@@ -75,26 +77,45 @@ export default function FundoFixo() {
   const [isEditarFundoOpen, setIsEditarFundoOpen] = useState(false);
   const [novoFundoNome, setNovoFundoNome] = useState("Fundo Fixo");
   const [novoFundoSaldo, setNovoFundoSaldo] = useState("");
+  const [responsavelId, setResponsavelId] = useState("");
+  const [limiteLancamento, setLimiteLancamento] = useState("");
+  const [limiteDiario, setLimiteDiario] = useState("");
+  const [limiteComprovante, setLimiteComprovante] = useState("0");
   const [isSaving, setIsSaving] = useState(false);
   const [verDetalhe, setVerDetalhe] = useState<any>(null);
   const [filtroTipo, setFiltroTipo] = useState<"todos" | "entrada" | "saida">("todos");
+  const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [conciliarOpen, setConciliarOpen] = useState(false);
+  const [modoConciliacao, setModoConciliacao] = useState<"conciliar" | "encerrar">("conciliar");
+  const [saldoFisico, setSaldoFisico] = useState("");
+  const [justificativaConciliacao, setJustificativaConciliacao] = useState("");
+  const [responsaveis, setResponsaveis] = useState<{ id: string; nome: string }[]>([]);
 
   // Stats
-  const totalEntradas = lancamentos.filter(l => l.tipo === "entrada").reduce((s, l) => s + l.valor, 0);
-  const totalSaidas   = lancamentos.filter(l => l.tipo === "saida").reduce((s, l) => s + l.valor, 0);
+  const totalEntradas = lancamentos.filter(l => l.tipo === "entrada" && ((l as any).status ?? "aprovado") === "aprovado").reduce((s, l) => s + l.valor, 0);
+  const totalSaidas   = lancamentos.filter(l => l.tipo === "saida" && ((l as any).status ?? "aprovado") === "aprovado").reduce((s, l) => s + l.valor, 0);
   const lancamentosFiltrados = lancamentos.filter(l =>
-    filtroTipo === "todos" ? true : l.tipo === filtroTipo
+    (filtroTipo === "todos" ? true : l.tipo === filtroTipo) &&
+    (filtroStatus === "todos" ? true : (l as any).status === filtroStatus)
   );
+  const pendentes = lancamentos.filter(l => (l as any).status === "pendente");
+
+  useEffect(() => {
+    (supabase as any).from("employees").select("id,nome").eq("status", "ativo").order("nome")
+      .then(({ data }: any) => setResponsaveis(data ?? []));
+  }, []);
 
   const handleCriarFundo = async () => {
     const targetObraId = obraId || adminObraId;
-    if (!targetObraId) return;
+    if (!targetObraId || !(parseFloat(novoFundoSaldo) > 0)) return;
     setIsSaving(true);
     try {
       await createFundo({
         obra_id: targetObraId,
         nome: novoFundoNome || "Fundo Fixo",
         saldo_inicial: parseFloat(novoFundoSaldo) || 0,
+        ...({ responsavel_id: responsavelId || null, limite_por_lancamento: parseFloat(limiteLancamento) || null,
+          limite_diario: parseFloat(limiteDiario) || null, comprovante_obrigatorio_acima: parseFloat(limiteComprovante) || 0 } as any),
       });
       setIsCriarFundoOpen(false);
       setAdminObraId("");
@@ -110,6 +131,8 @@ export default function FundoFixo() {
       await updateFundo(fundo.id, {
         nome: novoFundoNome,
         saldo_inicial: parseFloat(novoFundoSaldo) || 0,
+        ...({ responsavel_id: responsavelId || null, limite_por_lancamento: parseFloat(limiteLancamento) || null,
+          limite_diario: parseFloat(limiteDiario) || null, comprovante_obrigatorio_acima: parseFloat(limiteComprovante) || 0 } as any),
       });
       setIsEditarFundoOpen(false);
     } finally {
@@ -164,6 +187,10 @@ export default function FundoFixo() {
                 <Button variant="outline" size="sm" onClick={() => {
                   setNovoFundoNome(fundo.nome);
                   setNovoFundoSaldo(fundo.saldo_inicial.toString());
+                  setResponsavelId((fundo as any).responsavel_id ?? "");
+                  setLimiteLancamento((fundo as any).limite_por_lancamento?.toString() ?? "");
+                  setLimiteDiario((fundo as any).limite_diario?.toString() ?? "");
+                  setLimiteComprovante((fundo as any).comprovante_obrigatorio_acima?.toString() ?? "0");
                   setIsEditarFundoOpen(true);
                 }}>
                   <Settings2 className="h-4 w-4 mr-1.5" />
@@ -290,7 +317,7 @@ export default function FundoFixo() {
         {fundo && (
           <>
             {/* Cards de resumo */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               {/* Saldo Atual */}
               <Card className={cn(
                 "border-l-4",
@@ -330,7 +357,7 @@ export default function FundoFixo() {
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Saídas</p>
                   <p className="text-2xl font-extrabold mt-1 text-red-600">R$ {totalSaidas.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {lancamentos.filter(l => l.tipo === "saida").length} lançamentos
+                    {lancamentos.filter(l => l.tipo === "saida" && ((l as any).status ?? "aprovado") === "aprovado").length} lançamentos aprovados
                   </p>
                 </CardContent>
               </Card>
@@ -341,8 +368,16 @@ export default function FundoFixo() {
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Entradas</p>
                   <p className="text-2xl font-extrabold mt-1 text-green-600">R$ {totalEntradas.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {lancamentos.filter(l => l.tipo === "entrada").length} reposições
+                    {lancamentos.filter(l => l.tipo === "entrada" && ((l as any).status ?? "aprovado") === "aprovado").length} reposições aprovadas
                   </p>
+                </CardContent>
+              </Card>
+
+              <Card className={pendentes.length ? "border-amber-300 bg-amber-50/30" : ""}>
+                <CardContent className="pt-4 pb-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Aguardando aprovação</p>
+                  <p className="text-2xl font-extrabold mt-1 text-amber-600">{pendentes.length}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">R$ {pendentes.reduce((s, l) => s + l.valor, 0).toFixed(2)}</p>
                 </CardContent>
               </Card>
             </div>
@@ -363,6 +398,11 @@ export default function FundoFixo() {
                   {f === "todos" ? "Todos" : f === "saida" ? "Saídas" : "Entradas"}
                 </Button>
               ))}
+              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="pendente">Pendentes</SelectItem><SelectItem value="aprovado">Aprovados</SelectItem><SelectItem value="rejeitado">Rejeitados</SelectItem><SelectItem value="cancelado">Estornados</SelectItem></SelectContent>
+              </Select>
+              {(isGestorObra || hasFullAccess) && <div className="ml-auto flex gap-2"><Button variant="outline" size="sm" onClick={() => { setModoConciliacao("conciliar"); setConciliarOpen(true); }} className="gap-1.5"><Scale className="h-4 w-4" /> Conciliar caixa</Button><Button variant="outline" size="sm" className="text-red-600" onClick={() => { setModoConciliacao("encerrar"); setConciliarOpen(true); }}>Encerrar fundo</Button></div>}
             </div>
 
             {/* Tabela de lançamentos */}
@@ -387,10 +427,10 @@ export default function FundoFixo() {
                     {lancamentosFiltrados.map(lanc => (
                       <TableRow key={lanc.id}>
                         <TableCell className="text-sm">
-                          {format(new Date(lanc.data_lancamento), "dd/MM/yy", { locale: ptBR })}
+                          {format(new Date(lanc.data_lancamento + "T12:00:00"), "dd/MM/yy", { locale: ptBR })}
                         </TableCell>
                         <TableCell>
-                          {lanc.tipo === "saida" ? (
+                          <div className="space-y-1">{lanc.tipo === "saida" ? (
                             <span className="flex items-center gap-1 text-red-600 text-xs font-medium">
                               <ArrowDownCircle className="h-3.5 w-3.5" />Saída
                             </span>
@@ -398,7 +438,7 @@ export default function FundoFixo() {
                             <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
                               <ArrowUpCircle className="h-3.5 w-3.5" />Entrada
                             </span>
-                          )}
+                          )}<Badge variant="outline" className={cn("text-[10px]", (lanc as any).status === "pendente" ? "text-amber-700 border-amber-300" : (lanc as any).status === "aprovado" ? "text-green-700" : "text-muted-foreground")}>{(lanc as any).status ?? "aprovado"}</Badge></div>
                         </TableCell>
                         <TableCell className="max-w-[180px] truncate text-sm">{lanc.descricao}</TableCell>
                         <TableCell>
@@ -442,18 +482,18 @@ export default function FundoFixo() {
                               </DropdownMenuItem>
                               {(isGestorObra || hasFullAccess) && (
                                 <>
-                                  <DropdownMenuItem onClick={() => {
+                                  {(lanc as any).status === "pendente" && <><DropdownMenuItem onClick={() => aprovarLancamento(lanc.id, true)}>
+                                    <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />Aprovar
+                                  </DropdownMenuItem><DropdownMenuItem onClick={() => { const motivo = window.prompt("Motivo da rejeição"); if (motivo) aprovarLancamento(lanc.id, false, motivo); }}>
+                                    <XCircle className="h-4 w-4 mr-2 text-red-600" />Rejeitar
+                                  </DropdownMenuItem></>}
+                                  {(lanc as any).status === "pendente" && <DropdownMenuItem onClick={() => {
                                     setSelectedLancamento(lanc);
                                     setIsLancamentoModalOpen(true);
                                   }}>
                                     <Edit className="h-4 w-4 mr-2" />Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive"
-                                    onClick={() => deleteLancamento(lanc.id)}>
-                                    <Trash2 className="h-4 w-4 mr-2" />Excluir
-                                  </DropdownMenuItem>
+                                  </DropdownMenuItem>}
+                                  {(lanc as any).status === "aprovado" && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={() => { const motivo = window.prompt("Informe o motivo do estorno"); if (motivo) cancelarLancamento(lanc.id, motivo); }}><ArrowUpCircle className="h-4 w-4 mr-2" />Estornar</DropdownMenuItem></>}
                                 </>
                               )}
                             </DropdownMenuContent>
@@ -514,12 +554,15 @@ export default function FundoFixo() {
               <Input type="number" step="0.01" value={novoFundoSaldo}
                 onChange={e => setNovoFundoSaldo(e.target.value)} placeholder="0,00" />
             </div>
+            <div className="space-y-2"><Label>Responsável pelo caixa</Label><Select value={responsavelId} onValueChange={setResponsavelId}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{responsaveis.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-3"><div className="space-y-2"><Label>Limite por despesa</Label><Input type="number" value={limiteLancamento} onChange={e => setLimiteLancamento(e.target.value)} placeholder="Sem limite" /></div><div className="space-y-2"><Label>Limite diário</Label><Input type="number" value={limiteDiario} onChange={e => setLimiteDiario(e.target.value)} placeholder="Sem limite" /></div></div>
+            <div className="space-y-2"><Label>Exigir comprovante a partir de</Label><Input type="number" value={limiteComprovante} onChange={e => setLimiteComprovante(e.target.value)} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCriarFundoOpen(false)}>Cancelar</Button>
             <Button
               onClick={handleCriarFundo}
-              disabled={isSaving || (hasFullAccess && !obraId && !adminObraId)}
+              disabled={isSaving || !(parseFloat(novoFundoSaldo) > 0) || (hasFullAccess && !obraId && !adminObraId)}
             >
               {isSaving ? "Criando..." : "Criar Fundo"}
             </Button>
@@ -541,8 +584,12 @@ export default function FundoFixo() {
             </div>
             <div className="space-y-2">
               <Label>Saldo Inicial (R$)</Label>
-              <Input type="number" step="0.01" value={novoFundoSaldo} onChange={e => setNovoFundoSaldo(e.target.value)} />
+              <Input type="number" step="0.01" value={novoFundoSaldo} onChange={e => setNovoFundoSaldo(e.target.value)} disabled={lancamentos.length > 0} />
+              {lancamentos.length > 0 && <p className="text-xs text-muted-foreground">Após a primeira movimentação, ajustes devem ser registrados como lançamentos.</p>}
             </div>
+            <div className="space-y-2"><Label>Responsável pelo caixa</Label><Select value={responsavelId} onValueChange={setResponsavelId}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{responsaveis.map(r => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-3"><div className="space-y-2"><Label>Limite por despesa</Label><Input type="number" value={limiteLancamento} onChange={e => setLimiteLancamento(e.target.value)} placeholder="Sem limite" /></div><div className="space-y-2"><Label>Limite diário</Label><Input type="number" value={limiteDiario} onChange={e => setLimiteDiario(e.target.value)} placeholder="Sem limite" /></div></div>
+            <div className="space-y-2"><Label>Comprovante obrigatório a partir de</Label><Input type="number" value={limiteComprovante} onChange={e => setLimiteComprovante(e.target.value)} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditarFundoOpen(false)}>Cancelar</Button>
@@ -571,7 +618,7 @@ export default function FundoFixo() {
                   <p className="font-semibold">R$ {Number(verDetalhe.valor).toFixed(2)}</p>
                 </div>
                 <div><p className="text-xs text-muted-foreground">Data</p>
-                  <p>{format(new Date(verDetalhe.data_lancamento), "dd/MM/yyyy", { locale: ptBR })}</p>
+                  <p>{format(new Date(verDetalhe.data_lancamento + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}</p>
                 </div>
                 <div><p className="text-xs text-muted-foreground">Categoria</p>
                   <p>{categoriaLabel[verDetalhe.categoria] ?? "Outros"}</p>
@@ -580,6 +627,8 @@ export default function FundoFixo() {
               <div><p className="text-xs text-muted-foreground">Descrição</p>
                 <p>{verDetalhe.descricao}</p>
               </div>
+              <div className="grid grid-cols-2 gap-3"><div><p className="text-xs text-muted-foreground">Status</p><p className="capitalize font-medium">{verDetalhe.status ?? "aprovado"}</p></div><div><p className="text-xs text-muted-foreground">Pagamento</p><p className="uppercase">{verDetalhe.forma_pagamento ?? "—"}</p></div>{verDetalhe.fornecedor && <div><p className="text-xs text-muted-foreground">Fornecedor</p><p>{verDetalhe.fornecedor}</p></div>}{verDetalhe.numero_documento && <div><p className="text-xs text-muted-foreground">Documento</p><p>{verDetalhe.numero_documento}</p></div>}</div>
+              {(verDetalhe.motivo_rejeicao || verDetalhe.motivo_cancelamento) && <div className="rounded-lg bg-red-50 p-2 text-red-700"><p className="text-xs font-semibold">Motivo</p><p>{verDetalhe.motivo_rejeicao || verDetalhe.motivo_cancelamento}</p></div>}
               {verDetalhe.observacoes && (
                 <div><p className="text-xs text-muted-foreground">Observações</p>
                   <p>{verDetalhe.observacoes}</p>
@@ -608,12 +657,20 @@ export default function FundoFixo() {
       </Dialog>
 
       {/* Modal de lançamento */}
+      <Dialog open={conciliarOpen} onOpenChange={setConciliarOpen}>
+        <DialogContent className="max-w-sm"><DialogHeader><DialogTitle>{modoConciliacao === "encerrar" ? "Encerrar fundo fixo" : "Conciliação do caixa"}</DialogTitle><DialogDescription>{modoConciliacao === "encerrar" ? "O encerramento bloqueia novos lançamentos e registra o saldo final." : "Compare o dinheiro contado com o saldo registrado no sistema."}</DialogDescription></DialogHeader>
+          <div className="space-y-4"><div className="rounded-lg bg-muted p-3 text-sm">Saldo no sistema: <strong>R$ {fundo?.saldo_atual.toFixed(2) ?? "0,00"}</strong></div><div className="space-y-2"><Label>Saldo físico contado</Label><Input type="number" step="0.01" value={saldoFisico} onChange={e => setSaldoFisico(e.target.value)} /></div><div className="space-y-2"><Label>Justificativa da diferença</Label><Input value={justificativaConciliacao} onChange={e => setJustificativaConciliacao(e.target.value)} placeholder="Obrigatória quando houver diferença" /></div></div>
+          <DialogFooter><Button variant="outline" onClick={() => setConciliarOpen(false)}>Cancelar</Button><Button variant={modoConciliacao === "encerrar" ? "destructive" : "default"} onClick={async () => { const valor = Number(saldoFisico); if (!Number.isFinite(valor)) return; if (fundo && valor !== fundo.saldo_atual && !justificativaConciliacao.trim()) return; if (modoConciliacao === "encerrar") await encerrarFundo(valor, justificativaConciliacao); else await conciliarFundo(valor, justificativaConciliacao); setConciliarOpen(false); setSaldoFisico(""); setJustificativaConciliacao(""); }}>{modoConciliacao === "encerrar" ? "Confirmar encerramento" : "Registrar conferência"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {fundo && (
         <FundoFixoLancamentoModal
           open={isLancamentoModalOpen}
           onOpenChange={setIsLancamentoModalOpen}
           fundoId={fundo.id}
           apenasGestores={isFuncionario}
+          comprovanteObrigatorioAcima={(fundo as any).comprovante_obrigatorio_acima ?? 0}
           lancamento={selectedLancamento}
           onSubmit={async (data) => {
             if (selectedLancamento) {
