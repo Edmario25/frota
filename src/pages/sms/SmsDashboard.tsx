@@ -125,9 +125,9 @@ export default function SmsDashboard() {
         (supabase as any).from("sms_desvios").select("id", { count: "exact", head: true }).eq("status", "aberto").eq("severidade", "critico"),
         (supabase as any).from("sms_colaborador_treinamentos").select("id", { count: "exact", head: true }).eq("status", "vencido"),
         (supabase as any).from("sms_colaborador_treinamentos").select("id", { count: "exact", head: true }).eq("status", "a_vencer"),
-        (supabase as any).from("sms_aprs").select("id", { count: "exact", head: true }).eq("status", "aberta"),
+        (supabase as any).from("sms_aprs").select("id", { count: "exact", head: true }).in("status", ["aberta", "rascunho", "em_analise", "suspensa"]),
         (supabase as any).from("sms_inspecoes").select("id", { count: "exact", head: true }).in("status", ["pendente", "em_andamento", "aguardando_tratamento", "aguardando_revisao"]),
-        (supabase as any).from("sms_dds_sessoes").select("id", { count: "exact", head: true }).gte("data_sessao", umMesAtras).lte("data_sessao", hoje),
+        (supabase as any).from("sms_dds_sessoes").select("id", { count: "exact", head: true }).eq("status", "concluido").gte("data_sessao", umMesAtras).lte("data_sessao", hoje),
         (supabase as any)
           .from("sms_desvios")
           .select("id, tipo_desvio, severidade, status, data_ocorrencia, obras(nome)")
@@ -218,7 +218,7 @@ export default function SmsDashboard() {
             iconBg="bg-blue-500"
             label="Inspeções Pendentes"
             value={kpi?.inspecoes_pendentes ?? 0}
-            sub={`${kpi?.dds_mes ?? 0} DDS este mês`}
+            sub={`${kpi?.dds_mes ?? 0} DDS concluídos no período`}
             loading={loading}
           />
         </div>
@@ -284,7 +284,7 @@ export default function SmsDashboard() {
             <ModuleCard to="/sms/apr"          icon={FileWarning}    color="bg-violet-500" label="APR"                  desc="Análise Preliminar de Riscos" />
             <ModuleCard to="/sms/epis"         icon={Package}        color="bg-slate-500"  label="EPIs"                 desc="Controle de equipamentos de proteção" />
             <ModuleCard to="/sms/treinamentos" icon={GraduationCap}  color="bg-emerald-500" label="Treinamentos / ASO" desc="Matriz de treinamentos e exames" />
-            <ModuleCard to="/sms/admissao"     icon={UserCheck}      color="bg-indigo-500" label="Admissão Digital"     desc="Checklist de integração de colaboradores" />
+            <ModuleCard to="/sms/admissao"     icon={UserCheck}      color="bg-indigo-500" label="Integração na Obra"   desc="Documentos, integração SMS e liberação" />
             <ModuleCard to="/sms/rdo"          icon={FileText}       color="bg-cyan-600"   label="RDO"                  desc="Relatório Diário de Obra" />
           </div>
         </div>

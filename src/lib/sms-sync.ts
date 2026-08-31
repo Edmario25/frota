@@ -1,6 +1,8 @@
 // ─── Sincronização offline → Supabase ───────────────────────────────────────
 import { supabase } from '@/integrations/supabase/client'
 import { smsDb, OfflineRecord } from './sms-offline-db'
+import { ddsSyncPayload } from './dds'
+import { aprSyncPayload } from './apr'
 
 // ── Upload de foto base64 → Supabase Storage ────────────────────────────────
 async function uploadPhoto(base64: string, path: string): Promise<string | null> {
@@ -47,23 +49,10 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
     switch (rec.type) {
 
       case 'dds': {
-        const { error } = await (supabase as any).from('sms_dds_sessoes').upsert({
-          id:             rec.id,
-          obra_id:        rec.obra_id,
-          tema_id:        d.tema_id,
-          data_sessao:    d.data,
-          condutor:       d.condutor_nome || 'Responsável de campo',
-          hora_inicio:    d.hora_inicio || null,
-          duracao_min:    d.duracao_min || null,
-          participantes_nomes: d.participantes_nomes || null,
-          observacoes:    d.observacoes || null,
-          fotos,
-          registrado_por: userId,
-          device_id:      d.device_id || null,
-          sync_status:    'synced',
-        }, { onConflict: 'id' })
+        if (Array.isArray(d.fotos) && fotos.length !== d.fotos.length) return { ok: false, error: 'Falha no envio de fotos do DDS. Registro mantido para nova tentativa.' }
+        const { error } = await (supabase as any).rpc('dds_registrar', { p_id: rec.id, p_dados: ddsSyncPayload(d, rec.obra_id, fotos) })
         if (error) return { ok: false, error: error.message }
-        // Presenças manuais (nomes livres) → não persistidas em sms_dds_presencas pois exigem employee FK
+        // Sessão e presenças confirmadas na mesma transação. Reenvios usam o mesmo UUID.
         return { ok: true }
       }
 
@@ -132,33 +121,10 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
       }
 
       case 'apr': {
-        const inicio = `${d.data}T${d.hora_inicio || '00:00'}:00`
-        const { error } = await (supabase as any).from('sms_aprs').upsert({
-          id:                 rec.id,
-          obra_id:            rec.obra_id,
-          tipo_atividade_id:  d.tipo_atividade_id,
-          descricao_trabalho: d.descricao_trabalho,
-          local:              d.descricao_trabalho || 'Local não informado',
-          data_hora_inicio:   inicio,
-          data_hora_fim:      d.validade || null,
-          validade:           d.validade || null,
-          emitente_id:        rec.employee_id,
-          responsavel:        d.responsavel_nome || 'Responsável de campo',
-          observacoes:        d.descricao_trabalho || null,
-          registrado_por:     userId,
-          status:             'aberta',
-          device_id:          d.device_id || null,
-          sync_status:        'synced',
-        }, { onConflict: 'id' })
+        const { error } = await (supabase as any).rpc('apr_salvar', {
+          p_id: rec.id, p_dados: aprSyncPayload(d, rec.obra_id), p_versao: null,
+        })
         if (error) return { ok: false, error: error.message }
-        const riscos = d.riscos_selecionados as Array<{ risco_id: string; resposta: string }> | undefined
-        if (riscos?.length) {
-          await (supabase as any).from('sms_apr_riscos_selecionados').delete().eq('apr_id', rec.id)
-          const { error: riscosError } = await (supabase as any).from('sms_apr_riscos_selecionados').insert(
-            riscos.map(r => ({ apr_id: rec.id, risco_id: r.risco_id, resposta: r.resposta, eliminado: r.resposta === 'N' })),
-          )
-          if (riscosError) return { ok: false, error: riscosError.message }
-        }
         return { ok: true }
       }
 

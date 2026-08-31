@@ -20,7 +20,7 @@ import {
 import {
   Building2, Plus, Pencil, Trash2, CheckCircle2, XCircle,
   FileText, DollarSign, TrendingUp, ChevronRight, ChevronDown,
-  AlertCircle, Send, Eye,
+  AlertCircle, Send, Eye, Archive, ShieldCheck,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +43,12 @@ type Subcontratada = {
   responsavel_contato: string | null;
   telefone_contato: string | null;
   observacoes: string | null;
+  numero_contrato: string | null;
+  email_contato: string | null;
+  representante_legal: string | null;
+  percentual_retencao: number;
+  valor_aditivos: number;
+  motivo_status: string | null;
   // da view
   obra_nome?: string;
   total_medicoes?: number;
@@ -60,7 +66,7 @@ type Medicao = {
   data_medicao: string;
   valor_medido: number;
   percentual_avanco: number | null;
-  status: "rascunho" | "enviada" | "aprovada" | "rejeitada";
+  status: "rascunho" | "enviada" | "aprovada" | "rejeitada" | "cancelada";
   observacoes: string | null;
   observacoes_aprovador: string | null;
   // join
@@ -101,6 +107,7 @@ const STATUS_MED: Record<string, { label: string; cls: string; icon: React.Eleme
   enviada:  { label: "Enviada",   cls: "bg-blue-100   text-blue-700",   icon: Send          },
   aprovada: { label: "Aprovada",  cls: "bg-green-100  text-green-700",  icon: CheckCircle2  },
   rejeitada:{ label: "Rejeitada", cls: "bg-red-100    text-red-700",    icon: XCircle       },
+  cancelada:{ label: "Cancelada", cls: "bg-slate-200  text-slate-700",  icon: Archive       },
 };
 
 // ─── Sub-components ────────────────────────────────────────────────────────
@@ -128,7 +135,8 @@ function SubcontratadaModal({
   const blank = {
     obra_id: "", razao_social: "", nome_fantasia: "", cnpj: "",
     escopo: "", valor_contrato: "", data_inicio: "", data_fim_prevista: "",
-    status: "ativa" as const, responsavel_contato: "", telefone_contato: "", observacoes: "",
+    status: "ativa" as "ativa" | "suspensa", responsavel_contato: "", telefone_contato: "", observacoes: "",
+    numero_contrato: "", email_contato: "", representante_legal: "", percentual_retencao: "", valor_aditivos: "", motivo_status: "",
   };
   const [f, setF] = useState(blank);
   const [saving, setSaving] = useState(false);
@@ -145,10 +153,16 @@ function SubcontratadaModal({
           valor_contrato: editing.valor_contrato != null ? String(editing.valor_contrato) : "",
           data_inicio: editing.data_inicio ?? "",
           data_fim_prevista: editing.data_fim_prevista ?? "",
-          status: editing.status,
+          status: editing.status === "suspensa" ? "suspensa" : "ativa",
           responsavel_contato: editing.responsavel_contato ?? "",
           telefone_contato: editing.telefone_contato ?? "",
           observacoes: editing.observacoes ?? "",
+          numero_contrato: editing.numero_contrato ?? "",
+          email_contato: editing.email_contato ?? "",
+          representante_legal: editing.representante_legal ?? "",
+          percentual_retencao: String(editing.percentual_retencao ?? 0),
+          valor_aditivos: String(editing.valor_aditivos ?? 0),
+          motivo_status: editing.motivo_status ?? "",
         });
       } else {
         setF(blank);
@@ -178,6 +192,12 @@ function SubcontratadaModal({
       responsavel_contato: f.responsavel_contato || null,
       telefone_contato: f.telefone_contato || null,
       observacoes: f.observacoes || null,
+      numero_contrato: f.numero_contrato || null,
+      email_contato: f.email_contato || null,
+      representante_legal: f.representante_legal || null,
+      percentual_retencao: Number(f.percentual_retencao || 0),
+      valor_aditivos: Number(f.valor_aditivos || 0),
+      motivo_status: f.status === "suspensa" ? f.motivo_status || null : null,
     };
     const q = editing
       ? (supabase as any).from("subcontratadas").update(payload).eq("id", editing.id)
@@ -215,6 +235,14 @@ function SubcontratadaModal({
             <Label>CNPJ</Label>
             <Input value={f.cnpj} onChange={e => set("cnpj", e.target.value)} placeholder="00.000.000/0000-00" />
           </div>
+          <div>
+            <Label>Nº do Contrato</Label>
+            <Input value={f.numero_contrato} onChange={e => set("numero_contrato", e.target.value)} />
+          </div>
+          <div>
+            <Label>Representante Legal</Label>
+            <Input value={f.representante_legal} onChange={e => set("representante_legal", e.target.value)} />
+          </div>
           <div className="col-span-2">
             <Label>Escopo do Serviço</Label>
             <Textarea value={f.escopo} onChange={e => set("escopo", e.target.value)} rows={2} />
@@ -230,9 +258,16 @@ function SubcontratadaModal({
               <SelectContent>
                 <SelectItem value="ativa">Ativa</SelectItem>
                 <SelectItem value="suspensa">Suspensa</SelectItem>
-                <SelectItem value="encerrada">Encerrada</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label>Aditivos (R$)</Label>
+            <Input type="number" min="0" value={f.valor_aditivos} onChange={e => set("valor_aditivos", e.target.value)} />
+          </div>
+          <div>
+            <Label>Retenção (%)</Label>
+            <Input type="number" min="0" max="100" value={f.percentual_retencao} onChange={e => set("percentual_retencao", e.target.value)} />
           </div>
           <div>
             <Label>Início</Label>
@@ -250,6 +285,14 @@ function SubcontratadaModal({
             <Label>Telefone</Label>
             <Input value={f.telefone_contato} onChange={e => set("telefone_contato", e.target.value)} />
           </div>
+          <div>
+            <Label>E-mail</Label>
+            <Input type="email" value={f.email_contato} onChange={e => set("email_contato", e.target.value)} />
+          </div>
+          {f.status === "suspensa" && <div>
+            <Label>Motivo da suspensão</Label>
+            <Input value={f.motivo_status} onChange={e => set("motivo_status", e.target.value)} />
+          </div>}
           <div className="col-span-2">
             <Label>Observações</Label>
             <Textarea value={f.observacoes} onChange={e => set("observacoes", e.target.value)} rows={2} />
@@ -416,6 +459,7 @@ function BoletimModal({
   }, [open, medicao]);
 
   const subcont = subcontratadas.find(s => s.id === medicao?.subcontratada_id);
+  const editable = medicao?.status === "rascunho";
 
   const totalValor = items.reduce((acc, i) => acc + ((i.quantidade_medida || 0) * (i.valor_unitario || 0)), 0);
 
@@ -427,6 +471,7 @@ function BoletimModal({
 
   const saveItems = async () => {
     if (!medicao) return;
+    if (!editable) { toast({ title: "Boletim bloqueado", description: "Itens só podem ser alterados enquanto o BM estiver em rascunho." }); return; }
     setSavingItems(true);
     // Delete all existing then insert current
     await (supabase as any).from("medicoes_itens").delete().eq("medicao_id", medicao.id);
@@ -490,9 +535,9 @@ function BoletimModal({
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-sm">Itens do Boletim</h3>
-            <Button size="sm" variant="outline" onClick={() => setItems(p => [...p, emptyItem()])}>
+            {editable && <Button size="sm" variant="outline" onClick={() => setItems(p => [...p, emptyItem()])}>
               <Plus className="h-3 w-3 mr-1" /> Adicionar Item
-            </Button>
+            </Button>}
           </div>
 
           {loadingItems ? (
@@ -526,12 +571,14 @@ function BoletimModal({
                         <Input
                           className="h-7 text-xs min-w-[140px]"
                           value={it.descricao}
+                          disabled={!editable}
                           onChange={e => updateItem(idx, "descricao", e.target.value)}
                           placeholder="Descrição do serviço"
                         />
                       </TableCell>
                       <TableCell>
                         <Select
+                          disabled={!editable}
                           value={it.cronograma_item_id ?? "__none"}
                           onValueChange={v => updateItem(idx, "cronograma_item_id", v === "__none" ? null : v)}
                         >
@@ -547,12 +594,13 @@ function BoletimModal({
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Input className="h-7 text-xs w-16" value={it.unidade ?? ""} onChange={e => updateItem(idx, "unidade", e.target.value)} placeholder="m²" />
+                        <Input disabled={!editable} className="h-7 text-xs w-16" value={it.unidade ?? ""} onChange={e => updateItem(idx, "unidade", e.target.value)} placeholder="m²" />
                       </TableCell>
                       <TableCell>
                         <Input
                           className="h-7 text-xs w-24"
                           type="number" min="0"
+                          disabled={!editable}
                           value={it.quantidade_contrato ?? ""}
                           onChange={e => updateItem(idx, "quantidade_contrato", e.target.value ? parseFloat(e.target.value) : null)}
                         />
@@ -561,6 +609,7 @@ function BoletimModal({
                         <Input
                           className="h-7 text-xs w-24"
                           type="number" min="0"
+                          disabled={!editable}
                           value={it.quantidade_medida}
                           onChange={e => updateItem(idx, "quantidade_medida", parseFloat(e.target.value) || 0)}
                         />
@@ -569,6 +618,7 @@ function BoletimModal({
                         <Input
                           className="h-7 text-xs w-28"
                           type="number" min="0"
+                          disabled={!editable}
                           value={it.valor_unitario ?? ""}
                           onChange={e => updateItem(idx, "valor_unitario", e.target.value ? parseFloat(e.target.value) : null)}
                         />
@@ -577,9 +627,9 @@ function BoletimModal({
                         {fmtBRL((it.quantidade_medida || 0) * (it.valor_unitario || 0))}
                       </TableCell>
                       <TableCell>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => removeItem(idx)}>
+                        {editable && <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => removeItem(idx)}>
                           <Trash2 className="h-3 w-3" />
-                        </Button>
+                        </Button>}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -597,9 +647,9 @@ function BoletimModal({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Fechar</Button>
-          <Button onClick={saveItems} disabled={savingItems}>
+          {editable && <Button onClick={saveItems} disabled={savingItems}>
             {savingItems ? "Salvando…" : "Salvar Itens"}
-          </Button>
+          </Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -631,11 +681,12 @@ function ContratosTab({
 
   useEffect(() => { load(); }, [load, refresh]);
 
-  const del = async (id: string) => {
-    if (!confirm("Excluir subcontratada e todas as medições?")) return;
-    const { error } = await (supabase as any).from("subcontratadas").delete().eq("id", id);
+  const encerrar = async (id: string) => {
+    const motivo = window.prompt("Informe o motivo do encerramento do contrato:");
+    if (!motivo) return;
+    const { error } = await (supabase as any).rpc("encerrar_subcontratada", { p_id: id, p_motivo: motivo });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Excluída" });
+    toast({ title: "Contrato encerrado", description: "O histórico e os boletins foram preservados." });
     triggerRefresh();
   };
 
@@ -708,6 +759,7 @@ function ContratosTab({
                       <div className="font-medium text-sm">{s.razao_social}</div>
                       {s.nome_fantasia && <div className="text-xs text-muted-foreground">{s.nome_fantasia}</div>}
                       {s.cnpj && <div className="text-xs text-muted-foreground">{s.cnpj}</div>}
+                      {s.numero_contrato && <div className="text-xs text-primary">Contrato {s.numero_contrato}</div>}
                     </TableCell>
                     <TableCell className="text-xs max-w-[200px] truncate">{s.escopo ?? "—"}</TableCell>
                     <TableCell>
@@ -728,10 +780,10 @@ function ContratosTab({
                           onClick={() => { setEditing(s); setModal(true); }}>
                           <Pencil className="h-3 w-3" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500"
-                          onClick={() => del(s.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        {s.status !== "encerrada" && <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" title="Encerrar contrato"
+                          onClick={() => encerrar(s.id)}>
+                          <Archive className="h-3 w-3" />
+                        </Button>}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -769,6 +821,7 @@ function MedicoesTab({
   const [filterSub, setFilterSub] = useState("todas");
   const [rejectId, setRejectId] = useState<string | null>(null);
   const [rejectObs, setRejectObs] = useState("");
+  const [statusAction, setStatusAction] = useState<"rejeitar" | "cancelar">("rejeitar");
 
   const load = useCallback(async () => {
     if (!obraId) { setData([]); return; }
@@ -785,18 +838,12 @@ function MedicoesTab({
   useEffect(() => { load(); }, [load, refresh]);
 
   const changeStatus = async (id: string, status: string, obs?: string) => {
-    const patch: Record<string, unknown> = { status };
-    if (status === "aprovada") { patch.data_aprovacao = new Date().toISOString().slice(0, 10); }
-    if (obs) { patch.observacoes_aprovador = obs; }
-    const { error } = await (supabase as any).from("medicoes").update(patch).eq("id", id);
+    const action = ({ enviada: "enviar", aprovada: "aprovar", rejeitada: "rejeitar", cancelada: "cancelar" } as Record<string, string>)[status];
+    const { error } = await (supabase as any).rpc("processar_medicao_status", {
+      p_medicao_id: id, p_acao: action, p_observacao: obs || null,
+    });
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
     toast({ title: `Medição ${status === "aprovada" ? "aprovada" : status === "rejeitada" ? "rejeitada" : "atualizada"}` });
-    triggerRefresh();
-  };
-
-  const del = async (id: string) => {
-    if (!confirm("Excluir esta medição?")) return;
-    await (supabase as any).from("medicoes").delete().eq("id", id);
     triggerRefresh();
   };
 
@@ -838,6 +885,7 @@ function MedicoesTab({
               <SelectItem value="enviada">Enviada</SelectItem>
               <SelectItem value="aprovada">Aprovada</SelectItem>
               <SelectItem value="rejeitada">Rejeitada</SelectItem>
+              <SelectItem value="cancelada">Cancelada</SelectItem>
             </SelectContent>
           </Select>
           <Select value={filterSub} onValueChange={setFilterSub}>
@@ -928,15 +976,15 @@ function MedicoesTab({
                       {/* Rejeitar (enviada → rejeitada) */}
                       {m.status === "enviada" && (
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" title="Rejeitar"
-                          onClick={() => { setRejectId(m.id); setRejectObs(""); }}>
+                          onClick={() => { setStatusAction("rejeitar"); setRejectId(m.id); setRejectObs(""); }}>
                           <XCircle className="h-3 w-3" />
                         </Button>
                       )}
-                      {/* Excluir (só rascunho) */}
-                      {m.status === "rascunho" && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500"
-                          onClick={() => del(m.id)}>
-                          <Trash2 className="h-3 w-3" />
+                      {/* Cancelar preservando histórico */}
+                      {m.status !== "aprovada" && m.status !== "cancelada" && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" title="Cancelar BM"
+                          onClick={() => { setStatusAction("cancelar"); setRejectId(m.id); setRejectObs(""); }}>
+                          <Archive className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
@@ -951,18 +999,18 @@ function MedicoesTab({
       {/* Rejeição modal inline */}
       <Dialog open={!!rejectId} onOpenChange={v => !v && setRejectId(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Rejeitar Medição</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{statusAction === "rejeitar" ? "Rejeitar" : "Cancelar"} Medição</DialogTitle></DialogHeader>
           <div>
-            <Label>Motivo da Rejeição</Label>
+            <Label>Justificativa obrigatória</Label>
             <Textarea value={rejectObs} onChange={e => setRejectObs(e.target.value)} rows={3} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectId(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={async () => {
+            <Button variant="destructive" disabled={rejectObs.trim().length < 5} onClick={async () => {
               if (!rejectId) return;
-              await changeStatus(rejectId, "rejeitada", rejectObs);
+              await changeStatus(rejectId, statusAction === "rejeitar" ? "rejeitada" : "cancelada", rejectObs);
               setRejectId(null);
-            }}>Rejeitar</Button>
+            }}>{statusAction === "rejeitar" ? "Rejeitar" : "Cancelar BM"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -981,6 +1029,53 @@ function MedicoesTab({
       />
     </div>
   );
+}
+
+// ─── Tab: Documentos e conformidade ───────────────────────────────────────
+
+type DocumentoSub = { id: string; subcontratada_id: string; tipo: string; numero: string | null; data_vencimento: string | null; arquivo_url: string | null; status: string };
+
+function DocumentosTab({ obraId, subcontratadas, refresh, triggerRefresh }: { obraId: string; subcontratadas: Subcontratada[]; refresh: number; triggerRefresh: () => void }) {
+  const { toast } = useToast();
+  const [docs, setDocs] = useState<DocumentoSub[]>([]);
+  const [subId, setSubId] = useState("");
+  const [tipo, setTipo] = useState("");
+  const [numero, setNumero] = useState("");
+  const [vencimento, setVencimento] = useState("");
+  const [url, setUrl] = useState("");
+  const load = useCallback(async () => {
+    if (!obraId) return setDocs([]);
+    const { data } = await (supabase as any).from("subcontratada_documentos").select("*").eq("obra_id", obraId).order("data_vencimento");
+    setDocs(data ?? []);
+  }, [obraId]);
+  useEffect(() => { load(); }, [load, refresh]);
+  const save = async () => {
+    if (!subId || !tipo.trim()) return toast({ title: "Informe a empresa e o tipo do documento", variant: "destructive" });
+    const { error } = await (supabase as any).from("subcontratada_documentos").insert({ obra_id: obraId, subcontratada_id: subId, tipo: tipo.trim(), numero: numero || null, data_vencimento: vencimento || null, arquivo_url: url || null });
+    if (error) return toast({ title: "Erro ao cadastrar documento", description: error.message, variant: "destructive" });
+    setTipo(""); setNumero(""); setVencimento(""); setUrl(""); triggerRefresh(); toast({ title: "Documento cadastrado" });
+  };
+  const validar = async (id: string, status: "valido" | "rejeitado") => {
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("subcontratada_documentos").update({ status, validado_em: new Date().toISOString(), validado_por: auth.user?.id ?? null }).eq("id", id);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    triggerRefresh();
+  };
+  const hoje = new Date().toISOString().slice(0, 10);
+  return <div className="space-y-4">
+    <Card><CardHeader><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Conformidade documental</CardTitle></CardHeader><CardContent className="grid md:grid-cols-5 gap-3">
+      <Select value={subId} onValueChange={setSubId}><SelectTrigger><SelectValue placeholder="Subcontratada" /></SelectTrigger><SelectContent>{subcontratadas.filter(s => s.status !== "encerrada").map(s => <SelectItem key={s.id} value={s.id}>{s.razao_social}</SelectItem>)}</SelectContent></Select>
+      <Input value={tipo} onChange={e => setTipo(e.target.value)} placeholder="Tipo: CND, seguro, NR..." />
+      <Input value={numero} onChange={e => setNumero(e.target.value)} placeholder="Número" />
+      <Input type="date" value={vencimento} onChange={e => setVencimento(e.target.value)} />
+      <Button onClick={save}><Plus className="h-4 w-4 mr-1" /> Adicionar</Button>
+      <Input className="md:col-span-5" value={url} onChange={e => setUrl(e.target.value)} placeholder="Link do arquivo (opcional)" />
+    </CardContent></Card>
+    <div className="border rounded-lg overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Empresa</TableHead><TableHead>Documento</TableHead><TableHead>Número</TableHead><TableHead>Validade</TableHead><TableHead>Status</TableHead><TableHead>Ações</TableHead></TableRow></TableHeader><TableBody>
+      {docs.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum documento cadastrado.</TableCell></TableRow>}
+      {docs.map(d => { const vencido = !!d.data_vencimento && d.data_vencimento < hoje; const status = vencido ? "vencido" : d.status; return <TableRow key={d.id}><TableCell>{subcontratadas.find(s => s.id === d.subcontratada_id)?.razao_social ?? "—"}</TableCell><TableCell>{d.arquivo_url ? <a className="text-primary underline" href={d.arquivo_url} target="_blank" rel="noreferrer">{d.tipo}</a> : d.tipo}</TableCell><TableCell>{d.numero ?? "—"}</TableCell><TableCell>{d.data_vencimento ?? "Sem vencimento"}</TableCell><TableCell><Badge variant="outline" className={status === "valido" ? "text-green-700" : status === "vencido" || status === "rejeitado" ? "text-red-700" : "text-amber-700"}>{status}</Badge></TableCell><TableCell className="space-x-1"><Button size="sm" variant="outline" onClick={() => validar(d.id, "valido")}>Validar</Button><Button size="sm" variant="ghost" className="text-red-600" onClick={() => validar(d.id, "rejeitado")}>Rejeitar</Button></TableCell></TableRow>; })}
+    </TableBody></Table></div>
+  </div>;
 }
 
 // ─── Tab: Painel (visão por subcontratada) ─────────────────────────────────
@@ -1103,7 +1198,7 @@ export default function Subcontratadas() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await (supabase as any).from("obras").select("id, nome").order("nome");
+      const { data } = await (supabase as any).from("obras").select("id, nome").is("arquivada_em", null).order("nome");
       setObras(data ?? []);
       if (data?.length) setObraId(data[0].id);
     })();
@@ -1155,6 +1250,7 @@ export default function Subcontratadas() {
           <TabsList className="mb-4">
             <TabsTrigger value="contratos">Contratos</TabsTrigger>
             <TabsTrigger value="medicoes">Medições (BM)</TabsTrigger>
+            <TabsTrigger value="documentos">Documentos</TabsTrigger>
             <TabsTrigger value="painel">Painel por Empresa</TabsTrigger>
           </TabsList>
 
@@ -1171,6 +1267,10 @@ export default function Subcontratadas() {
               cronogramaItens={cronogramaItens}
               refresh={refresh} triggerRefresh={triggerRefresh}
             />
+          </TabsContent>
+
+          <TabsContent value="documentos">
+            <DocumentosTab obraId={obraId} subcontratadas={subcontratadas} refresh={refresh} triggerRefresh={triggerRefresh} />
           </TabsContent>
 
           <TabsContent value="painel">
