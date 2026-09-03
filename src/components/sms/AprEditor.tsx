@@ -17,7 +17,7 @@ type Catalog = {
   tipos: { id: string; nome: string }[];
   riscos: { id: string; nome: string; descricao?: string }[];
   treinamentos: { id: string; nome: string; obrigatorio: boolean }[];
-  pts: { id: string; atividade: string; aprovado_por?: string }[];
+  pts: { id: string; atividade: string; aprovada_por?: string }[];
 };
 const emptyCatalog: Catalog = {
   tipos: [],
@@ -436,7 +436,7 @@ export function AprEditor({
               {catalog.pts.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.atividade} — {p.id.slice(0, 8)}{" "}
-                  {p.aprovado_por ? "(aprovada)" : "(pendente)"}
+                  {p.aprovada_por ? "(aprovada)" : "(pendente)"}
                 </option>
               ))}
             </select>

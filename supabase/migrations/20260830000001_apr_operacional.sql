@@ -112,7 +112,7 @@ BEGIN
      IF NOT EXISTS(SELECT 1 FROM sms_colaborador_treinamentos ct WHERE ct.colaborador_id=e.colaborador_id AND ct.treinamento_id=t.id AND (ct.obra_id IS NULL OR ct.obra_id=a.obra_id) AND ct.status IN ('em_dia','a_vencer') AND ct.data_realizacao<=least(inicio,(now() AT TIME ZONE 'America/Sao_Paulo')::date) AND ((ct.data_vencimento IS NULL AND coalesce(t.validade_meses,0)=0) OR ct.data_vencimento>=coalesce(fim,inicio))) THEN erros:=array_append(erros,e.nome||': treinamento pendente — '||t.nome); END IF;
    END LOOP;
  END LOOP;
- IF coalesce((a.plano->>'exige_pt')::boolean,false) AND NOT EXISTS(SELECT 1 FROM sms_pt p WHERE p.id=nullif(a.plano->>'pt_id','')::uuid AND p.obra_id=a.obra_id AND p.status='aberta' AND p.aprovado_por IS NOT NULL AND p.data_inicio<=a.data_hora_inicio AND p.data_fim>=a.validade) THEN erros:=array_append(erros,'Vincule PT aprovada da mesma obra cobrindo todo o período'); END IF;
+ IF coalesce((a.plano->>'exige_pt')::boolean,false) AND NOT EXISTS(SELECT 1 FROM sms_pt p WHERE p.id=nullif(a.plano->>'pt_id','')::uuid AND p.obra_id=a.obra_id AND p.status='aberta' AND p.aprovada_por IS NOT NULL AND p.data_inicio<=a.data_hora_inicio AND p.data_fim>=a.validade) THEN erros:=array_append(erros,'Vincule PT aprovada da mesma obra cobrindo todo o período'); END IF;
  RETURN ARRAY(SELECT DISTINCT unnest(erros));
 END $$;
 

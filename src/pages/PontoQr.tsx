@@ -117,11 +117,10 @@ export default function PontoQr() {
             obras!employee_ponto_qr_obra_id_fkey(nome),
             scanner:employees!employee_ponto_qr_registrado_por_fkey(nome)
           ` : `
-            id, employee_id, tipo, registrado_em, metodo, evento,
+            id, employee_id, tipo, registrado_em, metodo, evento, dispositivo_id,
             employees!employee_ponto_qr_employee_id_fkey(nome, foto_url, cargos(nome)),
             obras!employee_ponto_qr_obra_id_fkey(nome),
-            scanner:employees!employee_ponto_qr_registrado_por_fkey(nome),
-            totem:ponto_totem_dispositivos!employee_ponto_qr_dispositivo_fk(nome)
+            scanner:employees!employee_ponto_qr_registrado_por_fkey(nome)
           `)
           .gte("registrado_em", inicioUtc)
           .lte("registrado_em", fimUtc)
@@ -143,6 +142,24 @@ export default function PontoQr() {
       if (requestId !== requestIdRef.current) return
 
       const data = resultado.data
+      const dispositivos = new Map<string, string>()
+      const dispositivoIds = usouCompatibilidade
+        ? []
+        : [...new Set((data ?? []).map((r: any) => r.dispositivo_id).filter(Boolean))] as string[]
+
+      // Consulta separada para não depender do cache de relacionamentos do PostgREST.
+      if (dispositivoIds.length > 0) {
+        const { data: totens, error: totensError } = await (supabase as any)
+          .from("ponto_totem_dispositivos")
+          .select("id, nome")
+          .in("id", dispositivoIds)
+        if (!totensError) {
+          for (const totem of totens ?? []) dispositivos.set(totem.id, totem.nome)
+        } else {
+          console.warn("Não foi possível identificar os nomes dos totens.", totensError)
+        }
+      }
+      if (requestId !== requestIdRef.current) return
 
       let mapped: Registro[] = (data ?? []).map((r: any) => ({
         id:            r.id,
@@ -155,7 +172,7 @@ export default function PontoQr() {
         evento:        r.evento ?? r.tipo,
         registrado_em: r.registrado_em,
         metodo:        r.metodo,
-        scanner_nome:  r.totem?.nome ?? r.scanner?.nome ?? null,
+        scanner_nome:  dispositivos.get(r.dispositivo_id) ?? r.scanner?.nome ?? null,
       }))
       if (usouCompatibilidade && filtroEvento !== "todos") {
         mapped = mapped.filter(r => r.evento === filtroEvento)
