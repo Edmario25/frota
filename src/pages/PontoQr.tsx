@@ -453,15 +453,27 @@ function TotensPanel({ obras }: { obras: Obra[] }) {
   const [obra, setObra] = useState("")
   const [credencial, setCredencial] = useState<any>(null)
   const [erro, setErro] = useState("")
+  const [criando, setCriando] = useState(false)
   const load = useCallback(async () => {
     const { data, error } = await (supabase as any).rpc("listar_ponto_totens")
     if (error) setErro(error.message); else { setErro(""); setDados(data) }
   }, [])
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (!obra && obras.length === 1) setObra(obras[0].id)
+  }, [obra, obras])
   async function criar() {
-    const { data, error } = await (supabase as any).rpc("criar_ponto_totem", { p_obra: obra, p_nome: nome })
-    if (error) return setErro(error.message)
-    setCredencial(data); setNome(""); await load()
+    setErro("")
+    if (!obra) return setErro("Selecione a obra onde o equipamento será instalado.")
+    if (nome.trim().length < 3) return setErro("Informe um nome com pelo menos 3 caracteres para identificar o totem.")
+    setCriando(true)
+    try {
+      const { data, error } = await (supabase as any).rpc("criar_ponto_totem", { p_obra: obra, p_nome: nome.trim() })
+      if (error) return setErro(error.message)
+      setCredencial(data); setNome(""); await load()
+    } finally {
+      setCriando(false)
+    }
   }
   async function status(id: string, ativo: boolean) {
     const { error } = await (supabase as any).rpc("definir_status_ponto_totem", { p_id: id, p_ativo: ativo })
@@ -470,10 +482,13 @@ function TotensPanel({ obras }: { obras: Obra[] }) {
   return <details className="border rounded-xl bg-card p-4">
     <summary className="font-semibold cursor-pointer">Equipamentos de ponto cadastrados ({dados.itens.length})</summary>
     {erro && <p role="alert" className="text-sm text-red-700 mt-3">{erro}</p>}
-    {dados.pode_criar && <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 mt-4">
-      <Select value={obra} onValueChange={setObra}><SelectTrigger><SelectValue placeholder="Obra do equipamento" /></SelectTrigger><SelectContent>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select>
-      <Input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Totem portaria principal" />
-      <Button disabled={!obra || nome.trim().length < 3} onClick={criar}>Cadastrar totem</Button>
+    {dados.pode_criar && <div className="mt-4 space-y-2">
+      <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2">
+        <Select value={obra} onValueChange={value => { setObra(value); setErro("") }}><SelectTrigger><SelectValue placeholder="Selecione a obra do equipamento *" /></SelectTrigger><SelectContent>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select>
+        <Input value={nome} onChange={e => { setNome(e.target.value); setErro("") }} onKeyDown={e => { if (e.key === "Enter" && !criando) void criar() }} placeholder="Nome do totem (ex.: Portaria principal) *" />
+        <Button disabled={criando} onClick={criar}>{criando ? "Cadastrando..." : "Cadastrar totem"}</Button>
+      </div>
+      <p className="text-xs text-muted-foreground">Selecione a obra e informe um nome para identificar fisicamente este equipamento.</p>
     </div>}
     {credencial && <div className="mt-4 border border-amber-300 bg-amber-50 rounded-lg p-3 text-sm">
       <strong>Copie agora: o segredo não será exibido novamente.</strong>
