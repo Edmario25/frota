@@ -12,7 +12,14 @@
 ## Gerar o APK (debug — para testes e distribuição interna)
 
 ```bash
-# 1. Abrir o projeto Android no Android Studio
+# 1. Sincronizar o projeto Android
+npm run cap:sync
+
+# 2. Reaplicar os arquivos de segurança versionados
+copy sms-android-patches\AndroidManifest.xml android\app\src\main\AndroidManifest.xml
+copy sms-android-patches\MainActivity.java android\app\src\main\java\shop\apicesystem\smscampo\MainActivity.java
+
+# 3. Abrir o projeto Android no Android Studio
 npm run cap:open
 ```
 
@@ -73,7 +80,9 @@ adb install android/app/build/outputs/apk/debug/app-debug.apk
 - Na **primeira abertura** precisa de internet para carregar
 - Após o primeiro acesso, o **service worker** guarda os arquivos em cache
 - Os registros são salvos no **IndexedDB** do celular quando offline
+- Os registros offline são isolados pela conta autenticada no aparelho
 - Ao reconectar, sincroniza automaticamente com o servidor
+- Capturas de tela e backup Android ficam bloqueados na versão 1.1
 
 ---
 

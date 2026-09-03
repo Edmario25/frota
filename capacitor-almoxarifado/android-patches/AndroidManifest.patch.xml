@@ -1,0 +1,2 @@
+<!-- Aplicar no elemento <application> depois de recriar a plataforma Android. -->
+<application android:allowBackup="false" android:fullBackupContent="false" />

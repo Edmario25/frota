@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { LogOut, KeyRound, Eye, EyeOff, User, Loader2, Bell, BellOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 function getInitials(name: string) {
   return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -19,6 +20,7 @@ export function AppPerfil() {
   const navigate = useNavigate();
 
   const { ativarPush, desativarPush, verificarPushAtivo } = useEscalaNotificacoes();
+  const { queueCount } = useOnlineStatus();
 
   const [showPwd, setShowPwd]         = useState(false);
   const [newPwd, setNewPwd]           = useState("");
@@ -63,6 +65,8 @@ export function AppPerfil() {
   const displayEmail = employee?.email ?? user?.email ?? "—";
 
   const handleSignOut = async () => {
+    if (queueCount > 0 && !window.confirm(`Existem ${queueCount} lançamento(s) ainda não sincronizado(s). Eles permanecerão protegidos nesta conta. Deseja sair?`)) return;
+    localStorage.removeItem("motorista-query-cache");
     await signOut();
     navigate("/auth", { replace: true });
   };

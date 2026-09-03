@@ -19,6 +19,7 @@ import { useChatMotoristaBadge } from "@/hooks/useChat";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { playNotifSound } from "@/lib/notifSound";
+import { claimLegacyQueue } from "@/lib/offlineQueue";
 
 type Tab = "home" | "lancar" | "checklist" | "fumaca" | "escala" | "chat" | "perfil";
 type LancarType = "abastecimento" | "manutencao" | "borracharia" | "lavagem" | "multa" | "avaria" | null;
@@ -62,13 +63,20 @@ export default function MobileApp() {
   const { user, loading: loadingAuth }          = useAuth();
   const { loading: loadingRole } = useUserRole();
   const { employee, loading: loadingEmployee }  = useCurrentEmployee();
-  const { isOnline, queueCount, syncQueue }     = useOnlineStatus();
+  const { isOnline, queueCount, syncQueue, refreshCount } = useOnlineStatus();
   const { unreadCount: escalaUnread }           = useEscalaNotificacoes();
   const chatUnread                              = useChatMotoristaBadge(employee?.id);
   const { toast }                               = useToast();
   const activeRef                               = useRef<Tab>("home");
 
   const loading = loadingAuth || loadingRole || loadingEmployee;
+
+  useEffect(() => {
+    if (user?.id && employee?.id) {
+      claimLegacyQueue(user.id, employee.id);
+      refreshCount();
+    }
+  }, [user?.id, employee?.id, refreshCount]);
 
   const temAcesso = employee?.acesso_app_motorista === true;
 
@@ -147,7 +155,14 @@ export default function MobileApp() {
     );
   }
 
-  if (!temAcesso) return null;
+  if (!temAcesso) return (
+    <div className="h-[100dvh] bg-slate-900 flex flex-col items-center justify-center px-6 text-center">
+      <div className="text-5xl mb-4">🔒</div>
+      <h1 className="text-xl font-bold text-white">Acesso bloqueado</h1>
+      <p className="text-sm text-slate-300 mt-2 max-w-sm">Seu cadastro não possui permissão para o App do Motorista. Solicite a liberação ao gestor.</p>
+      <button onClick={() => supabase.auth.signOut()} className="mt-6 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900">Sair e usar outra conta</button>
+    </div>
+  );
 
   const renderTab = () => {
     switch (active) {

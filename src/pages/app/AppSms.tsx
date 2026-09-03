@@ -58,11 +58,20 @@ function useOnlineStatus() {
   return online
 }
 
+function getSmsDeviceId() {
+  const key = 'apice_sms_device_id'
+  let id = localStorage.getItem(key)
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id) }
+  return id
+}
+
 // ─── main component ───────────────────────────────────────────────────────────
 export default function AppSms() {
   const [authState, setAuthState] = useState<AuthState>('loading')
   const [employee, setEmployee]   = useState<Employee | null>(null)
+  const [authUserId, setAuthUserId] = useState('')
   const [obras, setObras]         = useState<Obra[]>([])
+  const [activeObraId, setActiveObraId] = useState('')
   const [screen, setScreen]       = useState<Screen>('home')
   const [pendingCount, setPending]= useState(0)
   const [syncing, setSyncing]     = useState(false)
@@ -100,9 +109,15 @@ export default function AppSms() {
     setScreen('veiculo-hist')
   }, [])
 
-  const handleCrachaScan = useCallback((employeeId: string) => {
+  const handleCrachaScan = useCallback(async (cracha: string) => {
+    const { data, error } = await (supabase as any).rpc('resolver_cracha_sms', { p_cracha: cracha.trim() })
+    if (error || !data?.employee_id) {
+      setCrachaScan(false)
+      window.alert(error?.message || 'Crachá inválido ou sem vínculo com a obra do técnico.')
+      return
+    }
     setCrachaScan(false)
-    setScanEmployee(employeeId)
+    setScanEmployee(data.employee_id)
     setScreen('func-hist')
   }, [])
 
@@ -164,9 +179,12 @@ export default function AppSms() {
     }
 
     const data = { ...emp, obra_id: obraPrincipalId }
+    await smsDb.claimLegacy(emp.id, userId)
+    setAuthUserId(userId)
     setEmployee(data)
     setAuthState('ok')
     setObras(obrasVinculadas)
+    setActiveObraId(obraPrincipalId ?? '')
     const { data: alertas } = await (supabase as any).from('sms_notificacoes')
       .select('id,titulo,mensagem,referencia_id,created_at').eq('destinatario_id', emp.id)
       .eq('tipo', 'inspecao_equipamento').in('status', ['pendente','enviado']).order('created_at', { ascending: false }).limit(10)
@@ -174,25 +192,9 @@ export default function AppSms() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => setPushAtivo(!!sub)).catch(() => setPushAtivo(false))
     }
-    if (obrasVinculadas.length) {
-      const { data: equipeData } = await (supabase as any)
-        .from('obra_funcionarios')
-        .select('employees(id,nome,status)')
-        .in('obra_id', obrasVinculadas.map(o => o.id))
-        .eq('status', true)
-      const equipeUnica = Array.from(new Map((equipeData ?? [])
-        .map((v: any) => v.employees)
-        .filter((e: any) => e?.status === 'ativo')
-        .map((e: any) => [e.id, { id: e.id, nome: e.nome }])).values()) as { id: string; nome: string }[]
-      setEquipe(equipeUnica)
-    } else setEquipe([])
     // load ref data when online
     if (navigator.onLine) {
-      loadRefData(); loadVeiculos(obraPrincipalId)
-      if (obraPrincipalId) {
-        const { data: equips } = await (supabase as any).from('v_ferramentas_situacao').select('id,nome,codigo_patrimonio,status_operacional').eq('obra_atual_id', obraPrincipalId).order('nome')
-        setEquipamentos((equips ?? []) as Equipamento[])
-      } else setEquipamentos([])
+      loadRefData(); loadObraData(obraPrincipalId)
     }
     // restore from IndexedDB cache
     else {
@@ -207,8 +209,12 @@ export default function AppSms() {
       if (cCatInsp) setCatalogoInsp(cCatInsp)
       const cItens = await smsDb.getRef<typeof itensCatalogo>('sms_inspecoes_itens_catalogo')
       if (cItens) setItensCatalog(cItens)
-      const cVeiculos = await smsDb.getRef<Veiculo[]>('obra_veiculos')
+      const cVeiculos = await smsDb.getRef<Veiculo[]>(`obra_veiculos:${obraPrincipalId}`)
       if (cVeiculos) setVeiculos(cVeiculos)
+      const cEquipe = await smsDb.getRef<{ id: string; nome: string }[]>(`obra_equipe:${obraPrincipalId}`)
+      if (cEquipe) setEquipe(cEquipe)
+      const cEquipamentos = await smsDb.getRef<Equipamento[]>(`obra_equipamentos:${obraPrincipalId}`)
+      if (cEquipamentos) setEquipamentos(cEquipamentos)
     }
     refreshCounts()
   }
@@ -226,22 +232,38 @@ export default function AppSms() {
     setPushAtivo(true)
   }
 
-  const loadVeiculos = async (obraId: string | null) => {
-    if (!obraId) return
+  const loadObraData = async (obraId: string | null) => {
+    if (!obraId) { setVeiculos([]); setEquipe([]); setEquipamentos([]); return }
     try {
-      // Busca veículos vinculados à obra via obra_veiculos
-      const { data } = await (supabase as any)
-        .from('obra_veiculos')
-        .select('vehicles(id, placa, marca, modelo)')
-        .eq('obra_id', obraId)
-        .eq('status', true)
-      const lista: Veiculo[] = (data ?? [])
+      const [veiculosResult, equipeResult, equipamentosResult] = await Promise.all([
+        (supabase as any).from('obra_veiculos').select('vehicles(id, placa, marca, modelo)').eq('obra_id', obraId).eq('status', true),
+        (supabase as any).from('obra_funcionarios').select('employees(id,nome,status)').eq('obra_id', obraId).eq('status', true),
+        (supabase as any).from('v_ferramentas_situacao').select('id,nome,codigo_patrimonio,status_operacional').eq('obra_atual_id', obraId).order('nome'),
+      ])
+      const lista: Veiculo[] = (veiculosResult.data ?? [])
         .map((row: any) => row.vehicles)
         .filter(Boolean)
         .sort((a: Veiculo, b: Veiculo) => a.placa.localeCompare(b.placa))
+      const equipeLista = (equipeResult.data ?? []).map((v: any) => v.employees).filter((e: any) => e?.status === 'ativo').map((e: any) => ({ id: e.id, nome: e.nome }))
+      const equipamentosLista = (equipamentosResult.data ?? []) as Equipamento[]
       setVeiculos(lista)
-      await smsDb.setRef('obra_veiculos', lista)
-    } catch { /* offline */ }
+      setEquipe(equipeLista)
+      setEquipamentos(equipamentosLista)
+      await Promise.all([
+        smsDb.setRef(`obra_veiculos:${obraId}`, lista),
+        smsDb.setRef(`obra_equipe:${obraId}`, equipeLista),
+        smsDb.setRef(`obra_equipamentos:${obraId}`, equipamentosLista),
+      ])
+    } catch {
+      const [cachedVehicles, cachedTeam, cachedEquipment] = await Promise.all([
+        smsDb.getRef<Veiculo[]>(`obra_veiculos:${obraId}`),
+        smsDb.getRef<{ id: string; nome: string }[]>(`obra_equipe:${obraId}`),
+        smsDb.getRef<Equipamento[]>(`obra_equipamentos:${obraId}`),
+      ])
+      setVeiculos(cachedVehicles ?? [])
+      setEquipe(cachedTeam ?? [])
+      setEquipamentos(cachedEquipment ?? [])
+    }
   }
 
   const loadRefData = async () => {
@@ -262,7 +284,7 @@ export default function AppSms() {
   }
 
   const refreshCounts = async () => {
-    const p = await smsDb.countPending()
+    const p = authUserId ? await smsDb.countPending(authUserId) : 0
     setPending(p)
   }
 
@@ -273,9 +295,11 @@ export default function AppSms() {
     setSyncing(true)
     setSyncMsg('Sincronizando...')
     try {
-      const result = await syncAll()
+      const result = await syncAll(authUserId)
       await refreshCounts()
-      setSyncMsg(result.synced > 0 ? `✅ ${result.synced} registro(s) enviado(s)` : '✅ Tudo sincronizado')
+      setSyncMsg(result.errors > 0
+        ? `⚠️ ${result.errors} registro(s) aguardando correção ou nova tentativa`
+        : result.synced > 0 ? `✅ ${result.synced} registro(s) enviado(s)` : '✅ Tudo sincronizado')
     } catch {
       setSyncMsg('⚠️ Erro ao sincronizar')
     } finally {
@@ -283,24 +307,26 @@ export default function AppSms() {
       syncLock.current = false
       setTimeout(() => setSyncMsg(''), 3000)
     }
-  }, [online, employee])
+  }, [online, employee, authUserId])
 
   useEffect(() => {
-    if (online && employee) { loadRefData(); loadVeiculos(employee.obra_id); doSync() }
-  }, [online])
+    if (online && employee) { loadRefData(); loadObraData(activeObraId); doSync() }
+  }, [online, activeObraId])
 
   // ── save handler ─────────────────────────────────────────────────────────────
   const handleSave = async (type: RecordType, data: Record<string, unknown>) => {
     if (!employee) return
-    const obraId = (data.obra_id as string) ?? employee.obra_id ?? ''
+    const obraId = (data.obra_id as string) ?? activeObraId
+    if (!obraId || !obras.some(o => o.id === obraId)) throw new Error('Selecione uma obra vinculada antes de salvar.')
     const obraNome = obras.find(o => o.id === obraId)?.nome ?? obraId
     await smsDb.put({
       id: crypto.randomUUID(),
       type,
-      data: { ...data, registrado_por: employee.id },
+      data: { ...data, registrado_por: employee.id, device_id: getSmsDeviceId(), app_version: '1.1.0' },
       obra_id: obraId,
       obra_nome: obraNome,
       employee_id: employee.id,
+      owner_user_id: authUserId,
       created_at: new Date().toISOString(),
       synced: false,
     })
@@ -320,7 +346,9 @@ export default function AppSms() {
   }
 
   const handleLogout = async () => {
+    if (authUserId && await smsDb.countPending(authUserId) > 0 && !window.confirm('Existem registros ainda não sincronizados. Se sair agora, eles permanecerão protegidos neste aparelho e só serão exibidos nesta conta. Deseja sair?')) return
     await supabase.auth.signOut()
+    setAuthUserId('')
     setScreen('home')
   }
 
@@ -399,6 +427,7 @@ export default function AppSms() {
         onClose={() => setCrachaScan(false)}
         hint="Aponte para o QR Code do crachá do funcionário"
         title="Escanear Crachá"
+        badgeMode
       />
     )
 
@@ -407,7 +436,7 @@ export default function AppSms() {
     return (
       <LiberacaoVeiculoForm
         employee={employee!}
-        obraId={employee!.obra_id ?? ''}
+        obraId={activeObraId}
         veiculos={veiculos}
         preselectedVehicleId={scannedVehicleId ?? undefined}
         onSaved={() => { setScanVehicle(null); setScreen('home') }}
@@ -424,7 +453,7 @@ export default function AppSms() {
     return (
       <VeiculoHistoricoScreen
         vehicleId={scannedVehicleId}
-        obraId={employee!.obra_id}
+        obraId={activeObraId}
         onLiberar={() => setScreen('form-liberacao')}
         onBack={() => { setScanVehicle(null); setScreen('home') }}
       />
@@ -435,13 +464,13 @@ export default function AppSms() {
     return (
       <FuncionarioHistoricoScreen
         employeeId={scannedEmployeeId}
-        obraId={employee!.obra_id}
+        obraId={activeObraId}
         onBack={() => { setScanEmployee(null); setScreen('home') }}
       />
     )
 
   // ── render: forms ─────────────────────────────────────────────────────────────
-  const formProps = { employee: employee!, obras, obraId: employee!.obra_id ?? '', veiculos }
+  const formProps = { employee: employee!, obras: obras.filter(o => o.id === activeObraId), obraId: activeObraId, veiculos }
 
   if (screen === 'form-dds')
     return <DdsForm
@@ -467,7 +496,7 @@ export default function AppSms() {
 
   // ── render: histórico ─────────────────────────────────────────────────────────
   const loadHist = async () => {
-    const all = await smsDb.getAll()
+    const all = await smsDb.getAll(authUserId)
     setHist(all.slice().reverse())
     setScreen('hist')
   }
@@ -536,6 +565,11 @@ export default function AppSms() {
           <div className="mt-2 text-xs text-green-100 text-center bg-green-800/50 rounded-lg py-1.5 px-3">
             {syncMsg}
           </div>
+        )}
+        {obras.length > 1 && (
+          <select value={activeObraId} onChange={e => setActiveObraId(e.target.value)} className="mt-3 w-full rounded-xl border border-white/30 bg-green-800 px-3 py-2.5 text-sm font-semibold text-white">
+            {obras.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+          </select>
         )}
       </div>
 

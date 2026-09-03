@@ -2,17 +2,20 @@ import { useEffect, useState, useCallback } from "react";
 import { getQueue, dequeue, QueuedOperation } from "@/lib/offlineQueue";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 /** Retorna se o navegador está online e expõe contagem de ops na fila. */
 export function useOnlineStatus() {
+  const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [queueCount, setQueueCount] = useState(getQueue().length);
+  const [queueCount, setQueueCount] = useState(0);
 
-  const refreshCount = useCallback(() => setQueueCount(getQueue().length), []);
+  const refreshCount = useCallback(() => setQueueCount(user?.id ? getQueue(user.id).length : 0), [user?.id]);
 
   /** Tenta sincronizar todas as ops na fila com o Supabase */
   const syncQueue = useCallback(async () => {
-    const queue = getQueue();
+    if (!user?.id) return;
+    const queue = getQueue(user.id);
     if (queue.length === 0) return;
 
     toast.loading(`Sincronizando ${queue.length} operação${queue.length > 1 ? "ões" : ""}…`, {
@@ -40,7 +43,9 @@ export function useOnlineStatus() {
     } else {
       toast.warning(`${successCount} ok, ${failCount} com erro. Tente novamente.`, { id: "sync-toast" });
     }
-  }, [refreshCount]);
+  }, [refreshCount, user?.id]);
+
+  useEffect(() => { refreshCount(); }, [refreshCount]);
 
   useEffect(() => {
     const onOnline = () => {
@@ -66,7 +71,7 @@ async function flushOperation(op: QueuedOperation) {
     case "insert": {
       const { error } = await supabase
         .from(op.table as never)
-        .insert(op.payload as never);
+        .upsert(op.payload as never, { onConflict: "id", ignoreDuplicates: false });
       if (error) throw error;
       break;
     }

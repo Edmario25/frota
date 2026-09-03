@@ -71,14 +71,32 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
 
   const gerarQr = async () => {
     try {
+      const { data: token, error } = await (supabase as any).rpc("obter_token_cracha", { p_employee: employee.id })
+      if (error || !token) throw error ?? new Error("Token do crachá indisponível")
       const QRCode = (await import("qrcode")).default
-      const url = await QRCode.toDataURL(employee.id, {
+      const url = await QRCode.toDataURL(token, {
         width: 500, margin: 2,
         color: { dark: "#0f172a", light: "#ffffff" },
         errorCorrectionLevel: "H",
       })
       setQrDataUrl(url)
-    } catch { /* ignore */ }
+    } catch (e: any) {
+      setQrDataUrl("")
+      toast({ title: "Não foi possível gerar o QR seguro", description: e?.message, variant: "destructive" })
+    }
+  }
+
+  const renovarQr = async () => {
+    if (!window.confirm("O QR Code anterior deixará de funcionar. Deseja continuar?")) return
+    setLoading(true)
+    try {
+      const { data, error } = await (supabase as any).rpc("renovar_token_cracha", { p_employee: employee.id })
+      if (error) throw error
+      const QRCode = (await import("qrcode")).default
+      setQrDataUrl(await QRCode.toDataURL(data, { width: 500, margin: 2, color: { dark: "#0f172a", light: "#ffffff" }, errorCorrectionLevel: "H" }))
+      toast({ title: "QR Code renovado", description: "Imprima um novo crachá. O anterior foi revogado." })
+    } catch (e: any) { toast({ title: "Falha ao renovar", description: e?.message, variant: "destructive" }) }
+    finally { setLoading(false) }
   }
 
   const fetchTreinamentos = async () => {
@@ -559,6 +577,9 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
                 Baixar HTML
               </Button>
             </div>
+            <Button variant="ghost" className="w-full text-destructive" onClick={renovarQr}>
+              Revogar QR anterior e gerar outro
+            </Button>
           </div>
         )}
       </DialogContent>

@@ -106,6 +106,15 @@ export function AppChecklist() {
       return;
     }
     if (!vehicle || !employee) return;
+    if (!km || Number(km) < Number(vehicle.quilometragem_atual ?? 0)) {
+      toast({ title: "Quilometragem inválida", description: "Informe um KM igual ou maior que o odômetro atual.", variant: "destructive" });
+      return;
+    }
+    const possuiDefeito = Object.values(statuses).includes("defeito");
+    if (possuiDefeito && (!obs.trim() || fotosCapturadas === 0)) {
+      toast({ title: "Defeito exige evidência", description: "Descreva o defeito e anexe pelo menos uma foto.", variant: "destructive" });
+      return;
+    }
 
     setSaving(true);
     try {

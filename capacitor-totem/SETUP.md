@@ -17,9 +17,10 @@ APK dedicado para tablet fixo na obra. Scanner de QR Code do crachá → registr
 
 ## 1. Preparar o banco
 
-1. Aplique a migration `20260822000003_secure_totem_rpc.sql`.
+1. Aplique as migrations até `20260831000001_totem_profissional.sql`.
 2. Confirme que o funcionário está vinculado à obra em `employee_obra_assignments` ou `obra_funcionarios`.
-3. Copie o UUID da obra que ficará configurada no tablet.
+3. Em **Ponto QR → Equipamentos de ponto**, selecione a obra e cadastre o tablet.
+4. Copie o ID e o segredo exibidos uma única vez.
 
 O aplicativo usa somente a chave pública do Supabase. Nunca coloque uma chave `service_role` no `.env`, no APK ou em outro aplicativo cliente.
 
@@ -35,11 +36,11 @@ cp .env.example .env
 Edite `.env`:
 
 ```env
+VITE_SUPABASE_URL=https://dadosfrota.apicesystem.shop
 VITE_SUPABASE_PUBLISHABLE_KEY=sua-chave-publica-anon
-
-# UUID obrigatório da obra onde o tablet ficará fixo
-# Copie de: Supabase → Table Editor → obras → coluna id
-VITE_OBRA_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+VITE_TOTEM_DEVICE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+VITE_TOTEM_DEVICE_SECRET=segredo-exibido-no-cadastro
+VITE_APP_VERSION=1.1.0
 ```
 
 ---
@@ -149,14 +150,14 @@ Para que o tablet só abra este app e o trabalhador não possa fechar:
 # 1. Instale via ADB em modo debug
 adb install app-debug.apk
 
-# 2. Configure como Device Owner (faz uma vez, irreversível até factory reset)
-adb shell dpm set-device-owner br.com.apicegestao.totem/.MainActivity
+# 2. Para quiosque corporativo completo, use um MDM compatível com Android Enterprise.
+# A Activity do app não é um DeviceAdminReceiver e não deve ser usada com `dpm set-device-owner`.
 
 # 3. No MainActivity.java, descomente a linha:
 #    startLockTask();
 ```
 
-> ⚠️ Device Owner bloqueia o tablet permanentemente neste app até factory reset.
+> O app já mantém a tela ativa e usa modo imersivo. Bloqueio total do aparelho exige provisionamento por MDM e deve ser homologado antes da implantação.
 > Faça isso apenas quando tiver certeza que o APK está correto.
 
 ---
@@ -189,7 +190,7 @@ capacitor-totem/
 | Problema | Solução |
 |---------|---------|
 | Câmera não abre | Verifique permissão CAMERA no manifest e no Android |
-| "Funcionário não encontrado" | QR lido não é UUID de funcionário — verifique o crachá |
+| "Crachá inválido" | QR antigo, revogado ou funcionário sem vínculo ativo; gere novo crachá |
 | Tela apaga | `FLAG_KEEP_SCREEN_ON` só funciona com o app em foreground |
 | App fecha ao pressionar voltar | `onBackPressed()` desabilitado — force stop via Settings se necessário |
-| Registro recusado | Confirme a migration da RPC e o vínculo do funcionário com `VITE_OBRA_ID` |
+| Registro recusado | Confirme a migration, se o dispositivo está ativo e se o funcionário está vinculado à obra do totem |

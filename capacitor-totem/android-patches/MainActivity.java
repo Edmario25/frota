@@ -1,58 +1,42 @@
 package br.com.apicegestao.totem;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
-import android.view.Window;
+import android.webkit.PermissionRequest;
+import android.webkit.WebChromeClient;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 
-/**
- * MainActivity do Ponto Totem.
- *
- * Comportamentos especiais:
- *  - FLAG_KEEP_SCREEN_ON    → tela nunca apaga enquanto o app está aberto
- *  - Immersive Sticky Mode  → barra de status e barra de navegação ficam ocultas;
- *                             o usuário pode deslizar para revelar e elas somem após 2 s
- *  - onBackPressed()        → noop (impede fechar o app por acidente no tablet)
- *
- * Para lock task / kiosk mode completo (requer Device Owner):
- *   startLockTask() no onCreate() — veja SETUP.md seção "Kiosk Mode".
- */
 public class MainActivity extends BridgeActivity {
+    private static final int CAMERA_PERMISSION_CODE = 1001;
+    private PermissionRequest pending;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        // ── 1. Manter tela acesa ──────────────────────────────────────────────
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
-        // ── 2. Modo imersivo sticky (sem barras) ──────────────────────────────
         hideSystemUI();
+        getBridge().getWebView().setWebChromeClient(new WebChromeClient() {
+            @Override public void onPermissionRequest(PermissionRequest request) {
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) grantCameraOnly(request);
+                else { pending=request; ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.CAMERA},CAMERA_PERMISSION_CODE); }
+            }
+        });
+        if (ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED)
+            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.CAMERA},CAMERA_PERMISSION_CODE);
     }
-
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) hideSystemUI();
+    @Override public void onRequestPermissionsResult(int code,String[] permissions,int[] results) {
+        super.onRequestPermissionsResult(code,permissions,results);
+        if(code==CAMERA_PERMISSION_CODE&&pending!=null){if(results.length>0&&results[0]==PackageManager.PERMISSION_GRANTED)grantCameraOnly(pending);else pending.deny();pending=null;}
     }
-
-    private void hideSystemUI() {
-        View decorView = getWindow().getDecorView();
-        decorView.setSystemUiVisibility(
-            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-            | View.SYSTEM_UI_FLAG_FULLSCREEN
-        );
+    private void grantCameraOnly(PermissionRequest request){
+        for(String resource:request.getResources())if(PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)){request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});return;}
+        request.deny();
     }
-
-    // ── Bloqueia botão voltar ─────────────────────────────────────────────────
-    @Override
-    public void onBackPressed() {
-        // Intencionalmente não faz nada — o totem não tem navegação
-        // Remova ou adapte se precisar de um menu de saída protegido por PIN
-    }
+    private void hideSystemUI(){getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_FULLSCREEN);}
+    @Override public void onWindowFocusChanged(boolean focus){super.onWindowFocusChanged(focus);if(focus)hideSystemUI();}
+    @Override public void onBackPressed(){/* modo dedicado; Lock Task requer política administrada */}
 }

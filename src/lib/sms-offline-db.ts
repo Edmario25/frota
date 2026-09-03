@@ -26,6 +26,7 @@ export interface OfflineRecord {
   obra_id     : string
   obra_nome   : string
   employee_id : string           // employees.id (não auth.uid)
+  owner_user_id: string           // auth.users.id — isola dados entre contas no mesmo aparelho
   created_at  : string           // ISO string
   synced      : boolean
   sync_error ?: string
@@ -68,32 +69,55 @@ class SmsOfflineDB {
     })
   }
 
-  async getAll(): Promise<OfflineRecord[]> {
+  async claimLegacy(employeeId: string, ownerUserId: string): Promise<void> {
+    const db = await this.open()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('records', 'readwrite')
+      const store = tx.objectStore('records')
+      const req = store.openCursor()
+      req.onsuccess = () => {
+        const cursor = req.result
+        if (!cursor) return
+        const record = cursor.value as OfflineRecord
+        if (!record.owner_user_id && record.employee_id === employeeId) {
+          record.owner_user_id = ownerUserId
+          cursor.update(record)
+        }
+        cursor.continue()
+      }
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  }
+
+  async getAll(ownerUserId?: string): Promise<OfflineRecord[]> {
     const db = await this.open()
     return new Promise((resolve, reject) => {
       const tx  = db.transaction('records', 'readonly')
       const req = tx.objectStore('records').getAll()
       req.onsuccess = () =>
-        resolve((req.result as OfflineRecord[]).sort(
+        resolve((req.result as OfflineRecord[])
+          .filter(r => !ownerUserId || r.owner_user_id === ownerUserId)
+          .sort(
           (a, b) => b.created_at.localeCompare(a.created_at),
         ))
       req.onerror = () => reject(req.error)
     })
   }
 
-  async getPending(): Promise<OfflineRecord[]> {
+  async getPending(ownerUserId: string): Promise<OfflineRecord[]> {
     const db = await this.open()
     return new Promise((resolve, reject) => {
       const tx  = db.transaction('records', 'readonly')
       const idx = tx.objectStore('records').index('synced')
       const req = idx.getAll(IDBKeyRange.only(false))
-      req.onsuccess = () => resolve(req.result as OfflineRecord[])
+      req.onsuccess = () => resolve((req.result as OfflineRecord[]).filter(r => r.owner_user_id === ownerUserId))
       req.onerror   = () => reject(req.error)
     })
   }
 
-  async countPending(): Promise<number> {
-    const p = await this.getPending()
+  async countPending(ownerUserId: string): Promise<number> {
+    const p = await this.getPending(ownerUserId)
     return p.length
   }
 

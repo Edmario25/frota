@@ -1,0 +1,4 @@
+Após gerar/sincronizar o Android, confirme em android/app/build.gradle:
+
+versionCode 2
+versionName "1.1"

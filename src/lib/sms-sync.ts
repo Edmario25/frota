@@ -45,6 +45,9 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
     const fotos = Array.isArray(d.fotos)
       ? await resolvePhotos(rec.id, rec.type, d.fotos as string[])
       : []
+    if (Array.isArray(d.fotos) && fotos.length !== d.fotos.length) {
+      return { ok: false, error: 'Uma ou mais evidências não foram enviadas. O registro foi mantido para nova tentativa.' }
+    }
 
     switch (rec.type) {
 
@@ -158,7 +161,8 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
       }
 
       case 'near_miss': {
-        const { error } = await (supabase as any).from('sms_near_miss').insert({
+        if (Array.isArray(d.fotos) && fotos.length !== d.fotos.length) return { ok: false, error: 'Falha no envio das evidências. Registro mantido para nova tentativa.' }
+        const { error } = await (supabase as any).from('sms_near_miss').upsert({
           id:              rec.id,
           obra_id:         rec.obra_id,
           registrado_por:  rec.employee_id,
@@ -170,13 +174,14 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
           fotos,
           device_id:       d.device_id || null,
           sync_status:     'synced',
-        })
+        }, { onConflict: 'id' })
         if (error) return { ok: false, error: error.message }
         return { ok: true }
       }
 
       case 'acidente': {
-        const { error } = await (supabase as any).from('sms_acidentes').insert({
+        if (Array.isArray(d.fotos) && fotos.length !== d.fotos.length) return { ok: false, error: 'Falha no envio das evidências do acidente. Registro mantido para nova tentativa.' }
+        const { error } = await (supabase as any).from('sms_acidentes').upsert({
           id:               rec.id,
           obra_id:          rec.obra_id,
           registrado_por:   rec.employee_id,
@@ -192,13 +197,13 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
           cat_gerada:       d.cat_gerada || false,
           fotos,
           device_id:        d.device_id || null,
-        })
+        }, { onConflict: 'id' })
         if (error) return { ok: false, error: error.message }
         return { ok: true }
       }
 
       case 'pt': {
-        const { error } = await (supabase as any).from('sms_pt').insert({
+        const { error } = await (supabase as any).from('sms_pt').upsert({
           id:                rec.id,
           obra_id:           rec.obra_id,
           emitente_id:       rec.employee_id,
@@ -214,7 +219,7 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
           status:            'aberta',
           device_id:         d.device_id || null,
           sync_status:       'synced',
-        })
+        }, { onConflict: 'id' })
         if (error) return { ok: false, error: error.message }
         return { ok: true }
       }
@@ -228,8 +233,8 @@ export async function syncRecord(rec: OfflineRecord): Promise<{ ok: boolean; err
 }
 
 // ── Sincroniza todos os pendentes ────────────────────────────────────────────
-export async function syncAll(): Promise<{ synced: number; errors: number }> {
-  const pending = await smsDb.getPending()
+export async function syncAll(ownerUserId: string): Promise<{ synced: number; errors: number }> {
+  const pending = await smsDb.getPending(ownerUserId)
   let synced = 0, errors = 0
   for (const rec of pending) {
     const res = await syncRecord(rec)

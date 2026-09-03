@@ -17,6 +17,9 @@
      android:windowSoftInputMode="adjustNothing"
      android:keepScreenOn="true"
 
+     Na tag <application>, use android:allowBackup="false".
+     Remova RECORD_AUDIO; o leitor solicita somente a câmera.
+
   Exemplo do bloco <activity> completo após as alterações:
 
   <activity
@@ -38,7 +41,7 @@
   </activity>
 
   3. Para kiosk mode (Lock Task) — opcional, requer Device Owner:
-     Adicione na tag <application>:
+     Adicione na tag <application> e mantenha android:allowBackup="false":
 
      android:testOnly="false"
 

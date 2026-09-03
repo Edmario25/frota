@@ -29,6 +29,9 @@ const opcoes = [
   { id: "avaria",       label: "Avaria",         Icon: ShieldAlert,   color: "bg-yellow-500", bg: "bg-yellow-50",                     text: "text-yellow-600" },
 ] as const;
 
+const isNetworkError = (error: unknown) =>
+  /failed to fetch|network|load failed|timeout/i.test(error instanceof Error ? error.message : String(error));
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function MobileInput({ label, type = "text", value, onChange, placeholder, min, step, prefix }: {
   label: string; type?: string; value: string; onChange: (v: string) => void;
@@ -141,6 +144,8 @@ function FormAbastecimento({ vehicleId, employeeId, userId, kmAtual, onClose }: 
 
   const handleSave = async () => {
     if (!litros || !valorLitro) { toast({ title: "Preencha litros e valor/litro", variant: "destructive" }); return; }
+    if (!km || Number(km) < Number(kmAtual ?? 0)) { toast({ title: "Quilometragem inválida", description: "O KM não pode ser menor que o odômetro atual.", variant: "destructive" }); return; }
+    if (Number(litros) <= 0 || Number(valorLitro) <= 0) { toast({ title: "Informe valores maiores que zero", variant: "destructive" }); return; }
     setSaving(true);
 
     const litrosNum    = parseFloat(litros);
@@ -161,7 +166,7 @@ function FormAbastecimento({ vehicleId, employeeId, userId, kmAtual, onClose }: 
 
     try {
       if (!isOnline) {
-        enqueue({ table: "vehicle_fuel_logs", action: "insert", payload });
+        enqueue({ table: "vehicle_fuel_logs", action: "insert", payload, owner_user_id: userId });
         refreshCount();
         toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
         onClose();
@@ -169,7 +174,12 @@ function FormAbastecimento({ vehicleId, employeeId, userId, kmAtual, onClose }: 
       }
       await createFuelLog(payload);
       onClose();
-    } catch { /* toast handled by hook */ } finally { setSaving(false); }
+    } catch (error) {
+      if (isNetworkError(error)) {
+        enqueue({ table: "vehicle_fuel_logs", action: "insert", payload, owner_user_id: userId });
+        refreshCount(); toast({ title: "Conexão interrompida", description: "Abastecimento guardado para sincronização." }); onClose();
+      }
+    } finally { setSaving(false); }
   };
 
   return (
@@ -230,9 +240,8 @@ function FormManutencao({ vehicleId, employeeId, userId, km, onClose }: { vehicl
       descricao,
       custo: valor ? parseFloat(valor) : null,
       quilometragem: km ?? undefined,
-      status: "concluida",
+      status: "agendada",
       data_agendada: today,
-      data_realizada: today,
       responsavel: employeeId,
       foto_url: fotoUrl || null,
       observacoes: obs || null,
@@ -241,7 +250,7 @@ function FormManutencao({ vehicleId, employeeId, userId, km, onClose }: { vehicl
 
     try {
       if (!isOnline) {
-        enqueue({ table: "maintenance_records", action: "insert", payload });
+        enqueue({ table: "maintenance_records", action: "insert", payload, owner_user_id: userId });
         refreshCount();
         toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
         onClose();
@@ -249,7 +258,12 @@ function FormManutencao({ vehicleId, employeeId, userId, km, onClose }: { vehicl
       }
       await createMaintenanceRecord(payload as any);
       onClose();
-    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
+    } catch (error) {
+      if (isNetworkError(error)) {
+        enqueue({ table: "maintenance_records", action: "insert", payload, owner_user_id: userId });
+        refreshCount(); toast({ title: "Conexão interrompida", description: "Solicitação guardada para sincronização." }); onClose();
+      }
+    } finally { setSaving(false); }
   };
 
   return (
@@ -269,12 +283,12 @@ function FormManutencao({ vehicleId, employeeId, userId, km, onClose }: { vehicl
         onChange={setFotoUrl}
       />
       <MobileTextarea label="Observações" value={obs} onChange={setObs} />
-      <SubmitButton label="Registrar Manutenção" onSave={handleSave} saving={saving} offline={!isOnline} />
+      <SubmitButton label="Solicitar Manutenção" onSave={handleSave} saving={saving} offline={!isOnline} />
     </div>
   );
 }
 
-function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
+function FormBorracharia({ vehicleId, employeeId, userId, onClose }: { vehicleId: string; employeeId: string; userId: string; onClose: () => void }) {
   const { createTireService } = useTireServices();
   const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
@@ -304,7 +318,7 @@ function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string
 
     try {
       if (!isOnline) {
-        enqueue({ table: "tire_services", action: "insert", payload });
+        enqueue({ table: "tire_services", action: "insert", payload, owner_user_id: userId });
         refreshCount();
         toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
         onClose();
@@ -312,7 +326,12 @@ function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string
       }
       await createTireService(payload as any);
       onClose();
-    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
+    } catch (error) {
+      if (isNetworkError(error)) {
+        enqueue({ table: "tire_services", action: "insert", payload, owner_user_id: userId });
+        refreshCount(); toast({ title: "Conexão interrompida", description: "Serviço guardado para sincronização." }); onClose();
+      }
+    } finally { setSaving(false); }
   };
 
   return (
@@ -339,7 +358,7 @@ function FormBorracharia({ vehicleId, employeeId, onClose }: { vehicleId: string
   );
 }
 
-function FormLavagem({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
+function FormLavagem({ vehicleId, employeeId, userId, onClose }: { vehicleId: string; employeeId: string; userId: string; onClose: () => void }) {
   const { createWashRecord } = useWashRecords();
   const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
@@ -369,7 +388,7 @@ function FormLavagem({ vehicleId, employeeId, onClose }: { vehicleId: string; em
 
     try {
       if (!isOnline) {
-        enqueue({ table: "wash_records", action: "insert", payload });
+        enqueue({ table: "wash_records", action: "insert", payload, owner_user_id: userId });
         refreshCount();
         toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
         onClose();
@@ -377,7 +396,12 @@ function FormLavagem({ vehicleId, employeeId, onClose }: { vehicleId: string; em
       }
       await createWashRecord(payload);
       onClose();
-    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
+    } catch (error) {
+      if (isNetworkError(error)) {
+        enqueue({ table: "wash_records", action: "insert", payload, owner_user_id: userId });
+        refreshCount(); toast({ title: "Conexão interrompida", description: "Lavagem guardada para sincronização." }); onClose();
+      }
+    } finally { setSaving(false); }
   };
 
   return (
@@ -412,7 +436,7 @@ function FormLavagem({ vehicleId, employeeId, onClose }: { vehicleId: string; em
   );
 }
 
-function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
+function FormMulta({ vehicleId, employeeId, userId, onClose }: { vehicleId: string; employeeId: string; userId: string; onClose: () => void }) {
   const { createTrafficFine } = useTrafficFines();
   const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
@@ -441,7 +465,7 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
 
     try {
       if (!isOnline) {
-        enqueue({ table: "traffic_fines", action: "insert", payload });
+        enqueue({ table: "traffic_fines", action: "insert", payload, owner_user_id: userId });
         refreshCount();
         toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
         onClose();
@@ -449,7 +473,12 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
       }
       await createTrafficFine(payload as any);
       onClose();
-    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
+    } catch (error) {
+      if (isNetworkError(error)) {
+        enqueue({ table: "traffic_fines", action: "insert", payload, owner_user_id: userId });
+        refreshCount(); toast({ title: "Conexão interrompida", description: "Multa guardada para sincronização." }); onClose();
+      }
+    } finally { setSaving(false); }
   };
 
   return (
@@ -477,7 +506,7 @@ function FormMulta({ vehicleId, employeeId, onClose }: { vehicleId: string; empl
   );
 }
 
-function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; employeeId: string; onClose: () => void }) {
+function FormAvaria({ vehicleId, employeeId, userId, onClose }: { vehicleId: string; employeeId: string; userId: string; onClose: () => void }) {
   const { createDamageReport } = useDamageReports();
   const { isOnline, refreshCount } = useOnlineStatus();
   const { toast } = useToast();
@@ -503,7 +532,7 @@ function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; emp
 
     try {
       if (!isOnline) {
-        enqueue({ table: "damage_reports", action: "insert", payload });
+        enqueue({ table: "damage_reports", action: "insert", payload, owner_user_id: userId });
         refreshCount();
         toast({ title: "Salvo offline ✓", description: "Será enviado quando houver conexão" });
         onClose();
@@ -511,7 +540,12 @@ function FormAvaria({ vehicleId, employeeId, onClose }: { vehicleId: string; emp
       }
       await createDamageReport(payload as any);
       onClose();
-    } catch { /* O hook da operação já apresenta o erro ao usuário. */ } finally { setSaving(false); }
+    } catch (error) {
+      if (isNetworkError(error)) {
+        enqueue({ table: "damage_reports", action: "insert", payload, owner_user_id: userId });
+        refreshCount(); toast({ title: "Conexão interrompida", description: "Avaria guardada para sincronização." }); onClose();
+      }
+    } finally { setSaving(false); }
   };
 
   return (
@@ -580,10 +614,10 @@ export function AppLancar({ initialType }: { initialType?: LancarType }) {
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm">
             {selected === "abastecimento" && <FormAbastecimento vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} kmAtual={vehicle.quilometragem_atual ?? null} onClose={() => setSelected(null)} />}
             {selected === "manutencao"   && <FormManutencao    vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} km={vehicle.quilometragem_atual} onClose={() => setSelected(null)} />}
-            {selected === "borracharia"  && <FormBorracharia   vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
-            {selected === "lavagem"      && <FormLavagem       vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
-            {selected === "multa"        && <FormMulta         vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
-            {selected === "avaria"       && <FormAvaria        vehicleId={vehicle.id} employeeId={employee?.id ?? ""} onClose={() => setSelected(null)} />}
+            {selected === "borracharia"  && <FormBorracharia   vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} onClose={() => setSelected(null)} />}
+            {selected === "lavagem"      && <FormLavagem       vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} onClose={() => setSelected(null)} />}
+            {selected === "multa"        && <FormMulta         vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} onClose={() => setSelected(null)} />}
+            {selected === "avaria"       && <FormAvaria        vehicleId={vehicle.id} employeeId={employee?.id ?? ""} userId={user?.id ?? ""} onClose={() => setSelected(null)} />}
           </div>
         </div>
       </div>

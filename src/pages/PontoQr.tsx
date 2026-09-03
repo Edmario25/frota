@@ -25,6 +25,7 @@ interface Registro {
   emp_foto:      string | null
   obra_nome:     string | null
   tipo:          "entrada" | "saida"
+  evento:        "entrada" | "intervalo_saida" | "intervalo_retorno" | "saida"
   registrado_em: string
   metodo:        string
   scanner_nome:  string | null
@@ -37,12 +38,22 @@ const fmtHora = (iso: string) =>
 const fmtData = (iso: string) =>
   new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
 
+const diaBrasilia = (iso: string) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso))
+
+const eventoLabel: Record<Registro["evento"], string> = {
+  entrada: "Início da jornada",
+  intervalo_saida: "Início do intervalo",
+  intervalo_retorno: "Retorno do intervalo",
+  saida: "Fim da jornada",
+}
+
 // Calcula horas trabalhadas para pares entrada/saída do mesmo funcionário no mesmo dia
 function calcularHoras(registros: Registro[]): Map<string, number> {
   const mapa = new Map<string, number>()
   const por = new Map<string, Registro[]>()
   registros.forEach(r => {
-    const chave = `${r.employee_id}|${r.registrado_em.split("T")[0]}`
+    const chave = `${r.employee_id}|${diaBrasilia(r.registrado_em)}`
     if (!por.has(chave)) por.set(chave, [])
     por.get(chave)!.push(r)
   })
@@ -69,7 +80,7 @@ export default function PontoQr() {
   const [dataInicio, setDataInicio] = useState(format(new Date(), "yyyy-MM-dd"))
   const [dataFim,    setDataFim]    = useState(format(new Date(), "yyyy-MM-dd"))
   const [busca,      setBusca]      = useState("")
-  const [filtroTipo, setFiltroTipo] = useState<"todos" | "entrada" | "saida">("todos")
+  const [filtroEvento, setFiltroEvento] = useState<"todos" | Registro["evento"]>("todos")
   const [registros,  setRegistros]  = useState<Registro[]>([])
   const [loading,    setLoading]    = useState(false)
   const [initialized, setInitialized] = useState(false)
@@ -77,7 +88,7 @@ export default function PontoQr() {
   // ── Obras ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.from("obras" as any).select("id, nome").order("nome")
-      .then(({ data }) => setObras(data ?? []))
+      .then(({ data }) => setObras((data ?? []) as unknown as Obra[]))
   }, [])
 
   // ── Busca registros ────────────────────────────────────────────────────────
@@ -92,16 +103,18 @@ export default function PontoQr() {
         .from("employee_ponto_qr")
         .select(`
           id, employee_id, tipo, registrado_em, metodo,
+          evento,
           employees!employee_ponto_qr_employee_id_fkey(nome, foto_url, cargos(nome)),
           obras(nome),
-          scanner:registrado_por(nome)
+          scanner:registrado_por(nome),
+          totem:ponto_totem_dispositivos(nome)
         `)
         .gte("registrado_em", inicioUtc)
         .lte("registrado_em", fimUtc)
         .order("registrado_em", { ascending: false })
 
       if (obraId !== "all") q = q.eq("obra_id", obraId)
-      if (filtroTipo !== "todos") q = q.eq("tipo", filtroTipo)
+      if (filtroEvento !== "todos") q = q.eq("evento", filtroEvento)
 
       const { data, error } = await q
       if (error) throw error
@@ -114,9 +127,10 @@ export default function PontoQr() {
         emp_foto:      r.employees?.foto_url ?? null,
         obra_nome:     r.obras?.nome ?? null,
         tipo:          r.tipo,
+        evento:        r.evento ?? r.tipo,
         registrado_em: r.registrado_em,
         metodo:        r.metodo,
-        scanner_nome:  r.scanner?.nome ?? null,
+        scanner_nome:  r.totem?.nome ?? r.scanner?.nome ?? null,
       }))
       setRegistros(mapped)
       setInitialized(true)
@@ -125,7 +139,7 @@ export default function PontoQr() {
     } finally {
       setLoading(false)
     }
-  }, [obraId, dataInicio, dataFim, filtroTipo])
+  }, [obraId, dataInicio, dataFim, filtroEvento])
 
   useEffect(() => { fetchRegistros() }, [fetchRegistros])
 
@@ -135,8 +149,9 @@ export default function PontoQr() {
   )
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
-  const entradas  = registros.filter(r => r.tipo === "entrada").length
-  const saidas    = registros.filter(r => r.tipo === "saida").length
+  const entradas  = registros.filter(r => r.evento === "entrada").length
+  const saidas    = registros.filter(r => r.evento === "saida").length
+  const intervalos = registros.filter(r => r.evento === "intervalo_saida").length
   const unicos    = new Set(registros.map(r => r.employee_id)).size
   const horasMap  = calcularHoras(registros)
   const totalHoras = Array.from(horasMap.values()).reduce((s, v) => s + v, 0)
@@ -149,7 +164,7 @@ export default function PontoQr() {
     const headers = ["Nome", "Cargo", "Obra", "Tipo", "Data", "Hora", "Método", "Registrado por"]
     const rows = filtrados.map(r => [
       r.emp_nome, r.emp_cargo ?? "", r.obra_nome ?? "",
-      r.tipo === "entrada" ? "Entrada" : "Saída",
+      eventoLabel[r.evento],
       fmtData(r.registrado_em), fmtHora(r.registrado_em),
       r.metodo, r.scanner_nome ?? "",
     ])
@@ -161,6 +176,8 @@ export default function PontoQr() {
   return (
     <Layout>
       <div className="space-y-5 max-w-screen-xl mx-auto">
+
+        <TotensPanel obras={obras} />
 
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">
@@ -194,16 +211,17 @@ export default function PontoQr() {
           <div className="rounded-lg border border-border/50 bg-card px-4 py-3 shadow-card">
             <div className="flex items-center gap-2 mb-1">
               <LogIn className="h-4 w-4 text-green-500" />
-              <p className="text-xs text-muted-foreground font-medium">Entradas</p>
+              <p className="text-xs text-muted-foreground font-medium">Inícios de jornada</p>
             </div>
             <p className="text-2xl font-extrabold text-green-600">{entradas}</p>
           </div>
           <div className="rounded-lg border border-border/50 bg-card px-4 py-3 shadow-card">
             <div className="flex items-center gap-2 mb-1">
               <LogOut className="h-4 w-4 text-blue-500" />
-              <p className="text-xs text-muted-foreground font-medium">Saídas</p>
+              <p className="text-xs text-muted-foreground font-medium">Fins de jornada</p>
             </div>
             <p className="text-2xl font-extrabold text-blue-600">{saidas}</p>
+            <p className="text-[11px] text-muted-foreground">{intervalos} intervalo(s)</p>
           </div>
           <div className="rounded-lg border border-border/50 bg-card px-4 py-3 shadow-card">
             <div className="flex items-center gap-2 mb-1">
@@ -236,14 +254,16 @@ export default function PontoQr() {
             </SelectContent>
           </Select>
 
-          <Select value={filtroTipo} onValueChange={v => setFiltroTipo(v as any)}>
-            <SelectTrigger className="h-8 text-sm w-32">
+          <Select value={filtroEvento} onValueChange={v => setFiltroEvento(v as typeof filtroEvento)}>
+            <SelectTrigger className="h-8 text-sm w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="entrada">Entradas</SelectItem>
-              <SelectItem value="saida">Saídas</SelectItem>
+              <SelectItem value="entrada">Início da jornada</SelectItem>
+              <SelectItem value="intervalo_saida">Início do intervalo</SelectItem>
+              <SelectItem value="intervalo_retorno">Retorno do intervalo</SelectItem>
+              <SelectItem value="saida">Fim da jornada</SelectItem>
             </SelectContent>
           </Select>
 
@@ -293,7 +313,7 @@ export default function PontoQr() {
                   </TableCell>
                 </TableRow>
               ) : filtrados.map(r => {
-                const chave = `${r.employee_id}|${r.registrado_em.split("T")[0]}`
+                const chave = `${r.employee_id}|${diaBrasilia(r.registrado_em)}`
                 const horas = horasMap.get(chave)
                 return (
                   <TableRow key={r.id}>
@@ -316,20 +336,17 @@ export default function PontoQr() {
                       {r.obra_nome ?? "—"}
                     </TableCell>
                     <TableCell>
-                      {r.tipo === "entrada" ? (
-                        <Badge className="bg-green-100 text-green-700 border-0 text-xs gap-1">
-                          <LogIn className="h-3 w-3" /> Entrada
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-blue-100 text-blue-700 border-0 text-xs gap-1">
-                          <LogOut className="h-3 w-3" /> Saída
-                        </Badge>
-                      )}
+                      <Badge className={`${r.evento === "entrada" || r.evento === "intervalo_retorno" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"} border-0 text-xs gap-1`}>
+                        {r.evento === "entrada" || r.evento === "intervalo_retorno"
+                          ? <LogIn className="h-3 w-3" />
+                          : <LogOut className="h-3 w-3" />}
+                        {eventoLabel[r.evento]}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-sm">{fmtData(r.registrado_em)}</TableCell>
                     <TableCell className="text-sm font-mono">{fmtHora(r.registrado_em)}</TableCell>
                     <TableCell className="text-sm">
-                      {r.tipo === "saida" && horas && horas > 0
+                      {r.evento === "saida" && horas && horas > 0
                         ? <span className="text-amber-600 font-semibold">{fmtH(horas)}</span>
                         : <span className="text-muted-foreground">—</span>
                       }
@@ -352,4 +369,41 @@ export default function PontoQr() {
       </div>
     </Layout>
   )
+}
+
+function TotensPanel({ obras }: { obras: Obra[] }) {
+  const [dados, setDados] = useState<any>({ itens: [], pode_criar: false })
+  const [nome, setNome] = useState("")
+  const [obra, setObra] = useState("")
+  const [credencial, setCredencial] = useState<any>(null)
+  const [erro, setErro] = useState("")
+  const load = useCallback(async () => {
+    const { data, error } = await (supabase as any).rpc("listar_ponto_totens")
+    if (error) setErro(error.message); else { setErro(""); setDados(data) }
+  }, [])
+  useEffect(() => { load() }, [load])
+  async function criar() {
+    const { data, error } = await (supabase as any).rpc("criar_ponto_totem", { p_obra: obra, p_nome: nome })
+    if (error) return setErro(error.message)
+    setCredencial(data); setNome(""); await load()
+  }
+  async function status(id: string, ativo: boolean) {
+    const { error } = await (supabase as any).rpc("definir_status_ponto_totem", { p_id: id, p_ativo: ativo })
+    if (error) setErro(error.message); else await load()
+  }
+  return <details className="border rounded-xl bg-card p-4">
+    <summary className="font-semibold cursor-pointer">Equipamentos de ponto cadastrados ({dados.itens.length})</summary>
+    {erro && <p role="alert" className="text-sm text-red-700 mt-3">{erro}</p>}
+    {dados.pode_criar && <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 mt-4">
+      <Select value={obra} onValueChange={setObra}><SelectTrigger><SelectValue placeholder="Obra do equipamento" /></SelectTrigger><SelectContent>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select>
+      <Input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex.: Totem portaria principal" />
+      <Button disabled={!obra || nome.trim().length < 3} onClick={criar}>Cadastrar totem</Button>
+    </div>}
+    {credencial && <div className="mt-4 border border-amber-300 bg-amber-50 rounded-lg p-3 text-sm">
+      <strong>Copie agora: o segredo não será exibido novamente.</strong>
+      <pre className="whitespace-pre-wrap select-text mt-2">VITE_TOTEM_DEVICE_ID={credencial.id}{"\n"}VITE_TOTEM_DEVICE_SECRET={credencial.segredo}</pre>
+      <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(`VITE_TOTEM_DEVICE_ID=${credencial.id}\nVITE_TOTEM_DEVICE_SECRET=${credencial.segredo}`)}>Copiar credenciais</Button>
+    </div>}
+    <div className="mt-4 space-y-2">{dados.itens.map((d: any) => <div key={d.id} className="border rounded-lg p-3 flex flex-wrap items-center gap-3 text-sm"><span className="flex-1"><b>{d.nome}</b><small className="block text-muted-foreground">{d.obra} · versão {d.versao || "não informada"} · último acesso {d.ultimo_acesso ? new Date(d.ultimo_acesso).toLocaleString("pt-BR") : "nunca"}</small></span><Badge variant={d.ativo ? "default" : "secondary"}>{d.ativo ? "Ativo" : "Bloqueado"}</Badge>{dados.pode_criar && <Button variant="outline" size="sm" onClick={() => status(d.id, !d.ativo)}>{d.ativo ? "Bloquear" : "Reativar"}</Button>}</div>)}</div>
+  </details>
 }

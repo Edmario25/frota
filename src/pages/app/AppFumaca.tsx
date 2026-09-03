@@ -43,6 +43,8 @@ export function AppFumaca() {
   const handleSubmit = async () => {
     if (indice === null) { toast({ title: "Selecione o índice Ringelmann", variant: "destructive" }); return; }
     if (!vehicle) return;
+    if (!km || Number(km) < Number(vehicle.quilometragem_atual ?? 0)) { toast({ title: "Quilometragem inválida", description: "O KM não pode ser menor que o odômetro atual.", variant: "destructive" }); return; }
+    if (selected?.resultado === "reprovado" && !fotoUrl) { toast({ title: "Evidência obrigatória", description: "Anexe uma foto para resultado reprovado.", variant: "destructive" }); return; }
     setSaving(true);
     try {
       await createSmokeTest({

@@ -5,11 +5,12 @@ interface Props {
   onClose: () => void
   hint?: string
   title?: string
+  badgeMode?: boolean
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export function QrScannerModal({ onScan, onClose, hint: hintProp, title = "Escanear QR Code" }: Props) {
+export function QrScannerModal({ onScan, onClose, hint: hintProp, title = "Escanear QR Code", badgeMode = false }: Props) {
   const [error, setError]   = useState<string | null>(null)
   const [hint, setHint]     = useState(hintProp ?? "Aponte a câmera para o QR Code")
   const [scanned, setScanned] = useState(false)   // feedback visual enquanto para a câmera
@@ -34,7 +35,8 @@ export function QrScannerModal({ onScan, onClose, hint: hintProp, title = "Escan
             if (doneRef.current || cancelled) return
             const id = decoded.trim()
 
-            if (!UUID_RE.test(id)) {
+            const badgeValido = /^APICE:1:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+            if (badgeMode ? !badgeValido : !UUID_RE.test(id)) {
               setHint("QR inválido — use o QR gerado pelo sistema")
               return
             }

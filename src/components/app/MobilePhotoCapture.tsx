@@ -23,8 +23,12 @@ export function MobilePhotoCapture({ label, bucket, vehicleId, value, onChange }
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 50 * 1024 * 1024) {
-      toast({ title: "Arquivo muito grande", description: "Máximo 50MB", variant: "destructive" });
+    if (!navigator.onLine) {
+      toast({ title: "Foto exige conexão", description: "Salve o lançamento sem foto ou conecte-se para enviar a evidência.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "Máximo 8MB", variant: "destructive" });
       return;
     }
 
