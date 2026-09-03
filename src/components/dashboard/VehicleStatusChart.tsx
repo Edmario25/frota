@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -11,6 +12,7 @@ interface ChartData {
 }
 
 export function VehicleStatusChart() {
+  const { t } = useI18n();
   const { vehicles, getVehicleStats } = useVehicles();
   const [chartData, setChartData] = useState<ChartData[]>([]);
 
@@ -39,15 +41,15 @@ export function VehicleStatusChart() {
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl font-bold">
             <Activity className="h-6 w-6 text-primary" />
-            Status da Frota
+            {t("Status da Frota")}
           </CardTitle>
           <CardDescription>
-            Distribuição atual dos veículos por status
+            {t("Distribuição atual dos veículos por status")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            Nenhum veículo cadastrado
+            {t("Nenhum veículo cadastrado")}
           </div>
         </CardContent>
       </Card>
@@ -61,14 +63,14 @@ export function VehicleStatusChart() {
           <div>
             <CardTitle className="flex items-center gap-3 text-xl font-bold">
               <Activity className="h-6 w-6 text-primary" />
-              Status da Frota
+              {t("Status da Frota")}
             </CardTitle>
             <CardDescription className="mt-1">
-              Distribuição atual dos veículos por status
+              {t("Distribuição atual dos veículos por status")}
             </CardDescription>
           </div>
           <span className="text-sm font-semibold text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
-            {total} veículos
+            {t("{count} veículos", { count: total })}
           </span>
         </div>
       </CardHeader>
@@ -77,7 +79,7 @@ export function VehicleStatusChart() {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={chartData}
+                data={chartData.map(item => ({ ...item, name: t(item.name) }))}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -93,7 +95,7 @@ export function VehicleStatusChart() {
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => [`${value} veículos`, '']} 
+                formatter={(value: number) => [t("{count} veículos", { count: value }), '']}
                 contentStyle={{ 
                   borderRadius: '12px', 
                   border: 'none', 

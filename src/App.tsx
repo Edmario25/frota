@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
+import { T, useI18n } from "@/i18n";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -23,7 +24,7 @@ class AppErrorBoundary extends Component<
       return (
         <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8 bg-background text-foreground">
           <div className="text-4xl">⚠️</div>
-          <h1 className="text-xl font-bold">Ocorreu um erro inesperado</h1>
+          <h1 className="text-xl font-bold"><T>Ocorreu um erro inesperado</T></h1>
           <p className="text-muted-foreground text-sm text-center max-w-md">
             {this.state.error.message}
           </p>
@@ -31,7 +32,7 @@ class AppErrorBoundary extends Component<
             onClick={() => { this.setState({ error: null }); window.location.href = "/"; }}
             className="mt-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
           >
-            Voltar ao início
+            <T>Voltar ao início</T>
           </button>
         </div>
       );
@@ -100,11 +101,14 @@ const QualidadeRegistros = lazy(() => import("./pages/QualidadeRegistros"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
 const Visitantes = lazy(() => import("./pages/Visitantes"));
 
-const RouteFallback = () => (
-  <div className="min-h-screen flex items-center justify-center" role="status" aria-label="Carregando página">
+const RouteFallback = () => {
+  const { t } = useI18n();
+  return (
+  <div className="min-h-screen flex items-center justify-center" role="status" aria-label={t("Carregando...")}>
     <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
   </div>
-);
+  );
+};
 
 // 1. Aplica favicon do localStorage imediatamente (sem esperar rede)
 try {

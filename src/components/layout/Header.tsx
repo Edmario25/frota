@@ -1,3 +1,5 @@
+import { useI18n } from "@/i18n";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +40,7 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, alertCount = 0, onBellClick, onSidebarToggle, sidebarCollapsed }: HeaderProps) {
+  const { t } = useI18n();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -59,21 +62,23 @@ export function Header({ onMenuClick, alertCount = 0, onBellClick, onSidebarTogg
         size="icon"
         className="md:hidden h-8 w-8 flex-shrink-0"
         onClick={onMenuClick}
+        aria-label={t("Abrir menu")}
       >
         <Menu className="h-4 w-4" />
       </Button>
 
-      <Button variant="ghost" size="icon" className="hidden md:flex h-8 w-8 flex-shrink-0" onClick={onSidebarToggle} title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}>
+      <Button variant="ghost" size="icon" className="hidden md:flex h-8 w-8 flex-shrink-0" onClick={onSidebarToggle} title={t(sidebarCollapsed ? "Expandir menu" : "Recolher menu")}>
         {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4"/> : <PanelLeftClose className="h-4 w-4"/>}
       </Button>
 
       {/* Page title */}
       <h2 className="text-sm font-semibold text-foreground flex-1 truncate">
-        {pageTitle}
+        {t(pageTitle)}
       </h2>
 
       {/* Right side */}
       <div className="flex items-center gap-2">
+        <LanguageSelector />
         {/* Notifications */}
         <div className="relative">
           <Button
@@ -81,7 +86,7 @@ export function Header({ onMenuClick, alertCount = 0, onBellClick, onSidebarTogg
             size="icon"
             className="h-8 w-8 rounded-lg"
             onClick={onBellClick}
-            title={alertCount > 0 ? `${alertCount} alerta${alertCount > 1 ? "s" : ""} de escala` : "Alertas"}
+            title={t("Alertas ({count})", { count: alertCount })}
           >
             <Bell className={alertCount > 0 ? "h-4 w-4 text-amber-500" : "h-4 w-4 text-muted-foreground"} />
           </Button>
@@ -111,7 +116,7 @@ export function Header({ onMenuClick, alertCount = 0, onBellClick, onSidebarTogg
             <DropdownMenuContent className="w-52 rounded-xl p-1.5" align="end" forceMount>
               <DropdownMenuLabel className="font-normal px-2 py-1.5">
                 <p className="text-sm font-semibold leading-none truncate">
-                  {user.user_metadata?.full_name || "Usuário"}
+                  {user.user_metadata?.full_name || t("Usuário")}
                 </p>
                 <p className="text-xs leading-none text-muted-foreground mt-0.5 truncate">
                   {user.email}
@@ -123,14 +128,14 @@ export function Header({ onMenuClick, alertCount = 0, onBellClick, onSidebarTogg
                 className="rounded-lg cursor-pointer text-sm"
               >
                 <User className="mr-2 h-3.5 w-3.5" />
-                Perfil
+                {t("Perfil")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => navigate("/configuracoes")}
                 className="rounded-lg cursor-pointer text-sm"
               >
                 <Settings className="mr-2 h-3.5 w-3.5" />
-                Configurações
+                {t("Configurações")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -138,7 +143,7 @@ export function Header({ onMenuClick, alertCount = 0, onBellClick, onSidebarTogg
                 className="rounded-lg cursor-pointer text-sm text-destructive focus:text-destructive"
               >
                 <LogOut className="mr-2 h-3.5 w-3.5" />
-                Sair
+                {t("Sair")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

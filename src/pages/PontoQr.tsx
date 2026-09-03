@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Layout } from "@/components/layout/Layout"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { supabase } from "@/integrations/supabase/client"
-import { Download, RefreshCw, LogIn, LogOut, Search, Users, Clock, CalendarDays } from "lucide-react"
+import { Download, RefreshCw, LogIn, LogOut, Search, Users, Clock, CalendarDays, AlertCircle } from "lucide-react"
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 import { downloadCsv } from "@/lib/exportCsv"
 import { format, startOfDay, endOfDay, parseISO } from "date-fns"
@@ -84,6 +84,9 @@ export default function PontoQr() {
   const [registros,  setRegistros]  = useState<Registro[]>([])
   const [loading,    setLoading]    = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [compatibilityMode, setCompatibilityMode] = useState(false)
+  const requestIdRef = useRef(0)
 
   // ── Obras ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -93,33 +96,55 @@ export default function PontoQr() {
 
   // ── Busca registros ────────────────────────────────────────────────────────
   const fetchRegistros = useCallback(async () => {
+    const requestId = ++requestIdRef.current
     setLoading(true)
+    setLoadError(null)
     try {
+      if (!dataInicio || !dataFim || dataInicio > dataFim) {
+        throw new Error("Informe um período válido para consultar os registros.")
+      }
+
       // Converte para ISO UTC respeitando o fuso local do navegador
       const inicioUtc = new Date(`${dataInicio}T00:00:00`).toISOString()
       const fimUtc    = new Date(`${dataFim}T23:59:59`).toISOString()
 
-      let q = (supabase as any)
-        .from("employee_ponto_qr")
-        .select(`
-          id, employee_id, tipo, registrado_em, metodo,
-          evento,
-          employees!employee_ponto_qr_employee_id_fkey(nome, foto_url, cargos(nome)),
-          obras(nome),
-          scanner:registrado_por(nome),
-          totem:ponto_totem_dispositivos(nome)
-        `)
-        .gte("registrado_em", inicioUtc)
-        .lte("registrado_em", fimUtc)
-        .order("registrado_em", { ascending: false })
+      const consultar = async (modoCompatibilidade: boolean) => {
+        let q = (supabase as any)
+          .from("employee_ponto_qr")
+          .select(modoCompatibilidade ? `
+            id, employee_id, tipo, registrado_em, metodo,
+            employees!employee_ponto_qr_employee_id_fkey(nome, foto_url, cargos(nome)),
+            obras!employee_ponto_qr_obra_id_fkey(nome),
+            scanner:employees!employee_ponto_qr_registrado_por_fkey(nome)
+          ` : `
+            id, employee_id, tipo, registrado_em, metodo, evento,
+            employees!employee_ponto_qr_employee_id_fkey(nome, foto_url, cargos(nome)),
+            obras!employee_ponto_qr_obra_id_fkey(nome),
+            scanner:employees!employee_ponto_qr_registrado_por_fkey(nome),
+            totem:ponto_totem_dispositivos!employee_ponto_qr_dispositivo_fk(nome)
+          `)
+          .gte("registrado_em", inicioUtc)
+          .lte("registrado_em", fimUtc)
+          .order("registrado_em", { ascending: false })
 
-      if (obraId !== "all") q = q.eq("obra_id", obraId)
-      if (filtroEvento !== "todos") q = q.eq("evento", filtroEvento)
+        if (obraId !== "all") q = q.eq("obra_id", obraId)
+        if (!modoCompatibilidade && filtroEvento !== "todos") q = q.eq("evento", filtroEvento)
+        return q
+      }
 
-      const { data, error } = await q
-      if (error) throw error
+      let resultado = await consultar(false)
+      let usouCompatibilidade = false
+      if (resultado.error) {
+        console.warn("Consulta completa do Ponto QR indisponível; tentando modo compatível.", resultado.error)
+        resultado = await consultar(true)
+        usouCompatibilidade = !resultado.error
+      }
+      if (resultado.error) throw resultado.error
+      if (requestId !== requestIdRef.current) return
 
-      const mapped: Registro[] = (data ?? []).map((r: any) => ({
+      const data = resultado.data
+
+      let mapped: Registro[] = (data ?? []).map((r: any) => ({
         id:            r.id,
         employee_id:   r.employee_id,
         emp_nome:      r.employees?.nome ?? "—",
@@ -132,12 +157,22 @@ export default function PontoQr() {
         metodo:        r.metodo,
         scanner_nome:  r.totem?.nome ?? r.scanner?.nome ?? null,
       }))
+      if (usouCompatibilidade && filtroEvento !== "todos") {
+        mapped = mapped.filter(r => r.evento === filtroEvento)
+      }
       setRegistros(mapped)
-      setInitialized(true)
-    } catch (e) {
+      setCompatibilityMode(usouCompatibilidade)
+    } catch (e: any) {
       console.error(e)
+      if (requestId === requestIdRef.current) {
+        setRegistros([])
+        setLoadError(e?.message || "Não foi possível carregar os registros do Ponto QR.")
+      }
     } finally {
-      setLoading(false)
+      if (requestId === requestIdRef.current) {
+        setLoading(false)
+        setInitialized(true)
+      }
     }
   }, [obraId, dataInicio, dataFim, filtroEvento])
 
@@ -178,6 +213,30 @@ export default function PontoQr() {
       <div className="space-y-5 max-w-screen-xl mx-auto">
 
         <TotensPanel obras={obras} />
+
+        {loadError && (
+          <Card className="border-destructive/40 bg-destructive/5 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                <div>
+                  <p className="text-sm font-semibold">Não foi possível carregar o Ponto QR</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{loadError}</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={fetchRegistros} disabled={loading}>
+                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+                Tentar novamente
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {compatibilityMode && !loadError && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+            A página está usando o modo de compatibilidade. Aplique a atualização mais recente do banco para habilitar intervalos e identificação do totem.
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">

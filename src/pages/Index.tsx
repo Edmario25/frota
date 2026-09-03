@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { Layout } from "@/components/layout/Layout";
 import { VehicleStatusChart } from "@/components/dashboard/VehicleStatusChart";
 import { VehicleTypeChart } from "@/components/dashboard/VehicleTypeChart";
@@ -81,6 +82,7 @@ function QuickLink({ to, icon: Icon, color, label, sub }: {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const Index = () => {
+  const { t, date } = useI18n();
   const navigate = useNavigate();
   const { isFuncionario, hasAdminAccess, shouldFilterByObra, isGestorObra, hasFullAccess, loading: loadingRole } = useUserRole();
   const { employee, loading: loadingEmployee } = useCurrentEmployee();
@@ -142,7 +144,7 @@ const Index = () => {
 
   const hour        = new Date().getHours();
   const greeting    = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-  const firstName   = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "usuário";
+  const firstName   = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || t("usuário");
   const obraStats   = getObraStats();
   const manutAgend  = maintenanceRecords.filter(m => m.status === "agendada").length;
   const veicLeves   = vehicles.filter(v => v.tipo === "leve").length;
@@ -158,8 +160,8 @@ const Index = () => {
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-blue-950 to-primary px-6 py-6 text-white shadow-lg md:px-8 md:py-7">
           <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-blue-400/15 blur-3xl"/><div className="absolute bottom-0 right-1/3 h-28 w-28 rounded-full bg-violet-400/10 blur-2xl"/>
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div><div className="mb-3 flex items-center gap-2 text-blue-200"><Sparkles className="h-4 w-4"/><p className="text-xs font-bold uppercase tracking-[.16em]">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p></div><h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{greeting}, {firstName}</h1><p className="mt-1 text-sm text-slate-300">{isFuncionario ? "Acompanhe seu veículo e suas atividades" : "Visão executiva da operação, obras, pessoas e segurança"}</p></div>
-            {hasFullAccess&&<div className="grid grid-cols-3 gap-2 sm:gap-3">{[[HardHat,obraStats.em_andamento,"Obras"],[Users,empAtivos,"Pessoas"],[Activity,vehicles.length,"Veículos"]].map(([Icon,value,label])=><div key={String(label)} className="min-w-24 rounded-xl border border-white/10 bg-white/10 px-3 py-3 backdrop-blur-sm"><div className="flex items-center gap-2"><Icon className="h-4 w-4 text-blue-200"/><strong className="text-lg">{String(value)}</strong></div><p className="mt-1 text-[10px] uppercase tracking-wide text-slate-300">{String(label)}</p></div>)}</div>}
+            <div><div className="mb-3 flex items-center gap-2 text-blue-200"><Sparkles className="h-4 w-4"/><p className="text-xs font-bold uppercase tracking-[.16em]">{date(new Date(), { weekday: "long", day: "numeric", month: "long" })}</p></div><h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{t(greeting)}, {firstName}</h1><p className="mt-1 text-sm text-slate-300">{t(isFuncionario ? "Acompanhe seu veículo e suas atividades" : "Visão executiva da operação, obras, pessoas e segurança")}</p></div>
+            {hasFullAccess&&<div className="grid grid-cols-3 gap-2 sm:gap-3">{[[HardHat,obraStats.em_andamento,"Obras"],[Users,empAtivos,"Pessoas"],[Activity,vehicles.length,"Veículos"]].map(([Icon,value,label])=><div key={String(label)} className="min-w-24 rounded-xl border border-white/10 bg-white/10 px-3 py-3 backdrop-blur-sm"><div className="flex items-center gap-2"><Icon className="h-4 w-4 text-blue-200"/><strong className="text-lg">{String(value)}</strong></div><p className="mt-1 text-[10px] uppercase tracking-wide text-slate-300">{t(String(label))}</p></div>)}</div>}
           </div>
         </div>
 
@@ -185,42 +187,42 @@ const Index = () => {
         {/* ── Dashboard completo (admin / gestor_contrato) ─────────── */}
         {hasFullAccess && (
           <>
-            <div className="flex items-end justify-between"><div><h2 className="text-lg font-bold">Indicadores principais</h2><p className="text-xs text-muted-foreground">Situação consolidada da operação neste momento</p></div><span className="hidden text-xs text-muted-foreground sm:block">Atualização automática</span></div>
+            <div className="flex items-end justify-between"><div><h2 className="text-lg font-bold">{t("Indicadores principais")}</h2><p className="text-xs text-muted-foreground">{t("Situação consolidada da operação neste momento")}</p></div><span className="hidden text-xs text-muted-foreground sm:block">{t("Atualização automática")}</span></div>
             {/* 5 KPIs principais */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
               {/* Obras */}
               <KpiCard
-                icon={HardHat} iconBg="bg-violet-500" label="Obras Ativas"
+                icon={HardHat} iconBg="bg-violet-500" label={t("Obras Ativas")}
                 value={obraStats.em_andamento}
-                sub={`${obraStats.total} cadastradas`}
+                sub={t("{count} cadastradas", { count: obraStats.total })}
                 subColor="text-violet-600"
                 footer={
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>{employees.filter(e => e.status === "ativo").length} funcionários ativos</span>
+                    <span>{t("{count} funcionários ativos", { count: empAtivos })}</span>
                   </div>
                 }
               />
 
               {/* Frota */}
               <KpiCard
-                icon={Car} iconBg="bg-emerald-500" label="Frota Total"
+                icon={Car} iconBg="bg-emerald-500" label={t("Frota Total")}
                 value={vehicles.length}
-                sub={`${vehicleStats.em_uso} em uso · ${vehicleStats.disponivel} disponíveis`}
+                sub={t("{used} em uso · {available} disponíveis", { used: vehicleStats.em_uso, available: vehicleStats.disponivel })}
                 footer={
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Car className="h-3 w-3 text-blue-500" />
-                      {veicLeves} leves
+                      {t("{count} leves", { count: veicLeves })}
                     </span>
                     <span className="flex items-center gap-1">
                       <Truck className="h-3 w-3 text-emerald-500" />
-                      {veicPesados} pesados
+                      {t("{count} pesados", { count: veicPesados })}
                     </span>
                     {vehicleStats.alertas_km > 0 && (
                       <span className="flex items-center gap-1 text-amber-600 font-medium">
                         <AlertTriangle className="h-3 w-3" />
-                        {vehicleStats.alertas_km} alertas KM
+                        {t("{count} alertas KM", { count: vehicleStats.alertas_km })}
                       </span>
                     )}
                   </div>
@@ -231,14 +233,14 @@ const Index = () => {
               <KpiCard
                 icon={ShieldAlert}
                 iconBg={smsStats.nearMissSemana > 0 ? "bg-orange-500" : "bg-teal-500"}
-                label="SMS · Segurança"
+                label={t("SMS · Segurança")}
                 value={smsTotal}
-                sub={`${smsStats.nearMissSemana} near-miss (7d) · ${smsStats.desviosAbertos} desvios abertos`}
+                sub={t("{near} near-miss (7d) · {open} desvios abertos", { near: smsStats.nearMissSemana, open: smsStats.desviosAbertos })}
                 subColor={smsTotal > 0 ? "text-orange-600" : "text-teal-600"}
                 footer={
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <ClipboardCheck className="h-3 w-3 text-teal-500" />
-                    <span>{smsStats.inspecoesHoje} inspeção hoje</span>
+                    <span>{t("{count} inspeções hoje", { count: smsStats.inspecoesHoje })}</span>
                   </div>
                 }
               />
@@ -247,9 +249,9 @@ const Index = () => {
               <KpiCard
                 icon={Wrench}
                 iconBg={manutAgend > 5 ? "bg-red-500" : "bg-amber-500"}
-                label="Manutenções"
+                label={t("Manutenções")}
                 value={manutAgend}
-                sub="Agendadas"
+                sub={t("Agendadas")}
                 subColor={manutAgend > 5 ? "text-red-600" : "text-amber-600"}
               />
 
@@ -257,17 +259,17 @@ const Index = () => {
               <KpiCard
                 icon={GraduationCap}
                 iconBg={trStats.vencidos > 0 ? "bg-red-500" : trStats.aVencer > 0 ? "bg-amber-500" : "bg-emerald-500"}
-                label="Treinamentos"
+                label={t("Treinamentos")}
                 value={trStats.vencidos + trStats.aVencer}
                 sub={trStats.vencidos > 0
-                  ? `${trStats.vencidos} vencido${trStats.vencidos > 1 ? "s" : ""} · ${trStats.aVencer} a vencer`
+                  ? t("{expired} vencidos · {due} a vencer", { expired: trStats.vencidos, due: trStats.aVencer })
                   : trStats.aVencer > 0
-                    ? `${trStats.aVencer} a vencer (60 dias)`
-                    : "Todos em dia ✅"}
+                    ? t("{count} a vencer (60 dias)", { count: trStats.aVencer })
+                    : t("Todos em dia ✅")}
                 subColor={trStats.vencidos > 0 ? "text-red-600" : trStats.aVencer > 0 ? "text-amber-600" : "text-emerald-600"}
                 footer={
                   <Link to="/sms/treinamentos" className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline">
-                    Ver matriz <ArrowRight className="h-3 w-3" />
+                    {t("Ver matriz")} <ArrowRight className="h-3 w-3" />
                   </Link>
                 }
               />
@@ -289,15 +291,15 @@ const Index = () => {
                 {/* Acesso Rápido */}
                 <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
                   <div className="px-4 pt-4 pb-2 border-b border-border/50">
-                    <p className="text-sm font-semibold text-foreground">Acesso Rápido</p>
+                    <p className="text-sm font-semibold text-foreground">{t("Acesso Rápido")}</p>
                   </div>
                   <div className="px-1 py-2 divide-y divide-border/30">
-                    <QuickLink to="/obras"            icon={HardHat}     color="bg-violet-500"  label="Obras"              sub={`${obraStats.em_andamento} em andamento`} />
-                    <QuickLink to="/frota"            icon={Car}         color="bg-blue-500"    label="Veículos Leves"      sub={`${veicLeves} veículos`} />
-                    <QuickLink to="/veiculos-pesados" icon={Truck}       color="bg-emerald-500" label="Veículos Pesados"    sub={`${veicPesados} veículos`} />
-                    <QuickLink to="/manutencao"       icon={Wrench}      color="bg-amber-500"   label="Manutenção"          sub={`${manutAgend} agendadas`} />
-                    <QuickLink to="/funcionarios"     icon={Users}       color="bg-indigo-500"  label="Funcionários"        sub={`${empAtivos} ativos`} />
-                    <QuickLink to="/relatorios"       icon={BarChart3}   color="bg-slate-500"   label="Relatórios"          sub="Custo de frota" />
+                    <QuickLink to="/obras"            icon={HardHat}     color="bg-violet-500"  label={t("Obras")}              sub={t("{count} em andamento", { count: obraStats.em_andamento })} />
+                    <QuickLink to="/frota"            icon={Car}         color="bg-blue-500"    label={t("Veículos Leves")}      sub={t("{count} veículos", { count: veicLeves })} />
+                    <QuickLink to="/veiculos-pesados" icon={Truck}       color="bg-emerald-500" label={t("Veículos Pesados")}    sub={t("{count} veículos", { count: veicPesados })} />
+                    <QuickLink to="/manutencao"       icon={Wrench}      color="bg-amber-500"   label={t("Manutenção")}          sub={t("{count} agendadas", { count: manutAgend })} />
+                    <QuickLink to="/funcionarios"     icon={Users}       color="bg-indigo-500"  label={t("Funcionários")}        sub={t("{count} ativos", { count: empAtivos })} />
+                    <QuickLink to="/relatorios"       icon={BarChart3}   color="bg-slate-500"   label={t("Relatórios")}          sub={t("Custo de frota")} />
                   </div>
                 </div>
 
@@ -306,16 +308,16 @@ const Index = () => {
                   <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <AlertTriangle className="h-4 w-4 text-amber-600" />
-                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Alertas de Quilometragem</p>
+                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t("Alertas de Quilometragem")}</p>
                     </div>
                     <p className="text-sm text-amber-700 dark:text-amber-400">
-                      <span className="font-bold">{vehicleStats.alertas_km}</span> veículo{vehicleStats.alertas_km > 1 ? "s" : ""} próximo do limite de KM.
+                      {t("Veículos próximos do limite de KM: {count}.", { count: vehicleStats.alertas_km })}
                     </p>
                     <Link
                       to="/frota"
                       className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-300 mt-2 hover:underline"
                     >
-                      Ver veículos <ArrowRight className="h-3 w-3" />
+                      {t("Ver veículos")} <ArrowRight className="h-3 w-3" />
                     </Link>
                   </div>
                 )}
@@ -331,11 +333,11 @@ const Index = () => {
                     <div className="flex items-center gap-2 mb-2">
                       <Wrench className={cn("h-4 w-4", manutAgend > 5 ? "text-red-600" : "text-amber-600")} />
                       <p className={cn("text-sm font-semibold", manutAgend > 5 ? "text-red-800 dark:text-red-300" : "text-foreground")}>
-                        Manutenções Agendadas
+                        {t("Manutenções Agendadas")}
                       </p>
                     </div>
                     <p className={cn("text-sm", manutAgend > 5 ? "text-red-700 dark:text-red-400" : "text-muted-foreground")}>
-                      <span className="font-bold">{manutAgend}</span> manutenção{manutAgend > 1 ? "ões" : ""} pendente{manutAgend > 1 ? "s" : ""}.
+                      {t("Manutenções pendentes: {count}.", { count: manutAgend })}
                     </p>
                     <Link
                       to="/manutencao"
@@ -344,7 +346,7 @@ const Index = () => {
                         manutAgend > 5 ? "text-red-700 dark:text-red-300" : "text-primary"
                       )}
                     >
-                      Ver manutenções <ArrowRight className="h-3 w-3" />
+                      {t("Ver manutenções")} <ArrowRight className="h-3 w-3" />
                     </Link>
                   </div>
                 )}
@@ -369,10 +371,10 @@ const Index = () => {
         {isGestorObra && !hasFullAccess && (
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiCard icon={Users}         iconBg="bg-blue-500"   label="Funcionários"  value={empAtivos} sub={`${employees.length} cadastrados`} />
-              <KpiCard icon={Car}           iconBg="bg-emerald-500" label="Veículos"      value={vehicles.length} sub={`${vehicleStats.em_uso} em uso`} />
-              <KpiCard icon={Wrench}        iconBg="bg-amber-500"  label="Manutenções"   value={manutAgend} sub="Agendadas" />
-              <KpiCard icon={AlertTriangle} iconBg={vehicleStats.alertas_km > 0 ? "bg-red-500" : "bg-slate-400"} label="Alertas KM" value={vehicleStats.alertas_km} sub="Próximos do limite" />
+              <KpiCard icon={Users}         iconBg="bg-blue-500"   label={t("Funcionários")}  value={empAtivos} sub={t("{count} cadastrados", { count: employees.length })} />
+              <KpiCard icon={Car}           iconBg="bg-emerald-500" label={t("Veículos")}      value={vehicles.length} sub={t("{count} em uso", { count: vehicleStats.em_uso })} />
+              <KpiCard icon={Wrench}        iconBg="bg-amber-500"  label={t("Manutenções")}   value={manutAgend} sub={t("Agendadas")} />
+              <KpiCard icon={AlertTriangle} iconBg={vehicleStats.alertas_km > 0 ? "bg-red-500" : "bg-slate-400"} label={t("Alertas KM")} value={vehicleStats.alertas_km} sub={t("Próximos do limite")} />
             </div>
             <div className="grid gap-5 lg:grid-cols-2">
               <VehicleStatusChart />

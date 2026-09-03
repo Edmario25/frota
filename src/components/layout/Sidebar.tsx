@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { NavLink, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import {
@@ -161,6 +162,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
+  const { t } = useI18n();
   const location = useLocation();
   const { role, loading: loadingRole } = useUserRole();
   const { can, loading: loadingPerms, ready: permsReady } = usePermissions();
@@ -257,7 +259,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
           )}
         </div>
         {!collapsed && (
-          <span className="flex-1 truncate">{item.title}</span>
+          <span className="flex-1 truncate">{t(item.title)}</span>
         )}
         {/* Badge no texto quando expandido */}
         {!collapsed && badgeCount > 0 && (
@@ -273,7 +275,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
         <Tooltip key={item.url} delayDuration={0}>
           <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
           <TooltipContent side="right" className="font-medium">
-            {item.title}{badgeCount > 0 ? ` (${badgeCount})` : ""}
+            {t(item.title)}{badgeCount > 0 ? ` (${badgeCount})` : ""}
           </TooltipContent>
         </Tooltip>
       );
@@ -338,7 +340,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
                   <p className="text-sm font-bold text-white leading-tight truncate">
                     {branding.companyName}
                   </p>
-                  <p className="text-xs text-[hsl(var(--sidebar-muted))] leading-tight">Plataforma de Gestão</p>
+                  <p className="text-xs text-[hsl(var(--sidebar-muted))] leading-tight">{t("Plataforma de Gestão")}</p>
                 </div>
               )}
             </>
@@ -364,7 +366,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
                       : "text-[hsl(var(--sidebar-muted))] hover:bg-sidebar-accent/50 hover:text-white",
                   )}
                 >
-                  <span>{group.group}</span>
+                  <span>{t(group.group)}</span>
                   <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", !groupOpen && "-rotate-90")} />
                 </button>
               )}
@@ -402,7 +404,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
             >
               <path d="M15 18l-6-6 6-6" />
             </svg>
-            {!collapsed && <span>Recolher</span>}
+            {!collapsed && <span>{t("Recolher")}</span>}
           </button>
         </div>
       </div>

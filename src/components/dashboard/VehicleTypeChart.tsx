@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -5,6 +6,7 @@ import { useMemo } from "react";
 import { TrendingUp } from "lucide-react";
 
 export function VehicleTypeChart() {
+  const { t } = useI18n();
   const { vehicles } = useVehicles();
 
   const chartData = useMemo(() => {
@@ -51,15 +53,15 @@ export function VehicleTypeChart() {
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl font-bold">
             <TrendingUp className="h-6 w-6 text-primary" />
-            Frota por Tipo
+            {t("Frota por Tipo")}
           </CardTitle>
           <CardDescription>
-            Comparativo entre veículos leves e pesados
+            {t("Comparativo entre veículos leves e pesados")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-            Nenhum veículo cadastrado
+            {t("Nenhum veículo cadastrado")}
           </div>
         </CardContent>
       </Card>
@@ -73,21 +75,21 @@ export function VehicleTypeChart() {
           <div>
             <CardTitle className="flex items-center gap-3 text-xl font-bold">
               <TrendingUp className="h-6 w-6 text-primary" />
-              Frota por Tipo
+              {t("Frota por Tipo")}
             </CardTitle>
             <CardDescription className="mt-1">
-              Comparativo entre veículos leves e pesados
+              {t("Comparativo entre veículos leves e pesados")}
             </CardDescription>
           </div>
           <span className="text-sm font-semibold text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
-            {total} total
+            {t("{count} total", { count: total })}
           </span>
         </div>
       </CardHeader>
       <CardContent>
         <div className="h-[180px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical">
+            <BarChart data={chartData.map(item => ({ ...item, name: t(item.name) }))} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
               <XAxis type="number" axisLine={false} tickLine={false} />
               <YAxis dataKey="name" type="category" width={80} axisLine={false} tickLine={false} />
@@ -100,9 +102,9 @@ export function VehicleTypeChart() {
                         <p className="font-bold text-base mb-2">{data.name}</p>
                         <p className="text-sm">Total: <span className="font-semibold">{data.total}</span></p>
                         <div className="flex gap-4 mt-2 text-sm">
-                          <span className="text-emerald-600 font-medium">{data.disponivel} disponíveis</span>
-                          <span className="text-blue-600 font-medium">{data.em_uso} em uso</span>
-                          <span className="text-amber-600 font-medium">{data.manutencao} manutenção</span>
+                          <span className="text-emerald-600 font-medium">{t("{count} disponíveis", { count: data.disponivel })}</span>
+                          <span className="text-blue-600 font-medium">{t("{count} em uso", { count: data.em_uso })}</span>
+                          <span className="text-amber-600 font-medium">{t("{count} manutenção", { count: data.manutencao })}</span>
                         </div>
                       </div>
                     );
@@ -128,19 +130,19 @@ export function VehicleTypeChart() {
                   className="w-3.5 h-3.5 rounded-full" 
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="font-semibold">{item.name}</span>
+                <span className="font-semibold">{t(item.name)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Disponíveis</p>
+                  <p className="text-xs text-muted-foreground">{t("Disponíveis")}</p>
                   <p className="font-bold text-emerald-600">{item.disponivel}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Em Uso</p>
+                  <p className="text-xs text-muted-foreground">{t("Em Uso")}</p>
                   <p className="font-bold text-blue-600">{item.em_uso}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Manutenção</p>
+                  <p className="text-xs text-muted-foreground">{t("Manutenção")}</p>
                   <p className="font-bold text-amber-600">{item.manutencao}</p>
                 </div>
               </div>

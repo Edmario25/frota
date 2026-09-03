@@ -1,3 +1,5 @@
+import { useI18n } from "@/i18n";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, Lock, Mail, HardHat, ShieldAlert, MapPin, Settings, ClipboardList } from "lucide-react";
 
 const Auth = () => {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -19,8 +22,8 @@ const Auth = () => {
   const handleSignIn = async () => {
     if (!email || !password) {
       toast({
-        title: "Erro",
-        description: "Preencha todos os campos",
+        title: t("Erro"),
+        description: t("Preencha todos os campos"),
         variant: "destructive",
       });
       return;
@@ -32,8 +35,8 @@ const Auth = () => {
 
     if (error) {
       toast({
-        title: "Erro no login",
-        description: "Credenciais inválidas. Verifique seu email e senha.",
+        title: t("Erro no login"),
+        description: t("Credenciais inválidas. Verifique seu email e senha."),
         variant: "destructive",
       });
       setIsLoading(false);
@@ -41,7 +44,7 @@ const Auth = () => {
     }
 
     // Login do sistema gerencial → sempre vai ao dashboard
-    toast({ title: "Login realizado", description: "Bem-vindo ao sistema!" });
+    toast({ title: t("Login realizado"), description: t("Bem-vindo ao sistema!") });
     navigate("/", { replace: true });
     setIsLoading(false);
   };
@@ -107,13 +110,14 @@ const Auth = () => {
       {/* Login Card */}
       <div className="relative z-10 w-full max-w-md mx-4">
         <div className="backdrop-blur-xl bg-slate-800/80 rounded-2xl shadow-2xl border border-white/10 p-8 md:p-10">
+          <div className="flex justify-end mb-4"><LanguageSelector /></div>
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-              Bem-vindo de volta!
+              {t("Bem-vindo de volta!")}
             </h1>
             <p className="text-slate-400 text-sm md:text-base">
-              Faça login para acessar sua conta
+              {t("Faça login para acessar sua conta")}
             </p>
           </div>
 
@@ -129,7 +133,8 @@ const Auth = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Seuemail@exemplo.com"
+                  placeholder={t("Seuemail@exemplo.com")}
+                  aria-label={t("E-mail")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -149,6 +154,7 @@ const Auth = () => {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
+                  aria-label={t("Senha")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -158,6 +164,7 @@ const Auth = () => {
                   type="button"
                   className="absolute right-4 text-slate-400 hover:text-white transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={t(showPassword ? "Ocultar senha" : "Mostrar senha")}
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -171,7 +178,7 @@ const Auth = () => {
             {/* Forgot password link */}
             <div className="flex justify-end">
               <button className="text-sm text-slate-400 hover:text-primary transition-colors">
-                Esqueceu a senha?
+                {t("Esqueceu a senha?")}
               </button>
             </div>
 
@@ -184,10 +191,10 @@ const Auth = () => {
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Entrando...
+                  {t("Entrando...")}
                 </div>
               ) : (
-                "Entrar"
+                t("Entrar")
               )}
             </Button>
 
@@ -196,14 +203,14 @@ const Auth = () => {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-xs text-slate-500">
-              Sistema privado — acesso somente para usuários autorizados
+              {t("Sistema privado — acesso somente para usuários autorizados")}
             </p>
           </div>
         </div>
 
         {/* Help text */}
         <p className="text-center text-xs text-slate-500 mt-4">
-          Caso não possua acesso, entre em contato com o administrador
+          {t("Caso não possua acesso, entre em contato com o administrador")}
         </p>
       </div>
     </div>

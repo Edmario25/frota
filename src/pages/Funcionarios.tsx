@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ const nivelAcessoConfig: Record<string, { label: string; color: string; icon: Re
 };
 
 const Funcionarios = () => {
+  const { t, date } = useI18n();
   const { employees, loading, createEmployee, updateEmployee, terminateEmployee, getEmployeeStats } = useEmployees();
   const { role } = useUserRole();
   const canAccessSensitiveRh = role === 'admin' || role === 'gestor_contrato' || role === 'gestor_frota';
@@ -127,15 +129,15 @@ const Funcionarios = () => {
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">
           <div>
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Funcionários</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Gerencie o cadastro de funcionários</p>
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight">{t("Funcionários")}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">{t("Gerencie o cadastro de funcionários")}</p>
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                const headers = ['Nome', 'CPF', 'Email', 'Telefone', 'Cargo', 'Departamento', 'Status', 'Data Admissão', 'Tipo de Acesso'];
+                const headers = ['Nome', 'CPF', 'Email', 'Telefone', 'Cargo', 'Departamento', 'Status', 'Data Admissão', 'Tipo de Acesso'].map(t);
                 const rows = filteredEmployees.map(e => [
                   e.nome,
                   canAccessSensitiveRh ? e.cpf : maskCpf(e.cpf),
@@ -143,19 +145,19 @@ const Funcionarios = () => {
                   e.telefone ?? '',
                   e.cargos?.nome ?? '',
                   e.departamentos?.nome ?? '',
-                  statusConfig[e.status]?.label ?? e.status,
-                  e.data_admissao ? new Date(e.data_admissao).toLocaleDateString('pt-BR') : '',
-                  nivelAcessoConfig[e.tipo_acesso ?? '']?.label ?? e.tipo_acesso ?? '',
+                  t(statusConfig[e.status]?.label ?? e.status),
+                  e.data_admissao ? date(e.data_admissao) : '',
+                  t(nivelAcessoConfig[e.tipo_acesso ?? '']?.label ?? e.tipo_acesso ?? ''),
                 ]);
                 downloadCsv(headers, rows, `funcionarios_${new Date().toISOString().slice(0, 10)}`);
               }}
             >
               <Download className="w-3.5 h-3.5 mr-1.5" />
-              Exportar CSV
+              {t("Exportar CSV")}
             </Button>
             <Button size="sm" onClick={() => setIsFormModalOpen(true)}>
               <Plus className="w-3.5 h-3.5 mr-1.5" />
-              Novo Funcionário
+              {t("Novo Funcionário")}
             </Button>
           </div>
         </div>
@@ -168,9 +170,9 @@ const Funcionarios = () => {
             { label: "Férias",   value: stats.ferias,  color: "text-primary" },
             { label: "Licença",  value: stats.licenca, color: "text-amber-600" },
           ].map((s) => (
-            <div key={s.label} className="rounded-lg border border-border/50 bg-card px-4 py-3 shadow-card">
+            <div key={t(s.label)} className="rounded-lg border border-border/50 bg-card px-4 py-3 shadow-card">
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</p>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">{t(s.label)}</p>
             </div>
           ))}
         </div>
@@ -179,7 +181,7 @@ const Funcionarios = () => {
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nome, CPF ou cargo..."
+            placeholder={t("Buscar por nome, CPF ou cargo...")}
             className="pl-8 h-8 text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -191,13 +193,13 @@ const Funcionarios = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Funcionário</TableHead>
-                <TableHead>CPF</TableHead>
-                <TableHead>Cargo</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Tipo de Acesso</TableHead>
-                <TableHead className="w-[100px]">Ações</TableHead>
+                <TableHead>{t("Funcionário")}</TableHead>
+                <TableHead>{t("CPF")}</TableHead>
+                <TableHead>{t("Cargo")}</TableHead>
+                <TableHead>{t("Contato")}</TableHead>
+                <TableHead>{t("Status")}</TableHead>
+                <TableHead>{t("Tipo de Acesso")}</TableHead>
+                <TableHead className="w-[100px]">{t("Ações")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -230,7 +232,7 @@ const Funcionarios = () => {
                   <TableCell>
                     {(() => {
                       const cfg = statusConfig[employee.status] ?? { label: employee.status, color: "" };
-                      return <Badge className={cfg.color}>{cfg.label}</Badge>;
+                      return <Badge className={cfg.color}>{t(cfg.label)}</Badge>;
                     })()}
                   </TableCell>
                   <TableCell>
@@ -242,7 +244,7 @@ const Funcionarios = () => {
                       return (
                         <Badge className={`${cfg.color} border-0 flex items-center gap-1 w-fit text-xs`}>
                           <Icon className="h-3 w-3" />
-                          {cfg.label}
+                          {t(cfg.label)}
                         </Badge>
                       );
                     })()}
@@ -257,16 +259,16 @@ const Funcionarios = () => {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openEditModal(employee)}>
                           <Edit className="h-4 w-4 mr-2" />
-                          Editar
+                          {t("Editar")}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openViewModal(employee)}>
                           <Eye className="h-4 w-4 mr-2" />
-                          Visualizar
+                          {t("Visualizar")}
                         </DropdownMenuItem>
                         {canAccessSensitiveRh && (
                           <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setIsRhOpen(true); }}>
                             <ClipboardList className="h-4 w-4 mr-2 text-blue-500" />
-                            Perfil RH
+                            {t("Perfil RH")}
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setIsCrachaOpen(true); }}>
@@ -281,7 +283,7 @@ const Funcionarios = () => {
                               className="text-destructive"
                             >
                               <UserX className="h-4 w-4 mr-2" />
-                              Desligar
+                              {t("Desligar")}
                             </DropdownMenuItem>
                           </>
                         )}

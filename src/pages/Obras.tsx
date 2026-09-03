@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -15,10 +16,9 @@ import { VinculacaoFuncionarioModal } from "@/components/obras/VinculacaoFuncion
 import { VinculacaoVeiculoModal } from "@/components/obras/VinculacaoVeiculoModal";
 import { ConfirmDeleteObraModal } from "@/components/obras/ConfirmDeleteObraModal";
 import { VinculacaoFornecedorModal } from "@/components/obras/VinculacaoFornecedorModal";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 export default function Obras() {
+  const { t, date } = useI18n();
   const { obras, loading, deleteObra, getObraStats } = useObras();
   const { hasObraManagement, role } = useUserRole();
   const canCreateArchive = role === "admin" || role === "gestor_contrato";
@@ -104,10 +104,10 @@ export default function Obras() {
     <Layout>
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Gestão de Obras</h1>
+          <h1 className="text-3xl font-bold">{t("Gestão de Obras")}</h1>
           <Button onClick={handleNewObra} disabled={!canCreateArchive}>
             <Plus className="mr-2 h-4 w-4" />
-            Nova Obra
+            {t("Nova Obra")}
           </Button>
         </div>
 
@@ -126,7 +126,7 @@ export default function Obras() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Planejadas
+                {t("Planejadas")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -146,7 +146,7 @@ export default function Obras() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pausadas
+                {t("Pausadas")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -156,7 +156,7 @@ export default function Obras() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Concluídas
+                {t("Concluídas")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -182,10 +182,10 @@ export default function Obras() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os Status</SelectItem>
-              <SelectItem value="planejada">Planejada</SelectItem>
+              <SelectItem value="planejada">{t("Planejada")}</SelectItem>
               <SelectItem value="em_andamento">Em Andamento</SelectItem>
-              <SelectItem value="pausada">Pausada</SelectItem>
-              <SelectItem value="concluida">Concluída</SelectItem>
+              <SelectItem value="pausada">{t("Pausada")}</SelectItem>
+              <SelectItem value="concluida">{t("Concluída")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -198,11 +198,11 @@ export default function Obras() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Código</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("Cliente")}</TableHead>
+                  <TableHead>{t("Status")}</TableHead>
                   <TableHead>Cidade</TableHead>
                   <TableHead>Início Previsto</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableHead className="text-right">{t("Ações")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -215,7 +215,7 @@ export default function Obras() {
                 ) : filteredObras.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
-                      Nenhuma obra encontrada
+                      {t("Nenhuma obra encontrada")}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -226,13 +226,13 @@ export default function Obras() {
                       <TableCell>{obra.cliente_nome}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(obra.status)}>
-                          {getStatusLabel(obra.status)}
+                          {t(getStatusLabel(obra.status))}
                         </Badge>
                       </TableCell>
                       <TableCell>{obra.cidade || "-"}</TableCell>
                       <TableCell>
                         {obra.data_inicio_prevista 
-                          ? format(new Date(obra.data_inicio_prevista), "dd/MM/yyyy", { locale: ptBR })
+                          ? date(obra.data_inicio_prevista)
                           : "-"
                         }
                       </TableCell>
