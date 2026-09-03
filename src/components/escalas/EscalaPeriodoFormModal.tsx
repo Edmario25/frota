@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format, addDays, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { enUS, es, ptBR } from "date-fns/locale";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,7 @@ import { CalendarIcon, AlertTriangle, CheckCircle, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EscalaPeriodo, useEscalas } from "@/hooks/useEscalas";
 import { useEmployees } from "@/hooks/useEmployees";
+import { useI18n } from "@/i18n";
 
 const formSchema = z.object({
   employee_id: z.string().min(1, "Selecione um funcionário"),
@@ -86,6 +87,8 @@ function DatePickerField({
   disabled?: boolean;
   minDate?: Date;
 }) {
+  const { t, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   return (
     <div className="flex flex-col gap-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -99,7 +102,7 @@ function DatePickerField({
               !value && "text-muted-foreground"
             )}
           >
-            {value ? format(value, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+            {value ? format(value, "dd/MM/yyyy", { locale: calendarLocale }) : t("Selecione")}
             <CalendarIcon className="ml-auto h-3.5 w-3.5 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -110,7 +113,7 @@ function DatePickerField({
             onSelect={(d) => d && onChange(d)}
             fromDate={minDate}
             initialFocus
-            locale={ptBR}
+            locale={calendarLocale}
             className="pointer-events-auto"
           />
         </PopoverContent>
@@ -126,6 +129,8 @@ export const EscalaPeriodoFormModal = ({
   onSaved,
   resetStatusOnSave = false,
 }: EscalaPeriodoFormModalProps) => {
+  const { t, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   const { escalaTipos, createEscalaPeriodo, updateEscalaPeriodo, checkConflicts } = useEscalas();
   const { employees } = useEmployees();
   const activeEmployees = useMemo(
@@ -299,7 +304,7 @@ export const EscalaPeriodoFormModal = ({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {periodo ? "Editar Período de Escala" : "Novo Período de Escala"}
+            {periodo ? t("Editar Período de Escala") : t("Novo Período de Escala")}
           </DialogTitle>
         </DialogHeader>
 
@@ -312,11 +317,11 @@ export const EscalaPeriodoFormModal = ({
               name="employee_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Funcionário</FormLabel>
+                  <FormLabel>{t("Funcionário")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o funcionário" />
+                        <SelectValue placeholder={t("Selecione o funcionário")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -336,11 +341,11 @@ export const EscalaPeriodoFormModal = ({
               name="escala_tipo_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Escala</FormLabel>
+                  <FormLabel>{t("Tipo de Escala")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo de escala" />
+                        <SelectValue placeholder={t("Selecione o tipo de escala")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -362,7 +367,7 @@ export const EscalaPeriodoFormModal = ({
               name="data_inicio_trabalho"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Data de Início do Trabalho</FormLabel>
+                  <FormLabel>{t("Data de Início do Trabalho")}</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -370,7 +375,7 @@ export const EscalaPeriodoFormModal = ({
                           variant="outline"
                           className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
                         >
-                          {field.value ? format(field.value, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione a data</span>}
+                          {field.value ? format(field.value, "dd/MM/yyyy", { locale: calendarLocale }) : <span>{t("Selecione a data")}</span>}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                       </FormControl>
@@ -381,7 +386,7 @@ export const EscalaPeriodoFormModal = ({
                         selected={field.value}
                         onSelect={field.onChange}
                         initialFocus
-                        locale={ptBR}
+                        locale={calendarLocale}
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
@@ -400,12 +405,12 @@ export const EscalaPeriodoFormModal = ({
                 {/* Header do painel */}
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium text-sm">
-                    {modoManual ? "Datas Ajustadas Manualmente" : "Datas Calculadas"}
+                    {modoManual ? t("Datas Ajustadas Manualmente") : t("Datas Calculadas")}
                   </h4>
                   <div className="flex items-center gap-2">
                     <Pencil className={cn("h-3.5 w-3.5", modoManual ? "text-amber-600" : "text-muted-foreground")} />
                     <Label htmlFor="modo-manual" className="text-xs text-muted-foreground cursor-pointer select-none">
-                      Ajuste manual
+                      {t("Ajuste manual")}
                     </Label>
                     <Switch
                       id="modo-manual"
@@ -417,7 +422,7 @@ export const EscalaPeriodoFormModal = ({
 
                 {modoManual && (
                   <p className="text-xs text-amber-700 dark:text-amber-400">
-                    ⚠️ As datas abaixo serão salvas exatamente como definidas, sem seguir a fórmula da escala.
+                    ⚠️ {t("As datas abaixo serão salvas exatamente como definidas, sem seguir a fórmula da escala.")}
                   </p>
                 )}
 
@@ -425,20 +430,20 @@ export const EscalaPeriodoFormModal = ({
                 {modoManual ? (
                   <div className="grid grid-cols-2 gap-3">
                     <DatePickerField
-                      label="Fim do Trabalho"
+                      label={t("Fim do Trabalho")}
                       value={manualDates.dataFimTrabalho}
                       onChange={d => setManualDates(prev => ({ ...prev, dataFimTrabalho: d }))}
                       minDate={dataInicioTrabalho}
                     />
                     <DatePickerField
-                      label="Início da Folga"
+                      label={t("Início da Folga")}
                       value={manualDates.dataInicioFolga}
                       onChange={d => setManualDates(prev => ({ ...prev, dataInicioFolga: d }))}
                       minDate={manualDates.dataFimTrabalho ?? dataInicioTrabalho}
                     />
                     <div className="col-span-2">
                       <DatePickerField
-                        label="Fim da Folga"
+                        label={t("Fim da Folga")}
                         value={manualDates.dataFimFolga}
                         onChange={d => setManualDates(prev => ({ ...prev, dataFimFolga: d }))}
                         minDate={manualDates.dataInicioFolga ?? dataInicioTrabalho}
@@ -448,19 +453,19 @@ export const EscalaPeriodoFormModal = ({
                 ) : (
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Fim do Trabalho:</span>
+                      <span className="text-muted-foreground">{t("Fim do Trabalho")}:</span>
                       <p className="font-medium">
                         {format(calculatedDates.dataFimTrabalho, "dd/MM/yyyy", { locale: ptBR })}
                       </p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Início da Folga:</span>
+                      <span className="text-muted-foreground">{t("Início da Folga")}:</span>
                       <p className="font-medium">
                         {calculatedDates.dataInicioFolga && format(calculatedDates.dataInicioFolga, "dd/MM/yyyy", { locale: ptBR })}
                       </p>
                     </div>
                     <div className="col-span-2">
-                      <span className="text-muted-foreground">Fim da Folga:</span>
+                      <span className="text-muted-foreground">{t("Fim da Folga")}:</span>
                       <p className="font-medium">
                         {calculatedDates.dataFimFolga && format(calculatedDates.dataFimFolga, "dd/MM/yyyy", { locale: ptBR })}
                       </p>
@@ -475,10 +480,10 @@ export const EscalaPeriodoFormModal = ({
               <Alert variant={conflictInfo.allowOverlap ? "default" : "destructive"}>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>
-                  {conflictInfo.allowOverlap ? "Sobreposição Detectada" : "Conflito de Folga Detectado!"}
+                  {conflictInfo.allowOverlap ? t("Sobreposição Detectada") : t("Conflito de Folga Detectado!")}
                 </AlertTitle>
                 <AlertDescription>
-                  <p className="mb-2">Funcionários da mesma função com folga neste período:</p>
+                  <p className="mb-2">{t("Funcionários da mesma função com folga neste período:")}</p>
                   <ul className="list-disc list-inside mb-2">
                     {conflictInfo.conflicts.map(c => (
                       <li key={c.id}>
@@ -490,7 +495,7 @@ export const EscalaPeriodoFormModal = ({
                   {conflictInfo.allowOverlap ? (
                     <p className="text-sm text-muted-foreground">
                       <CheckCircle className="h-4 w-4 inline mr-1" />
-                      Este tipo de escala permite sobreposição.
+                      {t("Este tipo de escala permite sobreposição.")}
                     </p>
                   ) : (
                     <div className="flex items-center gap-2 mt-2">
@@ -502,7 +507,7 @@ export const EscalaPeriodoFormModal = ({
                         className="rounded border-gray-300"
                       />
                       <label htmlFor="authorize-conflict" className="text-sm">
-                        Autorizar folga mesmo com conflito
+                        {t("Autorizar folga mesmo com conflito")}
                       </label>
                     </div>
                   )}
@@ -516,9 +521,9 @@ export const EscalaPeriodoFormModal = ({
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
+                  <FormLabel>{t("Observações")}</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Observações opcionais..." className="resize-none" {...field} />
+                    <Textarea placeholder={t("Observações opcionais...")} className="resize-none" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -527,7 +532,7 @@ export const EscalaPeriodoFormModal = ({
 
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button
                 type="submit"
@@ -538,7 +543,7 @@ export const EscalaPeriodoFormModal = ({
                   (modoManual && (!manualDates.dataFimTrabalho || !manualDates.dataInicioFolga || !manualDates.dataFimFolga))
                 }
               >
-                {form.formState.isSubmitting ? "Salvando..." : periodo ? "Atualizar" : "Salvar"}
+                {form.formState.isSubmitting ? t("Salvando...") : periodo ? t("Atualizar") : t("Salvar")}
               </Button>
             </div>
           </form>

@@ -37,6 +37,7 @@ import { useEscalaNotificacoes } from "@/hooks/useEscalaNotificacoes";
 import { EscalaTipoFormModal } from "@/components/escalas/EscalaTipoFormModal";
 import { EscalaPeriodoFormModal } from "@/components/escalas/EscalaPeriodoFormModal";
 import { ConfirmDeleteModal } from "@/components/escalas/ConfirmDeleteModal";
+import { useI18n } from "@/i18n";
 
 /** Lê diasAvisoFolga do localStorage (padrão: 5) */
 function getDiasAviso(): number {
@@ -49,6 +50,7 @@ function getDiasAviso(): number {
 
 // ─── View do funcionário: mostra apenas os próprios períodos ───────────────
 const MinhaEscalaView = () => {
+  const { t } = useI18n();
   const { user } = useAuth();
   const [periodos, setPeriodos] = useState<EscalaPeriodo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,20 +106,20 @@ const MinhaEscalaView = () => {
 
   const getStatusBadge = (p: EscalaPeriodo) => {
     if (p.status === 'pendente_aprovacao')
-      return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Aguardando autorização</Badge>;
+      return <Badge className="bg-amber-100 text-amber-800 border-amber-200">{t("Aguardando autorização")}</Badge>;
     if (p.status === 'negado')
-      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Não autorizado</Badge>;
+      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />{t("Não autorizado")}</Badge>;
     if (p.conflito_detectado && !p.conflito_autorizado)
-      return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Conflito</Badge>;
+      return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />{t("Conflito")}</Badge>;
     if (p.conflito_detectado && p.conflito_autorizado)
-      return <Badge variant="secondary"><CheckCircle className="h-3 w-3 mr-1" />Autorizado</Badge>;
+      return <Badge variant="secondary"><CheckCircle className="h-3 w-3 mr-1" />{t("Autorizado")}</Badge>;
     if (emFolga && periodoAtual?.id === p.id)
-      return <Badge className="bg-blue-100 text-blue-700 border-0"><Coffee className="h-3 w-3 mr-1" />Em Folga</Badge>;
+      return <Badge className="bg-blue-100 text-blue-700 border-0"><Coffee className="h-3 w-3 mr-1" />{t("Em Folga")}</Badge>;
     if (periodoAtual?.id === p.id)
-      return <Badge className="bg-emerald-100 text-emerald-700 border-0"><Briefcase className="h-3 w-3 mr-1" />Trabalhando</Badge>;
+      return <Badge className="bg-emerald-100 text-emerald-700 border-0"><Briefcase className="h-3 w-3 mr-1" />{t("Trabalhando")}</Badge>;
     if (parseISO(p.data_inicio_trabalho) > hoje)
-      return <Badge variant="outline">Agendado</Badge>;
-    return <Badge variant="secondary">Concluído</Badge>;
+      return <Badge variant="outline">{t("Agendado")}</Badge>;
+    return <Badge variant="secondary">{t("Concluído")}</Badge>;
   };
 
   if (loading) {
@@ -125,7 +127,7 @@ const MinhaEscalaView = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
-          <p className="mt-2 text-muted-foreground">Carregando escala...</p>
+          <p className="mt-2 text-muted-foreground">{t("Carregando escala...")}</p>
         </div>
       </div>
     );
@@ -135,8 +137,8 @@ const MinhaEscalaView = () => {
     <div className="space-y-5 max-w-screen-md mx-auto">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-extrabold text-foreground tracking-tight">Minha Escala</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Acompanhe seus períodos de trabalho e folga</p>
+        <h1 className="text-xl font-extrabold text-foreground tracking-tight">{t("Minha Escala")}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t("Acompanhe seus períodos de trabalho e folga")}</p>
       </div>
 
       {/* Status atual */}
@@ -149,10 +151,10 @@ const MinhaEscalaView = () => {
                 : <Briefcase className="h-8 w-8 text-emerald-600" />}
               <div>
                 <p className={`text-lg font-bold ${emFolga ? 'text-blue-700' : 'text-emerald-700'}`}>
-                  {emFolga ? 'Você está de folga' : 'Você está trabalhando'}
+                  {emFolga ? t('Você está de folga') : t('Você está trabalhando')}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Escala: {(periodoAtual as any).escala_tipo?.nome ?? '—'}
+                  {t("Escala")}: {(periodoAtual as any).escala_tipo?.nome ?? '—'}
                   {(periodoAtual as any).escala_tipo && ` (${(periodoAtual as any).escala_tipo.dias_trabalho}x${(periodoAtual as any).escala_tipo.dias_folga})`}
                 </p>
               </div>
@@ -163,7 +165,7 @@ const MinhaEscalaView = () => {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground font-medium mb-1 flex items-center gap-1">
-                  <Briefcase className="h-3.5 w-3.5" /> Período de Trabalho
+                  <Briefcase className="h-3.5 w-3.5" /> {t("Período de Trabalho")}
                 </p>
                 <p className="font-semibold">
                   {format(parseISO(periodoAtual.data_inicio_trabalho), "dd 'de' MMM", { locale: ptBR })} →{' '}
@@ -172,7 +174,7 @@ const MinhaEscalaView = () => {
               </div>
               <div>
                 <p className="text-muted-foreground font-medium mb-1 flex items-center gap-1">
-                  <Coffee className="h-3.5 w-3.5" /> Período de Folga
+                  <Coffee className="h-3.5 w-3.5" /> {t("Período de Folga")}
                 </p>
                 <p className="font-semibold">
                   {format(parseISO(periodoAtual.data_inicio_folga), "dd 'de' MMM", { locale: ptBR })} →{' '}
@@ -186,9 +188,9 @@ const MinhaEscalaView = () => {
               const diasParaFolga = Math.ceil((parseISO(periodoAtual.data_inicio_folga).getTime() - hoje.getTime()) / 86400000);
               return diasParaFolga > 0 ? (
                 <div className="mt-4 rounded-lg bg-white/60 border border-emerald-200 p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Folga começa em</p>
+                  <p className="text-xs text-muted-foreground">{t("Folga começa em")}</p>
                   <p className="text-2xl font-extrabold text-emerald-700">
-                    {diasParaFolga === 1 ? 'Amanhã' : `${diasParaFolga} dias`}
+                    {diasParaFolga === 1 ? t('Amanhã') : t("{count} dias", { count: diasParaFolga })}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {format(parseISO(periodoAtual.data_inicio_folga), "dd/MM/yyyy")}
@@ -201,9 +203,9 @@ const MinhaEscalaView = () => {
               const diasRetorno = Math.ceil((parseISO(periodoAtual.data_fim_folga).getTime() - hoje.getTime()) / 86400000);
               return (
                 <div className="mt-4 rounded-lg bg-white/60 border border-blue-200 p-3 text-center">
-                  <p className="text-xs text-muted-foreground">Retorno ao trabalho em</p>
+                  <p className="text-xs text-muted-foreground">{t("Retorno ao trabalho em")}</p>
                   <p className="text-2xl font-extrabold text-blue-700">
-                    {diasRetorno <= 0 ? 'Hoje' : diasRetorno === 1 ? 'Amanhã' : `${diasRetorno} dias`}
+                    {diasRetorno <= 0 ? t('Hoje') : diasRetorno === 1 ? t('Amanhã') : t("{count} dias", { count: diasRetorno })}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {format(parseISO(periodoAtual.data_fim_folga), "dd/MM/yyyy")}
@@ -217,7 +219,7 @@ const MinhaEscalaView = () => {
         <Card>
           <CardContent className="py-8 text-center">
             <Calendar className="h-12 w-12 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-muted-foreground">Nenhum período de escala ativo no momento</p>
+            <p className="text-muted-foreground">{t("Nenhum período de escala ativo no momento")}</p>
           </CardContent>
         </Card>
       )}
@@ -226,16 +228,16 @@ const MinhaEscalaView = () => {
       {periodos.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Histórico de Períodos</CardTitle>
+            <CardTitle className="text-base">{t("Histórico de Períodos")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Trabalho</TableHead>
-                  <TableHead>Folga</TableHead>
-                  <TableHead>Escala</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("Trabalho")}</TableHead>
+                  <TableHead>{t("Folga")}</TableHead>
+                  <TableHead>{t("Escala")}</TableHead>
+                  <TableHead>{t("Status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -266,6 +268,7 @@ const MinhaEscalaView = () => {
 
 // ─── View do gestor: visão completa ────────────────────────────────────────
 const Escalas = () => {
+  const { t } = useI18n();
   const { user } = useAuth();
   const { hasEscalaManagement, isFuncionario } = useUserRole();
   const { escalaTipos, escalaPeriodos, loading, deleteEscalaTipo, deleteEscalaPeriodo, updateEscalaPeriodo } = useEscalas();
@@ -395,7 +398,7 @@ const Escalas = () => {
 
   const handleDecisaoFolga = async (periodo: EscalaPeriodo, autorizar: boolean) => {
     if (!user?.id || periodo.status !== 'pendente_aprovacao') return;
-    const motivo = autorizar ? null : window.prompt("Informe o motivo da negativa da folga:")?.trim();
+    const motivo = autorizar ? null : window.prompt(t("Informe o motivo da negativa da folga:"))?.trim();
     if (!autorizar && !motivo) return;
 
     setAtualizandoStatus(periodo.id);
@@ -468,24 +471,24 @@ const Escalas = () => {
 
   const getStatusBadge = (periodo: EscalaPeriodo) => {
     if (periodo.status === 'pendente_aprovacao') {
-      return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Aguardando autorização</Badge>;
+      return <Badge className="bg-amber-100 text-amber-800 border-amber-200">{t("Aguardando autorização")}</Badge>;
     }
     if (periodo.status === 'negado') {
-      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Não autorizado</Badge>;
+      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />{t("Não autorizado")}</Badge>;
     }
     if (periodo.status === 'em_folga') {
-      return <Badge className="bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400"><PlaneTakeoff className="h-3 w-3 mr-1" />Em Folga</Badge>;
+      return <Badge className="bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400"><PlaneTakeoff className="h-3 w-3 mr-1" />{t("Em Folga")}</Badge>;
     }
     if (periodo.status === 'concluido') {
-      return <Badge variant="secondary"><PlaneLanding className="h-3 w-3 mr-1" />Concluído</Badge>;
+      return <Badge variant="secondary"><PlaneLanding className="h-3 w-3 mr-1" />{t("Concluído")}</Badge>;
     }
     if (periodo.conflito_detectado && !periodo.conflito_autorizado) {
-      return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />Conflito</Badge>;
+      return <Badge variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />{t("Conflito")}</Badge>;
     }
     if (periodo.conflito_detectado && periodo.conflito_autorizado) {
-      return <div className="flex flex-wrap gap-1"><Badge variant="outline">Agendado</Badge><Badge variant="secondary"><CheckCircle className="h-3 w-3 mr-1" />Conflito autorizado</Badge></div>;
+      return <div className="flex flex-wrap gap-1"><Badge variant="outline">{t("Agendado")}</Badge><Badge variant="secondary"><CheckCircle className="h-3 w-3 mr-1" />{t("Conflito autorizado")}</Badge></div>;
     }
-    return <Badge variant="outline">Agendado</Badge>;
+    return <Badge variant="outline">{t("Agendado")}</Badge>;
   };
 
   // Stats
@@ -517,20 +520,20 @@ const Escalas = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Escalas</h1>
+            <h1 className="text-3xl font-bold text-foreground">{t("Escalas")}</h1>
             <p className="text-muted-foreground">
-              Gerencie as escalas de trabalho e folgas da equipe
+              {t("Gerencie as escalas de trabalho e folgas da equipe")}
             </p>
           </div>
           {hasEscalaManagement && (
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => { setSelectedTipo(null); setTipoModalOpen(true); }}>
                 <Settings className="mr-2 h-4 w-4" />
-                Tipos de Escala
+                {t("Tipos de Escala")}
               </Button>
               <Button className="gradient-primary" onClick={() => { setSelectedPeriodo(null); setPeriodoModalOpen(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
-                Novo Período
+                {t("Novo Período")}
               </Button>
             </div>
           )}
@@ -550,7 +553,7 @@ const Escalas = () => {
                   <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-red-800 dark:text-red-300">
-                      Folga atrasada — {p.employee?.nome ?? "—"}
+                      {t("Folga atrasada")} — {p.employee?.nome ?? "—"}
                     </p>
                     <p className="text-xs text-red-600 dark:text-red-400">
                       Deveria ter saído em{" "}
@@ -566,7 +569,7 @@ const Escalas = () => {
                       onClick={() => handleRemarcar(p)}
                     >
                       <CalendarRange className="h-3 w-3 mr-1" />
-                      Remarcar
+                      {t("Remarcar")}
                     </Button>
                     <button
                       onClick={() => setAlertasDismissed(d => [...d, `late-${p.id}`])}
@@ -600,17 +603,17 @@ const Escalas = () => {
                   }
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-semibold ${podeConfirmar ? "text-green-800 dark:text-green-300" : "text-amber-800 dark:text-amber-300"}`}>
-                      {podeConfirmar ? "⏳ Aguardando confirmação de saída" : "Folga próxima"} — {p.employee?.nome ?? "—"}
+                      {podeConfirmar ? `⏳ ${t("Aguardando confirmação de saída")}` : t("Folga próxima")} — {p.employee?.nome ?? "—"}
                     </p>
                     <p className={`text-xs ${podeConfirmar ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"}`}>
                       {dias === 0
-                        ? "Começa hoje"
+                        ? t("Começa hoje")
                         : dias === 1
-                        ? "Começa amanhã"
-                        : `Começa em ${dias} dias`}
+                        ? t("Começa amanhã")
+                        : t("Começa em {count} dias", { count: dias })}
                       {" "}({format(inicioFolga, "dd/MM")} –{" "}
                       {format(new Date(p.data_fim_folga), "dd/MM/yyyy")}) · Escala{" "}
-                      {p.escala_tipo?.nome ?? "—"}
+                      {t("Escala")} {p.escala_tipo?.nome ?? "—"}
                     </p>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
@@ -622,7 +625,7 @@ const Escalas = () => {
                         onClick={() => handleConfirmarSaida(p)}
                       >
                         <PlaneTakeoff className="h-3 w-3 mr-1" />
-                        {atualizandoStatus === p.id ? "Confirmando..." : "Confirmar saída"}
+                        {atualizandoStatus === p.id ? t("Confirmando...") : t("Confirmar saída")}
                       </Button>
                     )}
                     <button
@@ -646,45 +649,45 @@ const Escalas = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tipos de Escala</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("Tipos de Escala")}</CardTitle>
               <Settings className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{escalaTipos.length}</div>
-              <p className="text-xs text-muted-foreground">Configurados</p>
+              <p className="text-xs text-muted-foreground">{t("Configurados")}</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Períodos Agendados</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("Períodos Agendados")}</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{periodosAgendados}</div>
-              <p className="text-xs text-muted-foreground">Aguardando</p>
+              <p className="text-xs text-muted-foreground">{t("Aguardando")}</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Em Folga Hoje</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("Em Folga Hoje")}</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{periodosAtivos}</div>
-              <p className="text-xs text-muted-foreground">Funcionários</p>
+              <p className="text-xs text-muted-foreground">{t("Funcionários")}</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conflitos</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("Conflitos")}</CardTitle>
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{conflitos}</div>
-              <p className="text-xs text-muted-foreground">Não autorizados</p>
+              <p className="text-xs text-muted-foreground">{t("Não autorizados")}</p>
             </CardContent>
           </Card>
         </div>
@@ -692,14 +695,14 @@ const Escalas = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="periodos">Períodos de Escala</TabsTrigger>
-            <TabsTrigger value="tipos">Tipos de Escala</TabsTrigger>
+            <TabsTrigger value="periodos">{t("Períodos de Escala")}</TabsTrigger>
+            <TabsTrigger value="tipos">{t("Tipos de Escala")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="periodos" className="mt-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-                <CardTitle>Períodos de Escala</CardTitle>
+                <CardTitle>{t("Períodos de Escala")}</CardTitle>
                 {/* Filtro rápido por status */}
                 <div className="flex gap-1 flex-wrap">
                   {([
@@ -719,7 +722,7 @@ const Escalas = () => {
                           : "border-border text-muted-foreground hover:border-primary/50"
                       }`}
                     >
-                      {label}
+                      {t(label)}
                       {v !== "todos" && (
                         <span className="ml-1 opacity-70">
                           ({escalaPeriodos.filter(p => p.status === v).length})
@@ -731,11 +734,11 @@ const Escalas = () => {
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+                  <div className="text-center py-8 text-muted-foreground">{t("Carregando...")}</div>
                 ) : periodosFiltrados.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Calendar className="mx-auto h-12 w-12 mb-4 opacity-30" />
-                    <p>Nenhum período {filtroStatus !== "todos" ? `com status "${filtroStatus}"` : "cadastrado"}</p>
+                    <p>{filtroStatus !== "todos" ? t("Nenhum período com o status selecionado") : t("Nenhum período cadastrado")}</p>
                     {hasEscalaManagement && filtroStatus === "todos" && (
                       <Button
                         className="mt-4"
@@ -743,7 +746,7 @@ const Escalas = () => {
                         onClick={() => { setSelectedPeriodo(null); setPeriodoModalOpen(true); }}
                       >
                         <Plus className="mr-2 h-4 w-4" />
-                        Criar Primeiro Período
+                        {t("Criar Primeiro Período")}
                       </Button>
                     )}
                   </div>
@@ -751,12 +754,12 @@ const Escalas = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Funcionário</TableHead>
-                        <TableHead>Escala</TableHead>
-                        <TableHead>Trabalho</TableHead>
-                        <TableHead>Folga</TableHead>
-                        <TableHead>Status</TableHead>
-                        {hasEscalaManagement && <TableHead className="text-right">Ações</TableHead>}
+                        <TableHead>{t("Funcionário")}</TableHead>
+                        <TableHead>{t("Escala")}</TableHead>
+                        <TableHead>{t("Trabalho")}</TableHead>
+                        <TableHead>{t("Folga")}</TableHead>
+                        <TableHead>{t("Status")}</TableHead>
+                        {hasEscalaManagement && <TableHead className="text-right">{t("Ações")}</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -792,10 +795,10 @@ const Escalas = () => {
                               {aguardaDecisao && hasEscalaManagement && (
                                 <>
                                   <Button size="sm" className="h-6 px-2 text-[11px] bg-green-600 hover:bg-green-700" disabled={atualizandoStatus === periodo.id} onClick={() => handleDecisaoFolga(periodo, true)}>
-                                    <CheckCircle className="h-3 w-3 mr-1" />Autorizar
+                                    <CheckCircle className="h-3 w-3 mr-1" />{t("Autorizar")}
                                   </Button>
                                   <Button size="sm" variant="destructive" className="h-6 px-2 text-[11px]" disabled={atualizandoStatus === periodo.id} onClick={() => handleDecisaoFolga(periodo, false)}>
-                                    <XCircle className="h-3 w-3 mr-1" />Negar
+                                    <XCircle className="h-3 w-3 mr-1" />{t("Negar")}
                                   </Button>
                                 </>
                               )}
@@ -809,7 +812,7 @@ const Escalas = () => {
                                   onClick={() => handleConfirmarSaida(periodo)}
                                 >
                                   <PlaneTakeoff className="h-3 w-3 mr-1" />
-                                  {atualizandoStatus === periodo.id ? "..." : "Confirmar saída"}
+                                  {atualizandoStatus === periodo.id ? "..." : t("Confirmar saída")}
                                 </Button>
                               )}
                               {podeConfirmarRetorno && (
@@ -821,7 +824,7 @@ const Escalas = () => {
                                   onClick={() => handleConfirmarRetorno(periodo)}
                                 >
                                   <PlaneLanding className="h-3 w-3 mr-1" />
-                                  {atualizandoStatus === periodo.id ? "..." : "Confirmar retorno"}
+                                  {atualizandoStatus === periodo.id ? "..." : t("Confirmar retorno")}
                                 </Button>
                               )}
                             </div>
@@ -838,10 +841,10 @@ const Escalas = () => {
                                   {aguardaDecisao && (
                                     <>
                                       <DropdownMenuItem onClick={() => handleDecisaoFolga(periodo, true)} className="text-green-700 focus:text-green-700">
-                                        <CheckCircle className="mr-2 h-4 w-4" />Autorizar saída de folga
+                                      <CheckCircle className="mr-2 h-4 w-4" />{t("Autorizar saída de folga")}
                                       </DropdownMenuItem>
                                       <DropdownMenuItem onClick={() => handleDecisaoFolga(periodo, false)} className="text-destructive focus:text-destructive">
-                                        <XCircle className="mr-2 h-4 w-4" />Não autorizar
+                                      <XCircle className="mr-2 h-4 w-4" />{t("Não autorizar")}
                                       </DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                     </>
@@ -852,7 +855,7 @@ const Escalas = () => {
                                       className="text-green-700 focus:text-green-700"
                                     >
                                       <PlaneTakeoff className="mr-2 h-4 w-4" />
-                                      Confirmar saída para folga
+                                      {t("Confirmar saída para folga")}
                                     </DropdownMenuItem>
                                   )}
                                   {podeConfirmarRetorno && (
@@ -861,23 +864,23 @@ const Escalas = () => {
                                       className="text-blue-700 focus:text-blue-700"
                                     >
                                       <PlaneLanding className="mr-2 h-4 w-4" />
-                                      Confirmar retorno ao trabalho
+                                      {t("Confirmar retorno ao trabalho")}
                                     </DropdownMenuItem>
                                   )}
                                   {(podeConfirmarSaida || podeConfirmarRetorno) && <DropdownMenuSeparator />}
                                   <DropdownMenuItem onClick={() => handleRemarcar(periodo)}>
                                     <CalendarRange className="mr-2 h-4 w-4 text-blue-600" />
-                                    Remarcar
+                                    {t("Remarcar")}
                                   </DropdownMenuItem>
                                   {periodo.conflito_detectado && !periodo.conflito_autorizado && (
                                     <DropdownMenuItem onClick={() => handleAutorizar(periodo)} disabled={autorizando === periodo.id}>
                                       <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
-                                      {autorizando === periodo.id ? "Autorizando..." : "Autorizar conflito"}
+                                      {autorizando === periodo.id ? t("Autorizando...") : t("Autorizar conflito")}
                                     </DropdownMenuItem>
                                   )}
                                   <DropdownMenuItem onClick={() => handleEditPeriodo(periodo)}>
                                     <Edit className="mr-2 h-4 w-4" />
-                                    Editar
+                                    {t("Editar")}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
@@ -885,7 +888,7 @@ const Escalas = () => {
                                     onClick={() => handleDeleteClick('periodo', periodo.id, periodo.employee?.nome || '')}
                                   >
                                     <Trash2 className="mr-2 h-4 w-4" />
-                                    Excluir
+                                    {t("Excluir")}
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -904,21 +907,21 @@ const Escalas = () => {
           <TabsContent value="tipos" className="mt-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Tipos de Escala</CardTitle>
+                <CardTitle>{t("Tipos de Escala")}</CardTitle>
                 {hasEscalaManagement && (
                   <Button onClick={() => { setSelectedTipo(null); setTipoModalOpen(true); }}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Novo Tipo
+                    {t("Novo Tipo")}
                   </Button>
                 )}
               </CardHeader>
               <CardContent>
                 {loading ? (
-                  <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+                  <div className="text-center py-8 text-muted-foreground">{t("Carregando...")}</div>
                 ) : escalaTipos.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Settings className="mx-auto h-12 w-12 mb-4" />
-                    <p>Nenhum tipo de escala cadastrado</p>
+                    <p>{t("Nenhum tipo de escala cadastrado")}</p>
                     {hasEscalaManagement && (
                       <Button 
                         className="mt-4" 
@@ -926,7 +929,7 @@ const Escalas = () => {
                         onClick={() => { setSelectedTipo(null); setTipoModalOpen(true); }}
                       >
                         <Plus className="mr-2 h-4 w-4" />
-                        Criar Primeiro Tipo
+                        {t("Criar Primeiro Tipo")}
                       </Button>
                     )}
                   </div>
@@ -934,12 +937,12 @@ const Escalas = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Dias Trabalho</TableHead>
-                        <TableHead>Dias Folga</TableHead>
-                        <TableHead>Sobreposição</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        {hasEscalaManagement && <TableHead className="text-right">Ações</TableHead>}
+                        <TableHead>{t("Nome")}</TableHead>
+                        <TableHead>{t("Dias Trabalho")}</TableHead>
+                        <TableHead>{t("Dias Folga")}</TableHead>
+                        <TableHead>{t("Sobreposição")}</TableHead>
+                        <TableHead>{t("Descrição")}</TableHead>
+                        {hasEscalaManagement && <TableHead className="text-right">{t("Ações")}</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -950,9 +953,9 @@ const Escalas = () => {
                           <TableCell>{tipo.dias_folga}</TableCell>
                           <TableCell>
                             {tipo.permite_sobreposicao ? (
-                              <Badge variant="secondary">Permitida</Badge>
+                              <Badge variant="secondary">{t("Permitida")}</Badge>
                             ) : (
-                              <Badge variant="outline">Não Permitida</Badge>
+                              <Badge variant="outline">{t("Não Permitida")}</Badge>
                             )}
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate">{tipo.descricao || "-"}</TableCell>
@@ -1000,8 +1003,8 @@ const Escalas = () => {
         isOpen={deleteModalOpen}
         onClose={() => { setDeleteModalOpen(false); setDeleteTarget(null); }}
         onConfirm={handleConfirmDelete}
-        title={`Excluir ${deleteTarget?.type === 'tipo' ? 'Tipo de Escala' : 'Período'}`}
-        description={`Tem certeza que deseja excluir ${deleteTarget?.type === 'tipo' ? 'o tipo de escala' : 'o período de'} "${deleteTarget?.name}"? Esta ação não pode ser desfeita.`}
+        title={deleteTarget?.type === 'tipo' ? t("Excluir Tipo de Escala") : t("Excluir Período")}
+        description={t("Tem certeza que deseja excluir {item}? Esta ação não pode ser desfeita.", { item: deleteTarget?.name ?? "" })}
       />
     </Layout>
   );

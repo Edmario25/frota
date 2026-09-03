@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { EscalaTipo, useEscalas } from "@/hooks/useEscalas";
+import { useI18n } from "@/i18n";
 
 const formSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(50, "Nome muito longo"),
@@ -44,6 +45,7 @@ export const EscalaTipoFormModal = ({
   onClose,
   escalaTipo,
 }: EscalaTipoFormModalProps) => {
+  const { t } = useI18n();
   const { createEscalaTipo, updateEscalaTipo } = useEscalas();
 
   const form = useForm<FormData>({
@@ -108,7 +110,7 @@ export const EscalaTipoFormModal = ({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {escalaTipo ? "Editar Tipo de Escala" : "Novo Tipo de Escala"}
+            {escalaTipo ? t("Editar Tipo de Escala") : t("Novo Tipo de Escala")}
           </DialogTitle>
         </DialogHeader>
 
@@ -119,7 +121,7 @@ export const EscalaTipoFormModal = ({
               name="nome"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome</FormLabel>
+                  <FormLabel>{t("Nome")}</FormLabel>
                   <FormControl>
                     <Input placeholder="Ex: 20x7" {...field} />
                   </FormControl>
@@ -134,7 +136,7 @@ export const EscalaTipoFormModal = ({
                 name="dias_trabalho"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Dias de Trabalho</FormLabel>
+                    <FormLabel>{t("Dias de Trabalho")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -153,7 +155,7 @@ export const EscalaTipoFormModal = ({
                 name="dias_folga"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Dias de Folga</FormLabel>
+                    <FormLabel>{t("Dias de Folga")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -174,9 +176,9 @@ export const EscalaTipoFormModal = ({
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base">Permitir Sobreposição</FormLabel>
+                    <FormLabel className="text-base">{t("Permitir Sobreposição")}</FormLabel>
                     <FormDescription>
-                      Permitir que funcionários da mesma função tirem folga simultaneamente
+                      {t("Permitir que funcionários da mesma função tirem folga simultaneamente")}
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -194,10 +196,10 @@ export const EscalaTipoFormModal = ({
               name="descricao"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descrição</FormLabel>
+                  <FormLabel>{t("Descrição")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Descrição opcional..."
+                      placeholder={t("Descrição opcional...")}
                       className="resize-none"
                       {...field}
                     />
@@ -214,7 +216,7 @@ export const EscalaTipoFormModal = ({
                 onClick={onClose}
                 className="flex-1"
               >
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button
                 type="submit"
@@ -222,10 +224,10 @@ export const EscalaTipoFormModal = ({
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting
-                  ? "Salvando..."
+                  ? t("Salvando...")
                   : escalaTipo
-                  ? "Atualizar"
-                  : "Salvar"}
+                  ? t("Atualizar")
+                  : t("Salvar")}
               </Button>
             </div>
           </form>

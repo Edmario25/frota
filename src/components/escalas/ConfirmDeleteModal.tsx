@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useI18n } from "@/i18n";
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const ConfirmDeleteModal = ({
   title,
   description,
 }: ConfirmDeleteModalProps) => {
+  const { t } = useI18n();
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
@@ -33,9 +35,9 @@ export const ConfirmDeleteModal = ({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel>{t("Cancelar")}</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Excluir
+            {t("Excluir")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
