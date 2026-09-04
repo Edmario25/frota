@@ -39,6 +39,7 @@ import {
   ChevronDown,
   Siren,
   Leaf,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -145,6 +146,7 @@ const menuGroups = [
       { title: "Cargos",         icon: Briefcase, url: "/cargos",         roles: FULL_ACCESS, perm: null },
       { title: "Departamentos",  icon: Network,   url: "/departamentos",  roles: FULL_ACCESS, perm: null },
       { title: "Configurações",  icon: Settings,  url: "/configuracoes",  roles: FULL_ACCESS, perm: null },
+      { title: "Auditoria do Sistema", icon: History, url: "/auditoria", roles: ['admin'], perm: null },
     ]
   },
   {

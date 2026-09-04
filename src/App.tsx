@@ -100,6 +100,7 @@ const Qualidade = lazy(() => import("./pages/Qualidade"));
 const QualidadeRegistros = lazy(() => import("./pages/QualidadeRegistros"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
 const Visitantes = lazy(() => import("./pages/Visitantes"));
+const Auditoria = lazy(() => import("./pages/Auditoria"));
 
 const RouteFallback = () => {
   const { t } = useI18n();
@@ -487,6 +488,13 @@ const App = () => (
               </ProtectedRoute>
             } />
             {/* /app gerencia seu próprio auth — não usa ProtectedRoute */}
+            <Route path="/auditoria" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['admin']}>
+                  <Auditoria />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
             <Route path="/app" element={<MobileApp />} />
             <Route path="/app-sms" element={<AppSms />} />
             <Route path="/app-campo" element={<AppCampo />} />

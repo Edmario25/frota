@@ -55,6 +55,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       email,
       password,
     });
+    if (!error) {
+      const { data } = await (supabase as any).rpc('registrar_sessao_auditoria', {
+        p_evento: 'LOGIN', p_origem: 'sistema-gerencial', p_user_agent: navigator.userAgent, p_sessao: null,
+      });
+      if (data) sessionStorage.setItem('apice-audit-session', data);
+    }
     return { error };
   };
 
@@ -72,6 +78,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signOut = async () => {
+    const auditSession = sessionStorage.getItem('apice-audit-session');
+    await (supabase as any).rpc('registrar_sessao_auditoria', {
+      p_evento: 'LOGOUT', p_origem: 'sistema-gerencial', p_user_agent: navigator.userAgent, p_sessao: auditSession,
+    });
+    sessionStorage.removeItem('apice-audit-session');
     await supabase.auth.signOut();
   };
 
