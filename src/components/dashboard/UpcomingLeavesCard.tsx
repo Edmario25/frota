@@ -5,9 +5,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, AlertTriangle, CheckCircle, User, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserObra } from "@/hooks/useUserObra";
-import { format, differenceInDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { differenceInDays } from "date-fns";
 import { Link } from "react-router-dom";
+import { useI18n } from "@/i18n";
 
 interface UpcomingLeave {
   id: string;
@@ -24,6 +24,7 @@ interface UpcomingLeave {
 }
 
 export function UpcomingLeavesCard() {
+  const { t, date } = useI18n();
   const [leaves, setLeaves] = useState<UpcomingLeave[]>([]);
   const [loading, setLoading] = useState(true);
   const { obraId } = useUserObra();
@@ -79,7 +80,7 @@ export function UpcomingLeavesCard() {
             return {
               id: p.id,
               employee_id: p.employee_id,
-              employee_nome: p.employee?.nome || 'Desconhecido',
+              employee_nome: p.employee?.nome || t('Desconhecido'),
               employee_foto: p.employee?.foto_url,
               escala_nome: p.escala_tipo?.nome || 'N/A',
               data_inicio_folga: p.data_inicio_folga,
@@ -107,7 +108,7 @@ export function UpcomingLeavesCard() {
     };
 
     fetchUpcomingLeaves();
-  }, [obraId]);
+  }, [obraId, t]);
 
   const getInitials = (name: string) => {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -122,7 +123,7 @@ export function UpcomingLeavesCard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl font-bold">
             <Calendar className="h-6 w-6 text-primary" />
-            Próximas Folgas
+            {t("Próximas Folgas")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -141,15 +142,15 @@ export function UpcomingLeavesCard() {
           <div>
             <CardTitle className="flex items-center gap-3 text-xl font-bold">
               <Calendar className="h-6 w-6 text-primary" />
-              Próximas Folgas
+              {t("Próximas Folgas")}
             </CardTitle>
-            <CardDescription className="mt-1">Folgas agendadas da sua equipe</CardDescription>
+            <CardDescription className="mt-1">{t("Folgas agendadas da sua equipe")}</CardDescription>
           </div>
           <Link 
             to="/escalas" 
             className="flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
           >
-            Ver todas
+            {t("Ver todas")}
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
@@ -159,11 +160,11 @@ export function UpcomingLeavesCard() {
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 bg-emerald-50 rounded-xl text-center">
             <p className="text-3xl font-bold text-emerald-600">{emFolgaHoje}</p>
-            <p className="text-sm text-muted-foreground font-medium">Em folga hoje</p>
+            <p className="text-sm text-muted-foreground font-medium">{t("Em folga hoje")}</p>
           </div>
           <div className="p-4 bg-blue-50 rounded-xl text-center">
             <p className="text-3xl font-bold text-blue-600">{proximasFolgas}</p>
-            <p className="text-sm text-muted-foreground font-medium">Próximos 7 dias</p>
+            <p className="text-sm text-muted-foreground font-medium">{t("Próximos 7 dias")}</p>
           </div>
         </div>
 
@@ -187,7 +188,7 @@ export function UpcomingLeavesCard() {
                   <div>
                     <p className="font-semibold">{leave.employee_nome}</p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(leave.data_inicio_folga), "dd/MM", { locale: ptBR })} - {format(new Date(leave.data_fim_folga), "dd/MM", { locale: ptBR })}
+                      {date(leave.data_inicio_folga, { day: "2-digit", month: "2-digit" })} – {date(leave.data_fim_folga, { day: "2-digit", month: "2-digit" })}
                     </p>
                   </div>
                 </div>
@@ -201,19 +202,19 @@ export function UpcomingLeavesCard() {
                   )}
                   {leave.em_folga ? (
                     <Badge className="bg-emerald-500 text-white border-0 text-xs font-semibold px-3 py-1 rounded-full">
-                      Em folga
+                      {t("Em folga")}
                     </Badge>
                   ) : leave.dias_para_folga === 0 ? (
                     <Badge className="bg-primary text-white border-0 text-xs font-semibold px-3 py-1 rounded-full">
-                      Hoje
+                      {t("Hoje")}
                     </Badge>
                   ) : leave.dias_para_folga === 1 ? (
                     <Badge variant="outline" className="text-xs font-semibold px-3 py-1 rounded-full">
-                      Amanhã
+                      {t("Amanhã")}
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="text-xs font-semibold px-3 py-1 rounded-full">
-                      {leave.dias_para_folga} dias
+                      {t("{count} dias", { count: leave.dias_para_folga })}
                     </Badge>
                   )}
                 </div>
@@ -223,7 +224,7 @@ export function UpcomingLeavesCard() {
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             <User className="h-12 w-12 mx-auto mb-3 opacity-40" />
-            <p className="font-medium">Nenhuma folga agendada</p>
+            <p className="font-medium">{t("Nenhuma folga agendada")}</p>
           </div>
         )}
       </CardContent>

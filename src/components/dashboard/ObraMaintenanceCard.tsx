@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useMaintenance } from "@/hooks/useMaintenance";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/i18n";
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   agendada:     { label: "Agendada",     color: "bg-blue-100 text-blue-700",   icon: Calendar },
@@ -24,6 +25,7 @@ const tipoLabel: Record<string, string> = {
 };
 
 export const ObraMaintenanceCard = () => {
+  const { t, date } = useI18n();
   const { maintenanceRecords, loading, updateMaintenanceRecord } = useMaintenance();
   const { toast } = useToast();
   const [updating, setUpdating] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export const ObraMaintenanceCard = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Wrench className="h-4 w-4" />
-            Manutenções da Obra
+            {t("Manutenções da Obra")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -78,12 +80,12 @@ export const ObraMaintenanceCard = () => {
         <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center gap-2">
             <Wrench className="h-4 w-4" />
-            Manutenções da Obra
+            {t("Manutenções da Obra")}
           </div>
           {activeRecords.length > 0 && (
             <Badge className="bg-amber-100 text-amber-700 border-0 text-xs rounded-full">
               <AlertTriangle className="h-3 w-3 mr-1" />
-              {activeRecords.length} pendente{activeRecords.length > 1 ? "s" : ""}
+              {t("{count} pendentes", { count: activeRecords.length })}
             </Badge>
           )}
         </CardTitle>
@@ -92,7 +94,7 @@ export const ObraMaintenanceCard = () => {
         {displayRecords.length === 0 ? (
           <div className="text-center py-8">
             <Wrench className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-            <p className="text-sm text-muted-foreground">Nenhuma manutenção registrada</p>
+            <p className="text-sm text-muted-foreground">{t("Nenhuma manutenção registrada")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -115,16 +117,16 @@ export const ObraMaintenanceCard = () => {
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <p className="text-sm font-medium truncate">{record.descricao}</p>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${cfg.color}`}>
-                          {cfg.label}
+                          {t(cfg.label)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                        <span>{tipoLabel[record.tipo] ?? record.tipo}</span>
+                        <span>{t(tipoLabel[record.tipo] ?? record.tipo)}</span>
                         <span>·</span>
                         <span>
                           {record.status === "concluida" && record.data_realizada
-                            ? `Concluída em ${new Date(record.data_realizada).toLocaleDateString("pt-BR")}`
-                            : `Agendada para ${new Date(record.data_agendada).toLocaleDateString("pt-BR")}`}
+                            ? t("Concluída em {date}", { date: date(record.data_realizada) })
+                            : t("Agendada para {date}", { date: date(record.data_agendada) })}
                         </span>
                         {record.oficina && (
                           <>
@@ -148,7 +150,7 @@ export const ObraMaintenanceCard = () => {
                           onClick={() => handleStatusChange(record.id, "em_andamento")}
                         >
                           <Play className="h-3 w-3" />
-                          Iniciar
+                          {t("Iniciar")}
                         </Button>
                       )}
                       {record.status === "em_andamento" && (
@@ -160,7 +162,7 @@ export const ObraMaintenanceCard = () => {
                           onClick={() => handleStatusChange(record.id, "concluida")}
                         >
                           <Check className="h-3 w-3" />
-                          Concluir
+                          {t("Concluir")}
                         </Button>
                       )}
                       <Button
@@ -171,7 +173,7 @@ export const ObraMaintenanceCard = () => {
                         onClick={() => handleStatusChange(record.id, "cancelada")}
                       >
                         <X className="h-3 w-3" />
-                        Cancelar
+                        {t("Cancelar")}
                       </Button>
                     </div>
                   )}

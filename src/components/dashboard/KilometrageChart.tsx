@@ -3,8 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useVehicles } from "@/hooks/useVehicles";
 import { useMemo } from "react";
 import { Gauge } from "lucide-react";
+import { useI18n } from "@/i18n";
 
 export function KilometrageChart() {
+  const { t, number } = useI18n();
   const { vehicles } = useVehicles();
 
   const chartData = useMemo(() => {
@@ -49,9 +51,7 @@ export function KilometrageChart() {
     .reduce((sum, v) => sum + (v.quilometragem_atual || 0), 0);
 
   const formatKm = (km: number) => {
-    if (km >= 1000000) return `${(km / 1000000).toFixed(1)}M`;
-    if (km >= 1000) return `${(km / 1000).toFixed(0)}k`;
-    return km.toString();
+    return number(km, { notation: "compact", maximumFractionDigits: 1 });
   };
 
   if (vehicles.length === 0) {
@@ -60,15 +60,15 @@ export function KilometrageChart() {
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl font-bold">
             <Gauge className="h-6 w-6 text-primary" />
-            Distribuição de Quilometragem
+            {t("Distribuição de Quilometragem")}
           </CardTitle>
           <CardDescription>
-            Veículos por faixa de quilometragem
+            {t("Veículos por faixa de quilometragem")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            Nenhum veículo cadastrado
+            {t("Nenhum veículo cadastrado")}
           </div>
         </CardContent>
       </Card>
@@ -80,21 +80,21 @@ export function KilometrageChart() {
       <CardHeader>
         <CardTitle className="flex items-center gap-3 text-xl font-bold">
           <Gauge className="h-6 w-6 text-primary" />
-          Distribuição de Quilometragem
+          {t("Distribuição de Quilometragem")}
         </CardTitle>
         <CardDescription className="mt-1">
-          Veículos por faixa de quilometragem
+          {t("Veículos por faixa de quilometragem")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {/* Totais */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="p-4 bg-blue-50 rounded-xl">
-            <p className="text-sm text-muted-foreground font-medium">Total KM Leves</p>
+            <p className="text-sm text-muted-foreground font-medium">{t("Total KM Leves")}</p>
             <p className="text-2xl font-bold text-blue-600">{formatKm(totalKmLeves)} km</p>
           </div>
           <div className="p-4 bg-emerald-50 rounded-xl">
-            <p className="text-sm text-muted-foreground font-medium">Total KM Pesados</p>
+            <p className="text-sm text-muted-foreground font-medium">{t("Total KM Pesados")}</p>
             <p className="text-2xl font-bold text-emerald-600">{formatKm(totalKmPesados)} km</p>
           </div>
         </div>
@@ -107,8 +107,8 @@ export function KilometrageChart() {
               <YAxis axisLine={false} tickLine={false} />
               <Tooltip 
                 formatter={(value: number, name: string) => [
-                  `${value} veículos`, 
-                  name === 'leves' ? 'Leves' : 'Pesados'
+                  t("{count} veículos", { count: value }),
+                  name === 'leves' ? t('Leves') : t('Pesados')
                 ]}
                 contentStyle={{ 
                   borderRadius: '12px', 
@@ -117,7 +117,7 @@ export function KilometrageChart() {
                 }}
               />
               <Legend 
-                formatter={(value) => value === 'leves' ? 'Veículos Leves' : 'Veículos Pesados'}
+                formatter={(value) => value === 'leves' ? t('Veículos Leves') : t('Veículos Pesados')}
                 iconType="circle"
                 wrapperStyle={{ paddingTop: '20px' }}
               />

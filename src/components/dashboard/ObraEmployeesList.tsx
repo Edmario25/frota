@@ -7,6 +7,7 @@ import { getEmployeeStatusDot, getEmployeeStatusText } from "@/lib/statusHelpers
 import { supabase } from "@/integrations/supabase/client";
 import { useUserObra } from "@/hooks/useUserObra";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 interface ObraEmployee {
   id: string;
@@ -20,6 +21,7 @@ interface ObraEmployee {
 }
 
 export const ObraEmployeesList = () => {
+  const { t } = useI18n();
   const { obraId, obraNome, loading: loadingObra } = useUserObra();
   const [employees, setEmployees] = useState<ObraEmployee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +101,7 @@ export const ObraEmployeesList = () => {
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-3 text-xl font-bold">
             <Users className="h-6 w-6 text-primary" />
-            Funcionários da Obra
+            {t("Funcionários da Obra")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -117,12 +119,12 @@ export const ObraEmployeesList = () => {
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-3 text-xl font-bold">
             <Users className="h-6 w-6 text-primary" />
-            Funcionários da Obra
+            {t("Funcionários da Obra")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-center py-8">
-            Você não está vinculado a nenhuma obra.
+            {t("Você não está vinculado a nenhuma obra.")}
           </p>
         </CardContent>
       </Card>
@@ -135,7 +137,7 @@ export const ObraEmployeesList = () => {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-3 text-xl font-bold">
             <Users className="h-6 w-6 text-primary" />
-            Funcionários da Obra
+            {t("Funcionários da Obra")}
           </CardTitle>
           {obraNome && (
             <Badge 
@@ -147,13 +149,13 @@ export const ObraEmployeesList = () => {
           )}
         </div>
         <p className="text-sm text-muted-foreground mt-2">
-          {employees.length} funcionário{employees.length !== 1 ? 's' : ''} vinculado{employees.length !== 1 ? 's' : ''}
+          {t("{count} funcionários vinculados", { count: employees.length })}
         </p>
       </CardHeader>
       <CardContent className="pt-4">
         {employees.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">
-            Nenhum funcionário vinculado a esta obra.
+            {t("Nenhum funcionário vinculado a esta obra.")}
           </p>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
@@ -172,11 +174,11 @@ export const ObraEmployeesList = () => {
                   <p className="font-semibold text-foreground truncate">{emp.nome}</p>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Building2 className="h-3.5 w-3.5" />
-                    <span className="truncate">{emp.funcao_obra || emp.cargo_nome || 'Sem função'}</span>
+                    <span className="truncate">{emp.funcao_obra || emp.cargo_nome || t('Sem função')}</span>
                   </div>
                 </div>
                 <Badge className={cn("text-xs font-semibold px-3 py-1 rounded-full", getEmployeeStatusDot(emp.status))}>
-                  {getEmployeeStatusText(emp.status)}
+                  {t(getEmployeeStatusText(emp.status))}
                 </Badge>
               </div>
             ))}

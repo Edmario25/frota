@@ -7,6 +7,7 @@ import { useObras } from "@/hooks/useObras";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { useI18n } from "@/i18n";
 
 interface ObraResumo {
   id: string;
@@ -19,6 +20,7 @@ interface ObraResumo {
 }
 
 export function ObrasSummaryCard() {
+  const { t } = useI18n();
   const { obras, getObraStats, loading } = useObras();
   const [obrasResumo, setObrasResumo] = useState<ObraResumo[]>([]);
   const stats = getObraStats();
@@ -69,7 +71,7 @@ export function ObrasSummaryCard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-3 text-xl font-bold">
             <HardHat className="h-6 w-6 text-primary" />
-            Resumo de Obras
+            {t("Resumo de Obras")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -88,15 +90,15 @@ export function ObrasSummaryCard() {
           <div>
             <CardTitle className="flex items-center gap-3 text-xl font-bold">
               <HardHat className="h-6 w-6 text-primary" />
-              Resumo de Obras
+              {t("Resumo de Obras")}
             </CardTitle>
-            <CardDescription className="mt-1">Visão geral dos projetos ativos</CardDescription>
+            <CardDescription className="mt-1">{t("Visão geral dos projetos ativos")}</CardDescription>
           </div>
           <Link 
             to="/obras" 
             className="flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
           >
-            Ver todas
+            {t("Ver todas")}
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
@@ -106,27 +108,27 @@ export function ObrasSummaryCard() {
         <div className="grid grid-cols-4 gap-4">
           <div className="text-center p-4 bg-muted/30 rounded-xl">
             <p className="text-2xl font-bold">{stats.total}</p>
-            <p className="text-xs text-muted-foreground font-medium">Total</p>
+            <p className="text-xs text-muted-foreground font-medium">{t("Total")}</p>
           </div>
           <div className="text-center p-4 bg-emerald-50 rounded-xl">
             <p className="text-2xl font-bold text-emerald-600">{stats.em_andamento}</p>
-            <p className="text-xs text-muted-foreground font-medium">Ativas</p>
+            <p className="text-xs text-muted-foreground font-medium">{t("Ativas")}</p>
           </div>
           <div className="text-center p-4 bg-amber-50 rounded-xl">
             <p className="text-2xl font-bold text-amber-600">{stats.pausadas}</p>
-            <p className="text-xs text-muted-foreground font-medium">Pausadas</p>
+            <p className="text-xs text-muted-foreground font-medium">{t("Pausadas")}</p>
           </div>
           <div className="text-center p-4 bg-blue-50 rounded-xl">
             <p className="text-2xl font-bold text-blue-600">{stats.concluidas}</p>
-            <p className="text-xs text-muted-foreground font-medium">Concluídas</p>
+            <p className="text-xs text-muted-foreground font-medium">{t("Concluídas")}</p>
           </div>
         </div>
 
         {/* Progress */}
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground font-medium">Obras em andamento</span>
-            <span className="font-semibold">{obrasEmAndamento} de {totalObras}</span>
+            <span className="text-muted-foreground font-medium">{t("Obras em andamento")}</span>
+            <span className="font-semibold">{t("{current} de {total}", { current: obrasEmAndamento, total: totalObras })}</span>
           </div>
           <Progress value={progressPercent} className="h-2.5 rounded-full" />
         </div>
@@ -136,7 +138,7 @@ export function ObrasSummaryCard() {
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Principais Obras
+              {t("Principais Obras")}
             </h4>
             {obrasResumo.map((obra) => (
               <div 
@@ -162,7 +164,7 @@ export function ObrasSummaryCard() {
                     <span className="font-medium">{obra.veiculos_count}</span>
                   </div>
                   <Badge className={`text-xs font-semibold px-3 py-1 rounded-full ${getObraStatusColor(obra.status)}`}>
-                    {getObraStatusText(obra.status)}
+                    {t(getObraStatusText(obra.status))}
                   </Badge>
                 </div>
               </div>
@@ -170,7 +172,7 @@ export function ObrasSummaryCard() {
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
-            Nenhuma obra cadastrada
+            {t("Nenhuma obra cadastrada")}
           </div>
         )}
       </CardContent>

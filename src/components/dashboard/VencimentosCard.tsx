@@ -6,6 +6,7 @@ import {
   GraduationCap, FileText, AlertTriangle, ArrowRight,
   RefreshCw, CheckCircle2, Clock,
 } from "lucide-react"
+import { useI18n } from "@/i18n"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ItemVencimento {
@@ -52,10 +53,6 @@ const statusCfg = {
   },
 }
 
-function fmtData(iso: string) {
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
-}
-
 // ─── Componente ───────────────────────────────────────────────────────────────
 interface Props {
   diasJanela?: number    // quantos dias à frente olhar (padrão: 60)
@@ -64,6 +61,7 @@ interface Props {
 }
 
 export function VencimentosCard({ diasJanela = 60, maxItens = 8, compact = false }: Props) {
+  const { t, date } = useI18n()
   const [itens,   setItens]   = useState<ItemVencimento[]>([])
   const [loading, setLoading] = useState(true)
   const [erro,    setErro]    = useState(false)
@@ -162,10 +160,10 @@ export function VencimentosCard({ diasJanela = 60, maxItens = 8, compact = false
       <div className="rounded-xl border border-border/50 bg-card shadow-card p-5">
         <div className="flex items-center gap-2 mb-3">
           <CheckCircle2 className="h-4 w-4 text-green-500" />
-          <p className="text-sm font-semibold text-foreground">Vencimentos</p>
+          <p className="text-sm font-semibold text-foreground">{t("Vencimentos")}</p>
         </div>
         <p className="text-sm text-green-600 font-medium">
-          ✅ Nenhum treinamento ou documento vencendo nos próximos {diasJanela} dias
+          {t("✅ Nenhum treinamento ou documento vencendo nos próximos {count} dias", { count: diasJanela })}
         </p>
       </div>
     )
@@ -193,23 +191,23 @@ export function VencimentosCard({ diasJanela = 60, maxItens = 8, compact = false
             "h-4 w-4",
             vencidos > 0 ? "text-red-500" : criticos > 0 ? "text-orange-500" : "text-amber-500"
           )} />
-          <p className="text-sm font-semibold text-foreground">Vencimentos Próximos</p>
+          <p className="text-sm font-semibold text-foreground">{t("Vencimentos Próximos")}</p>
           {loading && <RefreshCw className="h-3 w-3 text-muted-foreground animate-spin" />}
         </div>
         <div className="flex items-center gap-1.5">
           {vencidos > 0 && (
             <span className="text-xs font-bold bg-red-500 text-white rounded-full px-2 py-0.5">
-              {vencidos} vencido{vencidos > 1 ? "s" : ""}
+              {t("{count} vencidos", { count: vencidos })}
             </span>
           )}
           {criticos > 0 && (
             <span className="text-xs font-bold bg-orange-500 text-white rounded-full px-2 py-0.5">
-              {criticos} crítico{criticos > 1 ? "s" : ""}
+              {t("{count} críticos", { count: criticos })}
             </span>
           )}
           {atencao > 0 && (
             <span className="text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-full px-2 py-0.5">
-              {atencao} a vencer
+              {t("{count} a vencer", { count: atencao })}
             </span>
           )}
         </div>
@@ -224,7 +222,7 @@ export function VencimentosCard({ diasJanela = 60, maxItens = 8, compact = false
         ].map(k => (
           <div key={k.label} className="flex flex-col items-center py-3 px-2">
             <p className={cn("text-xl font-extrabold leading-none", k.color)}>{k.value}</p>
-            <p className="text-[10px] text-muted-foreground mt-1 font-medium">{k.label}</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-medium">{t(k.label)}</p>
           </div>
         ))}
       </div>
@@ -245,8 +243,8 @@ export function VencimentosCard({ diasJanela = 60, maxItens = 8, compact = false
             ))
           ) : erro ? (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              Erro ao carregar vencimentos.{" "}
-              <button onClick={fetchVencimentos} className="text-primary underline">Tentar novamente</button>
+              {t("Erro ao carregar vencimentos.")}{" "}
+              <button onClick={fetchVencimentos} className="text-primary underline">{t("Tentar novamente")}</button>
             </div>
           ) : (
             exibidos.map(item => {
@@ -254,10 +252,10 @@ export function VencimentosCard({ diasJanela = 60, maxItens = 8, compact = false
               const icon   = item.tipo === "treinamento" ? GraduationCap : FileText
               const Icon   = icon
               const diasTxt = item.diasRestantes < 0
-                ? `venceu há ${Math.abs(item.diasRestantes)} dia${Math.abs(item.diasRestantes) !== 1 ? "s" : ""}`
+                ? t("Venceu há {count} dias", { count: Math.abs(item.diasRestantes) })
                 : item.diasRestantes === 0
-                  ? "vence hoje"
-                  : `${item.diasRestantes} dia${item.diasRestantes !== 1 ? "s" : ""}`
+                  ? t("Vence hoje")
+                  : t("{count} dias", { count: item.diasRestantes })
 
               return (
                 <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
@@ -273,7 +271,7 @@ export function VencimentosCard({ diasJanela = 60, maxItens = 8, compact = false
                       {item.nome}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {item.funcionario} · {fmtData(item.vencimento)}
+                      {item.funcionario} · {date(item.vencimento)}
                     </p>
                   </div>
 
@@ -292,7 +290,7 @@ export function VencimentosCard({ diasJanela = 60, maxItens = 8, compact = false
           <div className="flex items-center justify-between px-4 py-2.5 bg-muted/20">
             {total > maxItens && (
               <p className="text-xs text-muted-foreground">
-                + {total - maxItens} item{total - maxItens !== 1 ? "s" : ""} não exibido{total - maxItens !== 1 ? "s" : ""}
+                {t("+ {count} itens não exibidos", { count: total - maxItens })}
               </p>
             )}
             <div className="flex gap-3 ml-auto">
@@ -300,13 +298,13 @@ export function VencimentosCard({ diasJanela = 60, maxItens = 8, compact = false
                 to="/sms/treinamentos"
                 className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
               >
-                Treinamentos <ArrowRight className="h-3 w-3" />
+                {t("Treinamentos")} <ArrowRight className="h-3 w-3" />
               </Link>
               <Link
                 to="/funcionarios"
                 className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline"
               >
-                Documentos <ArrowRight className="h-3 w-3" />
+                {t("Documentos")} <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
           </div>
