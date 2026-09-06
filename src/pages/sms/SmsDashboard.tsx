@@ -9,6 +9,7 @@ import {
   Siren,
   Leaf,
   Wrench,
+  Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -278,6 +279,7 @@ export default function SmsDashboard() {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1 mb-3">Módulos</p>
             <ModuleCard to="/sms/desvios"      icon={AlertOctagon}   color="bg-orange-500" label="Desvios"              desc="Registro e tratamento de não-conformidades" />
             <ModuleCard to="/sms/ocorrencias"  icon={Siren}          color="bg-red-500"    label="Ocorrências / PT"     desc="Quase-acidentes, acidentes, CAT e permissões" />
+            <ModuleCard to="/sms/velocidade"   icon={Gauge}          color="bg-amber-500"  label="Controle de Velocidade" desc="Checkpoints com radar e infrações nas vias" />
             <ModuleCard to="/sms/gestao-legal" icon={Leaf}           color="bg-green-600"  label="Gestão Legal"         desc="GRO/PGR, saúde ocupacional e meio ambiente" />
             <ModuleCard to="/sms/inspecoes"    icon={ClipboardList}  color="bg-blue-500"   label="Inspeções"            desc="Listas de verificação e auditorias" />
             <ModuleCard to="/sms/dds"          icon={BookOpen}       color="bg-teal-500"   label="DDS"                  desc="Diálogo Diário de Segurança" />

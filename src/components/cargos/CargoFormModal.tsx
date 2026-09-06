@@ -23,7 +23,7 @@ import {
   LayoutDashboard, Car, Calendar, Wrench, Users, Wallet,
   BarChart3, ShieldCheck, AlertOctagon, ClipboardList,
   BookOpen, FileWarning, Package, GraduationCap, UserCheck,
-  FileText, Globe, Shield, ShieldAlert, Boxes,
+  FileText, Globe, Shield, ShieldAlert, Boxes, Gauge,
 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -60,6 +60,7 @@ const schema = z.object({
   acesso_sms_treinamentos: z.boolean().default(false),
   acesso_sms_admissao:     z.boolean().default(false),
   acesso_sms_rdo:          z.boolean().default(false),
+  acesso_sms_velocidade:   z.boolean().default(false),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -97,6 +98,7 @@ const PERM_GROUPS = [
       { key: "acesso_sms_treinamentos", icon: GraduationCap, label: "Treinamentos",        desc: "Treinamentos e certificações" },
       { key: "acesso_sms_admissao",     icon: UserCheck,     label: "Admissão Digital",    desc: "Integração e admissão de colaboradores" },
       { key: "acesso_sms_rdo",          icon: FileText,      label: "RDO",                 desc: "Relatório Diário de Obra" },
+      { key: "acesso_sms_velocidade",   icon: Gauge,         label: "Controle de Velocidade", desc: "Checkpoints de radar e infrações" },
     ],
   },
 ] as const;
@@ -109,7 +111,7 @@ type BooleanField = keyof Pick<FormValues,
   | "acesso_relatorios" | "acesso_fornecedores" | "acesso_sms_dashboard" | "acesso_sms_desvios"
   | "acesso_sms_inspecoes" | "acesso_sms_apr" | "acesso_sms_dds"
   | "acesso_sms_epis" | "acesso_sms_treinamentos" | "acesso_sms_admissao"
-  | "acesso_sms_rdo"
+  | "acesso_sms_rdo" | "acesso_sms_velocidade"
 >;
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -122,6 +124,7 @@ const emptyForm = (): FormValues => ({
   acesso_sms_dashboard: false, acesso_sms_desvios: false, acesso_sms_inspecoes: false,
   acesso_sms_apr: false, acesso_sms_dds: false, acesso_sms_epis: false,
   acesso_sms_treinamentos: false, acesso_sms_admissao: false, acesso_sms_rdo: false,
+  acesso_sms_velocidade: false,
 });
 
 const fromCargo = (c: Cargo): FormValues => ({
@@ -147,6 +150,7 @@ const fromCargo = (c: Cargo): FormValues => ({
   acesso_sms_treinamentos: (c as any).acesso_sms_treinamentos ?? false,
   acesso_sms_admissao:     (c as any).acesso_sms_admissao     ?? false,
   acesso_sms_rdo:          (c as any).acesso_sms_rdo          ?? false,
+  acesso_sms_velocidade:   (c as any).acesso_sms_velocidade   ?? false,
 });
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -204,6 +208,7 @@ export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) =
         ...({ acesso_sms_treinamentos: values.acesso_sms_treinamentos } as any),
         ...({ acesso_sms_admissao:     values.acesso_sms_admissao } as any),
         ...({ acesso_sms_rdo:          values.acesso_sms_rdo } as any),
+        ...({ acesso_sms_velocidade:   values.acesso_sms_velocidade } as any),
       } as CargoInsert);
       onOpenChange(false);
       form.reset();

@@ -22,6 +22,7 @@ export type PermKey =
   | "acesso_sms_treinamentos"
   | "acesso_sms_admissao"
   | "acesso_sms_rdo"
+  | "acesso_sms_velocidade"
   // Fases futuras
   | "acesso_efetivo"
   | "acesso_almoxarifado"
@@ -56,6 +57,7 @@ const DEFAULT_PERMS: PermissionsMap = {
   acesso_sms_treinamentos:  false,
   acesso_sms_admissao:      false,
   acesso_sms_rdo:           false,
+  acesso_sms_velocidade:    false,
   acesso_efetivo:           false,
   acesso_almoxarifado:      false,
   acesso_ferramentas:       false,
