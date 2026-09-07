@@ -38,6 +38,13 @@ VEL_MIN  = float(os.getenv("VELOCIDADE_MIN", "5.0"))
 MAG_MIN  = float(os.getenv("MAGNITUDE_MIN", "0"))
 # Silêncio que encerra uma passagem
 FIM_PASS = 1.2
+# DEBUG=1 no .env imprime cada leitura crua do radar. Essencial para
+# diagnosticar em campo por que uma passagem nao foi registrada.
+DEBUG    = os.getenv("DEBUG", "0") not in ("0", "", "false", "False")
+
+# Contadores para o heartbeat (sem eles o script fica mudo e nao da
+# para saber se esta vivo, se o radar emite, ou se o filtro descarta)
+stats = {"linhas": 0, "leituras": 0, "descartadas": 0, "passagens": 0}
 
 RPC = f"{URL}/rest/v1/rpc/registrar_passagem_checkpoint"
 CABECALHO = {"apikey": ANON_KEY, "Authorization": f"Bearer {ANON_KEY}",
@@ -62,11 +69,14 @@ def ler_radar():
             #   OS  liga o reporte de velocidade
             #   OM  liga a magnitude do sinal (usada para filtrar ruido)
             #   UK  unidade em km/h
-            #   M>  ignora leituras abaixo da velocidade minima
             # A configuracao NAO persiste: o radar volta ao padrao a cada
             # reconexao, por isso e reenviada aqui toda vez.
-            for cmd in (b"Od\n", b"OS\n", b"OM\n", b"UK\n",
-                        f"M>{VEL_MIN:.0f}\n".encode()):
+            #
+            # ATENCAO: nao enviar "M>" aqui. Apesar do nome sugestivo, ele
+            # define SpeedMagnitudeMin (forca do eco), nao velocidade minima.
+            # A filtragem por velocidade e feita abaixo, no codigo, e a por
+            # magnitude via MAGNITUDE_MIN.
+            for cmd in (b"Od\n", b"OS\n", b"OM\n", b"UK\n"):
                 r.write(cmd); time.sleep(0.3)
             log("Radar conectado em", PORTA)
 
@@ -74,11 +84,25 @@ def ler_radar():
                 linha = r.readline().decode(errors="ignore").strip()
                 if not linha:
                     continue
+                stats["linhas"] += 1
+                if DEBUG:
+                    log("  radar:", linha)
+
                 v, mag = extrair_leitura(linha)
-                if v is None or abs(v) < VEL_MIN:
+                if v is None:
+                    continue
+                stats["leituras"] += 1
+
+                if abs(v) < VEL_MIN:
+                    stats["descartadas"] += 1
+                    if DEBUG:
+                        log(f"    descartada: {abs(v):.1f} < VELOCIDADE_MIN={VEL_MIN}")
                     continue
                 # Descarta eco fraco demais para ser veiculo (ruido/fantasma)
                 if MAG_MIN > 0 and mag is not None and mag < MAG_MIN:
+                    stats["descartadas"] += 1
+                    if DEBUG:
+                        log(f"    descartada: magnitude {mag} < MAGNITUDE_MIN={MAG_MIN}")
                     continue
                 fila_vel.put((time.time(), abs(v)))
         except Exception as e:
@@ -240,6 +264,7 @@ def correlacionar():
             candidatas = [(abs(t - inicio), e) for (t, e) in tags
                           if abs(t - inicio) <= JANELA]
             epc = min(candidatas)[1] if candidatas else None
+            stats["passagens"] += 1
             enviar(pico, epc, inicio)
             if epc:
                 tags = [(t, e) for (t, e) in tags if e != epc]
@@ -248,6 +273,14 @@ def correlacionar():
         # Tenta reenviar o que ficou preso a cada 60s
         if agora - ultimo_reenvio > 60:
             reenviar_pendentes()
+            # Heartbeat: prova que o script esta vivo e mostra onde os
+            # dados estao parando (radar mudo? filtro comendo tudo?)
+            log(f"[status] {stats['linhas']} linhas do radar, "
+                f"{stats['leituras']} leituras validas, "
+                f"{stats['descartadas']} descartadas pelo filtro, "
+                f"{stats['passagens']} passagens enviadas")
+            if stats["linhas"] == 0:
+                log("[status] radar nao emitiu nada - confira a config e o cabo")
             ultimo_reenvio = agora
 
         time.sleep(0.05)
