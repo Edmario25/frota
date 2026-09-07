@@ -38,6 +38,11 @@ VEL_MIN  = float(os.getenv("VELOCIDADE_MIN", "5.0"))
 MAG_MIN  = float(os.getenv("MAGNITUDE_MIN", "0"))
 # Silêncio que encerra uma passagem
 FIM_PASS = 1.2
+# Teto de duracao de uma passagem. Sem isso, ruido continuo mantem a
+# passagem sempre "aberta" (nunca ha silencio) e NADA e enviado -- o
+# script fica mudo para sempre. Um veiculo cruza o ponto em poucos
+# segundos; passou disso, fecha e envia o que tem.
+DUR_MAX  = float(os.getenv("DURACAO_MAX_S", "8.0"))
 # DEBUG=1 no .env imprime cada leitura crua do radar. Essencial para
 # diagnosticar em campo por que uma passagem nao foi registrada.
 DEBUG    = os.getenv("DEBUG", "0") not in ("0", "", "false", "False")
@@ -259,16 +264,24 @@ def correlacionar():
         # Descarta tags velhas demais para pertencer a esta passagem
         tags = [(t, e) for (t, e) in tags if agora - t < JANELA * 3]
 
-        # Passagem encerrada: radar ficou em silêncio
-        if inicio is not None and (agora - ultima) > FIM_PASS:
-            candidatas = [(abs(t - inicio), e) for (t, e) in tags
-                          if abs(t - inicio) <= JANELA]
-            epc = min(candidatas)[1] if candidatas else None
-            stats["passagens"] += 1
-            enviar(pico, epc, inicio)
-            if epc:
-                tags = [(t, e) for (t, e) in tags if e != epc]
-            pico, inicio = 0.0, None
+        # Fecha a passagem quando o radar silencia OU quando ela ja dura
+        # tempo demais. A segunda condicao e a rede de seguranca: sem ela,
+        # ruido continuo impede o silencio e nada e enviado nunca.
+        if inicio is not None:
+            silenciou = (agora - ultima) > FIM_PASS
+            estourou  = (agora - inicio) > DUR_MAX
+            if silenciou or estourou:
+                candidatas = [(abs(t - inicio), e) for (t, e) in tags
+                              if abs(t - inicio) <= JANELA]
+                epc = min(candidatas)[1] if candidatas else None
+                if estourou and not silenciou:
+                    log(f"[aviso] passagem fechada por tempo ({DUR_MAX:.0f}s) - "
+                        "sinal continuo. Suspeita de ruido: use MAGNITUDE_MIN")
+                stats["passagens"] += 1
+                enviar(pico, epc, inicio)
+                if epc:
+                    tags = [(t, e) for (t, e) in tags if e != epc]
+                pico, inicio, ultima = 0.0, None, agora
 
         # Tenta reenviar o que ficou preso a cada 60s
         if agora - ultimo_reenvio > 60:
