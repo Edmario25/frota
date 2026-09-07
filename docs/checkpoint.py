@@ -54,8 +54,14 @@ def ler_radar():
         try:
             r = serial.Serial(PORTA, BAUD, timeout=1)
             time.sleep(0.5)
-            for cmd in (b"UK\n", b"OJ\n", f"M>{VEL_MIN:.0f}\n".encode()):
-                r.write(cmd); time.sleep(0.2)
+            # Configuracao validada em bancada no OPS243-C-FC:
+            #   Od  desliga o reporte de distancia (inunda a porta)
+            #   OS  liga o reporte de velocidade
+            #   UK  unidade em km/h
+            #   M>  ignora magnitudes abaixo do minimo
+            for cmd in (b"Od\n", b"OS\n", b"UK\n",
+                        f"M>{VEL_MIN:.0f}\n".encode()):
+                r.write(cmd); time.sleep(0.3)
             log("Radar conectado em", PORTA)
 
             while not parar.is_set():
@@ -71,18 +77,29 @@ def ler_radar():
 
 
 def extrair_velocidade(linha):
-    """Aceita tanto JSON quanto número puro, conforme o firmware."""
+    """
+    Formato real do OPS243-C (confirmado em bancada):
+
+        "kmph",-38.9            leitura de velocidade (sinal = direcao)
+        "m",2.0                 leitura de distancia -> ignorada
+        {"SpeedUnit":"kmph"}    resposta de comando  -> ignorada
+
+    Retorna a velocidade em km/h, ou None quando a linha nao e velocidade.
+    """
+    linha = linha.strip()
+    if not linha or linha[0] != '"':
+        return None                       # resposta de comando ou lixo
     try:
-        d = json.loads(linha)
-        for chave in ("speed", "Speed", "magnitude"):
-            if chave in d:
-                return float(d[chave])
-    except Exception:
-        pass
-    try:
-        return float(linha.split()[0])
-    except Exception:
+        unidade, valor = linha.split(",", 1)
+        v = float(valor.strip())
+    except ValueError:
         return None
+    unidade = unidade.strip('"').lower()
+    if unidade in ("kmph", "kmh"):
+        return v
+    if unidade == "mps":
+        return v * 3.6                    # m/s -> km/h
+    return None                           # "m" = distancia
 
 
 # --- Thread 2: le as tags UHF ---------------------------------------
