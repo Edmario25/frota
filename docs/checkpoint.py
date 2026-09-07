@@ -33,6 +33,9 @@ LEITOR   = os.getenv("LEITOR_IP", "")
 JANELA   = float(os.getenv("JANELA_S", "2.0"))
 # Abaixo disso e ruido (pessoa andando, galho ao vento)
 VEL_MIN  = float(os.getenv("VELOCIDADE_MIN", "5.0"))
+# Magnitude minima do eco para considerar veiculo. Calibrar no local:
+# rodar com a via vazia e ver ate quanto o ruido chega. 0 desativa.
+MAG_MIN  = float(os.getenv("MAGNITUDE_MIN", "0"))
 # Silêncio que encerra uma passagem
 FIM_PASS = 1.2
 
@@ -55,11 +58,14 @@ def ler_radar():
             r = serial.Serial(PORTA, BAUD, timeout=1)
             time.sleep(0.5)
             # Configuracao validada em bancada no OPS243-C-FC:
-            #   Od  desliga o reporte de distancia (inunda a porta)
+            #   Od  desliga o reporte de distancia (senao inunda a porta)
             #   OS  liga o reporte de velocidade
+            #   OM  liga a magnitude do sinal (usada para filtrar ruido)
             #   UK  unidade em km/h
-            #   M>  ignora magnitudes abaixo do minimo
-            for cmd in (b"Od\n", b"OS\n", b"UK\n",
+            #   M>  ignora leituras abaixo da velocidade minima
+            # A configuracao NAO persiste: o radar volta ao padrao a cada
+            # reconexao, por isso e reenviada aqui toda vez.
+            for cmd in (b"Od\n", b"OS\n", b"OM\n", b"UK\n",
                         f"M>{VEL_MIN:.0f}\n".encode()):
                 r.write(cmd); time.sleep(0.3)
             log("Radar conectado em", PORTA)
@@ -68,38 +74,55 @@ def ler_radar():
                 linha = r.readline().decode(errors="ignore").strip()
                 if not linha:
                     continue
-                v = extrair_velocidade(linha)
-                if v is not None and abs(v) >= VEL_MIN:
-                    fila_vel.put((time.time(), abs(v)))
+                v, mag = extrair_leitura(linha)
+                if v is None or abs(v) < VEL_MIN:
+                    continue
+                # Descarta eco fraco demais para ser veiculo (ruido/fantasma)
+                if MAG_MIN > 0 and mag is not None and mag < MAG_MIN:
+                    continue
+                fila_vel.put((time.time(), abs(v)))
         except Exception as e:
             log("Radar caiu:", e, "- retentando em 5s")
             time.sleep(5)
 
 
-def extrair_velocidade(linha):
+def extrair_leitura(linha):
     """
-    Formato real do OPS243-C (confirmado em bancada):
+    Formatos do OPS243-C (confirmados em bancada):
 
-        "kmph",-38.9            leitura de velocidade (sinal = direcao)
-        "m",2.0                 leitura de distancia -> ignorada
+        "kmph",2.6              sem magnitude   (OM desligado)
+        "kmph",171,2.6          com magnitude   (OM ligado)
+        "m",2.0                 distancia            -> ignorada
         {"SpeedUnit":"kmph"}    resposta de comando  -> ignorada
 
-    Retorna a velocidade em km/h, ou None quando a linha nao e velocidade.
+    Com OM ligado a velocidade e sempre o ULTIMO campo, e a magnitude
+    vem antes dela. A magnitude e o que separa alvo real de fantasma.
+
+    Retorna (velocidade_kmh, magnitude). Magnitude e None quando o
+    radar nao esta reportando. (None, None) quando nao e velocidade.
     """
     linha = linha.strip()
     if not linha or linha[0] != '"':
-        return None                       # resposta de comando ou lixo
+        return None, None                 # resposta de comando ou lixo
+
+    partes = linha.split(",")
+    unidade = partes[0].strip('"').lower()
+    if unidade not in ("kmph", "kmh", "mps"):
+        return None, None                 # "m" = distancia
+
     try:
-        unidade, valor = linha.split(",", 1)
-        v = float(valor.strip())
+        if len(partes) >= 3:
+            mag, vel = float(partes[1]), float(partes[2])
+        elif len(partes) == 2:
+            mag, vel = None, float(partes[1])
+        else:
+            return None, None
     except ValueError:
-        return None
-    unidade = unidade.strip('"').lower()
-    if unidade in ("kmph", "kmh"):
-        return v
+        return None, None
+
     if unidade == "mps":
-        return v * 3.6                    # m/s -> km/h
-    return None                           # "m" = distancia
+        vel *= 3.6                        # m/s -> km/h
+    return vel, mag
 
 
 # --- Thread 2: le as tags UHF ---------------------------------------
