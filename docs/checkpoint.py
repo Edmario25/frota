@@ -77,13 +77,21 @@ def ler_radar():
             # A configuracao NAO persiste: o radar volta ao padrao a cada
             # reconexao, por isso e reenviada aqui toda vez.
             #
-            # ATENCAO: nao enviar "M>" aqui. Apesar do nome sugestivo, ele
-            # define SpeedMagnitudeMin (forca do eco), nao velocidade minima.
-            # A filtragem por velocidade e feita abaixo, no codigo, e a por
-            # magnitude via MAGNITUDE_MIN.
-            for cmd in (b"Od\n", b"OS\n", b"OM\n", b"UK\n"):
+            comandos = [b"Od\n", b"OS\n", b"OM\n", b"UK\n"]
+
+            # "M>" define SpeedMagnitudeMin: a forca minima do eco, NAO a
+            # velocidade minima que o nome sugere. Alimentado com MAG_MIN,
+            # faz o radar descartar o ruido de fundo na origem -- em vez de
+            # transmitir milhares de linhas inuteis para o Pi jogar fora.
+            # A filtragem no codigo continua como segunda barreira.
+            if MAG_MIN > 0:
+                comandos.append(f"M>{MAG_MIN:.0f}\n".encode())
+
+            for cmd in comandos:
                 r.write(cmd); time.sleep(0.3)
-            log("Radar conectado em", PORTA)
+            log("Radar conectado em", PORTA,
+                f"(magnitude minima no radar: {MAG_MIN:.0f})" if MAG_MIN > 0
+                else "(sem filtro de magnitude)")
 
             while not parar.is_set():
                 linha = r.readline().decode(errors="ignore").strip()
