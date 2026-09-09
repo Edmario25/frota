@@ -26,7 +26,10 @@ ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
 TOKEN    = os.environ["DEVICE_TOKEN"]
 PORTA    = os.getenv("RADAR_PORT", "/dev/ttyACM0")
 BAUD     = int(os.getenv("RADAR_BAUD", "19200"))
-LEITOR   = os.getenv("LEITOR_IP", "")
+# Porta em que o Pi escuta as notificacoes do leitor UHF (Control iD iDUHF).
+# O mesmo valor vai no campo "Porta" do modo monitor, na tela do leitor.
+# Vazio ou 0 desativa o leitor: so a velocidade e registrada.
+LEITOR_PORTA = int(os.getenv("LEITOR_PORTA", "0") or 0)
 
 # Janela de correlação: tag e velocidade dentro deste intervalo
 # são consideradas o mesmo veículo
@@ -49,7 +52,8 @@ DEBUG    = os.getenv("DEBUG", "0") not in ("0", "", "false", "False")
 
 # Contadores para o heartbeat (sem eles o script fica mudo e nao da
 # para saber se esta vivo, se o radar emite, ou se o filtro descarta)
-stats = {"linhas": 0, "leituras": 0, "descartadas": 0, "passagens": 0}
+stats = {"linhas": 0, "leituras": 0, "descartadas": 0, "passagens": 0,
+         "tags": 0, "leitor_visto_em": 0.0}
 
 RPC = f"{URL}/rest/v1/rpc/registrar_passagem_checkpoint"
 CABECALHO = {"apikey": ANON_KEY, "Authorization": f"Bearer {ANON_KEY}",
@@ -165,34 +169,89 @@ def extrair_leitura(linha):
 # --- Thread 2: le as tags UHF ---------------------------------------
 def ler_tags():
     """
-    ADAPTE ESTA FUNCAO AO SEU LEITOR.
-    A unica obrigacao e chamar fila_tag.put((time.time(), EPC)).
-    Abaixo, o caminho do Impinj R420 via LLRP.
-    """
-    from sllurp.llrp import LLRPReaderClient, LLRPReaderConfig
+    Recebe as leituras do Control iD iDUHF pelo modo Monitor.
 
-    def ao_ler(reader, tags):
-        agora = time.time()
-        for t in tags:
-            epc = t.get("EPC")
-            if isinstance(epc, bytes):
-                epc = epc.decode(errors="ignore")
-            if epc:
-                fila_tag.put((agora, epc.upper()))
+    O leitor faz POST para <IP do Pi>:<LEITOR_PORTA>/api/notifications/...
+    a cada evento. Configuracao no proprio leitor, em
+    Configuracoes -> Modo de Operacao -> Configurar modo monitor.
+
+    Formato observado no equipamento (firmware V5.19.2):
+
+        POST /api/notifications/dao
+        {"object_changes": [{"object": "access_logs", "type": "inserted",
+          "values": {"card_value": "223338326031", "user_id": "", ...}}]}
+
+        POST /api/notifications/device_is_alive
+        {"access_logs": 3, "device_id": ..., "time": ...}
+
+    A tag vem em card_value. Deixamos o leitor SEM as tags cadastradas de
+    proposito: quem resolve tag -> veiculo e o nosso banco, na tabela
+    sms_veiculos_rfid. Assim o cadastro nao fica duplicado em dois lugares.
+
+    Usamos o modo Monitor e nao o modo Online porque o Monitor e
+    assincrono: se o Pi cair, o leitor continua operando normalmente.
+    No modo Online ele ficaria esperando resposta a cada leitura.
+    """
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class Receptor(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self):
+            tamanho = int(self.headers.get("Content-Length") or 0)
+            bruto = self.rfile.read(tamanho) if tamanho else b""
+            self._responder()          # responde antes de processar
+            try:
+                dados = json.loads(bruto.decode("utf-8", "replace"))
+            except Exception:
+                return
+
+            if self.path.endswith("/device_is_alive"):
+                stats["leitor_visto_em"] = time.time()
+                return
+
+            agora = time.time()
+            for mudanca in dados.get("object_changes", []):
+                if mudanca.get("object") != "access_logs":
+                    continue
+                if mudanca.get("type") != "inserted":
+                    continue
+                v = mudanca.get("values", {}) or {}
+                tag = (v.get("card_value") or v.get("uhf_tag") or "").strip()
+                if not tag or tag in ("0", ""):
+                    continue
+                fila_tag.put((agora, tag.upper()))
+                stats["tags"] += 1
+                if DEBUG:
+                    log(f"  tag: {tag}")
+
+        def _responder(self):
+            # event 6 = negado. Nao ha portao para abrir aqui; so registramos.
+            corpo = json.dumps({"result": {"event": 6, "user_id": 0,
+                                           "user_name": "", "portal_id": 1,
+                                           "actions": []}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(corpo)))
+            self.end_headers()
+            self.wfile.write(corpo)
+
+        def do_GET(self):
+            self._responder()
+
+        def log_message(self, *a):
+            pass               # o log e nosso, nao o do http.server
 
     while not parar.is_set():
         try:
-            cfg = LLRPReaderConfig({"report_every_n_tags": 1, "antennas": [1],
-                                    "tx_power": 0, "start_inventory": True})
-            leitor = LLRPReaderClient(LEITOR, 5084, cfg)
-            leitor.add_tag_report_callback(ao_ler)
-            leitor.connect()
-            log("Leitor UHF conectado em", LEITOR)
+            srv = ThreadingHTTPServer(("0.0.0.0", LEITOR_PORTA), Receptor)
+            srv.timeout = 1
+            log(f"Aguardando o leitor UHF na porta {LEITOR_PORTA}")
             while not parar.is_set():
-                time.sleep(1)
-            leitor.disconnect()
+                srv.handle_request()
+            srv.server_close()
         except Exception as e:
-            log("Leitor caiu:", e, "- retentando em 5s")
+            log("Servidor do leitor caiu:", e, "- retentando em 5s")
             time.sleep(5)
 
 
@@ -299,9 +358,18 @@ def correlacionar():
             log(f"[status] {stats['linhas']} linhas do radar, "
                 f"{stats['leituras']} leituras validas, "
                 f"{stats['descartadas']} descartadas pelo filtro, "
-                f"{stats['passagens']} passagens enviadas")
+                f"{stats['passagens']} passagens enviadas, "
+                f"{stats['tags']} tags lidas")
             if stats["linhas"] == 0:
                 log("[status] radar nao emitiu nada - confira a config e o cabo")
+            if LEITOR_PORTA:
+                visto = stats["leitor_visto_em"]
+                if not visto:
+                    log("[status] leitor UHF nunca chamou - confira o modo "
+                        "monitor na tela dele (hostname, porta e endpoint)")
+                elif agora - visto > 120:
+                    log(f"[status] leitor UHF sem contato ha "
+                        f"{int(agora - visto)}s")
             ultimo_reenvio = agora
 
         time.sleep(0.05)
@@ -311,7 +379,7 @@ def correlacionar():
 if __name__ == "__main__":
     log("Checkpoint iniciando...")
     threading.Thread(target=ler_radar, daemon=True).start()
-    if LEITOR:
+    if LEITOR_PORTA:
         threading.Thread(target=ler_tags, daemon=True).start()
     else:
         log("AVISO: leitor UHF não configurado - só velocidade sera enviada")
