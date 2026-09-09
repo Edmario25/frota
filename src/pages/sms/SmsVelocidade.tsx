@@ -585,21 +585,84 @@ function CheckpointDialog({ open, onOpenChange, obras, onSaved }: {
 
 // ─── Diálogo: vincular tag RFID ──────────────────────────────────────
 
+/**
+ * Converte o que está impresso na etiqueta para o valor que o leitor reporta.
+ *
+ * A etiqueta Control iD traz três representações do mesmo número:
+ *     HEX: 34680F    DEC: 3434511    WG: 052,26639
+ *
+ * Mas o iDUHF reporta em `card_value` um valor mais largo, com quatro zeros
+ * entre o facility code e o número do cartão:
+ *
+ *     etiqueta  34    680F   ->   leitor  34 0000 680F  =  223338326031
+ *
+ * Sem converter, cadastrar o que está na etiqueta faz toda passagem cair como
+ * "veículo não identificado", sem erro nenhum para indicar a causa.
+ */
+export function normalizarTag(valor: string, formato: FormatoTag): string | null {
+  const s = valor.trim().toUpperCase().replace(/\s+/g, "");
+  if (!s) return null;
+
+  const montar = (facility: bigint, card: bigint) =>
+    (facility > 255n || card > 65535n)
+      ? null
+      : ((facility << 32n) | card).toString();
+
+  try {
+    if (formato === "wiegand") {
+      const m = s.match(/^(\d{1,3})[,;.\/-](\d{1,5})$/);
+      if (!m) return null;
+      return montar(BigInt(m[1]), BigInt(m[2]));
+    }
+    if (formato === "hex") {
+      if (!/^[0-9A-F]{1,8}$/.test(s)) return null;
+      const n = BigInt("0x" + s);
+      return montar(n >> 16n, n & 0xFFFFn);
+    }
+    if (formato === "dec") {
+      if (!/^\d{1,10}$/.test(s)) return null;
+      const n = BigInt(s);
+      return montar(n >> 16n, n & 0xFFFFn);
+    }
+    // Valor bruto, do jeito que o leitor reportou no log
+    if (!/^\d{1,20}$/.test(s)) return null;
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+type FormatoTag = "hex" | "dec" | "wiegand" | "lido";
+
+const FORMATOS: { id: FormatoTag; rotulo: string; exemplo: string }[] = [
+  { id: "hex",     rotulo: "HEX (etiqueta)", exemplo: "34680F" },
+  { id: "dec",     rotulo: "DEC (etiqueta)", exemplo: "3434511" },
+  { id: "wiegand", rotulo: "WG (etiqueta)",  exemplo: "052,26639" },
+  { id: "lido",    rotulo: "Valor lido",     exemplo: "223338326031" },
+];
+
 function TagRfidDialog({ open, onOpenChange, vehicles, onSaved }: {
   open: boolean; onOpenChange: (o: boolean) => void; vehicles: any[]; onSaved: () => void;
 }) {
   const [form, setForm] = useState({ vehicle_id: "", tag_epc: "", observacoes: "" });
+  const [formato, setFormato] = useState<FormatoTag>("hex");
   const [saving, setSaving] = useState(false);
 
+  const normalizada = normalizarTag(form.tag_epc, formato);
+  const exemplo = FORMATOS.find(f => f.id === formato)!.exemplo;
+
   async function salvar() {
-    if (!form.vehicle_id || !form.tag_epc.trim()) {
-      return toast.error("Selecione o veículo e informe o EPC da tag.");
+    if (!form.vehicle_id) return toast.error("Selecione o veículo.");
+    if (!normalizada) {
+      return toast.error(`Código inválido para o formato escolhido. Exemplo: ${exemplo}`);
     }
     setSaving(true);
     const { error } = await (supabase as any).from("sms_veiculos_rfid").insert({
       vehicle_id: form.vehicle_id,
-      tag_epc: form.tag_epc.trim().toUpperCase(),
-      observacoes: form.observacoes.trim() || null,
+      tag_epc: normalizada,
+      observacoes: [form.observacoes.trim(),
+                    formato !== "lido" ? `etiqueta ${formato.toUpperCase()}: ${form.tag_epc.trim().toUpperCase()}` : ""]
+                   .filter(Boolean).join(" · ") || null,
     });
     setSaving(false);
     if (error) {
@@ -637,12 +700,44 @@ function TagRfidDialog({ open, onOpenChange, vehicles, onSaved }: {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>EPC da etiqueta <span className="text-destructive">*</span></Label>
-            <Input placeholder="E2000017221101441890B1A3" className="font-mono"
-              value={form.tag_epc}
-              onChange={e => setForm(f => ({ ...f, tag_epc: e.target.value }))} />
+            <Label>Código da etiqueta <span className="text-destructive">*</span></Label>
+            <div className="flex gap-2">
+              <Select value={formato} onValueChange={v => setFormato(v as FormatoTag)}>
+                <SelectTrigger className="w-[150px] flex-shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FORMATOS.map(f => (
+                    <SelectItem key={f.id} value={f.id}>{f.rotulo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder={exemplo}
+                className="font-mono"
+                value={form.tag_epc}
+                onChange={e => setForm(f => ({ ...f, tag_epc: e.target.value }))}
+              />
+            </div>
+
+            {form.tag_epc.trim() && (
+              normalizada ? (
+                <p className="flex items-center gap-1.5 text-xs text-emerald-600">
+                  <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                  Será salva como <span className="font-mono font-medium">{normalizada}</span>
+                </p>
+              ) : (
+                <p className="flex items-center gap-1.5 text-xs text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                  Não parece um código {formato.toUpperCase()} válido. Exemplo: {exemplo}
+                </p>
+              )
+            )}
+
             <p className="text-xs text-muted-foreground">
-              Código lido pelo leitor UHF ao aproximar a etiqueta.
+              Digite o código como está impresso na etiqueta. O leitor reporta
+              num formato mais largo, e o sistema converte — por isso o valor
+              salvo é diferente do que você digitou.
             </p>
           </div>
           <div className="space-y-1.5">
