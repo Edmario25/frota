@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
@@ -14,11 +15,12 @@ import {
 } from "@/components/ui/select";
 import {
   Gauge, RefreshCw, MapPin, Radio, AlertTriangle, CheckCircle2,
-  Plus, Wifi, WifiOff, ExternalLink, Copy, Loader2, ShieldAlert,
+  Plus, Wifi, WifiOff, ExternalLink, Copy, Loader2, ShieldAlert, Search, Eye, Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useObras } from "@/hooks/useObras";
 import { useVehicles } from "@/hooks/useVehicles";
+import { useEmployees } from "@/hooks/useEmployees";
 
 // ─── Tipos ───────────────────────────────────────────────────────────
 
@@ -32,7 +34,11 @@ type Checkpoint = {
   latitude: number | null;
   longitude: number | null;
   device_token: string | null;
+  device_token_hint: string | null;
   device_ultimo_contato: string | null;
+  heartbeat_intervalo_seg: number;
+  calibracao_valida_ate: string | null;
+  numero_serie: string | null;
   modo: string;
   ativo: boolean;
   obras: { nome: string } | null;
@@ -40,6 +46,7 @@ type Checkpoint = {
 
 type Infracao = {
   id: string;
+  passagem_id: string;
   velocidade_kmh: number;
   limite_kmh: number;
   excesso_kmh: number;
@@ -49,6 +56,10 @@ type Infracao = {
   desvio_id: string | null;
   notificada_em: string | null;
   ciente_em: string | null;
+  tratativa: string | null;
+  causa: string | null;
+  acao_corretiva: string | null;
+  tratado_em: string | null;
   created_at: string;
   vehicles: { placa: string; marca: string; modelo: string } | null;
   employees: { nome: string } | null;
@@ -95,9 +106,9 @@ function dateTime(value: string) {
   return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
-function isOnline(ultimoContato: string | null) {
+function isOnline(ultimoContato: string | null, intervaloSeg = 300) {
   if (!ultimoContato) return false;
-  return Date.now() - new Date(ultimoContato).getTime() < 15 * 60 * 1000; // 15 min
+  return Date.now() - new Date(ultimoContato).getTime() < Math.max(intervaloSeg * 3, 300) * 1000;
 }
 
 function Empty({ text, icon: Icon = CheckCircle2 }: { text: string; icon?: any }) {
@@ -114,6 +125,7 @@ function Empty({ text, icon: Icon = CheckCircle2 }: { text: string; icon?: any }
 export default function SmsVelocidade() {
   const { obras } = useObras();
   const { vehicles } = useVehicles();
+  const { employees } = useEmployees();
 
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [infracoes, setInfracoes]     = useState<Infracao[]>([]);
@@ -126,15 +138,19 @@ export default function SmsVelocidade() {
   const [novoCheckpointOpen, setNovoCheckpointOpen] = useState(false);
   const [novaTagOpen, setNovaTagOpen]               = useState(false);
   const [registroManualOpen, setRegistroManualOpen] = useState(false);
+  const [infracaoSelecionada, setInfracaoSelecionada] = useState<Infracao | null>(null);
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("todos");
+  const [gravidadeFiltro, setGravidadeFiltro] = useState("todas");
 
   // ── Carregamento ──────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
     const [cp, inf, pas, tg] = await Promise.all([
       (supabase as any).from("sms_checkpoints")
-        .select("*, obras(nome)").order("nome"),
+        .select("id,obra_id,nome,descricao,limite_velocidade_kmh,tolerancia_kmh,latitude,longitude,device_token_hint,device_ultimo_contato,heartbeat_intervalo_seg,calibracao_valida_ate,numero_serie,modo,ativo,obras(nome)").order("nome"),
       (supabase as any).from("sms_infracoes_velocidade")
-        .select("id,velocidade_kmh,limite_kmh,excesso_kmh,excesso_percentual,gravidade,status,desvio_id,notificada_em,ciente_em,created_at,vehicles(placa,marca,modelo),employees(nome),sms_checkpoints(nome),obras(nome)")
+        .select("id,passagem_id,velocidade_kmh,limite_kmh,excesso_kmh,excesso_percentual,gravidade,status,desvio_id,notificada_em,ciente_em,tratativa,causa,acao_corretiva,tratado_em,created_at,vehicles(placa,marca,modelo),employees(nome),sms_checkpoints(nome),obras(nome)")
         .order("created_at", { ascending: false }).limit(200),
       (supabase as any).from("sms_checkpoint_passagens")
         .select("id,velocidade_kmh,limite_no_momento,tag_epc,sentido,origem,detectado_em,vehicles(placa),sms_checkpoints(nome)")
@@ -161,13 +177,25 @@ export default function SmsVelocidade() {
     const hoje = new Date().toDateString();
     return {
       checkpointsAtivos: checkpoints.filter(c => c.ativo).length,
-      online:            checkpoints.filter(c => isOnline(c.device_ultimo_contato)).length,
+      online:            checkpoints.filter(c => isOnline(c.device_ultimo_contato, c.heartbeat_intervalo_seg)).length,
       infracoesAbertas:  infracoes.filter(i => i.status === "aberta").length,
       infracoesHoje:     infracoes.filter(i => new Date(i.created_at).toDateString() === hoje).length,
       passagensHoje:     passagens.filter(p => new Date(p.detectado_em).toDateString() === hoje).length,
       graves:            infracoes.filter(i => ["grave", "gravissima"].includes(i.gravidade) && i.status !== "encerrada").length,
     };
   }, [checkpoints, infracoes, passagens]);
+
+  const infracoesFiltradas = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase("pt-BR");
+    return infracoes.filter(item => {
+      if (statusFiltro !== "todos" && item.status !== statusFiltro) return false;
+      if (gravidadeFiltro !== "todas" && item.gravidade !== gravidadeFiltro) return false;
+      if (!termo) return true;
+      return [item.vehicles?.placa, item.vehicles?.marca, item.vehicles?.modelo,
+        item.employees?.nome, item.sms_checkpoints?.nome, item.obras?.nome]
+        .some(valor => valor?.toLocaleLowerCase("pt-BR").includes(termo));
+    });
+  }, [busca, gravidadeFiltro, infracoes, statusFiltro]);
 
   // ── Ações ─────────────────────────────────────────────────────────
   async function notificarMotorista(id: string, temMotorista: boolean) {
@@ -183,21 +211,6 @@ export default function SmsVelocidade() {
     setBusy(null);
     if (error) return toast.error(error.message);
     toast.success("Motorista notificado. A infração aparece no app dele para ciência.");
-    load();
-  }
-
-  async function atualizarStatusInfracao(id: string, status: string) {
-    setBusy(id);
-    const payload: Record<string, any> = { status };
-    if (status === "encerrada") {
-      payload.encerrada_em = new Date().toISOString();
-      payload.encerrada_por = (await supabase.auth.getUser()).data.user?.id ?? null;
-    }
-    const { error } = await (supabase as any)
-      .from("sms_infracoes_velocidade").update(payload).eq("id", id);
-    setBusy(null);
-    if (error) return toast.error(error.message);
-    toast.success("Situação da infração atualizada.");
     load();
   }
 
@@ -219,12 +232,6 @@ export default function SmsVelocidade() {
     if (error) return toast.error(error.message);
     toast.success(cp.ativo ? "Checkpoint desativado." : "Checkpoint ativado.");
     load();
-  }
-
-  function copiarToken(token: string | null) {
-    if (!token) return;
-    navigator.clipboard.writeText(token);
-    toast.success("Token copiado — use na configuração do dispositivo.");
   }
 
   return (
@@ -272,11 +279,28 @@ export default function SmsVelocidade() {
           </TabsList>
 
           {/* ── Infrações ────────────────────────────────────────── */}
-          <TabsContent value="infracoes" className="mt-4 divide-y">
+          <TabsContent value="infracoes" className="mt-4">
+            <div className="mb-3 grid gap-2 md:grid-cols-[1fr_190px_190px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input className="pl-9" placeholder="Buscar placa, motorista, checkpoint ou obra..."
+                  value={busca} onChange={e => setBusca(e.target.value)} />
+              </div>
+              <Select value={statusFiltro} onValueChange={setStatusFiltro}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="todos">Todos os status</SelectItem>{Object.entries(STATUS_LABEL).map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={gravidadeFiltro} onValueChange={setGravidadeFiltro}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="todas">Todas as gravidades</SelectItem>{Object.entries(GRAVIDADE_CFG).map(([v,c]) => <SelectItem key={v} value={v}>{c.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="divide-y">
             {!loading && !infracoes.length && (
               <Empty text="Nenhuma infração de velocidade registrada." />
             )}
-            {infracoes.map(item => {
+            {!loading && infracoes.length > 0 && !infracoesFiltradas.length && <Empty text="Nenhuma infração corresponde aos filtros." icon={Search} />}
+            {infracoesFiltradas.map(item => {
               const g = GRAVIDADE_CFG[item.gravidade];
               return (
                 <div key={item.id} className="flex flex-col gap-3 py-4 lg:flex-row lg:items-center">
@@ -322,6 +346,9 @@ export default function SmsVelocidade() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setInfracaoSelecionada(item)}>
+                      <Eye className="mr-1.5 h-3.5 w-3.5" />Detalhes
+                    </Button>
                     {!item.desvio_id && item.status !== "encerrada" && (
                       <Button size="sm" variant="outline" disabled={busy === item.id}
                         onClick={() => escalarParaDesvio(item.id)}>
@@ -336,14 +363,15 @@ export default function SmsVelocidade() {
                     )}
                     {item.status !== "encerrada" && (
                       <Button size="sm" disabled={busy === item.id}
-                        onClick={() => atualizarStatusInfracao(item.id, "encerrada")}>
-                        Encerrar
+                        onClick={() => setInfracaoSelecionada(item)}>
+                        <Wrench className="mr-1.5 h-3.5 w-3.5" />Tratar
                       </Button>
                     )}
                   </div>
                 </div>
               );
             })}
+            </div>
           </TabsContent>
 
           {/* ── Passagens ────────────────────────────────────────── */}
@@ -405,7 +433,8 @@ export default function SmsVelocidade() {
                 </div>
               )}
               {checkpoints.map(cp => {
-                const online = isOnline(cp.device_ultimo_contato);
+                const online = isOnline(cp.device_ultimo_contato, cp.heartbeat_intervalo_seg);
+                const calibracaoVencida = !cp.calibracao_valida_ate || new Date(cp.calibracao_valida_ate + "T23:59:59") < new Date();
                 return (
                   <div key={cp.id} className={`rounded-xl border p-4 ${cp.ativo ? "bg-card" : "bg-muted/40 opacity-70"}`}>
                     <div className="mb-2 flex items-start justify-between gap-2">
@@ -419,6 +448,9 @@ export default function SmsVelocidade() {
                         ? "gap-1 border-0 bg-green-100 text-green-700"
                         : "gap-1 border-0 bg-gray-100 text-gray-500"}>
                         {online ? <><Wifi className="h-3 w-3" />Online</> : <><WifiOff className="h-3 w-3" />Offline</>}
+                      </Badge>
+                      <Badge variant="outline" className={calibracaoVencida ? "border-red-300 bg-red-50 text-red-700" : "border-emerald-300 bg-emerald-50 text-emerald-700"}>
+                        {calibracaoVencida ? "Calibração pendente" : `Calibrado até ${new Date(cp.calibracao_valida_ate! + "T12:00:00").toLocaleDateString("pt-BR")}`}
                       </Badge>
                     </div>
 
@@ -443,10 +475,9 @@ export default function SmsVelocidade() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
-                        onClick={() => copiarToken(cp.device_token)}>
-                        <Copy className="h-3 w-3" />Copiar token
-                      </Button>
+                      <Badge variant="outline" className="h-7 gap-1.5 text-xs">
+                        <ShieldAlert className="h-3 w-3" />Credencial protegida{cp.device_token_hint ? ` · •••${cp.device_token_hint}` : ""}
+                      </Badge>
                       <Button size="sm" variant={cp.ativo ? "outline" : "default"}
                         className="h-7 text-xs" disabled={busy === cp.id}
                         onClick={() => toggleCheckpoint(cp)}>
@@ -502,8 +533,103 @@ export default function SmsVelocidade() {
             </div>
           </TabsContent>
         </Tabs>
+        <TratativaInfracaoDialog item={infracaoSelecionada}
+          vehicles={vehicles} employees={employees}
+          onOpenChange={open => !open && setInfracaoSelecionada(null)} onSaved={load} />
       </div>
     </Layout>
+  );
+}
+
+function TratativaInfracaoDialog({ item, vehicles, employees, onOpenChange, onSaved }: {
+  item: Infracao | null; vehicles: any[]; employees: any[];
+  onOpenChange: (open: boolean) => void; onSaved: () => void;
+}) {
+  const [tratativa, setTratativa] = useState("");
+  const [causa, setCausa] = useState("");
+  const [acao, setAcao] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [vehicleId, setVehicleId] = useState("");
+  const [motoristaId, setMotoristaId] = useState("");
+
+  useEffect(() => {
+    setTratativa(item?.tratativa ?? "");
+    setCausa(item?.causa ?? "");
+    setAcao(item?.acao_corretiva ?? "");
+    setVehicleId(""); setMotoristaId("");
+  }, [item]);
+
+  async function identificar() {
+    if (!vehicleId) return toast.error("Selecione o veículo identificado.");
+    setSaving(true);
+    const veiculo = vehicles.find(v => v.id === vehicleId);
+    const { error } = await (supabase as any).rpc("sms_identificar_passagem_velocidade", {
+      p_passagem_id: item!.passagem_id, p_vehicle_id: vehicleId,
+      p_motorista_id: motoristaId || veiculo?.responsavel_id || null,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Veículo e condutor vinculados ao registro histórico.");
+    onOpenChange(false); onSaved();
+  }
+
+  async function salvar(status: "em_tratativa" | "encerrada") {
+    if (!tratativa.trim()) return toast.error("Descreva a tratativa realizada.");
+    if (status === "encerrada" && (!causa.trim() || !acao.trim())) {
+      return toast.error("Para encerrar, informe a causa e a ação corretiva.");
+    }
+    setSaving(true);
+    const { error } = await (supabase as any).rpc("sms_tratar_infracao_velocidade", {
+      p_infracao_id: item!.id, p_status: status, p_tratativa: tratativa.trim(),
+      p_causa: causa.trim() || null, p_acao_corretiva: acao.trim() || null,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success(status === "encerrada" ? "Infração encerrada com rastreabilidade." : "Tratativa salva.");
+    onOpenChange(false); onSaved();
+  }
+
+  if (!item) return null;
+  const encerrada = ["encerrada", "cancelada"].includes(item.status);
+  return (
+    <Dialog open={!!item} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader><DialogTitle>Detalhes e tratativa da infração</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/50 p-3 text-sm">
+          <div><span className="text-muted-foreground">Veículo</span><p className="font-medium">{item.vehicles?.placa ?? "Não identificado"}</p></div>
+          <div><span className="text-muted-foreground">Motorista</span><p className="font-medium">{item.employees?.nome ?? "Não identificado"}</p></div>
+          <div><span className="text-muted-foreground">Medição</span><p className="font-medium">{item.velocidade_kmh} km/h (limite {item.limite_kmh})</p></div>
+          <div><span className="text-muted-foreground">Local e data</span><p className="font-medium">{item.sms_checkpoints?.nome ?? "—"} · {dateTime(item.created_at)}</p></div>
+        </div>
+        {!item.vehicles && <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+          <p className="text-sm font-semibold text-amber-900">Identificar passagem desconhecida</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Select value={vehicleId} onValueChange={v => { setVehicleId(v); const found=vehicles.find(x=>x.id===v); setMotoristaId(found?.responsavel_id ?? ""); }}>
+              <SelectTrigger className="bg-white"><SelectValue placeholder="Selecione o veículo" /></SelectTrigger>
+              <SelectContent>{vehicles.map(v => <SelectItem key={v.id} value={v.id}>{v.placa} — {v.marca} {v.modelo}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={motoristaId || "__none"} onValueChange={v => setMotoristaId(v === "__none" ? "" : v)}>
+              <SelectTrigger className="bg-white"><SelectValue placeholder="Condutor" /></SelectTrigger>
+              <SelectContent><SelectItem value="__none">Condutor não identificado</SelectItem>{employees.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <Button size="sm" variant="outline" disabled={saving || !vehicleId} onClick={identificar}>Vincular ao registro</Button>
+        </div>}
+        <div className="space-y-3">
+          <div className="space-y-1.5"><Label>Tratativa <span className="text-destructive">*</span></Label>
+            <Textarea disabled={encerrada} value={tratativa} onChange={e => setTratativa(e.target.value)} placeholder="Providências adotadas, orientação e responsáveis..." /></div>
+          <div className="space-y-1.5"><Label>Causa identificada</Label>
+            <Textarea disabled={encerrada} value={causa} onChange={e => setCausa(e.target.value)} placeholder="Causa imediata e causa raiz..." /></div>
+          <div className="space-y-1.5"><Label>Ação corretiva</Label>
+            <Textarea disabled={encerrada} value={acao} onChange={e => setAcao(e.target.value)} placeholder="Ação para impedir recorrência..." /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
+          {!encerrada && <><Button variant="secondary" disabled={saving} onClick={() => salvar("em_tratativa")}>Salvar andamento</Button>
+            <Button disabled={saving} onClick={() => salvar("encerrada")}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Encerrar tratativa</Button></>}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -515,42 +641,53 @@ function CheckpointDialog({ open, onOpenChange, obras, onSaved }: {
   const [form, setForm] = useState({
     obra_id: "", nome: "", descricao: "",
     limite_velocidade_kmh: "40", tolerancia_kmh: "5",
-    latitude: "", longitude: "",
+    latitude: "", longitude: "", fabricante: "", modelo: "", numero_serie: "",
+    calibrado_em: "", calibracao_valida_ate: "",
   });
   const [saving, setSaving] = useState(false);
+  const [credencial, setCredencial] = useState("");
 
   async function salvar() {
     if (!form.obra_id || !form.nome.trim()) {
       return toast.error("Informe a obra e o nome do checkpoint.");
     }
     setSaving(true);
-    const { error } = await (supabase as any).from("sms_checkpoints").insert({
-      obra_id: form.obra_id,
-      nome: form.nome.trim(),
-      descricao: form.descricao.trim() || null,
-      limite_velocidade_kmh: Number(form.limite_velocidade_kmh),
-      tolerancia_kmh: Number(form.tolerancia_kmh),
-      latitude:  form.latitude  ? Number(form.latitude)  : null,
-      longitude: form.longitude ? Number(form.longitude) : null,
+    const { data, error } = await (supabase as any).rpc("sms_criar_checkpoint_velocidade", {
+      p_obra_id: form.obra_id, p_nome: form.nome.trim(), p_descricao: form.descricao.trim(),
+      p_limite: Number(form.limite_velocidade_kmh), p_tolerancia: Number(form.tolerancia_kmh),
+      p_latitude: form.latitude ? Number(form.latitude) : null,
+      p_longitude: form.longitude ? Number(form.longitude) : null,
+      p_fabricante: form.fabricante.trim() || null, p_modelo: form.modelo.trim() || null,
+      p_numero_serie: form.numero_serie.trim() || null,
+      p_calibrado_em: form.calibrado_em || null, p_calibracao_valida_ate: form.calibracao_valida_ate || null,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Checkpoint criado. Copie o token para configurar o dispositivo.");
-    setForm({ obra_id: "", nome: "", descricao: "", limite_velocidade_kmh: "40", tolerancia_kmh: "5", latitude: "", longitude: "" });
-    onOpenChange(false);
+    setCredencial(data?.device_token ?? "");
+    toast.success("Checkpoint criado. Guarde a credencial exibida agora.");
+    setForm({ obra_id: "", nome: "", descricao: "", limite_velocidade_kmh: "40", tolerancia_kmh: "5", latitude: "", longitude: "", fabricante: "", modelo: "", numero_serie: "", calibrado_em: "", calibracao_valida_ate: "" });
     onSaved();
   }
 
   const obrasAtivas = obras.filter(o => o.status === "em_andamento" || o.status === "planejada");
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={o => { if (!o) setCredencial(""); onOpenChange(o); }}>
       <DialogTrigger asChild>
         <Button size="sm"><Plus className="mr-1.5 h-3.5 w-3.5" />Novo checkpoint</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader><DialogTitle>Novo checkpoint de velocidade</DialogTitle></DialogHeader>
-        <div className="space-y-3 py-2">
+        {credencial ? <div className="space-y-4 py-2">
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
+            <p className="font-semibold text-amber-900">Credencial do equipamento — exibição única</p>
+            <p className="mt-1 text-xs text-amber-800">Copie e guarde em local seguro. Ela não poderá ser consultada novamente.</p>
+            <code className="mt-3 block break-all rounded bg-white p-3 text-xs">{credencial}</code>
+          </div>
+          <Button className="w-full" onClick={() => { navigator.clipboard.writeText(credencial); toast.success("Credencial copiada."); }}>
+            <Copy className="mr-2 h-4 w-4" />Copiar credencial
+          </Button>
+        </div> : <div className="space-y-3 py-2">
           <div className="space-y-1.5">
             <Label>Obra <span className="text-destructive">*</span></Label>
             <Select value={form.obra_id} onValueChange={v => setForm(f => ({ ...f, obra_id: v }))}>
@@ -586,6 +723,15 @@ function CheckpointDialog({ open, onOpenChange, obras, onSaved }: {
                 onChange={e => setForm(f => ({ ...f, tolerancia_kmh: e.target.value }))} />
             </div>
           </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5"><Label>Fabricante</Label><Input value={form.fabricante} onChange={e=>setForm(f=>({...f,fabricante:e.target.value}))} /></div>
+            <div className="space-y-1.5"><Label>Modelo</Label><Input value={form.modelo} onChange={e=>setForm(f=>({...f,modelo:e.target.value}))} /></div>
+            <div className="space-y-1.5"><Label>Nº de série</Label><Input value={form.numero_serie} onChange={e=>setForm(f=>({...f,numero_serie:e.target.value}))} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>Calibrado em</Label><Input type="date" value={form.calibrado_em} onChange={e=>setForm(f=>({...f,calibrado_em:e.target.value}))} /></div>
+            <div className="space-y-1.5"><Label>Calibração válida até</Label><Input type="date" value={form.calibracao_valida_ate} onChange={e=>setForm(f=>({...f,calibracao_valida_ate:e.target.value}))} /></div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Latitude</Label>
@@ -602,12 +748,12 @@ function CheckpointDialog({ open, onOpenChange, obras, onSaved }: {
             A tolerância evita infrações por margem de erro do radar. Um veículo só é
             autuado acima de <strong>{Number(form.limite_velocidade_kmh || 0) + Number(form.tolerancia_kmh || 0)} km/h</strong>.
           </p>
-        </div>
+        </div>}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={salvar} disabled={saving}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{credencial ? "Concluir" : "Cancelar"}</Button>
+          {!credencial && <Button onClick={salvar} disabled={saving}>
             {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Criando...</> : "Criar checkpoint"}
-          </Button>
+          </Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>
