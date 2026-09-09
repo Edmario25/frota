@@ -139,6 +139,7 @@ export default function SmsVelocidade() {
   const [novaTagOpen, setNovaTagOpen]               = useState(false);
   const [registroManualOpen, setRegistroManualOpen] = useState(false);
   const [infracaoSelecionada, setInfracaoSelecionada] = useState<Infracao | null>(null);
+  const [checkpointConfig, setCheckpointConfig] = useState<Checkpoint | null>(null);
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("todos");
   const [gravidadeFiltro, setGravidadeFiltro] = useState("todas");
@@ -478,6 +479,10 @@ export default function SmsVelocidade() {
                       <Badge variant="outline" className="h-7 gap-1.5 text-xs">
                         <ShieldAlert className="h-3 w-3" />Credencial protegida{cp.device_token_hint ? ` · •••${cp.device_token_hint}` : ""}
                       </Badge>
+                      <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+                        onClick={() => setCheckpointConfig(cp)}>
+                        <Copy className="h-3 w-3" />Configurar Raspberry
+                      </Button>
                       <Button size="sm" variant={cp.ativo ? "outline" : "default"}
                         className="h-7 text-xs" disabled={busy === cp.id}
                         onClick={() => toggleCheckpoint(cp)}>
@@ -536,8 +541,69 @@ export default function SmsVelocidade() {
         <TratativaInfracaoDialog item={infracaoSelecionada}
           vehicles={vehicles} employees={employees}
           onOpenChange={open => !open && setInfracaoSelecionada(null)} onSaved={load} />
+        <CredencialCheckpointDialog checkpoint={checkpointConfig}
+          onOpenChange={open => !open && setCheckpointConfig(null)} onSaved={load} />
       </div>
     </Layout>
+  );
+}
+
+function CredencialCheckpointDialog({ checkpoint, onOpenChange, onSaved }: {
+  checkpoint: Checkpoint | null; onOpenChange: (open: boolean) => void; onSaved: () => void;
+}) {
+  const [token, setToken] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => setToken(""), [checkpoint]);
+
+  async function gerar() {
+    setSaving(true);
+    const { data, error } = await (supabase as any).rpc("sms_rotacionar_token_checkpoint", {
+      p_checkpoint_id: checkpoint!.id,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    setToken(data?.device_token ?? "");
+    onSaved();
+    toast.success("Nova credencial gerada. A anterior foi invalidada.");
+  }
+
+  if (!checkpoint) return null;
+  return (
+    <Dialog open={!!checkpoint} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader><DialogTitle>Configurar Raspberry - {checkpoint.nome}</DialogTitle></DialogHeader>
+        {!token ? (
+          <div className="space-y-3 py-2">
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">Atenção antes de gerar</p>
+              <p className="mt-1">A credencial atual será invalidada imediatamente. O equipamento ficará offline até a nova credencial ser informada no arquivo <code>.env</code> do Raspberry.</p>
+            </div>
+            {checkpoint.device_token_hint && <p className="text-sm text-muted-foreground">Credencial atual terminada em <strong>{checkpoint.device_token_hint}</strong>.</p>}
+          </div>
+        ) : (
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4">
+              <p className="font-semibold text-emerald-900">Nova credencial - copie agora</p>
+              <p className="mt-1 text-xs text-emerald-800">No Raspberry, defina esta chave como <strong>DEVICE_TOKEN</strong>. Ela não será exibida novamente.</p>
+              <code className="mt-3 block break-all rounded bg-white p-3 text-xs select-all">{token}</code>
+            </div>
+            <Button className="w-full" onClick={() => { navigator.clipboard.writeText(token); toast.success("Token copiado para a área de transferência."); }}>
+              <Copy className="mr-2 h-4 w-4" />Copiar token do Raspberry
+            </Button>
+            <div className="rounded-md bg-muted p-3 text-xs">
+              <code>DEVICE_TOKEN={token}</code>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{token ? "Concluir" : "Cancelar"}</Button>
+          {!token && <Button onClick={gerar} disabled={saving}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Gerar nova credencial
+          </Button>}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
