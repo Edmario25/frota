@@ -47,6 +47,8 @@ type Infracao = {
   gravidade: "leve" | "media" | "grave" | "gravissima";
   status: string;
   desvio_id: string | null;
+  notificada_em: string | null;
+  ciente_em: string | null;
   created_at: string;
   vehicles: { placa: string; marca: string; modelo: string } | null;
   employees: { nome: string } | null;
@@ -132,7 +134,7 @@ export default function SmsVelocidade() {
       (supabase as any).from("sms_checkpoints")
         .select("*, obras(nome)").order("nome"),
       (supabase as any).from("sms_infracoes_velocidade")
-        .select("id,velocidade_kmh,limite_kmh,excesso_kmh,excesso_percentual,gravidade,status,desvio_id,created_at,vehicles(placa,marca,modelo),employees(nome),sms_checkpoints(nome),obras(nome)")
+        .select("id,velocidade_kmh,limite_kmh,excesso_kmh,excesso_percentual,gravidade,status,desvio_id,notificada_em,ciente_em,created_at,vehicles(placa,marca,modelo),employees(nome),sms_checkpoints(nome),obras(nome)")
         .order("created_at", { ascending: false }).limit(200),
       (supabase as any).from("sms_checkpoint_passagens")
         .select("id,velocidade_kmh,limite_no_momento,tag_epc,sentido,origem,detectado_em,vehicles(placa),sms_checkpoints(nome)")
@@ -168,6 +170,22 @@ export default function SmsVelocidade() {
   }, [checkpoints, infracoes, passagens]);
 
   // ── Ações ─────────────────────────────────────────────────────────
+  async function notificarMotorista(id: string, temMotorista: boolean) {
+    if (!temMotorista) {
+      return toast.error(
+        "Sem motorista identificado — não há para quem enviar. " +
+        "Vincule a tag ao veículo e confira o responsável cadastrado."
+      );
+    }
+    setBusy(id);
+    const { error } = await (supabase as any)
+      .rpc("sms_notificar_infracao", { p_infracao_id: id });
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success("Motorista notificado. A infração aparece no app dele para ciência.");
+    load();
+  }
+
   async function atualizarStatusInfracao(id: string, status: string) {
     setBusy(id);
     const payload: Record<string, any> = { status };
@@ -273,6 +291,19 @@ export default function SmsVelocidade() {
                           <ExternalLink className="h-3 w-3" />Desvio gerado
                         </Badge>
                       )}
+                      {item.ciente_em ? (
+                        <Badge variant="outline"
+                          className="gap-1 border-emerald-300 bg-emerald-50 text-emerald-700">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Ciente em {dateTime(item.ciente_em)}
+                        </Badge>
+                      ) : item.notificada_em ? (
+                        <Badge variant="outline"
+                          className="gap-1 border-amber-300 bg-amber-50 text-amber-700">
+                          <Radio className="h-3 w-3" />
+                          Aguardando ciência
+                        </Badge>
+                      ) : null}
                       <span className="text-xs text-muted-foreground">
                         {item.sms_checkpoints?.nome ?? "Checkpoint"} · {item.obras?.nome ?? "Obra"} · {dateTime(item.created_at)}
                       </span>
@@ -297,10 +328,10 @@ export default function SmsVelocidade() {
                         Gerar desvio SMS
                       </Button>
                     )}
-                    {item.status === "aberta" && (
+                    {!item.notificada_em && item.status !== "encerrada" && (
                       <Button size="sm" variant="outline" disabled={busy === item.id}
-                        onClick={() => atualizarStatusInfracao(item.id, "notificada")}>
-                        Marcar notificada
+                        onClick={() => notificarMotorista(item.id, !!item.employees)}>
+                        Notificar motorista
                       </Button>
                     )}
                     {item.status !== "encerrada" && (

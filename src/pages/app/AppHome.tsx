@@ -1,6 +1,7 @@
 import { Car, Fuel, Wrench, Gauge, AlertCircle, RefreshCw } from "lucide-react";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useTraccarVehicleSync } from "@/hooks/useTraccarVehicleSync";
+import { MinhasInfracoesCard } from "@/components/employee/MinhasInfracoesCard";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useEscalas } from "@/hooks/useEscalas";
 import { useEffect } from "react";
@@ -128,6 +129,9 @@ export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: strin
       </div>
 
       <div className="px-4 -mt-4 space-y-4 pb-6">
+        {/* Infrações aguardando ciência — some sozinho quando não há nenhuma */}
+        <MinhasInfracoesCard />
+
         {/* Veículo card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
