@@ -29,6 +29,31 @@ Implementação iniciada após a conclusão dos testes do checkpoint de velocida
 - Estrutura de regimentos e aceites preparada para a próxima tela operacional.
 - Permissões específicas e integração com a auditoria central.
 
+### Revisão de 10/09/2026 — mapa estilo hotel e patrimônio móvel
+
+Migration `20260910000002_alojamento_hotel_patrimonio.sql`.
+
+- Tela reorganizada como painel de hotel: blocos com vagas livres → quartos
+  com os leitos coloridos por status → painel lateral do leito com ocupante,
+  ações, patrimônio e últimas movimentações.
+- Bem pode ficar no quarto (compartilhado) ou num leito específico
+  (`alojamento_bens.leito_id`). Termo de entrada e conferência de saída
+  passam a listar os bens do quarto mais os daquele leito.
+- Movimentação de patrimônio entre leito, quarto, área geral e unidades,
+  com baixa e reativação. Histórico em `alojamento_bem_movimentacoes`,
+  gravado por trigger — nenhuma edição escapa do registro.
+- Conferência de saída grava o estado no bem ("ausente" só vai para o termo).
+- Status de leito só muda por função (`alojamento_alterar_status_leito`), com
+  transições válidas; escrita direta em `alojamento_leitos` foi revogada.
+- Escrita de patrimônio passou a exigir `gerencia_alojamento` (antes bastava
+  permissão de leitura).
+- Consultas paginadas além do limite de 1.000 linhas do Supabase.
+- Chamados com responsável, mudança de situação, conclusão com custo,
+  vencidos e tempo médio de atendimento.
+- Alojados com busca, reservas e histórico de saídas.
+- Edição de complexo e unidade; alerta de capacidade autorizada e de
+  contrato de aluguel vencendo em 30 dias.
+
 ### Próximas evoluções sobre a base entregue
 
 - Editor de termos com assinatura e geração do PDF comparativo.

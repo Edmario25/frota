@@ -1,204 +1,673 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle, BedDouble, Building2, ChevronDown, Loader2, Pencil, Plus,
+  RefreshCw, ShieldCheck, Users, Wrench,
+} from "lucide-react";
+import { toast } from "sonner";
 import { Layout } from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useObras } from "@/hooks/useObras";
 import { useEmployees } from "@/hooks/useEmployees";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BedDouble, Building2, Users, AlertTriangle, Plus, LogIn, LogOut, Sparkles, Wrench, RefreshCw, Loader2, ShieldCheck } from "lucide-react";
-import { toast } from "sonner";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { T } from "@/i18n";
+import {
+  CLASSIFICACAO, DADOS_VAZIOS, Dados, ESTADO_BEM, PRIORIDADE, REGIME, TIPO_AMBIENTE,
+  TIPO_CHAMADO, TIPO_UNIDADE, buscarTodos,
+} from "@/components/alojamentos/shared";
+import { MapaHotel } from "@/components/alojamentos/MapaHotel";
+import { LeitoPainel } from "@/components/alojamentos/LeitoPainel";
+import { MovimentarBemDialog } from "@/components/alojamentos/MovimentarBemDialog";
+import { PatrimonioAba } from "@/components/alojamentos/PatrimonioAba";
+import { ChamadosAba } from "@/components/alojamentos/ChamadosAba";
+import { AlojadosAba } from "@/components/alojamentos/AlojadosAba";
 
-type Modal = "complexo" | "alojamento" | "ambiente" | "quarto" | "bem" | "reserva" | "checkin" | "checkout" | "transferir" | "ausencia" | "chamado" | null;
-const BED_CFG: Record<string, { label: string; cls: string }> = {
-  disponivel: { label: "Disponível", cls: "border-emerald-300 bg-emerald-50 text-emerald-700" },
-  reservado: { label: "Reservado", cls: "border-blue-300 bg-blue-50 text-blue-700" },
-  ocupado: { label: "Ocupado", cls: "border-violet-300 bg-violet-50 text-violet-700" },
-  higienizacao: { label: "Higienização", cls: "border-amber-300 bg-amber-50 text-amber-700" },
-  manutencao: { label: "Manutenção", cls: "border-orange-300 bg-orange-50 text-orange-700" },
-  interditado: { label: "Interditado", cls: "border-red-300 bg-red-50 text-red-700" },
-  desativado: { label: "Desativado", cls: "bg-muted text-muted-foreground" },
+type Modal =
+  | "complexo" | "alojamento" | "ambiente" | "quarto" | "bem" | "reserva" | "checkin"
+  | "checkout" | "transferir" | "ausencia" | "chamado" | "bloquear" | null;
+
+const TITULO_MODAL: Record<Exclude<Modal, null>, string> = {
+  complexo: "Complexo", alojamento: "Unidade de alojamento", ambiente: "Novo ambiente",
+  quarto: "Criar quartos e leitos", bem: "Novo bem patrimonial", reserva: "Reservar leito",
+  checkin: "Entrada de colaborador", checkout: "Saída e conferência", transferir: "Transferir alojado",
+  ausencia: "Presença no alojamento", chamado: "Novo chamado", bloquear: "Bloquear leito",
 };
 
 export default function Alojamentos() {
   const { obras } = useObras();
   const { employees } = useEmployees();
-  const [complexos, setComplexos] = useState<any[]>([]);
-  const [alojamentos, setAlojamentos] = useState<any[]>([]);
-  const [ambientes, setAmbientes] = useState<any[]>([]);
-  const [quartos, setQuartos] = useState<any[]>([]);
-  const [leitos, setLeitos] = useState<any[]>([]);
-  const [ocupacoes, setOcupacoes] = useState<any[]>([]);
-  const [reservas, setReservas] = useState<any[]>([]);
-  const [bens, setBens] = useState<any[]>([]);
-  const [chamados, setChamados] = useState<any[]>([]);
+  const [dados, setDados] = useState<Dados>(DADOS_VAZIOS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [obraId, setObraId] = useState("todas");
   const [complexoId, setComplexoId] = useState("todos");
-  const [alojamentoId, setAlojamentoId] = useState("todos");
-  const [paginaQuartos, setPaginaQuartos] = useState(1);
+  const [aba, setAba] = useState("mapa");
   const [modal, setModal] = useState<Modal>(null);
-  const [selecionado, setSelecionado] = useState<any>(null);
+  const [alvo, setAlvo] = useState<any>(null);
   const [form, setForm] = useState<any>({});
+  const [leitoSelId, setLeitoSelId] = useState<string | null>(null);
+  const [bemMovendo, setBemMovendo] = useState<any>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [cx, a, am, q, l, o, r, b, c] = await Promise.all([
-      (supabase as any).from("alojamento_complexos").select("*").order("nome"),
-      (supabase as any).from("alojamentos").select("*").order("nome"),
-      (supabase as any).from("alojamento_ambientes").select("*").order("nome"),
-      (supabase as any).from("alojamento_quartos").select("*").order("identificacao"),
-      (supabase as any).from("alojamento_leitos").select("*").order("identificacao"),
-      (supabase as any).from("alojamento_ocupacoes").select("*").order("data_entrada", { ascending: false }),
-      (supabase as any).from("alojamento_reservas").select("*").order("inicio_previsto"),
-      (supabase as any).from("alojamento_bens").select("*").order("descricao"),
-      (supabase as any).from("alojamento_chamados").select("*").order("created_at", { ascending: false }),
-    ]);
-    const failure = [cx, a, am, q, l, o, r, b, c].find(x => x.error)?.error;
-    if (failure) toast.error(`Não foi possível carregar o módulo: ${failure.message}`);
-    setComplexos(cx.data ?? []); setAlojamentos(a.data ?? []); setAmbientes(am.data ?? []); setQuartos(q.data ?? []);
-    setLeitos(l.data ?? []); setOcupacoes(o.data ?? []); setReservas(r.data ?? []); setBens(b.data ?? []); setChamados(c.data ?? []); setLoading(false);
+    try {
+      const [complexos, unidades, ambientes, quartos, leitos, ocupacoes, reservas, bens, chamados] = await Promise.all([
+        buscarTodos("alojamento_complexos", "nome"),
+        buscarTodos("alojamentos", "nome"),
+        buscarTodos("alojamento_ambientes", "nome"),
+        buscarTodos("alojamento_quartos", "identificacao"),
+        buscarTodos("alojamento_leitos", "identificacao"),
+        buscarTodos("alojamento_ocupacoes", "data_entrada", false),
+        buscarTodos("alojamento_reservas", "inicio_previsto"),
+        buscarTodos("alojamento_bens", "tombamento"),
+        buscarTodos("alojamento_chamados", "created_at", false),
+      ]);
+      setDados({ complexos, unidades, ambientes, quartos, leitos, ocupacoes, reservas, bens, chamados });
+    } catch (e: any) {
+      toast.error(`Não foi possível carregar o módulo: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const complexosEscopo = useMemo(() => complexos.filter(c => obraId === "todas" || c.obra_id === obraId), [complexos, obraId]);
-  const unidades = useMemo(() => alojamentos.filter(a => (obraId === "todas" || a.obra_id === obraId) && (complexoId === "todos" || a.complexo_id === complexoId)), [alojamentos, obraId, complexoId]);
-  const unidadeIds = new Set(unidades.map(a => a.id));
-  const ambientesEscopo = ambientes.filter(a => unidadeIds.has(a.alojamento_id) && (alojamentoId === "todos" || a.alojamento_id === alojamentoId));
-  const ambienteIds = new Set(ambientesEscopo.map(a => a.id));
-  const quartosEscopo = quartos.filter(q => ambienteIds.has(q.id));
-  const totalPaginasQuartos = Math.max(1, Math.ceil(quartosEscopo.length / 24));
-  const quartosVisiveis = quartosEscopo.slice((paginaQuartos - 1) * 24, paginaQuartos * 24);
-  const quartoIds = new Set(quartosEscopo.map(q => q.id));
-  const leitosEscopo = leitos.filter(l => quartoIds.has(l.quarto_id));
-  const leitoIds = new Set(leitosEscopo.map(l => l.id));
-  const ocupacoesAbertas = ocupacoes.filter(o => !o.data_saida && leitoIds.has(o.leito_id));
-  const ocupacaoPorLeito = new Map(ocupacoesAbertas.map(o => [o.leito_id, o]));
-  const employeeName = (id: string) => employees.find(e => e.id === id)?.nome ?? "Colaborador";
-  const totals = {
-    total: leitosEscopo.filter(l => l.status !== "desativado").length,
-    ocupados: ocupacoesAbertas.length,
-    disponiveis: leitosEscopo.filter(l => l.status === "disponivel").length,
-    bloqueados: leitosEscopo.filter(l => ["manutencao", "interditado", "higienizacao"].includes(l.status)).length,
-    chamados: chamados.filter(c => !["concluido", "cancelado"].includes(c.status) && unidadeIds.has(c.alojamento_id)).length,
-  };
-  const ocupacaoPct = totals.total ? Math.round((totals.ocupados / totals.total) * 100) : 0;
+  // ── Escopo pelos filtros ─────────────────────────────────────────────
+  const complexosEscopo = dados.complexos.filter(c => obraId === "todas" || c.obra_id === obraId);
+  const unidades = useMemo(() => dados.unidades.filter(u =>
+    (obraId === "todas" || u.obra_id === obraId) && (complexoId === "todos" || u.complexo_id === complexoId),
+  ), [dados.unidades, obraId, complexoId]);
+  const unidadeIds = useMemo(() => new Set(unidades.map(u => u.id)), [unidades]);
+  const quartoIds = useMemo(() => new Set(
+    dados.ambientes.filter(a => unidadeIds.has(a.alojamento_id)).map(a => a.id),
+  ), [dados.ambientes, unidadeIds]);
+  const leitosEscopo = useMemo(() => dados.leitos.filter(l => quartoIds.has(l.quarto_id)), [dados.leitos, quartoIds]);
+  const leitoIds = useMemo(() => new Set(leitosEscopo.map(l => l.id)), [leitosEscopo]);
 
-  function open(m: Modal, data?: any) {
-    setSelecionado(data ?? null);
-    if (m === "checkout" && data) {
-      const leito = leitos.find(l => l.id === data.leito_id);
-      const itens = bens.filter(b => b.ativo && b.ambiente_id === leito?.quarto_id).reduce((acc, b) => ({ ...acc, [b.id]: b.estado }), {});
-      setForm({ itens });
-    } else setForm({});
+  const ocupacaoPorLeito = useMemo(() => new Map(
+    dados.ocupacoes.filter(o => !o.data_saida).map(o => [o.leito_id, o] as [string, any]),
+  ), [dados.ocupacoes]);
+  const reservaPorLeito = useMemo(() => new Map(
+    dados.reservas.filter(r => r.status === "ativa").map(r => [r.leito_id, r] as [string, any]),
+  ), [dados.reservas]);
+
+  const nomes = useMemo(() => new Map(employees.map((e: any) => [e.id, e.nome] as [string, string])), [employees]);
+  const nome = useCallback((id: string) => nomes.get(id) ?? "Colaborador", [nomes]);
+
+  const ativos = leitosEscopo.filter(l => l.status !== "desativado");
+  const ocupados = leitosEscopo.filter(l => ocupacaoPorLeito.has(l.id)).length;
+  const kpi = {
+    total: ativos.length,
+    ocupados,
+    livres: leitosEscopo.filter(l => l.status === "disponivel").length,
+    bloqueados: leitosEscopo.filter(l => ["manutencao", "interditado", "higienizacao"].includes(l.status)).length,
+    chamados: dados.chamados.filter(c => unidadeIds.has(c.alojamento_id) && !["concluido", "cancelado"].includes(c.status)).length,
+  };
+  const pct = kpi.total ? (kpi.ocupados / kpi.total) * 100 : 0;
+  const pctTexto = pct > 0 && pct < 1 ? pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : Math.round(pct).toString();
+
+  // Capacidade autorizada: o número que a fiscalização cobra
+  const excedidos = dados.complexos.filter(c => {
+    if (c.capacidade_autorizada == null || (obraId !== "todas" && c.obra_id !== obraId)) return false;
+    const us = new Set(dados.unidades.filter(u => u.complexo_id === c.id).map(u => u.id));
+    const qs = new Set(dados.ambientes.filter(a => us.has(a.alojamento_id)).map(a => a.id));
+    const n = dados.leitos.filter(l => qs.has(l.quarto_id) && ocupacaoPorLeito.has(l.id)).length;
+    return n > c.capacidade_autorizada;
+  });
+
+  const leitoSel = leitoSelId ? dados.leitos.find(l => l.id === leitoSelId) ?? null : null;
+
+  // ── Abertura de modais ───────────────────────────────────────────────
+  function abrir(m: Modal, dadosAlvo?: any, inicial: any = {}) {
+    setAlvo(dadosAlvo ?? null);
+    setForm(inicial);
     setModal(m);
   }
-  async function saveAlojamento() {
-    const complexo = complexos.find(c => c.id === form.complexo_id);
-    if (!complexo || !form.nome?.trim()) return toast.error("Informe o complexo e o nome da unidade.");
-    setSaving(true); const { error } = await (supabase as any).from("alojamentos").insert({ obra_id: complexo.obra_id, complexo_id: complexo.id, nome: form.nome.trim(), endereco: form.endereco?.trim() || null, capacidade_declarada: Number(form.capacidade || 0), capacidade_autorizada: form.capacidade_autorizada ? Number(form.capacidade_autorizada) : null, tipo_unidade: form.tipo_unidade || "casa", regime: form.regime || "proprio", proprietario_fornecedor: form.proprietario?.trim() || null, contrato_numero: form.contrato?.trim() || null, contrato_inicio: form.contrato_inicio || null, contrato_fim: form.contrato_fim || null, valor_mensal: form.valor_mensal ? Number(form.valor_mensal) : null }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Unidade de alojamento cadastrada."); setModal(null); load();
+  const campo = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e?.target ? e.target.value : e }));
+  const bensDoLeito = (leito: any) => dados.bens.filter(b =>
+    b.ativo && b.ambiente_id === leito?.quarto_id && (!b.leito_id || b.leito_id === leito?.id));
+
+  async function executar(promessa: Promise<{ error: any }>, sucesso: string, fechar = true) {
+    setSaving(true);
+    const { error } = await promessa;
+    setSaving(false);
+    if (error) { toast.error(error.message); return false; }
+    toast.success(sucesso);
+    if (fechar) setModal(null);
+    load();
+    return true;
   }
-  async function saveComplexo() {
-    if (!form.obra_id || !form.nome?.trim()) return toast.error("Informe obra e nome do complexo.");
-    setSaving(true); const { error } = await (supabase as any).from("alojamento_complexos").insert({ obra_id: form.obra_id, nome: form.nome.trim(), capacidade_autorizada: form.capacidade_autorizada ? Number(form.capacidade_autorizada) : null, observacoes: form.observacoes?.trim() || null }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Complexo cadastrado."); setModal(null); load();
-  }
-  async function saveQuarto() {
-    if (!form.alojamento_id || !form.identificacao || !form.capacidade) return toast.error("Preencha os dados do quarto.");
-    const quantidade = Number(form.quantidade_quartos || 1); setSaving(true);
-    const { error } = quantidade > 1
-      ? await (supabase as any).rpc("alojamento_criar_quartos_em_lote", { p_unidade: form.alojamento_id, p_prefixo: form.identificacao.trim(), p_quantidade: quantidade, p_numero_inicial: Number(form.numero_inicial || 1), p_leitos_por_quarto: Number(form.capacidade), p_classificacao: form.classificacao || "masculino" })
-      : await (supabase as any).rpc("alojamento_criar_quarto", { p_alojamento: form.alojamento_id, p_identificacao: form.identificacao.trim(), p_classificacao: form.classificacao || "masculino", p_capacidade: Number(form.capacidade) }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success(quantidade > 1 ? `${quantidade} quartos e respectivos leitos criados.` : "Quarto e leitos criados."); setModal(null); load();
-  }
-  async function saveAmbiente() {
-    if (!form.alojamento_id || !form.nome?.trim() || !form.tipo) return toast.error("Preencha unidade, nome e tipo.");
-    setSaving(true); const { error } = await (supabase as any).from("alojamento_ambientes").insert({ alojamento_id: form.alojamento_id, nome: form.nome.trim(), tipo: form.tipo, capacidade: form.capacidade ? Number(form.capacidade) : null, quantidade_chuveiros: Number(form.chuveiros || 0), quantidade_sanitarios: Number(form.sanitarios || 0), quantidade_lavatorios: Number(form.lavatorios || 0) }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Ambiente cadastrado."); setModal(null); load();
-  }
-  async function saveBem() {
-    if (!form.alojamento_id || !form.tombamento?.trim() || !form.descricao?.trim()) return toast.error("Informe alojamento, tombamento e descrição.");
-    setSaving(true); const { error } = await (supabase as any).from("alojamento_bens").insert({ alojamento_id: form.alojamento_id, ambiente_id: form.ambiente_id || null, tombamento: form.tombamento.trim(), descricao: form.descricao.trim(), categoria: form.categoria?.trim() || null, numero_serie: form.numero_serie?.trim() || null, estado: form.estado || "bom", valor_aquisicao: form.valor ? Number(form.valor) : null }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Bem patrimonial cadastrado."); setModal(null); load();
-  }
-  async function checkin() {
-    if (!selecionado || !form.employee_id) return toast.error("Selecione o colaborador.");
-    setSaving(true); const { error } = await (supabase as any).rpc("alojamento_checkin", { p_leito: selecionado.id, p_employee: form.employee_id, p_observacoes: form.observacoes || null }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Check-in realizado."); setModal(null); load();
-  }
-  async function reservar() {
-    if (!selecionado || !form.employee_id || !form.inicio) return toast.error("Selecione colaborador e data de início.");
-    setSaving(true); const { error } = await (supabase as any).rpc("alojamento_reservar", { p_leito: selecionado.id, p_employee: form.employee_id, p_inicio: form.inicio, p_fim: form.fim || null, p_observacoes: form.observacoes || null }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Leito reservado."); setModal(null); load();
-  }
-  async function cancelarReserva(reserva: any) {
-    setSaving(true); const { error } = await (supabase as any).rpc("alojamento_cancelar_reserva", { p_reserva: reserva.id, p_motivo: "Cancelada pelo gestor" }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Reserva cancelada e leito liberado."); load();
-  }
-  async function checkout() {
-    if (!form.motivo?.trim()) return toast.error("Informe o motivo da saída.");
-    const leito = leitos.find(l => l.id === selecionado.leito_id);
-    const itens = bens.filter(b => b.ativo && b.ambiente_id === leito?.quarto_id).map(b => ({ bem_id: b.id, estado: form.itens?.[b.id] || b.estado, observacoes: null }));
-    setSaving(true); const { error } = await (supabase as any).rpc("alojamento_checkout", { p_ocupacao: selecionado.id, p_motivo: form.motivo.trim(), p_itens: itens }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Check-out realizado; leito enviado para higienização."); setModal(null); load();
-  }
-  async function transferir() {
-    if (!form.leito_destino || !form.motivo?.trim()) return toast.error("Selecione o destino e informe o motivo.");
-    setSaving(true); const { error } = await (supabase as any).rpc("alojamento_transferir", { p_ocupacao: selecionado.id, p_leito_destino: form.leito_destino, p_motivo: form.motivo.trim() }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Transferência concluída e registrada no histórico."); setModal(null); load();
-  }
-  async function registrarAusencia() {
-    const ausente = selecionado.presenca_status !== "ausente_temporariamente";
-    setSaving(true); const { error } = await (supabase as any).rpc("alojamento_registrar_ausencia", { p_ocupacao: selecionado.id, p_ausente: ausente, p_retorno: ausente ? form.retorno || null : null }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success(ausente ? "Ausência temporária registrada." : "Retorno confirmado."); setModal(null); load();
-  }
-  async function liberarLeito(leito: any) {
-    const { error } = await (supabase as any).from("alojamento_leitos").update({ status: "disponivel", motivo_bloqueio: null }).eq("id", leito.id);
-    if (error) return toast.error(error.message); toast.success("Leito liberado após higienização."); load();
-  }
-  async function saveChamado() {
-    if (!form.alojamento_id || !form.titulo?.trim() || !form.descricao?.trim()) return toast.error("Informe unidade, título e descrição.");
-    const { data: u } = await supabase.auth.getUser(); setSaving(true);
-    const { error } = await (supabase as any).from("alojamento_chamados").insert({ alojamento_id: form.alojamento_id, titulo: form.titulo.trim(), descricao: form.descricao.trim(), tipo: form.tipo || "corretiva", prioridade: form.prioridade || "media", prazo: form.prazo || null, aberto_por: u.user?.id }); setSaving(false);
-    if (error) return toast.error(error.message); toast.success("Chamado aberto."); setModal(null); load();
+  const rpc = (fn: string, args: any) => (supabase as any).rpc(fn, args);
+
+  // ── Salvar cada modal ────────────────────────────────────────────────
+  async function salvar() {
+    switch (modal) {
+      case "complexo": {
+        if (!form.obra_id || !form.nome?.trim()) return toast.error("Informe obra e nome do complexo.");
+        const linha = {
+          obra_id: form.obra_id, nome: form.nome.trim(), status: form.status || "ativo",
+          capacidade_autorizada: form.capacidade_autorizada ? Number(form.capacidade_autorizada) : null,
+          observacoes: form.observacoes?.trim() || null,
+        };
+        const q = (supabase as any).from("alojamento_complexos");
+        return executar(alvo ? q.update(linha).eq("id", alvo.id) : q.insert(linha), alvo ? "Complexo atualizado." : "Complexo cadastrado.");
+      }
+      case "alojamento": {
+        const complexo = dados.complexos.find(c => c.id === form.complexo_id);
+        if (!complexo || !form.nome?.trim()) return toast.error("Informe o complexo e o nome da unidade.");
+        const linha = {
+          obra_id: complexo.obra_id, complexo_id: complexo.id, nome: form.nome.trim(),
+          endereco: form.endereco?.trim() || null, status: form.status || "ativo",
+          capacidade_declarada: Number(form.capacidade_declarada || 0),
+          capacidade_autorizada: form.capacidade_autorizada ? Number(form.capacidade_autorizada) : null,
+          tipo_unidade: form.tipo_unidade || "casa", regime: form.regime || "proprio",
+          proprietario_fornecedor: form.proprietario_fornecedor?.trim() || null,
+          contrato_numero: form.contrato_numero?.trim() || null,
+          contrato_inicio: form.contrato_inicio || null, contrato_fim: form.contrato_fim || null,
+          valor_mensal: form.valor_mensal ? Number(form.valor_mensal) : null,
+        };
+        const q = (supabase as any).from("alojamentos");
+        return executar(alvo ? q.update(linha).eq("id", alvo.id) : q.insert(linha), alvo ? "Unidade atualizada." : "Unidade cadastrada.");
+      }
+      case "quarto": {
+        if (!form.alojamento_id || !form.identificacao?.trim() || !form.capacidade) return toast.error("Preencha unidade, identificação e leitos por quarto.");
+        const n = Number(form.quantidade || 1);
+        return executar(n > 1
+          ? rpc("alojamento_criar_quartos_em_lote", {
+              p_unidade: form.alojamento_id, p_prefixo: form.identificacao.trim(), p_quantidade: n,
+              p_numero_inicial: Number(form.numero_inicial || 1), p_leitos_por_quarto: Number(form.capacidade),
+              p_classificacao: form.classificacao || "masculino" })
+          : rpc("alojamento_criar_quarto", {
+              p_alojamento: form.alojamento_id, p_identificacao: form.identificacao.trim(),
+              p_classificacao: form.classificacao || "masculino", p_capacidade: Number(form.capacidade) }),
+          n > 1 ? `${n} quartos e seus leitos criados.` : "Quarto e leitos criados.");
+      }
+      case "ambiente": {
+        if (!form.alojamento_id || !form.nome?.trim() || !form.tipo) return toast.error("Preencha unidade, nome e tipo.");
+        return executar((supabase as any).from("alojamento_ambientes").insert({
+          alojamento_id: form.alojamento_id, nome: form.nome.trim(), tipo: form.tipo,
+          quantidade_chuveiros: Number(form.chuveiros || 0), quantidade_sanitarios: Number(form.sanitarios || 0),
+          quantidade_lavatorios: Number(form.lavatorios || 0) }), "Ambiente cadastrado.");
+      }
+      case "bem": {
+        if (!form.alojamento_id || !form.tombamento?.trim() || !form.descricao?.trim()) return toast.error("Informe unidade, tombamento e descrição.");
+        return executar((supabase as any).from("alojamento_bens").insert({
+          alojamento_id: form.alojamento_id, ambiente_id: form.ambiente_id || null, leito_id: form.leito_id || null,
+          tombamento: form.tombamento.trim(), descricao: form.descricao.trim(),
+          categoria: form.categoria?.trim() || null, numero_serie: form.numero_serie?.trim() || null,
+          estado: form.estado || "bom", valor_aquisicao: form.valor ? Number(form.valor) : null }), "Bem cadastrado.");
+      }
+      case "checkin":
+        if (!form.employee_id) return toast.error("Selecione o colaborador.");
+        return executar(rpc("alojamento_checkin", { p_leito: alvo.id, p_employee: form.employee_id, p_observacoes: form.observacoes || null }), "Entrada registrada. Termo de recebimento dos bens gerado.");
+      case "reserva":
+        if (!form.employee_id || !form.inicio) return toast.error("Selecione colaborador e data de início.");
+        return executar(rpc("alojamento_reservar", { p_leito: alvo.id, p_employee: form.employee_id, p_inicio: form.inicio, p_fim: form.fim || null, p_observacoes: form.observacoes || null }), "Leito reservado.");
+      case "checkout": {
+        if (!form.motivo?.trim()) return toast.error("Informe o motivo da saída.");
+        const leito = dados.leitos.find(l => l.id === alvo.leito_id);
+        const itens = bensDoLeito(leito).map(b => ({ bem_id: b.id, estado: form.itens?.[b.id] ?? b.estado, observacoes: null }));
+        return executar(rpc("alojamento_checkout", { p_ocupacao: alvo.id, p_motivo: form.motivo.trim(), p_itens: itens }), "Saída registrada. Leito enviado para higienização.");
+      }
+      case "transferir":
+        if (!form.leito_destino || !form.motivo?.trim()) return toast.error("Selecione o destino e informe o motivo.");
+        return executar(rpc("alojamento_transferir", { p_ocupacao: alvo.id, p_leito_destino: form.leito_destino, p_motivo: form.motivo.trim() }), "Transferência concluída.");
+      case "ausencia": {
+        const ausentar = alvo.presenca_status !== "ausente_temporariamente";
+        return executar(rpc("alojamento_registrar_ausencia", { p_ocupacao: alvo.id, p_ausente: ausentar, p_retorno: ausentar ? form.retorno || null : null }), ausentar ? "Ausência registrada." : "Retorno confirmado.");
+      }
+      case "bloquear":
+        if (!form.motivo?.trim()) return toast.error("Informe o motivo do bloqueio.");
+        return executar(rpc("alojamento_alterar_status_leito", { p_leito: alvo.id, p_status: form.status || "manutencao", p_motivo: form.motivo.trim() }), "Leito bloqueado.");
+      case "chamado": {
+        if (!form.alojamento_id || !form.titulo?.trim() || !form.descricao?.trim()) return toast.error("Informe unidade, título e descrição.");
+        const { data: u } = await supabase.auth.getUser();
+        return executar((supabase as any).from("alojamento_chamados").insert({
+          alojamento_id: form.alojamento_id, ambiente_id: form.ambiente_id || null, titulo: form.titulo.trim(),
+          descricao: form.descricao.trim(), tipo: form.tipo || "corretiva", prioridade: form.prioridade || "media",
+          prazo: form.prazo || null, aberto_por: u.user?.id }), "Chamado aberto.");
+      }
+    }
   }
 
-  return <Layout><div className="mx-auto max-w-screen-xl space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-widest text-primary">Projetos / Pessoas</p><h1 className="text-2xl font-bold"><T>Gestão de Alojamentos</T></h1><p className="text-sm text-muted-foreground">De casas alugadas a grandes complexos, com ocupação, patrimônio e conformidade.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={load}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Atualizar</Button><Button variant="outline" onClick={() => open("complexo")}><Plus className="mr-2 h-4 w-4" />Novo complexo</Button><Button onClick={() => open("alojamento")}><Plus className="mr-2 h-4 w-4" />Nova unidade</Button></div></div>
-    <div className="grid gap-2 md:grid-cols-3"><Select value={obraId} onValueChange={v => { setObraId(v); setComplexoId("todos"); setAlojamentoId("todos"); setPaginaQuartos(1); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as obras</SelectItem>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select><Select value={complexoId} onValueChange={v=>{setComplexoId(v);setAlojamentoId("todos");setPaginaQuartos(1)}}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os complexos</SelectItem>{complexosEscopo.map(c=><SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent></Select><Select value={alojamentoId} onValueChange={v=>{setAlojamentoId(v);setPaginaQuartos(1)}}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todas as unidades</SelectItem>{unidades.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}</SelectContent></Select></div>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[
-      [BedDouble,"Leitos",totals.total,"Capacidade operacional"],[Users,"Ocupados",totals.ocupados,`${ocupacaoPct}% de ocupação`],[ShieldCheck,"Disponíveis",totals.disponiveis,"Prontos para check-in"],[AlertTriangle,"Bloqueados",totals.bloqueados,"Higienização/manutenção"],[Wrench,"Chamados",totals.chamados,"Pendentes de conclusão"],
-    ].map(([Icon,label,value,sub]:any)=><div key={label} className="rounded-xl border bg-card p-4"><Icon className="mb-3 h-5 w-5 text-primary"/><p className="text-2xl font-bold">{value}</p><p className="text-xs font-medium">{label}</p><p className="text-[11px] text-muted-foreground">{sub}</p></div>)}</div>
-    {!loading && !complexos.length && <div className="rounded-xl border border-dashed p-12 text-center"><Building2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground"/><h2 className="font-semibold">Cadastre o primeiro complexo</h2><p className="mb-4 text-sm text-muted-foreground">O complexo pode conter uma casa, vários blocos, hotéis ou outras unidades.</p><Button onClick={()=>open("complexo")}><Plus className="mr-2 h-4 w-4"/>Começar</Button></div>}
-    {!!alojamentos.length && <Tabs defaultValue="mapa" className="rounded-xl border bg-card p-4"><TabsList className="grid w-full max-w-3xl grid-cols-5"><TabsTrigger value="mapa">Mapa de leitos</TabsTrigger><TabsTrigger value="alojados">Alojados</TabsTrigger><TabsTrigger value="estrutura">Estrutura</TabsTrigger><TabsTrigger value="patrimonio">Patrimônio</TabsTrigger><TabsTrigger value="chamados">Chamados</TabsTrigger></TabsList>
-      <TabsContent value="mapa" className="mt-4 space-y-4"><div className="flex justify-end"><Button size="sm" onClick={()=>open("quarto")}><Plus className="mr-2 h-4 w-4"/>Novo quarto</Button></div>{quartosEscopo.map(q => <div key={q.id} className="rounded-xl border p-4"><div className="mb-3 flex justify-between"><div><h3 className="font-semibold">Quarto {q.identificacao}</h3><p className="text-xs text-muted-foreground">{q.classificacao} · capacidade {q.capacidade}</p></div><Badge variant="outline">{leitosEscopo.filter(l=>l.quarto_id===q.id && l.status==="ocupado").length}/{q.capacidade}</Badge></div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{leitosEscopo.filter(l=>l.quarto_id===q.id).map(l => { const occ=ocupacaoPorLeito.get(l.id); const cfg=BED_CFG[l.status]??BED_CFG.desativado; return <div key={l.id} className={`rounded-lg border p-3 ${cfg.cls}`}><div className="flex items-center justify-between"><span className="font-semibold">Leito {l.identificacao}</span><Badge variant="outline" className="bg-white/70 text-[10px]">{cfg.label}</Badge></div><p className="mt-2 min-h-5 truncate text-xs">{occ ? employeeName(occ.employee_id) : reservas.find(r=>r.leito_id===l.id&&r.status==="ativa") ? employeeName(reservas.find(r=>r.leito_id===l.id&&r.status==="ativa").employee_id) : "Sem ocupante"}</p><div className="mt-3 flex gap-1">{l.status==="disponivel" && <><Button size="sm" className="h-7 flex-1" onClick={()=>open("checkin",l)}><LogIn className="mr-1 h-3 w-3"/>Entrada</Button><Button size="sm" variant="outline" className="h-7 flex-1 bg-white" onClick={()=>open("reserva",l)}>Reservar</Button></>}{l.status==="higienizacao" && <Button size="sm" variant="outline" className="h-7 w-full bg-white" onClick={()=>liberarLeito(l)}><Sparkles className="mr-1 h-3 w-3"/>Liberar</Button>}{occ && <Button size="sm" variant="outline" className="h-7 w-full bg-white" onClick={()=>open("checkout",occ)}><LogOut className="mr-1 h-3 w-3"/>Check-out</Button>}</div></div>})}</div></div>)}</TabsContent>
-      <TabsContent value="alojados" className="mt-4"><div className="divide-y">{!ocupacoesAbertas.length && <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma ocupação ativa no filtro selecionado.</p>}{ocupacoesAbertas.map(o => { const l=leitos.find(x=>x.id===o.leito_id); const q=quartos.find(x=>x.id===l?.quarto_id); const ausente=o.presenca_status==="ausente_temporariamente"; return <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><div className="flex items-center gap-2"><p className="font-medium">{employeeName(o.employee_id)}</p>{ausente&&<Badge variant="secondary">Ausente temporariamente</Badge>}</div><p className="text-xs text-muted-foreground">Quarto {q?.identificacao} · Leito {l?.identificacao} · desde {new Date(o.data_entrada).toLocaleDateString("pt-BR")}{o.retorno_previsto?` · retorno ${new Date(o.retorno_previsto).toLocaleString("pt-BR")}`:""}</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={()=>open("ausencia",o)}>{ausente?"Confirmar retorno":"Registrar ausência"}</Button><Button size="sm" variant="outline" onClick={()=>open("transferir",o)}>Transferir</Button><Button size="sm" variant="outline" onClick={()=>open("checkout",o)}>Realizar check-out</Button></div></div>})}</div>{reservas.filter(r=>r.status==="ativa"&&leitoIds.has(r.leito_id)).length>0&&<div className="mt-6"><h3 className="mb-2 font-semibold">Reservas futuras</h3><div className="divide-y rounded-lg border px-3">{reservas.filter(r=>r.status==="ativa"&&leitoIds.has(r.leito_id)).map(r=><div key={r.id} className="flex items-center justify-between gap-3 py-3 text-sm"><span>{employeeName(r.employee_id)}</span><div className="flex items-center gap-3"><span className="text-muted-foreground">A partir de {new Date(`${r.inicio_previsto}T12:00:00`).toLocaleDateString("pt-BR")}</span><Button size="sm" variant="ghost" disabled={saving} onClick={()=>cancelarReserva(r)}>Cancelar</Button></div></div>)}</div></div>}</TabsContent>
-      <TabsContent value="estrutura" className="mt-4"><div className="mb-3 flex justify-end"><Button size="sm" onClick={()=>open("ambiente")}><Plus className="mr-2 h-4 w-4"/>Novo ambiente</Button></div><div className="grid gap-3 md:grid-cols-2">{unidades.map(a => { const am=ambientes.filter(x=>x.alojamento_id===a.id); const beds=leitos.filter(l=>am.some(x=>x.id===l.quarto_id)); const showers=am.reduce((n,x)=>n+(x.quantidade_chuveiros||0),0); const occupied=ocupacoes.filter(o=>!o.data_saida&&beds.some(l=>l.id===o.leito_id)).length; const minShowers=Math.ceil(occupied/10); return <div key={a.id} className="rounded-xl border p-4"><div className="flex justify-between"><div><h3 className="font-semibold">{a.nome}</h3><p className="text-xs text-muted-foreground">{obras.find(o=>o.id===a.obra_id)?.nome} · {a.endereco||"Endereço não informado"}</p></div><Badge variant="outline">{a.status}</Badge></div>{showers<minShowers&&<div className="mt-3 rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700"><AlertTriangle className="mr-1 inline h-3.5 w-3.5"/>Quantidade de chuveiros abaixo da proporção de 1 para cada 10 alojados.</div>}<div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded bg-muted p-2"><strong className="block text-lg">{am.filter(x=>x.tipo==="quarto").length}</strong>quartos</div><div className="rounded bg-muted p-2"><strong className="block text-lg">{beds.length}</strong>leitos</div><div className="rounded bg-muted p-2"><strong className="block text-lg">{showers}</strong>chuveiros</div></div><div className="mt-3 flex flex-wrap gap-1">{am.filter(x=>x.tipo!=="quarto").map(x=><Badge key={x.id} variant="secondary">{x.nome} · {x.tipo}</Badge>)}</div></div>})}</div></TabsContent>
-      <TabsContent value="patrimonio" className="mt-4"><div className="mb-3 flex justify-end"><Button size="sm" onClick={()=>open("bem")}><Plus className="mr-2 h-4 w-4"/>Novo bem</Button></div><div className="overflow-x-auto rounded-lg border"><table className="w-full text-sm"><thead className="bg-muted/60 text-left"><tr><th className="p-3">Tombamento</th><th className="p-3">Descrição</th><th className="p-3">Local</th><th className="p-3">Estado</th><th className="p-3">Valor</th></tr></thead><tbody>{bens.filter(b=>unidadeIds.has(b.alojamento_id)).map(b=><tr key={b.id} className="border-t"><td className="p-3 font-mono">{b.tombamento}</td><td className="p-3"><strong>{b.descricao}</strong><p className="text-xs text-muted-foreground">{b.categoria||"Sem categoria"}</p></td><td className="p-3">{ambientes.find(a=>a.id===b.ambiente_id)?.nome||alojamentos.find(a=>a.id===b.alojamento_id)?.nome}</td><td className="p-3"><Badge variant="outline">{b.estado}</Badge></td><td className="p-3">{b.valor_aquisicao?Number(b.valor_aquisicao).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—"}</td></tr>)}</tbody></table>{!bens.filter(b=>unidadeIds.has(b.alojamento_id)).length&&<p className="p-10 text-center text-sm text-muted-foreground">Nenhum bem cadastrado.</p>}</div></TabsContent>
-      <TabsContent value="chamados" className="mt-4"><div className="mb-3 flex justify-end"><Button size="sm" onClick={()=>open("chamado")}><Plus className="mr-2 h-4 w-4"/>Abrir chamado</Button></div><div className="divide-y">{!chamados.length && <p className="py-12 text-center text-sm text-muted-foreground">Nenhum chamado registrado.</p>}{chamados.filter(c=>unidadeIds.has(c.alojamento_id)).map(c=><div key={c.id} className="flex items-center justify-between py-3"><div><div className="flex gap-2"><Badge variant="outline">{c.prioridade}</Badge><Badge>{c.status}</Badge></div><p className="mt-1 font-medium">{c.titulo}</p><p className="text-xs text-muted-foreground">{alojamentos.find(a=>a.id===c.alojamento_id)?.nome} · {c.tipo}</p></div>{c.prazo&&<span className="text-xs text-muted-foreground">Prazo {new Date(c.prazo).toLocaleDateString("pt-BR")}</span>}</div>)}</div></TabsContent>
-    </Tabs>}
-    <Dialog open={!!modal} onOpenChange={o=>!o&&setModal(null)}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>{modal==="complexo"?"Novo complexo":modal==="alojamento"?"Nova unidade de alojamento":modal==="ambiente"?"Novo ambiente":modal==="quarto"?"Criar quartos e leitos":modal==="bem"?"Novo bem patrimonial":modal==="reserva"?"Reservar leito":modal==="checkin"?"Check-in de colaborador":modal==="checkout"?"Check-out":modal==="transferir"?"Transferir alojado":modal==="ausencia"?"Presença no alojamento":"Novo chamado"}</DialogTitle></DialogHeader><div className="space-y-3 py-2">
-      {modal==="complexo"&&<><Field label="Obra"><Select onValueChange={v=>setForm({...form,obra_id:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{obras.map(o=><SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></Field><Field label="Nome do complexo"><Input placeholder="Ex.: Complexo Eólico Norte" onChange={e=>setForm({...form,nome:e.target.value})}/></Field><Field label="Capacidade autorizada"><Input type="number" min="0" placeholder="Ex.: 1600" onChange={e=>setForm({...form,capacidade_autorizada:e.target.value})}/></Field><Field label="Observações"><Textarea onChange={e=>setForm({...form,observacoes:e.target.value})}/></Field></>}
-      {modal==="alojamento"&&<><Field label="Complexo"><Select onValueChange={v=>setForm({...form,complexo_id:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{complexosEscopo.map(c=><SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent></Select></Field><Field label="Nome da unidade"><Input placeholder="Ex.: Bloco A ou Casa 01" onChange={e=>setForm({...form,nome:e.target.value})}/></Field><div className="grid grid-cols-2 gap-2"><Field label="Tipo"><Select defaultValue="casa" onValueChange={v=>setForm({...form,tipo_unidade:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{[["casa","Casa"],["bloco","Bloco"],["hotel_pousada","Hotel/Pousada"],["apartamento","Apartamento"],["conteiner","Contêiner"],["terceirizada","Terceirizada"],["outro","Outro"]].map(([v,l])=><SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></Field><Field label="Regime"><Select defaultValue="proprio" onValueChange={v=>setForm({...form,regime:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{[["proprio","Próprio"],["alugado","Alugado"],["hospedagem","Hospedagem"],["cedido","Cedido"],["terceirizado","Terceirizado"]].map(([v,l])=><SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></Field></div><Field label="Endereço"><Input onChange={e=>setForm({...form,endereco:e.target.value})}/></Field><div className="grid grid-cols-2 gap-2"><Field label="Capacidade física"><Input type="number" min="0" onChange={e=>setForm({...form,capacidade:e.target.value})}/></Field><Field label="Capacidade autorizada"><Input type="number" min="0" onChange={e=>setForm({...form,capacidade_autorizada:e.target.value})}/></Field></div>{["alugado","hospedagem","terceirizado"].includes(form.regime)&&<><Field label="Proprietário/Fornecedor"><Input onChange={e=>setForm({...form,proprietario:e.target.value})}/></Field><div className="grid grid-cols-2 gap-2"><Field label="Contrato"><Input onChange={e=>setForm({...form,contrato:e.target.value})}/></Field><Field label="Valor mensal"><Input type="number" min="0" step="0.01" onChange={e=>setForm({...form,valor_mensal:e.target.value})}/></Field></div><div className="grid grid-cols-2 gap-2"><Field label="Início"><Input type="date" onChange={e=>setForm({...form,contrato_inicio:e.target.value})}/></Field><Field label="Fim"><Input type="date" onChange={e=>setForm({...form,contrato_fim:e.target.value})}/></Field></div></>}</>}
-      {modal==="quarto"&&<><Field label="Unidade"><Select onValueChange={v=>setForm({...form,alojamento_id:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{unidades.map(a=><SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}</SelectContent></Select></Field><Field label="Identificação ou prefixo"><Input placeholder="Ex.: Q- ou 101" onChange={e=>setForm({...form,identificacao:e.target.value})}/></Field><div className="grid grid-cols-2 gap-2"><Field label="Quantidade de quartos"><Input type="number" min="1" max="200" defaultValue="1" onChange={e=>setForm({...form,quantidade_quartos:e.target.value})}/></Field><Field label="Número inicial"><Input type="number" min="0" defaultValue="1" onChange={e=>setForm({...form,numero_inicial:e.target.value})}/></Field></div><Field label="Classificação"><Select defaultValue="masculino" onValueChange={v=>setForm({...form,classificacao:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["masculino","feminino","individual","familia","outro"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></Field><Field label="Leitos por quarto"><Input type="number" min="1" max="20" onChange={e=>setForm({...form,capacidade:e.target.value})}/></Field></>}
-      {modal==="ambiente"&&<><Field label="Alojamento"><Select onValueChange={v=>setForm({...form,alojamento_id:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{unidades.map(a=><SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}</SelectContent></Select></Field><Field label="Nome"><Input placeholder="Ex.: Banheiro bloco A" onChange={e=>setForm({...form,nome:e.target.value})}/></Field><Field label="Tipo"><Select onValueChange={v=>setForm({...form,tipo:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{["banheiro","cozinha","refeitorio","lavanderia","lazer","outro"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></Field><div className="grid grid-cols-3 gap-2"><Field label="Chuveiros"><Input type="number" min="0" onChange={e=>setForm({...form,chuveiros:e.target.value})}/></Field><Field label="Sanitários"><Input type="number" min="0" onChange={e=>setForm({...form,sanitarios:e.target.value})}/></Field><Field label="Lavatórios"><Input type="number" min="0" onChange={e=>setForm({...form,lavatorios:e.target.value})}/></Field></div></>}
-      {modal==="bem"&&<><Field label="Alojamento"><Select onValueChange={v=>setForm({...form,alojamento_id:v,ambiente_id:""})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{unidades.map(a=><SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}</SelectContent></Select></Field><Field label="Ambiente"><Select onValueChange={v=>setForm({...form,ambiente_id:v==="__none"?"":v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent><SelectItem value="__none">Área geral</SelectItem>{ambientes.filter(a=>a.alojamento_id===form.alojamento_id).map(a=><SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}</SelectContent></Select></Field><div className="grid grid-cols-2 gap-2"><Field label="Tombamento"><Input onChange={e=>setForm({...form,tombamento:e.target.value})}/></Field><Field label="Número de série"><Input onChange={e=>setForm({...form,numero_serie:e.target.value})}/></Field></div><Field label="Descrição"><Input onChange={e=>setForm({...form,descricao:e.target.value})}/></Field><div className="grid grid-cols-3 gap-2"><Field label="Categoria"><Input onChange={e=>setForm({...form,categoria:e.target.value})}/></Field><Field label="Estado"><Select defaultValue="bom" onValueChange={v=>setForm({...form,estado:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["novo","bom","regular","danificado","inservivel"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></Field><Field label="Valor"><Input type="number" min="0" step="0.01" onChange={e=>setForm({...form,valor:e.target.value})}/></Field></div></>}
-      {modal==="checkin"&&<><Field label="Colaborador ativo"><Select onValueChange={v=>setForm({...form,employee_id:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{employees.filter(e=>e.status==="ativo"&&!ocupacoes.some(o=>!o.data_saida&&o.employee_id===e.id)).map(e=><SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent></Select></Field><Field label="Observações"><Textarea onChange={e=>setForm({...form,observacoes:e.target.value})}/></Field></>}
-      {modal==="reserva"&&<><Field label="Colaborador ativo"><Select onValueChange={v=>setForm({...form,employee_id:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{employees.filter(e=>e.status==="ativo"&&!ocupacoes.some(o=>!o.data_saida&&o.employee_id===e.id)&&!reservas.some(r=>r.status==="ativa"&&r.employee_id===e.id)).map(e=><SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent></Select></Field><div className="grid grid-cols-2 gap-2"><Field label="Início previsto"><Input type="date" min={new Date().toISOString().slice(0,10)} onChange={e=>setForm({...form,inicio:e.target.value})}/></Field><Field label="Fim previsto"><Input type="date" min={form.inicio||new Date().toISOString().slice(0,10)} onChange={e=>setForm({...form,fim:e.target.value})}/></Field></div><Field label="Observações"><Textarea onChange={e=>setForm({...form,observacoes:e.target.value})}/></Field></>}
-      {modal==="checkout"&&<><p className="text-sm">Saída de <strong>{employeeName(selecionado?.employee_id)}</strong>. Confira os bens antes de concluir. O leito seguirá para higienização.</p>{bens.filter(b=>b.ativo&&b.ambiente_id===leitos.find(l=>l.id===selecionado?.leito_id)?.quarto_id).map(b=><div key={b.id} className="flex items-center justify-between gap-3 rounded-lg border p-2"><div><p className="text-sm font-medium">{b.descricao}</p><p className="text-xs text-muted-foreground">{b.tombamento}</p></div><Select value={form.itens?.[b.id]||b.estado} onValueChange={v=>setForm({...form,itens:{...(form.itens||{}),[b.id]:v}})}><SelectTrigger className="w-36"><SelectValue/></SelectTrigger><SelectContent>{["novo","bom","regular","danificado","ausente","inservivel"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></div>)}<Field label="Motivo da saída"><Textarea placeholder="Desmobilização, transferência, término da hospedagem..." onChange={e=>setForm({...form,motivo:e.target.value})}/></Field></>}
-      {modal==="transferir"&&<><p className="text-sm">Transferência de <strong>{employeeName(selecionado?.employee_id)}</strong>.</p><Field label="Novo leito"><Select onValueChange={v=>setForm({...form,leito_destino:v})}><SelectTrigger><SelectValue placeholder="Selecione um leito disponível"/></SelectTrigger><SelectContent>{leitosEscopo.filter(l=>l.status==="disponivel").map(l=>{const q=quartos.find(q=>q.id===l.quarto_id);return <SelectItem key={l.id} value={l.id}>Quarto {q?.identificacao} · Leito {l.identificacao}</SelectItem>})}</SelectContent></Select></Field><Field label="Motivo"><Textarea onChange={e=>setForm({...form,motivo:e.target.value})}/></Field></>}
-      {modal==="ausencia"&&<>{selecionado?.presenca_status==="ausente_temporariamente"?<p className="text-sm">Confirme que <strong>{employeeName(selecionado?.employee_id)}</strong> retornou ao alojamento.</p>:<><p className="text-sm">O leito continuará ocupado durante a ausência temporária.</p><Field label="Retorno previsto"><Input type="datetime-local" onChange={e=>setForm({...form,retorno:e.target.value})}/></Field></>}</>}
-      {modal==="chamado"&&<><Field label="Alojamento"><Select onValueChange={v=>setForm({...form,alojamento_id:v})}><SelectTrigger><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{unidades.map(a=><SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}</SelectContent></Select></Field><Field label="Título"><Input onChange={e=>setForm({...form,titulo:e.target.value})}/></Field><Field label="Descrição"><Textarea onChange={e=>setForm({...form,descricao:e.target.value})}/></Field><div className="grid grid-cols-2 gap-2"><Field label="Tipo"><Select defaultValue="corretiva" onValueChange={v=>setForm({...form,tipo:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["preventiva","corretiva","emergencial"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></Field><Field label="Prioridade"><Select defaultValue="media" onValueChange={v=>setForm({...form,prioridade:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{["baixa","media","alta","critica"].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></Field></div><Field label="Prazo"><Input type="datetime-local" onChange={e=>setForm({...form,prazo:e.target.value})}/></Field></>}
-    </div><DialogFooter><Button variant="outline" onClick={()=>setModal(null)}>Cancelar</Button><Button disabled={saving} onClick={modal==="complexo"?saveComplexo:modal==="alojamento"?saveAlojamento:modal==="ambiente"?saveAmbiente:modal==="quarto"?saveQuarto:modal==="bem"?saveBem:modal==="reserva"?reservar:modal==="checkin"?checkin:modal==="checkout"?checkout:modal==="transferir"?transferir:modal==="ausencia"?registrarAusencia:saveChamado}>{saving&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Salvar</Button></DialogFooter></DialogContent></Dialog>
-  </div></Layout>;
+  const acoesLeito = {
+    checkin: (l: any) => abrir("checkin", l, reservaPorLeito.get(l.id) ? { employee_id: reservaPorLeito.get(l.id).employee_id } : {}),
+    reservar: (l: any) => abrir("reserva", l),
+    cancelarReserva: (r: any) => executar(rpc("alojamento_cancelar_reserva", { p_reserva: r.id, p_motivo: "Cancelada pelo gestor" }), "Reserva cancelada e leito liberado.", false),
+    checkout: (o: any) => {
+      const leito = dados.leitos.find(l => l.id === o.leito_id);
+      abrir("checkout", o, { itens: Object.fromEntries(bensDoLeito(leito).map(b => [b.id, b.estado])) });
+    },
+    transferir: (o: any) => abrir("transferir", o),
+    ausencia: (o: any) => abrir("ausencia", o),
+    liberar: (l: any) => executar(rpc("alojamento_alterar_status_leito", { p_leito: l.id, p_status: "disponivel", p_motivo: null }), "Leito liberado para uso.", false),
+    bloquear: (l: any) => abrir("bloquear", l, { status: "manutencao" }),
+    novoBem: (l: any) => {
+      const amb = dados.ambientes.find(a => a.id === l.quarto_id);
+      abrir("bem", null, { alojamento_id: amb?.alojamento_id, ambiente_id: l.quarto_id, leito_id: l.id, estado: "bom" });
+    },
+    moverBem: (b: any) => setBemMovendo(b),
+  };
+
+  const colaboradoresLivres = employees.filter((e: any) =>
+    e.status === "ativo" && !dados.ocupacoes.some(o => !o.data_saida && o.employee_id === e.id));
+
+  return (
+    <Layout>
+      <div className="mx-auto max-w-screen-xl space-y-5">
+        {/* Cabeçalho */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">Projetos / Pessoas</p>
+            <h1 className="text-2xl font-bold"><T>Gestão de Alojamentos</T></h1>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={load}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Atualizar
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Cadastrar<ChevronDown className="ml-1 h-3.5 w-3.5" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={() => abrir("complexo", null, { obra_id: obraId !== "todas" ? obraId : undefined })}>Complexo</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => abrir("alojamento", null, { complexo_id: complexoId !== "todos" ? complexoId : undefined })}>Unidade (casa, bloco, hotel)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => abrir("quarto", null, { quantidade: "1", numero_inicial: "1", classificacao: "masculino" })}>Quartos e leitos</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => abrir("ambiente")}>Ambiente (banheiro, cozinha…)</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => abrir("bem", null, { estado: "bom" })}>Bem patrimonial</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => abrir("chamado", null, { tipo: "corretiva", prioridade: "media" })}>Chamado de manutenção</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Select value={obraId} onValueChange={v => { setObraId(v); setComplexoId("todos"); }}>
+            <SelectTrigger className="h-9 sm:w-64"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as obras</SelectItem>
+              {obras.map((o: any) => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={complexoId} onValueChange={setComplexoId}>
+            <SelectTrigger className="h-9 sm:w-64"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os complexos</SelectItem>
+              {complexosEscopo.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Indicadores */}
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+          {([
+            [BedDouble, "Leitos", kpi.total, "em operação", ""],
+            [Users, "Ocupados", kpi.ocupados, `${pctTexto}% de ocupação`, "text-violet-600"],
+            [ShieldCheck, "Livres", kpi.livres, "prontos para entrada", "text-emerald-600"],
+            [AlertTriangle, "Bloqueados", kpi.bloqueados, "limpeza ou manutenção", kpi.bloqueados ? "text-amber-600" : ""],
+            [Wrench, "Chamados", kpi.chamados, "em aberto", kpi.chamados ? "text-red-600" : ""],
+          ] as any[]).map(([Icon, label, valor, sub, cor]) => (
+            <div key={label} className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5">
+              <Icon className={`h-5 w-5 flex-shrink-0 text-muted-foreground ${cor}`} />
+              <div className="min-w-0">
+                <p className={`text-xl font-bold leading-none tabular-nums ${cor}`}>{valor}</p>
+                <p className="mt-1 truncate text-[11px] text-muted-foreground">{label} · {sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {excedidos.length > 0 && (
+          <div className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <span>Ocupação acima da capacidade autorizada em: <strong>{excedidos.map(c => c.nome).join(", ")}</strong>.</span>
+          </div>
+        )}
+
+        {!loading && !dados.complexos.length ? (
+          <div className="rounded-xl border border-dashed p-12 text-center">
+            <Building2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+            <h2 className="font-semibold">Cadastre o primeiro complexo</h2>
+            <p className="mb-4 text-sm text-muted-foreground">Um complexo agrupa casas, blocos, hotéis ou contêineres de uma obra.</p>
+            <Button onClick={() => abrir("complexo")}><Plus className="mr-2 h-4 w-4" />Começar</Button>
+          </div>
+        ) : (
+          <Tabs value={aba} onValueChange={setAba} className="rounded-xl border bg-card p-4">
+            <TabsList className="mb-4 h-auto flex-wrap">
+              <TabsTrigger value="mapa">Mapa de leitos</TabsTrigger>
+              <TabsTrigger value="alojados">Alojados</TabsTrigger>
+              <TabsTrigger value="patrimonio">Patrimônio</TabsTrigger>
+              <TabsTrigger value="chamados">Chamados{kpi.chamados ? ` (${kpi.chamados})` : ""}</TabsTrigger>
+              <TabsTrigger value="estrutura">Estrutura</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="mapa">
+              <MapaHotel dados={dados} unidades={unidades} ocupacaoPorLeito={ocupacaoPorLeito} reservaPorLeito={reservaPorLeito}
+                nome={nome} onLeito={l => setLeitoSelId(l.id)}
+                onNovoQuarto={id => abrir("quarto", null, { alojamento_id: id, quantidade: "1", numero_inicial: "1", classificacao: "masculino" })} />
+            </TabsContent>
+
+            <TabsContent value="alojados">
+              <AlojadosAba dados={dados} leitoIds={leitoIds} nome={nome} onLeito={l => setLeitoSelId(l.id)} onCancelarReserva={acoesLeito.cancelarReserva} />
+            </TabsContent>
+
+            <TabsContent value="patrimonio">
+              <PatrimonioAba dados={dados} unidadeIds={unidadeIds} onNovo={() => abrir("bem", null, { estado: "bom" })}
+                onMover={b => setBemMovendo(b)} onRecarregar={load} />
+            </TabsContent>
+
+            <TabsContent value="chamados">
+              <ChamadosAba dados={dados} unidadeIds={unidadeIds} employees={employees}
+                onNovo={() => abrir("chamado", null, { tipo: "corretiva", prioridade: "media" })} onRecarregar={load} />
+            </TabsContent>
+
+            <TabsContent value="estrutura">
+              <Estrutura dados={dados} unidades={unidades} complexos={complexosEscopo} obras={obras} ocupacaoPorLeito={ocupacaoPorLeito}
+                onEditarUnidade={u => abrir("alojamento", u, { ...u })} onEditarComplexo={c => abrir("complexo", c, { ...c })} />
+            </TabsContent>
+          </Tabs>
+        )}
+      </div>
+
+      <LeitoPainel leito={leitoSel} onClose={() => setLeitoSelId(null)} dados={dados}
+        ocupacao={leitoSel ? ocupacaoPorLeito.get(leitoSel.id) : undefined}
+        reserva={leitoSel ? reservaPorLeito.get(leitoSel.id) : undefined}
+        nome={nome} acoes={acoesLeito} />
+
+      <MovimentarBemDialog bem={bemMovendo} onClose={() => setBemMovendo(null)} dados={dados} onDone={load} />
+
+      {/* Formulários */}
+      <Dialog open={!!modal} onOpenChange={o => !o && setModal(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{modal ? (alvo && (modal === "complexo" || modal === "alojamento") ? `Editar ${TITULO_MODAL[modal].toLowerCase()}` : TITULO_MODAL[modal]) : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            {modal === "complexo" && <>
+              <Campo label="Obra"><Escolha valor={form.obra_id} onChange={campo("obra_id")} opcoes={obras.map((o: any) => [o.id, o.nome])} /></Campo>
+              <Campo label="Nome"><Input value={form.nome ?? ""} onChange={campo("nome")} placeholder="Ex.: Complexo Eólico Norte" /></Campo>
+              <div className="grid grid-cols-2 gap-2">
+                <Campo label="Capacidade autorizada"><Input type="number" min="0" value={form.capacidade_autorizada ?? ""} onChange={campo("capacidade_autorizada")} /></Campo>
+                <Campo label="Situação"><Escolha valor={form.status ?? "ativo"} onChange={campo("status")} opcoes={[["ativo", "Ativo"], ["parcialmente_interditado", "Parcialmente interditado"], ["interditado", "Interditado"], ["inativo", "Inativo"]]} /></Campo>
+              </div>
+              <Campo label="Observações"><Textarea value={form.observacoes ?? ""} onChange={campo("observacoes")} /></Campo>
+            </>}
+
+            {modal === "alojamento" && <>
+              <Campo label="Complexo"><Escolha valor={form.complexo_id} onChange={campo("complexo_id")} opcoes={complexosEscopo.map(c => [c.id, c.nome])} /></Campo>
+              <Campo label="Nome da unidade"><Input value={form.nome ?? ""} onChange={campo("nome")} placeholder="Ex.: Bloco A ou Casa 01" /></Campo>
+              <div className="grid grid-cols-2 gap-2">
+                <Campo label="Tipo"><Escolha valor={form.tipo_unidade ?? "casa"} onChange={campo("tipo_unidade")} opcoes={Object.entries(TIPO_UNIDADE)} /></Campo>
+                <Campo label="Regime"><Escolha valor={form.regime ?? "proprio"} onChange={campo("regime")} opcoes={Object.entries(REGIME)} /></Campo>
+              </div>
+              <Campo label="Endereço"><Input value={form.endereco ?? ""} onChange={campo("endereco")} /></Campo>
+              <div className="grid grid-cols-3 gap-2">
+                <Campo label="Cap. física"><Input type="number" min="0" value={form.capacidade_declarada ?? ""} onChange={campo("capacidade_declarada")} /></Campo>
+                <Campo label="Cap. autorizada"><Input type="number" min="0" value={form.capacidade_autorizada ?? ""} onChange={campo("capacidade_autorizada")} /></Campo>
+                <Campo label="Situação"><Escolha valor={form.status ?? "ativo"} onChange={campo("status")} opcoes={[["ativo", "Ativa"], ["parcialmente_interditado", "Parcial"], ["interditado", "Interditada"], ["inativo", "Inativa"]]} /></Campo>
+              </div>
+              {["alugado", "hospedagem", "terceirizado"].includes(form.regime) && <>
+                <Campo label="Proprietário / fornecedor"><Input value={form.proprietario_fornecedor ?? ""} onChange={campo("proprietario_fornecedor")} /></Campo>
+                <div className="grid grid-cols-2 gap-2">
+                  <Campo label="Contrato"><Input value={form.contrato_numero ?? ""} onChange={campo("contrato_numero")} /></Campo>
+                  <Campo label="Valor mensal"><Input type="number" min="0" step="0.01" value={form.valor_mensal ?? ""} onChange={campo("valor_mensal")} /></Campo>
+                  <Campo label="Início"><Input type="date" value={form.contrato_inicio ?? ""} onChange={campo("contrato_inicio")} /></Campo>
+                  <Campo label="Fim"><Input type="date" value={form.contrato_fim ?? ""} onChange={campo("contrato_fim")} /></Campo>
+                </div>
+              </>}
+            </>}
+
+            {modal === "quarto" && <>
+              <Campo label="Unidade"><Escolha valor={form.alojamento_id} onChange={campo("alojamento_id")} opcoes={unidades.map(u => [u.id, u.nome])} /></Campo>
+              <div className="grid grid-cols-3 gap-2">
+                <Campo label="Prefixo"><Input value={form.identificacao ?? ""} onChange={campo("identificacao")} placeholder="Ex.: B" /></Campo>
+                <Campo label="Quantidade"><Input type="number" min="1" max="200" value={form.quantidade ?? "1"} onChange={campo("quantidade")} /></Campo>
+                <Campo label="Nº inicial"><Input type="number" min="0" value={form.numero_inicial ?? "1"} onChange={campo("numero_inicial")} /></Campo>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Campo label="Classificação"><Escolha valor={form.classificacao ?? "masculino"} onChange={campo("classificacao")} opcoes={Object.entries(CLASSIFICACAO).map(([k, v]) => [k, v.label])} /></Campo>
+                <Campo label="Leitos por quarto"><Input type="number" min="1" max="20" value={form.capacidade ?? ""} onChange={campo("capacidade")} /></Campo>
+              </div>
+              {Number(form.quantidade) > 1 && form.identificacao && (
+                <p className="text-xs text-muted-foreground">
+                  Serão criados {form.quantidade} quartos, de {form.identificacao}{String(Number(form.numero_inicial || 1)).padStart(3, "0")} a {form.identificacao}{String(Number(form.numero_inicial || 1) + Number(form.quantidade) - 1).padStart(3, "0")}.
+                </p>
+              )}
+            </>}
+
+            {modal === "ambiente" && <>
+              <Campo label="Unidade"><Escolha valor={form.alojamento_id} onChange={campo("alojamento_id")} opcoes={unidades.map(u => [u.id, u.nome])} /></Campo>
+              <div className="grid grid-cols-2 gap-2">
+                <Campo label="Nome"><Input value={form.nome ?? ""} onChange={campo("nome")} placeholder="Ex.: Banheiro térreo" /></Campo>
+                <Campo label="Tipo"><Escolha valor={form.tipo} onChange={campo("tipo")} opcoes={Object.entries(TIPO_AMBIENTE).filter(([k]) => k !== "quarto")} /></Campo>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Campo label="Chuveiros"><Input type="number" min="0" value={form.chuveiros ?? ""} onChange={campo("chuveiros")} /></Campo>
+                <Campo label="Sanitários"><Input type="number" min="0" value={form.sanitarios ?? ""} onChange={campo("sanitarios")} /></Campo>
+                <Campo label="Lavatórios"><Input type="number" min="0" value={form.lavatorios ?? ""} onChange={campo("lavatorios")} /></Campo>
+              </div>
+            </>}
+
+            {modal === "bem" && <>
+              <Campo label="Unidade"><Escolha valor={form.alojamento_id} onChange={v => setForm((f: any) => ({ ...f, alojamento_id: v, ambiente_id: "", leito_id: "" }))} opcoes={unidades.map(u => [u.id, u.nome])} /></Campo>
+              <div className="grid grid-cols-2 gap-2">
+                <Campo label="Ambiente">
+                  <Escolha valor={form.ambiente_id || "__"} onChange={v => setForm((f: any) => ({ ...f, ambiente_id: v === "__" ? "" : v, leito_id: "" }))}
+                    opcoes={[["__", "Área geral / depósito"], ...dados.ambientes.filter(a => a.alojamento_id === form.alojamento_id).map(a => [a.id, a.nome])]} />
+                </Campo>
+                <Campo label="Leito">
+                  <Escolha valor={form.leito_id || "__"} onChange={v => setForm((f: any) => ({ ...f, leito_id: v === "__" ? "" : v }))}
+                    desabilitado={!dados.quartos.some(q => q.id === form.ambiente_id)}
+                    opcoes={[["__", "Quarto inteiro"], ...dados.leitos.filter(l => l.quarto_id === form.ambiente_id).map(l => [l.id, `Leito ${l.identificacao}`])]} />
+                </Campo>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Campo label="Tombamento"><Input value={form.tombamento ?? ""} onChange={campo("tombamento")} /></Campo>
+                <Campo label="Número de série"><Input value={form.numero_serie ?? ""} onChange={campo("numero_serie")} /></Campo>
+              </div>
+              <Campo label="Descrição"><Input value={form.descricao ?? ""} onChange={campo("descricao")} placeholder="Ex.: Colchão solteiro D33 INMETRO" /></Campo>
+              <div className="grid grid-cols-3 gap-2">
+                <Campo label="Categoria"><Input value={form.categoria ?? ""} onChange={campo("categoria")} placeholder="Cama, TV…" /></Campo>
+                <Campo label="Estado"><Escolha valor={form.estado ?? "bom"} onChange={campo("estado")} opcoes={["novo", "bom", "regular", "danificado"].map(k => [k, ESTADO_BEM[k].label])} /></Campo>
+                <Campo label="Valor"><Input type="number" min="0" step="0.01" value={form.valor ?? ""} onChange={campo("valor")} /></Campo>
+              </div>
+            </>}
+
+            {modal === "checkin" && <>
+              <p className="text-sm text-muted-foreground">Os bens do quarto e do leito entram automaticamente no termo de recebimento.</p>
+              <Campo label="Colaborador">
+                <Escolha valor={form.employee_id} onChange={campo("employee_id")}
+                  opcoes={(reservaPorLeito.get(alvo?.id)
+                    ? employees.filter((e: any) => e.id === reservaPorLeito.get(alvo.id).employee_id)
+                    : colaboradoresLivres).map((e: any) => [e.id, e.nome])} />
+              </Campo>
+              <Campo label="Observações"><Textarea value={form.observacoes ?? ""} onChange={campo("observacoes")} /></Campo>
+            </>}
+
+            {modal === "reserva" && <>
+              <Campo label="Colaborador">
+                <Escolha valor={form.employee_id} onChange={campo("employee_id")}
+                  opcoes={colaboradoresLivres.filter((e: any) => !dados.reservas.some(r => r.status === "ativa" && r.employee_id === e.id)).map((e: any) => [e.id, e.nome])} />
+              </Campo>
+              <div className="grid grid-cols-2 gap-2">
+                <Campo label="Início previsto"><Input type="date" min={new Date().toISOString().slice(0, 10)} value={form.inicio ?? ""} onChange={campo("inicio")} /></Campo>
+                <Campo label="Fim previsto"><Input type="date" min={form.inicio || new Date().toISOString().slice(0, 10)} value={form.fim ?? ""} onChange={campo("fim")} /></Campo>
+              </div>
+              <Campo label="Observações"><Textarea value={form.observacoes ?? ""} onChange={campo("observacoes")} /></Campo>
+            </>}
+
+            {modal === "checkout" && alvo && <>
+              <p className="text-sm">Saída de <strong>{nome(alvo.employee_id)}</strong>. Confira cada bem — o estado informado é gravado no patrimônio.</p>
+              {bensDoLeito(dados.leitos.find(l => l.id === alvo.leito_id)).map(b => (
+                <div key={b.id} className="flex items-center justify-between gap-3 rounded-lg border p-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{b.descricao}</p>
+                    <p className="font-mono text-xs text-muted-foreground">{b.tombamento} · {b.leito_id ? "do leito" : "do quarto"}</p>
+                  </div>
+                  <Escolha className="w-36" valor={form.itens?.[b.id] ?? b.estado}
+                    onChange={v => setForm((f: any) => ({ ...f, itens: { ...(f.itens || {}), [b.id]: v } }))}
+                    opcoes={["novo", "bom", "regular", "danificado", "ausente", "inservivel"].map(k => [k, ESTADO_BEM[k].label])} />
+                </div>
+              ))}
+              {!bensDoLeito(dados.leitos.find(l => l.id === alvo.leito_id)).length && (
+                <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">Nenhum bem vinculado a este quarto ou leito.</p>
+              )}
+              <Campo label="Motivo da saída"><Textarea value={form.motivo ?? ""} onChange={campo("motivo")} placeholder="Desmobilização, férias, fim de contrato…" /></Campo>
+            </>}
+
+            {modal === "transferir" && alvo && <>
+              <p className="text-sm">Transferência de <strong>{nome(alvo.employee_id)}</strong>. O leito atual segue para higienização.</p>
+              <Campo label="Novo leito">
+                <Escolha valor={form.leito_destino} onChange={campo("leito_destino")}
+                  opcoes={leitosEscopo.filter(l => l.status === "disponivel").map(l => {
+                    const q = dados.quartos.find(x => x.id === l.quarto_id);
+                    const u = dados.unidades.find(x => x.id === dados.ambientes.find(a => a.id === q?.id)?.alojamento_id);
+                    return [l.id, `${u?.nome} · Quarto ${q?.identificacao} · Leito ${l.identificacao}`];
+                  })} />
+              </Campo>
+              <Campo label="Motivo"><Textarea value={form.motivo ?? ""} onChange={campo("motivo")} /></Campo>
+            </>}
+
+            {modal === "ausencia" && alvo && (alvo.presenca_status === "ausente_temporariamente"
+              ? <p className="text-sm">Confirme que <strong>{nome(alvo.employee_id)}</strong> retornou ao alojamento.</p>
+              : <>
+                <p className="text-sm">O leito continua reservado para <strong>{nome(alvo.employee_id)}</strong> durante a ausência.</p>
+                <Campo label="Retorno previsto"><Input type="datetime-local" value={form.retorno ?? ""} onChange={campo("retorno")} /></Campo>
+              </>)}
+
+            {modal === "bloquear" && <>
+              <Campo label="Motivo do bloqueio"><Escolha valor={form.status ?? "manutencao"} onChange={campo("status")} opcoes={[["manutencao", "Manutenção"], ["interditado", "Interdição"], ["desativado", "Desativar leito"]]} /></Campo>
+              <Campo label="Descrição"><Textarea value={form.motivo ?? ""} onChange={campo("motivo")} placeholder="Ex.: estrado quebrado, infiltração no teto" /></Campo>
+            </>}
+
+            {modal === "chamado" && <>
+              <div className="grid grid-cols-2 gap-2">
+                <Campo label="Unidade"><Escolha valor={form.alojamento_id} onChange={v => setForm((f: any) => ({ ...f, alojamento_id: v, ambiente_id: "" }))} opcoes={unidades.map(u => [u.id, u.nome])} /></Campo>
+                <Campo label="Ambiente">
+                  <Escolha valor={form.ambiente_id || "__"} onChange={v => setForm((f: any) => ({ ...f, ambiente_id: v === "__" ? "" : v }))}
+                    opcoes={[["__", "Unidade toda"], ...dados.ambientes.filter(a => a.alojamento_id === form.alojamento_id).map(a => [a.id, a.nome])]} />
+                </Campo>
+              </div>
+              <Campo label="Título"><Input value={form.titulo ?? ""} onChange={campo("titulo")} placeholder="Ex.: Ar-condicionado sem gelar" /></Campo>
+              <Campo label="Descrição"><Textarea value={form.descricao ?? ""} onChange={campo("descricao")} /></Campo>
+              <div className="grid grid-cols-3 gap-2">
+                <Campo label="Tipo"><Escolha valor={form.tipo ?? "corretiva"} onChange={campo("tipo")} opcoes={Object.entries(TIPO_CHAMADO)} /></Campo>
+                <Campo label="Prioridade"><Escolha valor={form.prioridade ?? "media"} onChange={campo("prioridade")} opcoes={Object.entries(PRIORIDADE).map(([k, v]) => [k, v.label])} /></Campo>
+                <Campo label="Prazo"><Input type="datetime-local" value={form.prazo ?? ""} onChange={campo("prazo")} /></Campo>
+              </div>
+            </>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModal(null)}>Cancelar</Button>
+            <Button disabled={saving} onClick={salvar}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Layout>
+  );
 }
 
-function Field({label,children}:{label:string;children:React.ReactNode}) { return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>; }
+// ── Aba Estrutura ──────────────────────────────────────────────────────
+function Estrutura({ dados, unidades, complexos, obras, ocupacaoPorLeito, onEditarUnidade, onEditarComplexo }: {
+  dados: Dados; unidades: any[]; complexos: any[]; obras: any[]; ocupacaoPorLeito: Map<string, any>;
+  onEditarUnidade: (u: any) => void; onEditarComplexo: (c: any) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      {complexos.map(c => {
+        const us = unidades.filter(u => u.complexo_id === c.id);
+        if (!us.length && complexos.length > 1) return null;
+        return (
+          <section key={c.id} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold">{c.nome}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {obras.find((o: any) => o.id === c.obra_id)?.nome} · {us.length} unidades
+                  {c.capacidade_autorizada != null && ` · capacidade autorizada ${c.capacidade_autorizada}`}
+                </p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => onEditarComplexo(c)}><Pencil className="mr-1 h-3.5 w-3.5" />Editar</Button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {us.map(u => {
+                const amb = dados.ambientes.filter(a => a.alojamento_id === u.id);
+                const quartoIds = new Set(amb.filter(a => a.tipo === "quarto").map(a => a.id));
+                const leitos = dados.leitos.filter(l => quartoIds.has(l.quarto_id));
+                const ocupados = leitos.filter(l => ocupacaoPorLeito.has(l.id)).length;
+                const chuveiros = amb.reduce((n, a) => n + (a.quantidade_chuveiros || 0), 0);
+                const faltaChuveiro = chuveiros < Math.ceil(ocupados / 10);
+                const vence = u.contrato_fim && new Date(u.contrato_fim).getTime() - Date.now() < 30 * 864e5;
+                return (
+                  <div key={u.id} className="rounded-lg border p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold">{u.nome}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {TIPO_UNIDADE[u.tipo_unidade] ?? "Unidade"} · {REGIME[u.regime] ?? u.regime}{u.endereco ? ` · ${u.endereco}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {u.status !== "ativo" && <Badge variant="outline">{u.status.replace("_", " ")}</Badge>}
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => onEditarUnidade(u)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
+                      {[[quartoIds.size, "quartos"], [leitos.length, "leitos"], [ocupados, "ocupados"], [chuveiros, "chuveiros"]].map(([n, l]) => (
+                        <div key={l as string} className="rounded bg-muted p-2"><strong className="block text-base tabular-nums">{n}</strong>{l}</div>
+                      ))}
+                    </div>
+                    {faltaChuveiro && (
+                      <p className="mt-2 text-xs text-red-600"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" />Menos de 1 chuveiro para cada 10 alojados (NR-24).</p>
+                    )}
+                    {u.valor_mensal != null && (
+                      <p className={`mt-2 text-xs ${vence ? "font-medium text-amber-700" : "text-muted-foreground"}`}>
+                        {Number(u.valor_mensal).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}/mês
+                        {u.contrato_fim && ` · contrato até ${new Date(`${u.contrato_fim}T12:00:00`).toLocaleDateString("pt-BR")}`}
+                        {vence && " · vence em menos de 30 dias"}
+                      </p>
+                    )}
+                    {amb.some(a => a.tipo !== "quarto") && (
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {amb.filter(a => a.tipo !== "quarto").map(a => <Badge key={a.id} variant="secondary">{a.nome}</Badge>)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Pequenos auxiliares de formulário ──────────────────────────────────
+function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>;
+}
+
+function Escolha({ valor, onChange, opcoes, desabilitado, className }: {
+  valor?: string; onChange: (v: string) => void; opcoes: (string[] | [string, string])[];
+  desabilitado?: boolean; className?: string;
+}) {
+  return (
+    <Select value={valor || undefined} onValueChange={onChange} disabled={desabilitado}>
+      <SelectTrigger className={className}><SelectValue placeholder="Selecione" /></SelectTrigger>
+      <SelectContent>
+        {opcoes.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+}
