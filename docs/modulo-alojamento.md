@@ -54,6 +54,29 @@ Migration `20260910000002_alojamento_hotel_patrimonio.sql`.
 - Edição de complexo e unidade; alerta de capacidade autorizada e de
   contrato de aluguel vencendo em 30 dias.
 
+### Painel de gestão e custos — 10/09/2026
+
+Migration `20260910000003_alojamento_custos.sql`.
+
+- Aba **Painel** (padrão ao abrir): custo do mês com variação, custo por
+  alojado, custo por diária, média de alojados e ocupação média; gráfico de
+  6 meses por categoria; composição do mês com consumo físico por alojado
+  (m³, kWh); tabela por unidade com rateio; pessoas, patrimônio e manutenção.
+- Aba **Custos**: lançamento de despesas por categoria (água, energia, gás,
+  limpeza, higiene, alimentação, lavanderia, dedetização, internet, taxas),
+  por unidade ou do complexo inteiro; cópia do mês anterior.
+- Base "por alojado" = diárias (alojado × dia), calculadas no banco por
+  `alojamento_diarias_periodo`. Transferências contam nas diárias mas não
+  como entrada/saída.
+- Aluguel entra sozinho a partir do contrato da unidade; manutenção, do
+  custo dos chamados concluídos (`alojamento_custos_periodo`).
+- Despesa do complexo inteiro é rateada entre as unidades pelas diárias.
+
+**Pendente:** material que sai do Almoxarifado não é atribuído ao
+alojamento, porque as saídas registram só a obra. Hoje, material de limpeza
+retirado do Almoxarifado precisa ser lançado como despesa. A integração
+exige um campo de destino "alojamento" na saída do Almoxarifado.
+
 ### Próximas evoluções sobre a base entregue
 
 - Editor de termos com assinatura e geração do PDF comparativo.

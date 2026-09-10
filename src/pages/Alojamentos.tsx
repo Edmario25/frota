@@ -30,6 +30,8 @@ import { MovimentarBemDialog } from "@/components/alojamentos/MovimentarBemDialo
 import { PatrimonioAba } from "@/components/alojamentos/PatrimonioAba";
 import { ChamadosAba } from "@/components/alojamentos/ChamadosAba";
 import { AlojadosAba } from "@/components/alojamentos/AlojadosAba";
+import { PainelGestao } from "@/components/alojamentos/PainelGestao";
+import { CustosAba } from "@/components/alojamentos/CustosAba";
 
 type Modal =
   | "complexo" | "alojamento" | "ambiente" | "quarto" | "bem" | "reserva" | "checkin"
@@ -50,7 +52,9 @@ export default function Alojamentos() {
   const [saving, setSaving] = useState(false);
   const [obraId, setObraId] = useState("todas");
   const [complexoId, setComplexoId] = useState("todos");
-  const [aba, setAba] = useState("mapa");
+  const [aba, setAba] = useState("painel");
+  const [versaoCustos, setVersaoCustos] = useState(0);
+  const [pedidoLancamento, setPedidoLancamento] = useState(0);
   const [modal, setModal] = useState<Modal>(null);
   const [alvo, setAlvo] = useState<any>(null);
   const [form, setForm] = useState<any>({});
@@ -344,12 +348,26 @@ export default function Alojamentos() {
         ) : (
           <Tabs value={aba} onValueChange={setAba} className="rounded-xl border bg-card p-4">
             <TabsList className="mb-4 h-auto flex-wrap">
+              <TabsTrigger value="painel">Painel</TabsTrigger>
               <TabsTrigger value="mapa">Mapa de leitos</TabsTrigger>
+              <TabsTrigger value="custos">Custos</TabsTrigger>
               <TabsTrigger value="alojados">Alojados</TabsTrigger>
               <TabsTrigger value="patrimonio">Patrimônio</TabsTrigger>
               <TabsTrigger value="chamados">Chamados{kpi.chamados ? ` (${kpi.chamados})` : ""}</TabsTrigger>
               <TabsTrigger value="estrutura">Estrutura</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="painel">
+              <PainelGestao dados={dados} unidades={unidades}
+                complexoIds={new Set((complexoId === "todos" ? complexosEscopo : complexosEscopo.filter(c => c.id === complexoId)).map(c => c.id))}
+                versao={versaoCustos}
+                onLancar={() => { setAba("custos"); setPedidoLancamento(n => n + 1); }} />
+            </TabsContent>
+
+            <TabsContent value="custos" forceMount className="data-[state=inactive]:hidden">
+              <CustosAba complexos={complexoId === "todos" ? complexosEscopo : complexosEscopo.filter(c => c.id === complexoId)}
+                unidades={unidades} abrirNovo={pedidoLancamento} onMudou={() => setVersaoCustos(v => v + 1)} />
+            </TabsContent>
 
             <TabsContent value="mapa">
               <MapaHotel dados={dados} unidades={unidades} ocupacaoPorLeito={ocupacaoPorLeito} reservaPorLeito={reservaPorLeito}
