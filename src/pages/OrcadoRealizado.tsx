@@ -92,6 +92,7 @@ const TIPOS = [
   { value: "almoxarifado",  label: "Almoxarifado" },
   { value: "folha",         label: "Folha de Pagamento" },
   { value: "equipamento",   label: "Equipamento" },
+  { value: "alojamento",    label: "Alojamento" },
 ];
 
 function alertColor(perc: number, alerta: number): string {
@@ -537,15 +538,25 @@ function LancamentosTab({
   const load = useCallback(async () => {
     if (!obraId) { setData([]); return; }
     setLoading(true);
-    const { data: rows, error } = await (supabase as any)
-      .from("lancamentos_custos")
-      .select("*, categoria:orcamento_categorias(nome, cor)")
-      .eq("obra_id", obraId)
-      .order("data_lancamento", { ascending: false });
-    setData(rows ?? []);
-    setLoadError(error?.message ?? "");
+    const [gerais, alojamento] = await Promise.all([
+      (supabase as any).from("lancamentos_custos").select("*, categoria:orcamento_categorias(nome, cor)")
+        .eq("obra_id", obraId).order("data_lancamento", { ascending: false }),
+      (supabase as any).from("v_alojamento_custos_obra").select("*").eq("obra_id", obraId),
+    ]);
+    const categoriaAlojamento = categorias.find(c => c.nome === "Alojamento");
+    const custosAlojamento: Lancamento[] = (alojamento.data ?? []).map((l: any) => ({
+      id: `alojamento-${l.origem}-${l.referencia_id}-${l.data_lancamento}`,
+      obra_id: l.obra_id, categoria_id: categoriaAlojamento?.id ?? "alojamento",
+      descricao: l.descricao, valor: Number(l.valor), data_lancamento: l.data_lancamento,
+      tipo: "alojamento", fornecedor: l.fornecedor, nota_fiscal: l.nota_fiscal,
+      observacoes: `Origem automática: ${l.origem}`, cancelado_em: null,
+      motivo_cancelamento: null, referencia_id: l.referencia_id,
+      categoria: { nome: "Alojamento", cor: categoriaAlojamento?.cor ?? "#0891b2" },
+    }));
+    setData([...(gerais.data ?? []), ...custosAlojamento].sort((a, b) => b.data_lancamento.localeCompare(a.data_lancamento)));
+    setLoadError([gerais.error?.message, alojamento.error?.message].filter(Boolean).join(" · "));
     setLoading(false);
-  }, [obraId]);
+  }, [obraId, categorias]);
 
   useEffect(() => { load(); }, [load, refresh]);
 

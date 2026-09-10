@@ -934,7 +934,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
       ]);
 
       // 4–10. todos os custos no período
-      const [mRes, fRes, wRes, tRes, aRes, mulRes, fundoRes, lancRes] = await Promise.all([
+      const [mRes, fRes, wRes, tRes, aRes, mulRes, fundoRes, lancRes, complexoRes, alojRes] = await Promise.all([
         (supabase as any).from("maintenance_records").select("vehicle_id, custo")
           .gte("data_realizada", filters.dataInicio).lte("data_realizada", filters.dataFim).eq("status", "concluida"),
         (supabase as any).from("vehicle_fuel_logs").select("vehicle_id, valor_total")
@@ -950,6 +950,8 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
         (supabase as any).from("fundo_fixo").select("id, obra_id"),
         (supabase as any).from("fundo_fixo_lancamentos").select("fundo_fixo_id, valor, tipo, status").eq("status", "aprovado")
           .gte("data_lancamento", filters.dataInicio).lte("data_lancamento", filters.dataFim).eq("tipo", "saida"),
+        (supabase as any).from("alojamento_complexos").select("id, obra_id").in("obra_id", obraIds),
+        (supabase as any).rpc("alojamento_custos_periodo", { p_inicio: filters.dataInicio, p_fim: filters.dataFim }),
       ]);
 
       const manuts   = mRes.data   ?? [];
@@ -960,6 +962,8 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
       const multas   = mulRes.data ?? [];
       const fundos   = fundoRes.data  ?? [];
       const lancs    = lancRes.data   ?? [];
+      const complexosAloj = complexoRes.data ?? [];
+      const custosAloj = alojRes.data ?? [];
 
       const sum = (arr: any[], vid: string, field: string) =>
         arr.filter(x => x.vehicle_id === vid).reduce((s, x) => s + (x[field] ?? 0), 0);
@@ -990,11 +994,15 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
         const custoFundo = lancs.filter((l: any) => fundoIds.includes(l.fundo_fixo_id))
           .reduce((s: number, l: any) => s + (l.valor ?? 0), 0);
 
-        const total = custoManut + custoComb + custoLav + custoBorr + custoAcess + custoMultas + custoAlug + custoFundo;
+        const complexoIds = complexosAloj.filter((c: any) => c.obra_id === obra.id).map((c: any) => c.id);
+        const custoAlojamento = custosAloj.filter((c: any) => complexoIds.includes(c.complexo_id))
+          .reduce((s: number, c: any) => s + Number(c.valor ?? 0), 0);
+
+        const total = custoManut + custoComb + custoLav + custoBorr + custoAcess + custoMultas + custoAlug + custoFundo + custoAlojamento;
 
         return {
           ...obra, empCount: empIds.length, vCount: vIds.length,
-          custoManut, custoComb, custoLav, custoBorr, custoAcess, custoMultas, custoAlug, custoFundo, total,
+          custoManut, custoComb, custoLav, custoBorr, custoAcess, custoMultas, custoAlug, custoFundo, custoAlojamento, total,
         };
       }).sort((a: any, b: any) => b.total - a.total);
 
@@ -1012,14 +1020,15 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
   const totalMultas   = rows.reduce((s, r) => s + r.custoMultas, 0);
   const totalAlug     = rows.reduce((s, r) => s + r.custoAlug, 0);
   const totalFundo    = rows.reduce((s, r) => s + r.custoFundo, 0);
+  const totalAlojamento = rows.reduce((s, r) => s + r.custoAlojamento, 0);
 
   const exportCSV = () => {
-    const header = ["Obra","Status","Func.","Veíc.","Manutenção","Combustível","Lavagem","Borracharia","Acessórios","Multas","Aluguel","Fundo Fixo","Total"];
+    const header = ["Obra","Status","Func.","Veíc.","Manutenção","Combustível","Lavagem","Borracharia","Acessórios","Multas","Aluguel de veículos","Fundo Fixo","Alojamento","Total"];
     const data = rows.map(r => [
       r.nome, r.status, r.empCount, r.vCount,
       fmt(r.custoManut), fmt(r.custoComb), fmt(r.custoLav),
       fmt(r.custoBorr), fmt(r.custoAcess), fmt(r.custoMultas),
-      fmt(r.custoAlug), fmt(r.custoFundo), fmt(r.total),
+      fmt(r.custoAlug), fmt(r.custoFundo), fmt(r.custoAlojamento), fmt(r.total),
     ]);
     downloadCSV([header, ...data], `custo_obra_${filters.dataInicio}_${filters.dataFim}.csv`);
   };
@@ -1050,6 +1059,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
             { label: "Multas",       val: totalMultas, color: "text-red-600"     },
             { label: "Aluguel",      val: totalAlug,   color: "text-violet-600"  },
             { label: "Fundo Fixo",   val: totalFundo,  color: "text-purple-600"  },
+            { label: "Alojamento",   val: totalAlojamento, color: "text-cyan-700" },
           ].map(item => (
             <Card key={item.label} className="border-0 shadow-sm">
               <CardContent className="pt-3 pb-2">
@@ -1078,6 +1088,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                   <TableHead className="text-right">Multas</TableHead>
                   <TableHead className="text-right">Aluguel</TableHead>
                   <TableHead className="text-right">Fundo Fixo</TableHead>
+                  <TableHead className="text-right">Alojamento</TableHead>
                   <TableHead className="text-right font-bold">Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1095,6 +1106,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                     <TableCell className="text-right text-sm text-red-700">{fmt(r.custoMultas)}</TableCell>
                     <TableCell className="text-right text-sm text-violet-700">{fmt(r.custoAlug)}</TableCell>
                     <TableCell className="text-right text-sm text-purple-700">{fmt(r.custoFundo)}</TableCell>
+                    <TableCell className="text-right text-sm text-cyan-700">{fmt(r.custoAlojamento)}</TableCell>
                     <TableCell className="text-right font-bold text-sm">{fmt(r.total)}</TableCell>
                   </TableRow>
                 ))}
@@ -1109,12 +1121,13 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                     <TableCell className="text-right text-sm text-red-700">{fmt(totalMultas)}</TableCell>
                     <TableCell className="text-right text-sm text-violet-700">{fmt(totalAlug)}</TableCell>
                     <TableCell className="text-right text-sm text-purple-700">{fmt(totalFundo)}</TableCell>
+                    <TableCell className="text-right text-sm text-cyan-700">{fmt(totalAlojamento)}</TableCell>
                     <TableCell className="text-right font-bold text-sm">{fmt(totalGeral)}</TableCell>
                   </TableRow>
                 )}
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={13} className="text-center py-10 text-muted-foreground">
                       <Building2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       Nenhum dado encontrado para o período
                     </TableCell>

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CATEGORIA, CATEGORIAS_LANCAVEIS, brl, dataParaMes, grupoDe, rotuloMes, somarMeses } from "./custos";
+import { useFornecedores } from "@/hooks/useFornecedores";
 
 interface Props {
   complexos: any[];
@@ -20,6 +21,7 @@ interface Props {
 const COMPLEXO_TODO = "__complexo";
 
 export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
+  const { fornecedores } = useFornecedores();
   const [mes, setMes] = useState(() => dataParaMes(new Date()));
   const [lista, setLista] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -68,7 +70,8 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
       valor: Number(form.valor),
       quantidade: form.quantidade ? Number(form.quantidade) : null,
       unidade_medida: form.quantidade ? (form.unidade_medida?.trim() || CATEGORIA[form.categoria]?.medida || null) : null,
-      fornecedor: form.fornecedor?.trim() || null,
+      fornecedor_id: form.fornecedor_id || null,
+      fornecedor: fornecedores.find(f => f.id === form.fornecedor_id)?.nome ?? form.fornecedor?.trim() ?? null,
       documento: form.documento?.trim() || null,
       data_pagamento: form.data_pagamento || null,
     };
@@ -106,7 +109,7 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
     const novas = origem.map((d: any) => ({
       complexo_id: d.complexo_id, alojamento_id: d.alojamento_id, competencia: `${mes}-01`,
       categoria: d.categoria, descricao: d.descricao, valor: d.valor, quantidade: null,
-      unidade_medida: d.unidade_medida, fornecedor: d.fornecedor,
+      unidade_medida: d.unidade_medida, fornecedor_id: d.fornecedor_id, fornecedor: d.fornecedor,
     }));
     const { error: e2 } = await (supabase as any).from("alojamento_despesas").insert(novas);
     if (e2) return toast.error(e2.message);
@@ -216,7 +219,15 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
               <Campo label="Medida"><Input value={form.unidade_medida ?? ""} onChange={campo("unidade_medida")} placeholder={CATEGORIA[form.categoria]?.medida ?? "un"} /></Campo>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <Campo label="Fornecedor"><Input value={form.fornecedor ?? ""} onChange={campo("fornecedor")} /></Campo>
+              <Campo label="Fornecedor">
+                <Select value={form.fornecedor_id || "__sem_fornecedor"} onValueChange={v => setForm((f: any) => ({ ...f, fornecedor_id: v === "__sem_fornecedor" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__sem_fornecedor">Não informado</SelectItem>
+                    {fornecedores.filter(f => f.status === "ativo").map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Campo>
               <Campo label="Nota / fatura"><Input value={form.documento ?? ""} onChange={campo("documento")} /></Campo>
               <Campo label="Pago em"><Input type="date" value={form.data_pagamento ?? ""} onChange={campo("data_pagamento")} /></Campo>
             </div>
