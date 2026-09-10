@@ -10,6 +10,12 @@ Implementação iniciada após a conclusão dos testes do checkpoint de velocida
 ### Entregue no núcleo operacional
 
 - Cadastro de alojamentos por obra, ambientes, quartos e geração automática de leitos.
+- Hierarquia escalável de obra, complexo e unidade, permitindo combinar casas,
+  blocos, hotéis, apartamentos, contêineres e estruturas terceirizadas.
+- Cadastro em lote de até 200 quartos por operação, com geração automática dos
+  leitos, adequado a complexos com milhares de alojados.
+- Controle de imóvel próprio, aluguel, hospedagem ou cessão, incluindo contrato,
+  proprietário/fornecedor, vigência, valor mensal e capacidade autorizada.
 - Estados operacionais de leito: disponível, reservado, ocupado, higienização,
   manutenção, interditado e desativado.
 - Reserva e cancelamento, check-in, check-out, transferência e liberação após higienização.
