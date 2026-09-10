@@ -24,6 +24,8 @@ export const catalog: Record<string, readonly [string, string]> = {
   "Portal do Cliente": ["Client portal", "Portal del cliente"],
   "Visitantes": ["Visitors", "Visitantes"],
   "Fundo Fixo": ["Petty cash", "Caja chica"],
+  "Alojamentos": ["Accommodation", "Alojamientos"],
+  "Gestão de Alojamentos": ["Accommodation management", "Gestión de alojamientos"],
   "Qualidade": ["Quality", "Calidad"],
   "Painel da Qualidade": ["Quality dashboard", "Panel de calidad"],
   "Não Conformidades": ["Nonconformities", "No conformidades"],

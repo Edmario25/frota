@@ -1,11 +1,35 @@
 # Módulo de Gestão de Alojamento
 
-**Status:** proposta — nada implementado
+**Status:** núcleo operacional implementado em 10/09/2026 — migração pendente de aplicação no ambiente
 **Base:** POP-ALJ-001 Rev. 00 (Manual de Gestão do Alojamento, 09/09/2026)
 **Contexto original:** Parques Eólicos Sento Sé — CONEXX
 **Proposta visual:** https://claude.ai/code/artifact/22ec8d19-868c-4cb0-8ecb-a14e779cd48e
 
-Retomar após concluir os testes do checkpoint de velocidade.
+Implementação iniciada após a conclusão dos testes do checkpoint de velocidade.
+
+### Entregue no núcleo operacional
+
+- Cadastro de alojamentos por obra, ambientes, quartos e geração automática de leitos.
+- Estados operacionais de leito: disponível, reservado, ocupado, higienização,
+  manutenção, interditado e desativado.
+- Reserva e cancelamento, check-in, check-out, transferência e liberação após higienização.
+- Registro de ausência temporária e retorno, mantendo o leito corretamente ocupado.
+- Bloqueio contra dupla ocupação do leito e do colaborador.
+- Validação de capacidade, funcionário ativo e escopo de acesso por obra.
+- Mapa visual de leitos, painel de ocupação e alerta da proporção de chuveiros.
+- Chamados preventivos, corretivos e emergenciais.
+- Cadastro patrimonial e conferência item a item no check-out, com termos
+  versionados, retrato imutável dos bens e trilha de movimentações.
+- Estrutura de regimentos e aceites preparada para a próxima tela operacional.
+- Permissões específicas e integração com a auditoria central.
+
+### Próximas evoluções sobre a base entregue
+
+- Editor de termos com assinatura e geração do PDF comparativo.
+- Assinatura digital dos termos e tela de publicação/aceite dos regimentos.
+- Catálogo versionado de inspeção NR-24 integrado aos desvios SMS.
+- Lotes, validade e PVPS/FEFO no depósito do alojamento.
+- Abertura de chamados pelo aplicativo do colaborador.
 
 ---
 

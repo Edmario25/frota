@@ -34,6 +34,7 @@ export type PermKey =
   | "acesso_comunicados"
   | "acesso_visitantes"
   | "acesso_fornecedores"
+  | "acesso_alojamento"
   // Escopo
   | "acessa_todas_obras";
 
@@ -68,6 +69,7 @@ const DEFAULT_PERMS: PermissionsMap = {
   acesso_comunicados:       false,
   acesso_visitantes:        false,
   acesso_fornecedores:      false,
+  acesso_alojamento:        false,
   acessa_todas_obras:       false,
 };
 

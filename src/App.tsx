@@ -102,6 +102,7 @@ const QualidadeRegistros = lazy(() => import("./pages/QualidadeRegistros"));
 const Comunicados = lazy(() => import("./pages/Comunicados"));
 const Visitantes = lazy(() => import("./pages/Visitantes"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
+const Alojamentos = lazy(() => import("./pages/Alojamentos"));
 
 const RouteFallback = () => {
   const { t } = useI18n();
@@ -293,6 +294,13 @@ const App = () => (
               <ProtectedRoute>
                 <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra', 'funcionario']}>
                   <FundoFixo />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/alojamentos" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <Alojamentos />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />

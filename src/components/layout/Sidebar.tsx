@@ -40,6 +40,7 @@ import {
   Siren,
   Leaf,
   History,
+  BedDouble,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -99,6 +100,7 @@ const menuGroups = [
       { title: "Portal do Cliente",   icon: Globe,       url: "/portal-cliente",    roles: OBRA_ACCESS, perm: "acesso_relatorios" as PermKey },
       { title: "Visitantes",         icon: UserCheck,   url: "/visitantes",        roles: OBRA_ACCESS, perm: "acesso_visitantes"  as PermKey },
       { title: "Fundo Fixo",     icon: Wallet,    url: "/fundo-fixo",     roles: ALL_ROLES,   perm: "acesso_fundo_fixo" as PermKey },
+      { title: "Alojamentos",    icon: BedDouble, url: "/alojamentos",    roles: OBRA_ACCESS, perm: "acesso_alojamento" as PermKey },
     ]
   },
   {
