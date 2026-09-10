@@ -12,11 +12,12 @@ interface Props {
   nome: (id: string) => string;
   onLeito: (leito: any) => void;
   onCancelarReserva: (reserva: any) => void;
+  onNoShow: (reserva: any) => void;
 }
 
 type Visao = "ativos" | "reservas" | "historico";
 
-export function AlojadosAba({ dados, leitoIds, nome, onLeito, onCancelarReserva }: Props) {
+export function AlojadosAba({ dados, leitoIds, nome, onLeito, onCancelarReserva, onNoShow }: Props) {
   const [visao, setVisao] = useState<Visao>("ativos");
   const [busca, setBusca] = useState("");
 
@@ -89,10 +90,15 @@ export function AlojadosAba({ dados, leitoIds, nome, onLeito, onCancelarReserva 
           ? <Vazio texto="Nenhuma reserva ativa." />
           : reservas.map(r => {
             const { leito, texto } = onde(r.leito_id);
+            const hoje = new Date().toISOString().slice(0, 10);
+            const atrasada = r.inicio_previsto < hoje;
+            const termina = r.fim_previsto ? ` até ${new Date(`${r.fim_previsto}T12:00:00`).toLocaleDateString("pt-BR")}` : "";
             return (
               <Linha key={r.id} titulo={nome(r.employee_id)}
-                sub={`${texto} · a partir de ${new Date(`${r.inicio_previsto}T12:00:00`).toLocaleDateString("pt-BR")}`}
+                sub={`${texto} · ${new Date(`${r.inicio_previsto}T12:00:00`).toLocaleDateString("pt-BR")}${termina}`}
+                selo={atrasada ? <Badge variant="destructive">Entrada atrasada</Badge> : null}
                 acao={<div className="flex gap-2">
+                  {atrasada && <Button size="sm" variant="outline" onClick={() => onNoShow(r)}>Não compareceu</Button>}
                   <Button size="sm" variant="ghost" onClick={() => onCancelarReserva(r)}>Cancelar</Button>
                   <Button size="sm" variant="outline" onClick={() => onLeito(leito)}>Abrir leito</Button>
                 </div>} />

@@ -19,6 +19,10 @@ Implementação iniciada após a conclusão dos testes do checkpoint de velocida
 - Estados operacionais de leito: disponível, reservado, ocupado, higienização,
   manutenção, interditado e desativado.
 - Reserva e cancelamento, check-in, check-out, transferência e liberação após higienização.
+- Agenda permite múltiplas reservas futuras sem sobreposição de período por
+  leito ou colaborador, com identificação de entrada atrasada e no-show.
+- Capacidade autorizada de unidade e complexo protegida no banco durante o
+  check-in e as transferências, além dos alertas do painel.
 - Registro de ausência temporária e retorno, mantendo o leito corretamente ocupado.
 - Bloqueio contra dupla ocupação do leito e do colaborador.
 - Validação de capacidade, funcionário ativo e escopo de acesso por obra.

@@ -230,6 +230,7 @@ export function MapaHotel({ dados, unidades, ocupacaoPorLeito, reservaPorLeito, 
                         className={cn(
                           "flex h-8 min-w-8 items-center justify-center rounded-md px-1 text-[11px] font-semibold transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
                           cfg.cor,
+                          res && l.status === "disponivel" && "ring-2 ring-sky-400 ring-offset-1",
                           ausente && "ring-2 ring-dashed ring-offset-1 ring-violet-300",
                         )}
                       >{l.identificacao}</button>
@@ -256,6 +257,9 @@ function Legenda() {
           <span className={cn("h-3 w-3 rounded-sm", LEITO[s].cor)} />{LEITO[s].label}
         </span>
       ))}
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 rounded-sm bg-emerald-50 ring-2 ring-sky-400 ring-offset-1" />Reserva futura
+      </span>
       <span className="flex items-center gap-1.5">
         <span className="h-3 w-3 rounded-sm bg-violet-600 ring-2 ring-dashed ring-violet-300 ring-offset-1" />Ausente temporariamente
       </span>

@@ -35,13 +35,14 @@ import { CustosAba } from "@/components/alojamentos/CustosAba";
 
 type Modal =
   | "complexo" | "alojamento" | "ambiente" | "quarto" | "bem" | "reserva" | "checkin"
-  | "checkout" | "transferir" | "ausencia" | "chamado" | "bloquear" | null;
+  | "checkout" | "transferir" | "ausencia" | "chamado" | "bloquear" | "no_show" | null;
 
 const TITULO_MODAL: Record<Exclude<Modal, null>, string> = {
   complexo: "Complexo", alojamento: "Unidade de alojamento", ambiente: "Novo ambiente",
   quarto: "Criar quartos e leitos", bem: "Novo bem patrimonial", reserva: "Reservar leito",
   checkin: "Entrada de colaborador", checkout: "Saída e conferência", transferir: "Transferir alojado",
   ausencia: "Presença no alojamento", chamado: "Novo chamado", bloquear: "Bloquear leito",
+  no_show: "Registrar não comparecimento",
 };
 
 export default function Alojamentos() {
@@ -99,9 +100,14 @@ export default function Alojamentos() {
   const ocupacaoPorLeito = useMemo(() => new Map(
     dados.ocupacoes.filter(o => !o.data_saida).map(o => [o.leito_id, o] as [string, any]),
   ), [dados.ocupacoes]);
-  const reservaPorLeito = useMemo(() => new Map(
-    dados.reservas.filter(r => r.status === "ativa").map(r => [r.leito_id, r] as [string, any]),
-  ), [dados.reservas]);
+  const reservaPorLeito = useMemo(() => {
+    const mapa = new Map<string, any>();
+    for (const r of dados.reservas.filter(r => r.status === "ativa")
+      .sort((a, b) => String(a.inicio_previsto).localeCompare(String(b.inicio_previsto)))) {
+      if (!mapa.has(r.leito_id)) mapa.set(r.leito_id, r);
+    }
+    return mapa;
+  }, [dados.reservas]);
 
   const nomes = useMemo(() => new Map(employees.map((e: any) => [e.id, e.nome] as [string, string])), [employees]);
   const nome = useCallback((id: string) => nomes.get(id) ?? "Colaborador", [nomes]);
@@ -231,6 +237,9 @@ export default function Alojamentos() {
       case "bloquear":
         if (!form.motivo?.trim()) return toast.error("Informe o motivo do bloqueio.");
         return executar(rpc("alojamento_alterar_status_leito", { p_leito: alvo.id, p_status: form.status || "manutencao", p_motivo: form.motivo.trim() }), "Leito bloqueado.");
+      case "no_show":
+        if (!form.motivo?.trim()) return toast.error("Informe o motivo do não comparecimento.");
+        return executar(rpc("alojamento_marcar_no_show", { p_reserva: alvo.id, p_motivo: form.motivo.trim() }), "Não comparecimento registrado e agenda atualizada.");
       case "chamado": {
         if (!form.alojamento_id || !form.titulo?.trim() || !form.descricao?.trim()) return toast.error("Informe unidade, título e descrição.");
         const { data: u } = await supabase.auth.getUser();
@@ -376,7 +385,8 @@ export default function Alojamentos() {
             </TabsContent>
 
             <TabsContent value="alojados">
-              <AlojadosAba dados={dados} leitoIds={leitoIds} nome={nome} onLeito={l => setLeitoSelId(l.id)} onCancelarReserva={acoesLeito.cancelarReserva} />
+              <AlojadosAba dados={dados} leitoIds={leitoIds} nome={nome} onLeito={l => setLeitoSelId(l.id)}
+                onCancelarReserva={acoesLeito.cancelarReserva} onNoShow={r => abrir("no_show", r)} />
             </TabsContent>
 
             <TabsContent value="patrimonio">
@@ -515,7 +525,7 @@ export default function Alojamentos() {
             {modal === "reserva" && <>
               <Campo label="Colaborador">
                 <Escolha valor={form.employee_id} onChange={campo("employee_id")}
-                  opcoes={colaboradoresLivres.filter((e: any) => !dados.reservas.some(r => r.status === "ativa" && r.employee_id === e.id)).map((e: any) => [e.id, e.nome])} />
+                  opcoes={colaboradoresLivres.map((e: any) => [e.id, e.nome])} />
               </Campo>
               <div className="grid grid-cols-2 gap-2">
                 <Campo label="Início previsto"><Input type="date" min={new Date().toISOString().slice(0, 10)} value={form.inicio ?? ""} onChange={campo("inicio")} /></Campo>
@@ -566,6 +576,11 @@ export default function Alojamentos() {
             {modal === "bloquear" && <>
               <Campo label="Motivo do bloqueio"><Escolha valor={form.status ?? "manutencao"} onChange={campo("status")} opcoes={[["manutencao", "Manutenção"], ["interditado", "Interdição"], ["desativado", "Desativar leito"]]} /></Campo>
               <Campo label="Descrição"><Textarea value={form.motivo ?? ""} onChange={campo("motivo")} placeholder="Ex.: estrado quebrado, infiltração no teto" /></Campo>
+            </>}
+
+            {modal === "no_show" && alvo && <>
+              <p className="text-sm">A reserva de <strong>{nome(alvo.employee_id)}</strong> será encerrada como não comparecimento.</p>
+              <Campo label="Justificativa"><Textarea value={form.motivo ?? ""} onChange={campo("motivo")} placeholder="Ex.: mobilização cancelada ou colaborador não chegou na data prevista" /></Campo>
             </>}
 
             {modal === "chamado" && <>
