@@ -42,6 +42,7 @@ interface Material {
 interface Estoque {
   id: string; obra_id: string; material_id: string;
   quantidade: number; quantidade_minima: number; localizacao: string | null;
+  custo_medio?: number | null;
   materiais_catalogo: Material; obras?: { nome: string };
 }
 interface Movimento {
@@ -499,6 +500,8 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
                   <TableHead>Categoria</TableHead>
                   <TableHead className="text-right">Quantidade</TableHead>
                   <TableHead className="text-right">Mínimo</TableHead>
+                  <TableHead className="text-right">Custo médio</TableHead>
+                  <TableHead className="text-right">Valor em estoque</TableHead>
                   <TableHead>Localização</TableHead>
                   <TableHead>Situação</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
@@ -506,10 +509,10 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
               </TableHeader>
               <TableBody>
                 {loading && Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>{Array.from({ length: 7 }).map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>)}</TableRow>
+                  <TableRow key={i}>{Array.from({ length: 9 }).map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-20" /></TableCell>)}</TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
+                  <TableRow><TableCell colSpan={9} className="py-12 text-center text-sm text-muted-foreground">
                     {estoque.length === 0 ? "Nenhum material no estoque. Registre a primeira entrada." : "Nenhum resultado para os filtros aplicados."}
                   </TableCell></TableRow>
                 )}
@@ -528,6 +531,17 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
                       </TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground tabular-nums">
                         {e.quantidade_minima > 0 ? fmtQtd(e.quantidade_minima, e.materiais_catalogo.unidade) : "—"}
+                      </TableCell>
+                      {/* Sem custo médio, o consumo deste item entra no Orçado x Realizado com valor zero */}
+                      <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                        {Number(e.custo_medio ?? 0) > 0
+                          ? Number(e.custo_medio).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                          : <span className="text-amber-600" title="Nenhuma entrada com preço. O consumo deste item sai sem custo.">sem preço</span>}
+                      </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums">
+                        {Number(e.custo_medio ?? 0) > 0 && e.quantidade > 0
+                          ? (e.quantidade * Number(e.custo_medio)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                          : "—"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{e.localizacao ?? "—"}</TableCell>
                       <TableCell>
@@ -1638,8 +1652,22 @@ function OrdemCompraTab({ obras, obraId, setObraId, materiais, fornecedores, can
 
   async function updateStatus(id: string, status: string) {
     setSaving(true);
-    await (supabase as any).from("ordens_compra").update({ status }).eq("id", id);
-    setSaving(false); toast.success("Status atualizado!"); fetchOcs();
+    const { error } = await (supabase as any).from("ordens_compra").update({ status }).eq("id", id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Status atualizado!"); fetchOcs();
+  }
+
+  // Receber a ordem dá entrada de cada item no estoque com o preço da compra.
+  // É esse preço que forma o custo médio usado no consumo da obra.
+  async function receberNoEstoque(oc: any) {
+    if (!confirm(`Dar entrada no estoque de todos os itens da ${oc.numero_oc}? Essa ação não pode ser desfeita.`)) return;
+    setSaving(true);
+    const { data, error } = await (supabase as any).rpc("almoxarifado_receber_ordem_compra", { p_ordem: oc.id });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${data} ${data === 1 ? "item recebido" : "itens recebidos"} no estoque com o preço da ordem.`);
+    fetchOcs();
   }
 
   const STATUS_OC: Record<string, { label: string; cls: string }> = {
@@ -1731,8 +1759,8 @@ function OrdemCompraTab({ obras, obraId, setObraId, materiais, fornecedores, can
                 )}
                 {canEdit && oc.status === "enviada" && (
                   <Button size="sm" variant="outline" className="gap-1 h-7 text-xs text-green-600 border-green-300"
-                    onClick={() => updateStatus(oc.id, "recebida")} disabled={saving}>
-                    <CheckCircle2 className="h-3 w-3" /> Marcar Recebida
+                    onClick={() => receberNoEstoque(oc)} disabled={saving}>
+                    <CheckCircle2 className="h-3 w-3" /> Receber no estoque
                   </Button>
                 )}
                 {canEdit && (oc.status === "rascunho" || oc.status === "enviada") && (

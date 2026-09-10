@@ -538,11 +538,26 @@ function LancamentosTab({
   const load = useCallback(async () => {
     if (!obraId) { setData([]); return; }
     setLoading(true);
-    const [gerais, alojamento] = await Promise.all([
+    const [gerais, alojamento, almoxarifado] = await Promise.all([
       (supabase as any).from("lancamentos_custos").select("*, categoria:orcamento_categorias(nome, cor)")
         .eq("obra_id", obraId).order("data_lancamento", { ascending: false }),
       (supabase as any).from("v_alojamento_custos_obra").select("*").eq("obra_id", obraId),
+      (supabase as any).from("v_almoxarifado_custos_obra").select("*").eq("obra_id", obraId),
     ]);
+    // Consumo de material entra sozinho pelo Almoxarifado, pelo custo médio.
+    // Linhas "sem custo" são saídas de material que nunca teve entrada com
+    // preço: aparecem com valor zero para o gestor saber que falta preço.
+    const categoriaMateriais = categorias.find(c => c.nome === "Materiais");
+    const custosMaterial: Lancamento[] = (almoxarifado.data ?? []).map((l: any) => ({
+      id: `almoxarifado-${l.referencia_id}`,
+      obra_id: l.obra_id, categoria_id: categoriaMateriais?.id ?? "materiais",
+      descricao: l.sem_custo ? `${l.descricao} — sem custo: material sem entrada com preço` : l.descricao,
+      valor: Number(l.valor), data_lancamento: l.data_lancamento,
+      tipo: "almoxarifado", fornecedor: null, nota_fiscal: null,
+      observacoes: "Origem automática: Almoxarifado", cancelado_em: null,
+      motivo_cancelamento: null, referencia_id: l.referencia_id,
+      categoria: { nome: "Materiais", cor: categoriaMateriais?.cor ?? "#f59e0b" },
+    }));
     const categoriaAlojamento = categorias.find(c => c.nome === "Alojamento");
     const custosAlojamento: Lancamento[] = (alojamento.data ?? []).map((l: any) => ({
       id: `alojamento-${l.origem}-${l.referencia_id}-${l.data_lancamento}`,
@@ -553,8 +568,8 @@ function LancamentosTab({
       motivo_cancelamento: null, referencia_id: l.referencia_id,
       categoria: { nome: "Alojamento", cor: categoriaAlojamento?.cor ?? "#0891b2" },
     }));
-    setData([...(gerais.data ?? []), ...custosAlojamento].sort((a, b) => b.data_lancamento.localeCompare(a.data_lancamento)));
-    setLoadError([gerais.error?.message, alojamento.error?.message].filter(Boolean).join(" · "));
+    setData([...(gerais.data ?? []), ...custosAlojamento, ...custosMaterial].sort((a, b) => b.data_lancamento.localeCompare(a.data_lancamento)));
+    setLoadError([gerais.error?.message, alojamento.error?.message, almoxarifado.error?.message].filter(Boolean).join(" · "));
     setLoading(false);
   }, [obraId, categorias]);
 
