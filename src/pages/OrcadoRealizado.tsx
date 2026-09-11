@@ -93,6 +93,8 @@ const TIPOS = [
   { value: "folha",         label: "Folha de Pagamento" },
   { value: "equipamento",   label: "Equipamento" },
   { value: "alojamento",    label: "Alojamento" },
+  { value: "frota",          label: "Frota" },
+  { value: "fundo_fixo",     label: "Fundo Fixo" },
 ];
 
 function alertColor(perc: number, alerta: number): string {
@@ -538,43 +540,24 @@ function LancamentosTab({
   const load = useCallback(async () => {
     if (!obraId) { setData([]); return; }
     setLoading(true);
-    const [gerais, alojamento, almoxarifado] = await Promise.all([
+    const [gerais, automaticos] = await Promise.all([
       (supabase as any).from("lancamentos_custos").select("*, categoria:orcamento_categorias(nome, cor)")
         .eq("obra_id", obraId).order("data_lancamento", { ascending: false }),
-      (supabase as any).from("v_alojamento_custos_obra").select("*").eq("obra_id", obraId),
-      (supabase as any).from("v_almoxarifado_custos_obra").select("*").eq("obra_id", obraId),
+      (supabase as any).from("v_custos_automaticos_obra").select("*").eq("obra_id", obraId),
     ]);
-    // Material entra sozinho pelo Almoxarifado: itens de consumo na saída,
-    // pelo custo médio; ferramentas e itens "custo na compra" na entrada, pelo
-    // preço pago. A categoria vem do cadastro do material.
-    // Linhas "sem custo" têm valor zero para o gestor saber que falta preço.
-    const categoriaMateriais = categorias.find(c => c.nome === "Materiais");
-    const custosMaterial: Lancamento[] = (almoxarifado.data ?? []).map((l: any) => {
-      const cat = categorias.find(c => c.id === l.categoria_id) ?? categoriaMateriais;
-      const faltaPreco = l.apropriacao_custo === "compra" ? "entrada sem preço" : "material sem entrada com preço";
+    const custosAutomaticos: Lancamento[] = (automaticos.data ?? []).map((l: any) => {
+      const cat = categorias.find(c => c.id === l.categoria_id);
       return {
-        id: `almoxarifado-${l.referencia_id}`,
-        obra_id: l.obra_id, categoria_id: cat?.id ?? "materiais",
-        descricao: l.sem_custo ? `${l.descricao} — sem custo: ${faltaPreco}` : l.descricao,
-        valor: Number(l.valor), data_lancamento: l.data_lancamento,
-        tipo: "almoxarifado", fornecedor: null, nota_fiscal: null,
-        observacoes: "Origem automática: Almoxarifado", cancelado_em: null,
-        motivo_cancelamento: null, referencia_id: l.referencia_id,
-        categoria: { nome: cat?.nome ?? "Materiais", cor: cat?.cor ?? "#f59e0b" },
-      };
-    });
-    const categoriaAlojamento = categorias.find(c => c.nome === "Alojamento");
-    const custosAlojamento: Lancamento[] = (alojamento.data ?? []).map((l: any) => ({
-      id: `alojamento-${l.origem}-${l.referencia_id}-${l.data_lancamento}`,
-      obra_id: l.obra_id, categoria_id: categoriaAlojamento?.id ?? "alojamento",
+      id: `automatico-${l.tipo}-${l.referencia_id}-${l.data_lancamento}`,
+      obra_id: l.obra_id, categoria_id: l.categoria_id,
       descricao: l.descricao, valor: Number(l.valor), data_lancamento: l.data_lancamento,
-      tipo: "alojamento", fornecedor: l.fornecedor, nota_fiscal: l.nota_fiscal,
+      tipo: l.tipo, fornecedor: l.fornecedor, nota_fiscal: l.nota_fiscal,
       observacoes: `Origem automática: ${l.origem}`, cancelado_em: null,
       motivo_cancelamento: null, referencia_id: l.referencia_id,
-      categoria: { nome: "Alojamento", cor: categoriaAlojamento?.cor ?? "#0891b2" },
-    }));
-    setData([...(gerais.data ?? []), ...custosAlojamento, ...custosMaterial].sort((a, b) => b.data_lancamento.localeCompare(a.data_lancamento)));
-    setLoadError([gerais.error?.message, alojamento.error?.message, almoxarifado.error?.message].filter(Boolean).join(" · "));
+      categoria: { nome: cat?.nome ?? "Custo automático", cor: cat?.cor ?? "#64748b" },
+    }});
+    setData([...(gerais.data ?? []), ...custosAutomaticos].sort((a, b) => b.data_lancamento.localeCompare(a.data_lancamento)));
+    setLoadError([gerais.error?.message, automaticos.error?.message].filter(Boolean).join(" · "));
     setLoading(false);
   }, [obraId, categorias]);
 

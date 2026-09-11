@@ -7,6 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 import { Badge } from "@/components/ui/badge";
 import { ArrowDownCircle, ArrowUpCircle, Receipt, FileText } from "lucide-react";
@@ -40,6 +41,7 @@ const schema = z.object({
   forma_pagamento: z.string().min(1, "Forma de pagamento obrigatória"),
   frente_servico:  z.string().optional(),
   favorecido:      z.string().optional(),
+  integrar_custo_obra: z.boolean().default(true),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -73,6 +75,7 @@ export const FundoFixoLancamentoModal = ({
       observacoes: "",
       fornecedor: "", fornecedor_documento: "", numero_documento: "",
       forma_pagamento: "dinheiro", frente_servico: "", favorecido: "",
+      integrar_custo_obra: true,
     },
   });
 
@@ -94,6 +97,7 @@ export const FundoFixoLancamentoModal = ({
           forma_pagamento: (lancamento as any).forma_pagamento ?? "dinheiro",
           frente_servico:  (lancamento as any).frente_servico ?? "",
           favorecido:      (lancamento as any).favorecido ?? "",
+          integrar_custo_obra: (lancamento as any).integrar_custo_obra ?? true,
         });
       } else {
         form.reset({
@@ -107,6 +111,7 @@ export const FundoFixoLancamentoModal = ({
           observacoes: "",
           fornecedor: "", fornecedor_documento: "", numero_documento: "",
           forma_pagamento: "dinheiro", frente_servico: "", favorecido: "",
+          integrar_custo_obra: true,
         });
       }
     }
@@ -137,6 +142,7 @@ export const FundoFixoLancamentoModal = ({
         forma_pagamento: values.forma_pagamento,
         frente_servico:  values.frente_servico || null,
         favorecido:      values.favorecido || null,
+        integrar_custo_obra: values.tipo === "saida" && values.integrar_custo_obra,
       });
       onOpenChange(false);
     } finally {
@@ -246,6 +252,20 @@ export const FundoFixoLancamentoModal = ({
                 <FormMessage />
               </FormItem>
             )} />
+
+            {tipoAtual === "saida" && (
+              <FormField control={form.control} name="integrar_custo_obra" render={({ field }) => (
+                <FormItem className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                  <div>
+                    <FormLabel className="text-sm">Enviar para o custo da obra</FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Desative se esta saída apenas pagar uma despesa já registrada em outro módulo.
+                    </p>
+                  </div>
+                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                </FormItem>
+              )} />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="fornecedor" render={({ field }) => (

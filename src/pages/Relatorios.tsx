@@ -934,7 +934,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
       ]);
 
       // 4–10. todos os custos no período
-      const [mRes, fRes, wRes, tRes, aRes, mulRes, fundoRes, lancRes, complexoRes, alojRes] = await Promise.all([
+      const [mRes, fRes, wRes, tRes, aRes, mulRes, fundoRes, lancRes, complexoRes, alojRes, autoRes, manualRes] = await Promise.all([
         (supabase as any).from("maintenance_records").select("vehicle_id, custo")
           .gte("data_realizada", filters.dataInicio).lte("data_realizada", filters.dataFim).eq("status", "concluida"),
         (supabase as any).from("vehicle_fuel_logs").select("vehicle_id, valor_total")
@@ -948,10 +948,14 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
         (supabase as any).from("traffic_fines").select("vehicle_id, valor")
           .gte("data_multa", filters.dataInicio).lte("data_multa", filters.dataFim),
         (supabase as any).from("fundo_fixo").select("id, obra_id"),
-        (supabase as any).from("fundo_fixo_lancamentos").select("fundo_fixo_id, valor, tipo, status").eq("status", "aprovado")
+        (supabase as any).from("fundo_fixo_lancamentos").select("fundo_fixo_id, valor, tipo, status, integrar_custo_obra").eq("status", "aprovado")
           .gte("data_lancamento", filters.dataInicio).lte("data_lancamento", filters.dataFim).eq("tipo", "saida"),
         (supabase as any).from("alojamento_complexos").select("id, obra_id").in("obra_id", obraIds),
         (supabase as any).rpc("alojamento_custos_periodo", { p_inicio: filters.dataInicio, p_fim: filters.dataFim }),
+        (supabase as any).from("v_custos_automaticos_obra").select("obra_id,tipo,valor")
+          .in("obra_id", obraIds).gte("data_lancamento", filters.dataInicio).lte("data_lancamento", filters.dataFim),
+        (supabase as any).from("lancamentos_custos").select("obra_id,valor").in("obra_id", obraIds)
+          .is("cancelado_em", null).gte("data_lancamento", filters.dataInicio).lte("data_lancamento", filters.dataFim),
       ]);
 
       const manuts   = mRes.data   ?? [];
@@ -964,12 +968,17 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
       const lancs    = lancRes.data   ?? [];
       const complexosAloj = complexoRes.data ?? [];
       const custosAloj = alojRes.data ?? [];
+      const custosAutomaticos = autoRes.data ?? [];
+      const custosManuais = manualRes.data ?? [];
 
       const sum = (arr: any[], vid: string, field: string) =>
         arr.filter(x => x.vehicle_id === vid).reduce((s, x) => s + (x[field] ?? 0), 0);
 
       // 11. montar resultado por obra
       const resultado = (obras as any[]).map((obra: any) => {
+        const somaAutomatico = (tipo: string, origem?: string) => custosAutomaticos
+          .filter((c: any) => c.obra_id === obra.id && c.tipo === tipo && (!origem || c.origem === origem))
+          .reduce((s: number, c: any) => s + Number(c.valor ?? 0), 0);
         const empIds = (obraFuncs ?? [])
           .filter((of: any) => of.obra_id === obra.id)
           .map((of: any) => of.employee_id);
@@ -979,30 +988,36 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
         const vByObra = (obraVeics ?? []).filter((ov: any) => ov.obra_id === obra.id).map((ov: any) => ov.vehicle_id);
         const vIds    = [...new Set([...vByEmp, ...vByObra])];
 
-        const custoManut  = vIds.reduce((s, vid) => s + sum(manuts, vid, "custo"), 0);
-        const custoComb   = vIds.reduce((s, vid) => s + sum(fuels, vid, "valor_total"), 0);
-        const custoLav    = vIds.reduce((s, vid) => s + sum(washes, vid, "valor"), 0);
-        const custoBorr   = vIds.reduce((s, vid) => s + sum(tires, vid, "valor_servico"), 0);
-        const custoAcess  = vIds.reduce((s, vid) => s + sum(acess, vid, "valor"), 0);
-        const custoMultas = vIds.reduce((s, vid) => s + sum(multas, vid, "valor"), 0);
-        const custoAlug   = vIds.reduce((s, vid) => {
-          const v = (veiculos ?? []).find((vv: any) => vv.id === vid);
-          return s + (v?.valor_aluguel_mensal ?? 0);
-        }, 0);
+        const custoManut  = somaAutomatico("frota", "manutencao");
+        const custoComb   = somaAutomatico("frota", "combustivel");
+        const custoLav    = somaAutomatico("frota", "lavagem");
+        const custoBorr   = somaAutomatico("frota", "pneus");
+        const custoAcess  = somaAutomatico("frota", "acessorio");
+        const custoMultas = somaAutomatico("frota", "multa");
+        const custoAlug   = somaAutomatico("frota", "aluguel");
 
         const fundoIds  = fundos.filter((ff: any) => ff.obra_id === obra.id).map((ff: any) => ff.id);
         const custoFundo = lancs.filter((l: any) => fundoIds.includes(l.fundo_fixo_id))
+          .filter((l: any) => l.integrar_custo_obra !== false)
           .reduce((s: number, l: any) => s + (l.valor ?? 0), 0);
 
         const complexoIds = complexosAloj.filter((c: any) => c.obra_id === obra.id).map((c: any) => c.id);
         const custoAlojamento = custosAloj.filter((c: any) => complexoIds.includes(c.complexo_id))
           .reduce((s: number, c: any) => s + Number(c.valor ?? 0), 0);
 
-        const total = custoManut + custoComb + custoLav + custoBorr + custoAcess + custoMultas + custoAlug + custoFundo + custoAlojamento;
+        const custoMaoObra = somaAutomatico("folha");
+        const custoMateriais = somaAutomatico("almoxarifado");
+        const custoSubcontratadas = somaAutomatico("subcontratada");
+        const custoManual = custosManuais.filter((c: any) => c.obra_id === obra.id)
+          .reduce((s: number, c: any) => s + Number(c.valor ?? 0), 0);
+
+        const total = custoManut + custoComb + custoLav + custoBorr + custoAcess + custoMultas + custoAlug + custoFundo + custoAlojamento
+          + custoMaoObra + custoMateriais + custoSubcontratadas + custoManual;
 
         return {
           ...obra, empCount: empIds.length, vCount: vIds.length,
-          custoManut, custoComb, custoLav, custoBorr, custoAcess, custoMultas, custoAlug, custoFundo, custoAlojamento, total,
+          custoManut, custoComb, custoLav, custoBorr, custoAcess, custoMultas, custoAlug, custoFundo, custoAlojamento,
+          custoMaoObra, custoMateriais, custoSubcontratadas, custoManual, total,
         };
       }).sort((a: any, b: any) => b.total - a.total);
 
@@ -1021,14 +1036,18 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
   const totalAlug     = rows.reduce((s, r) => s + r.custoAlug, 0);
   const totalFundo    = rows.reduce((s, r) => s + r.custoFundo, 0);
   const totalAlojamento = rows.reduce((s, r) => s + r.custoAlojamento, 0);
+  const totalMaoObra = rows.reduce((s, r) => s + r.custoMaoObra, 0);
+  const totalMateriais = rows.reduce((s, r) => s + r.custoMateriais, 0);
+  const totalSubcontratadas = rows.reduce((s, r) => s + r.custoSubcontratadas, 0);
+  const totalManual = rows.reduce((s, r) => s + r.custoManual, 0);
 
   const exportCSV = () => {
-    const header = ["Obra","Status","Func.","Veíc.","Manutenção","Combustível","Lavagem","Borracharia","Acessórios","Multas","Aluguel de veículos","Fundo Fixo","Alojamento","Total"];
+    const header = ["Obra","Status","Func.","Veíc.","Mão de obra","Materiais","Subcontratadas","Manutenção","Combustível","Lavagem","Borracharia","Acessórios","Multas","Aluguel de veículos","Fundo Fixo","Alojamento","Outros lançamentos","Total"];
     const data = rows.map(r => [
       r.nome, r.status, r.empCount, r.vCount,
-      fmt(r.custoManut), fmt(r.custoComb), fmt(r.custoLav),
+      fmt(r.custoMaoObra), fmt(r.custoMateriais), fmt(r.custoSubcontratadas), fmt(r.custoManut), fmt(r.custoComb), fmt(r.custoLav),
       fmt(r.custoBorr), fmt(r.custoAcess), fmt(r.custoMultas),
-      fmt(r.custoAlug), fmt(r.custoFundo), fmt(r.custoAlojamento), fmt(r.total),
+      fmt(r.custoAlug), fmt(r.custoFundo), fmt(r.custoAlojamento), fmt(r.custoManual), fmt(r.total),
     ]);
     downloadCSV([header, ...data], `custo_obra_${filters.dataInicio}_${filters.dataFim}.csv`);
   };
@@ -1051,6 +1070,9 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
             { label: "Custo Total",  val: totalGeral,  color: "text-foreground"  },
+            { label: "Mão de obra",  val: totalMaoObra, color: "text-blue-700" },
+            { label: "Materiais", val: totalMateriais, color: "text-yellow-700" },
+            { label: "Subcontratadas", val: totalSubcontratadas, color: "text-violet-700" },
             { label: "Manutenção",   val: totalManut,  color: "text-amber-600"   },
             { label: "Combustível",  val: totalComb,   color: "text-blue-600"    },
             { label: "Lavagem",      val: totalLav,    color: "text-teal-600"    },
@@ -1060,6 +1082,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
             { label: "Aluguel",      val: totalAlug,   color: "text-violet-600"  },
             { label: "Fundo Fixo",   val: totalFundo,  color: "text-purple-600"  },
             { label: "Alojamento",   val: totalAlojamento, color: "text-cyan-700" },
+            { label: "Outros lançamentos", val: totalManual, color: "text-slate-700" },
           ].map(item => (
             <Card key={item.label} className="border-0 shadow-sm">
               <CardContent className="pt-3 pb-2">
@@ -1080,6 +1103,9 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                   <TableHead>Obra</TableHead>
                   <TableHead className="text-right">Func.</TableHead>
                   <TableHead className="text-right">Veíc.</TableHead>
+                  <TableHead className="text-right">Mão obra</TableHead>
+                  <TableHead className="text-right">Materiais</TableHead>
+                  <TableHead className="text-right">Subcontr.</TableHead>
                   <TableHead className="text-right">Manut.</TableHead>
                   <TableHead className="text-right">Comb.</TableHead>
                   <TableHead className="text-right">Lav.</TableHead>
@@ -1089,6 +1115,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                   <TableHead className="text-right">Aluguel</TableHead>
                   <TableHead className="text-right">Fundo Fixo</TableHead>
                   <TableHead className="text-right">Alojamento</TableHead>
+                  <TableHead className="text-right">Outros</TableHead>
                   <TableHead className="text-right font-bold">Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1098,6 +1125,9 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                     <TableCell className="font-medium text-sm">{r.nome}</TableCell>
                     <TableCell className="text-right text-sm">{r.empCount}</TableCell>
                     <TableCell className="text-right text-sm">{r.vCount}</TableCell>
+                    <TableCell className="text-right text-sm text-blue-700">{fmt(r.custoMaoObra)}</TableCell>
+                    <TableCell className="text-right text-sm text-yellow-700">{fmt(r.custoMateriais)}</TableCell>
+                    <TableCell className="text-right text-sm text-violet-700">{fmt(r.custoSubcontratadas)}</TableCell>
                     <TableCell className="text-right text-sm text-amber-700">{fmt(r.custoManut)}</TableCell>
                     <TableCell className="text-right text-sm text-blue-700">{fmt(r.custoComb)}</TableCell>
                     <TableCell className="text-right text-sm text-teal-700">{fmt(r.custoLav)}</TableCell>
@@ -1107,12 +1137,16 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                     <TableCell className="text-right text-sm text-violet-700">{fmt(r.custoAlug)}</TableCell>
                     <TableCell className="text-right text-sm text-purple-700">{fmt(r.custoFundo)}</TableCell>
                     <TableCell className="text-right text-sm text-cyan-700">{fmt(r.custoAlojamento)}</TableCell>
+                    <TableCell className="text-right text-sm text-slate-700">{fmt(r.custoManual)}</TableCell>
                     <TableCell className="text-right font-bold text-sm">{fmt(r.total)}</TableCell>
                   </TableRow>
                 ))}
                 {rows.length > 0 && (
                   <TableRow className="bg-muted/40 font-semibold">
                     <TableCell colSpan={3} className="text-sm">TOTAL</TableCell>
+                    <TableCell className="text-right text-sm text-blue-700">{fmt(totalMaoObra)}</TableCell>
+                    <TableCell className="text-right text-sm text-yellow-700">{fmt(totalMateriais)}</TableCell>
+                    <TableCell className="text-right text-sm text-violet-700">{fmt(totalSubcontratadas)}</TableCell>
                     <TableCell className="text-right text-sm text-amber-700">{fmt(totalManut)}</TableCell>
                     <TableCell className="text-right text-sm text-blue-700">{fmt(totalComb)}</TableCell>
                     <TableCell className="text-right text-sm text-teal-700">{fmt(totalLav)}</TableCell>
@@ -1122,12 +1156,13 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                     <TableCell className="text-right text-sm text-violet-700">{fmt(totalAlug)}</TableCell>
                     <TableCell className="text-right text-sm text-purple-700">{fmt(totalFundo)}</TableCell>
                     <TableCell className="text-right text-sm text-cyan-700">{fmt(totalAlojamento)}</TableCell>
+                    <TableCell className="text-right text-sm text-slate-700">{fmt(totalManual)}</TableCell>
                     <TableCell className="text-right font-bold text-sm">{fmt(totalGeral)}</TableCell>
                   </TableRow>
                 )}
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={17} className="text-center py-10 text-muted-foreground">
                       <Building2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       Nenhum dado encontrado para o período
                     </TableCell>
