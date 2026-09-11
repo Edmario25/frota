@@ -42,6 +42,7 @@ class AppErrorBoundary extends Component<
 }
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { RoleProtectedRoute } from "@/components/RoleProtectedRoute";
+import { PermissionProtectedRoute } from "@/components/PermissionProtectedRoute";
 import Auth from "./pages/Auth";
 import { loadBrandingFromDB } from "./hooks/useSystemSettings";
 
@@ -103,6 +104,7 @@ const Comunicados = lazy(() => import("./pages/Comunicados"));
 const Visitantes = lazy(() => import("./pages/Visitantes"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
 const Alojamentos = lazy(() => import("./pages/Alojamentos"));
+const ControleAcesso = lazy(() => import("./pages/ControleAcesso"));
 
 const RouteFallback = () => {
   const { t } = useI18n();
@@ -509,6 +511,13 @@ const App = () => (
                 <RoleProtectedRoute allowedRoles={['admin']}>
                   <Auditoria />
                 </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/controle-acesso" element={
+              <ProtectedRoute>
+                <PermissionProtectedRoute permission="controle_acesso.administrar" legacyRoles={['admin']}>
+                  <ControleAcesso />
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             } />
             <Route path="/app" element={<MobileApp />} />

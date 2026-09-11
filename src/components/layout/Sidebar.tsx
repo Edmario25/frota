@@ -41,6 +41,7 @@ import {
   Leaf,
   History,
   BedDouble,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -150,6 +151,7 @@ const menuGroups = [
       { title: "Departamentos",  icon: Network,   url: "/departamentos",  roles: FULL_ACCESS, perm: null },
       { title: "Configurações",  icon: Settings,  url: "/configuracoes",  roles: FULL_ACCESS, perm: null },
       { title: "Auditoria do Sistema", icon: History, url: "/auditoria", roles: ['admin'], perm: null },
+      { title: "Controle de Acesso", icon: KeyRound, url: "/controle-acesso", roles: ['admin'], perm: null },
     ]
   },
   {
@@ -170,7 +172,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
   const { t } = useI18n();
   const location = useLocation();
   const { role, loading: loadingRole } = useUserRole();
-  const { can, loading: loadingPerms, ready: permsReady } = usePermissions();
+  const { can, canAction, loading: loadingPerms, ready: permsReady } = usePermissions();
   const { settings: branding } = useSystemSettings();
   const chatUnread = useChatGestorBadge();
   const [openGroups, setOpenGroups] = useState<string[]>(() => {
@@ -191,10 +193,28 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
 
   // Item visível se: role legada permite (comportamento anterior)
   //              OU  cargo tem a permissão específica (novo PBAC)
-  const itemVisible = (item: { roles: string[]; perm: PermKey | null }) => {
+  const itemVisible = (item: { url: string; roles: string[]; perm: PermKey | null }) => {
     if (loading) return false;
     // perm = null → controlado apenas por role (Admin, Conta, Chat)
-    if (item.perm === null) return !!role && item.roles.includes(role);
+    if (item.perm === null) {
+      if (item.url === "/controle-acesso" || item.url === "/cargos" || item.url === "/departamentos" || item.url === "/configuracoes") return canAction("controle_acesso.administrar") || (!!role && item.roles.includes(role));
+      if (item.url === "/auditoria") return canAction("auditoria.visualizar") || (!!role && item.roles.includes(role));
+      return !!role && item.roles.includes(role);
+    }
+    const actionByLegacyPermission: Partial<Record<PermKey,string>> = {
+      acesso_dashboard:"dashboard.visualizar", acesso_frota:"frota.visualizar", acesso_escalas:"escalas.visualizar",
+      acesso_manutencao:"manutencao.visualizar", acesso_colaboradores:"colaboradores.visualizar", acesso_fundo_fixo:"fundo_fixo.visualizar",
+      acesso_relatorios:"relatorios.visualizar", acesso_sms_dashboard:"sms_dashboard.visualizar", acesso_sms_desvios:"sms_desvios.visualizar",
+      acesso_sms_inspecoes:"sms_inspecoes.visualizar", acesso_sms_apr:"sms_apr.visualizar", acesso_sms_dds:"sms_dds.visualizar",
+      acesso_sms_epis:"sms_epis.visualizar", acesso_sms_treinamentos:"sms_treinamentos.visualizar", acesso_sms_admissao:"sms_admissao.visualizar",
+      acesso_sms_rdo:"sms_rdo.visualizar", acesso_sms_velocidade:"sms_velocidade.visualizar", acesso_efetivo:"efetivo.visualizar",
+      acesso_almoxarifado:"almoxarifado.visualizar", acesso_ferramentas:"ferramentas.visualizar", acesso_cronograma:"cronograma.visualizar",
+      acesso_subcontratadas:"subcontratadas.visualizar", acesso_financeiro:"financeiro.visualizar", acesso_qualidade:"qualidade.visualizar",
+      acesso_comunicados:"comunicados.visualizar", acesso_visitantes:"visitantes.visualizar", acesso_fornecedores:"fornecedores.visualizar",
+      acesso_alojamento:"alojamento.visualizar",
+    };
+    const action = actionByLegacyPermission[item.perm];
+    if (action && canAction(action)) return true;
     // Tenta permissão do cargo primeiro (novo sistema)
     if (permsReady && can(item.perm)) return true;
     // Fallback para role legada (cargos ainda não migrados)

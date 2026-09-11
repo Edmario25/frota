@@ -28,6 +28,7 @@ const routeLabels: Record<string, string> = {
   "/cargos": "Cargos",
   "/configuracoes": "Configurações",
   "/auditoria": "Auditoria do Sistema",
+  "/controle-acesso": "Controle de Acesso",
   "/minhas-informacoes": "Minhas Informações",
   "/chat": "Chat com Motoristas",
 };

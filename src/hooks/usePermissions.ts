@@ -84,6 +84,10 @@ export interface UsePermissionsResult {
   loading: boolean;
   /** true se as permissões vieram do banco com sucesso */
   ready: boolean;
+  /** Verifica uma ação granular do novo controle de acesso (ex.: financeiro.aprovar). */
+  canAction: (permission: string) => boolean;
+  /** Perfis efetivos, incluindo escopo e validade. */
+  accessProfiles: Array<{ id: string; nome: string; scope_type: string; scope_id: string | null; valido_ate: string | null }>;
 }
 
 export function usePermissions(): UsePermissionsResult {
@@ -119,11 +123,29 @@ export function usePermissions(): UsePermissionsResult {
 
   const perms: PermissionsMap = rawPerms ?? DEFAULT_PERMS;
 
+  const { data: effectiveAccess, isLoading: loadingEffective } = useQuery({
+    queryKey: ["effective-access", user?.id],
+    queryFn: async (): Promise<{ permissions: string[]; profiles: UsePermissionsResult["accessProfiles"] }> => {
+      if (!user) return { permissions: [], profiles: [] };
+      const { data, error } = await (supabase as any).rpc("get_effective_access");
+      // Banco ainda sem a migration nova: segue normalmente pelo modelo legado.
+      if (error || !data) return { permissions: [], profiles: [] };
+      return {
+        permissions: Array.isArray(data.permissions) ? data.permissions : [],
+        profiles: Array.isArray(data.profiles) ? data.profiles : [],
+      };
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 2,
+  });
+
   return {
     can:     (key: PermKey) => perms[key] === true,
     perms,
     obraIds,
-    loading: loadingPerms || loadingObras,
+    loading: loadingPerms || loadingObras || loadingEffective,
     ready:   isSuccess,
+    canAction: (permission: string) => effectiveAccess?.permissions.includes(permission) === true,
+    accessProfiles: effectiveAccess?.profiles ?? [],
   };
 }
