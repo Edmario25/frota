@@ -38,6 +38,7 @@ interface Material {
   id: string; nome: string; unidade: string;
   categoria: string | null; codigo_interno: string | null;
   ativo: boolean; descricao: string | null; tipo_item?: "consumo" | "retornavel";
+  apropriacao_custo?: "consumo" | "compra"; categoria_orcamento_id?: string | null;
 }
 interface Estoque {
   id: string; obra_id: string; material_id: string;
@@ -540,7 +541,11 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
                       </TableCell>
                       <TableCell className="text-right text-sm tabular-nums">
                         {Number(e.custo_medio ?? 0) > 0 && e.quantidade > 0
-                          ? (e.quantidade * Number(e.custo_medio)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                          ? <>
+                              {(e.quantidade * Number(e.custo_medio)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                              {e.materiais_catalogo.apropriacao_custo === "compra" &&
+                                <p className="text-[10px] text-muted-foreground" title="Item com custo na compra: este valor já entrou no Orçado x Realizado.">já no custo da obra</p>}
+                            </>
                           : "—"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{e.localizacao ?? "—"}</TableCell>
@@ -1181,20 +1186,39 @@ function CatalogoTab({ materiais, onRefresh, canEdit }: { materiais: Material[];
   const [catFiltro, setCat]     = useState("all");
   const [open,      setOpen]    = useState(false);
   const [editing,   setEditing] = useState<Material | null>(null);
-  const [form, setForm] = useState({ nome:"", descricao:"", unidade:"un", categoria:"", codigo:"", tipo_item:"consumo", ativo:true });
+  const [orcCats, setOrcCats] = useState<{ id: string; nome: string }[]>([]);
+  const vazio = { nome:"", descricao:"", unidade:"un", categoria:"", codigo:"", tipo_item:"consumo", apropriacao_custo:"consumo", categoria_orcamento_id:"", ativo:true };
+  const [form, setForm] = useState(vazio);
   const [saving, setSaving] = useState(false);
 
-  function openNew()  { setEditing(null); setForm({nome:"",descricao:"",unidade:"un",categoria:"",codigo:"",tipo_item:"consumo",ativo:true}); setOpen(true); }
+  useEffect(() => {
+    (supabase as any).from("orcamento_categorias").select("id,nome").eq("ativo", true).order("ordem")
+      .then(({ data }: any) => setOrcCats(data ?? []));
+  }, []);
+
+  // Padrões pelo tipo: consumo vira custo na saída (Materiais); retornável, na compra (Equipamentos)
+  const catPadrao = (tipo: string) => orcCats.find(c => c.nome === (tipo === "retornavel" ? "Equipamentos" : "Materiais"))?.id ?? "";
+  function trocarTipo(tipo: string) {
+    setForm(f => ({ ...f, tipo_item: tipo, apropriacao_custo: tipo === "retornavel" ? "compra" : "consumo", categoria_orcamento_id: catPadrao(tipo) }));
+  }
+
+  function openNew()  { setEditing(null); setForm({ ...vazio, categoria_orcamento_id: catPadrao("consumo") }); setOpen(true); }
   function openEdit(m: Material) {
     setEditing(m);
-    setForm({nome:m.nome,descricao:m.descricao??"",unidade:m.unidade,categoria:m.categoria??"",codigo:m.codigo_interno??"",tipo_item:m.tipo_item??"consumo",ativo:m.ativo});
+    const tipo = m.tipo_item ?? "consumo";
+    setForm({nome:m.nome,descricao:m.descricao??"",unidade:m.unidade,categoria:m.categoria??"",codigo:m.codigo_interno??"",tipo_item:tipo,
+      apropriacao_custo:m.apropriacao_custo ?? (tipo === "retornavel" ? "compra" : "consumo"),
+      categoria_orcamento_id:m.categoria_orcamento_id ?? catPadrao(tipo),ativo:m.ativo});
     setOpen(true);
   }
 
   async function handleSave() {
     if (!form.nome.trim()) { toast.error("Informe o nome do material"); return; }
+    if (editing && editing.apropriacao_custo && editing.apropriacao_custo !== form.apropriacao_custo &&
+        !confirm("A nova regra de custo vale só para as próximas movimentações. O que já foi registrado continua com a regra antiga. Continuar?")) return;
     setSaving(true);
-    const payload = { nome:form.nome.trim(), descricao:form.descricao||null, unidade:form.unidade, categoria:form.categoria||null, codigo_interno:form.codigo||null, tipo_item:form.tipo_item, ativo:form.ativo };
+    const payload = { nome:form.nome.trim(), descricao:form.descricao||null, unidade:form.unidade, categoria:form.categoria||null, codigo_interno:form.codigo||null, tipo_item:form.tipo_item,
+      apropriacao_custo:form.apropriacao_custo, categoria_orcamento_id:form.categoria_orcamento_id||null, ativo:form.ativo };
     const { error } = editing
       ? await (supabase as any).from("materiais_catalogo").update(payload).eq("id", editing.id)
       : await (supabase as any).from("materiais_catalogo").insert([payload]);
@@ -1303,7 +1327,31 @@ function CatalogoTab({ materiais, onRefresh, canEdit }: { materiais: Material[];
               </div>
             </div>
             <div className="space-y-1.5"><Label>Código interno</Label><Input value={form.codigo} onChange={e => setForm(f=>({...f,codigo:e.target.value}))} placeholder="MAT-001" /></div>
-            <div className="space-y-1.5"><Label>Controle do item</Label><Select value={form.tipo_item} onValueChange={v=>setForm(f=>({...f,tipo_item:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="consumo">Consumo — não retorna</SelectItem><SelectItem value="retornavel">Retornável — fica sob responsabilidade</SelectItem></SelectContent></Select><p className="text-xs text-muted-foreground">Ferramentas e equipamentos devem ser classificados como retornáveis.</p></div>
+            <div className="space-y-1.5"><Label>Controle do item</Label><Select value={form.tipo_item} onValueChange={trocarTipo}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="consumo">Consumo — não retorna</SelectItem><SelectItem value="retornavel">Retornável — fica sob responsabilidade</SelectItem></SelectContent></Select><p className="text-xs text-muted-foreground">Ferramentas e equipamentos devem ser classificados como retornáveis.</p></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Vira custo da obra</Label>
+                <Select value={form.apropriacao_custo} onValueChange={v => setForm(f=>({...f,apropriacao_custo:v}))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="consumo">Na saída do estoque</SelectItem>
+                    <SelectItem value="compra">Na compra</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Categoria do orçamento</Label>
+                <Select value={form.categoria_orcamento_id} onValueChange={v => setForm(f=>({...f,categoria_orcamento_id:v}))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>{orcCats.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-1">
+              {form.apropriacao_custo === "compra"
+                ? "O valor pago entra no Orçado x Realizado da obra que comprou. Saídas, devoluções e transferências não geram custo."
+                : "Entra no Orçado x Realizado quando sai do estoque, pelo custo médio. Material parado no estoque não é custo."}
+            </p>
             <div className="flex items-center justify-between rounded-lg border px-4 py-2.5">
               <Label className="cursor-pointer">Material ativo</Label>
               <Switch checked={form.ativo} onCheckedChange={v => setForm(f=>({...f,ativo:v}))} />

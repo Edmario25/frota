@@ -544,20 +544,25 @@ function LancamentosTab({
       (supabase as any).from("v_alojamento_custos_obra").select("*").eq("obra_id", obraId),
       (supabase as any).from("v_almoxarifado_custos_obra").select("*").eq("obra_id", obraId),
     ]);
-    // Consumo de material entra sozinho pelo Almoxarifado, pelo custo médio.
-    // Linhas "sem custo" são saídas de material que nunca teve entrada com
-    // preço: aparecem com valor zero para o gestor saber que falta preço.
+    // Material entra sozinho pelo Almoxarifado: itens de consumo na saída,
+    // pelo custo médio; ferramentas e itens "custo na compra" na entrada, pelo
+    // preço pago. A categoria vem do cadastro do material.
+    // Linhas "sem custo" têm valor zero para o gestor saber que falta preço.
     const categoriaMateriais = categorias.find(c => c.nome === "Materiais");
-    const custosMaterial: Lancamento[] = (almoxarifado.data ?? []).map((l: any) => ({
-      id: `almoxarifado-${l.referencia_id}`,
-      obra_id: l.obra_id, categoria_id: categoriaMateriais?.id ?? "materiais",
-      descricao: l.sem_custo ? `${l.descricao} — sem custo: material sem entrada com preço` : l.descricao,
-      valor: Number(l.valor), data_lancamento: l.data_lancamento,
-      tipo: "almoxarifado", fornecedor: null, nota_fiscal: null,
-      observacoes: "Origem automática: Almoxarifado", cancelado_em: null,
-      motivo_cancelamento: null, referencia_id: l.referencia_id,
-      categoria: { nome: "Materiais", cor: categoriaMateriais?.cor ?? "#f59e0b" },
-    }));
+    const custosMaterial: Lancamento[] = (almoxarifado.data ?? []).map((l: any) => {
+      const cat = categorias.find(c => c.id === l.categoria_id) ?? categoriaMateriais;
+      const faltaPreco = l.apropriacao_custo === "compra" ? "entrada sem preço" : "material sem entrada com preço";
+      return {
+        id: `almoxarifado-${l.referencia_id}`,
+        obra_id: l.obra_id, categoria_id: cat?.id ?? "materiais",
+        descricao: l.sem_custo ? `${l.descricao} — sem custo: ${faltaPreco}` : l.descricao,
+        valor: Number(l.valor), data_lancamento: l.data_lancamento,
+        tipo: "almoxarifado", fornecedor: null, nota_fiscal: null,
+        observacoes: "Origem automática: Almoxarifado", cancelado_em: null,
+        motivo_cancelamento: null, referencia_id: l.referencia_id,
+        categoria: { nome: cat?.nome ?? "Materiais", cor: cat?.cor ?? "#f59e0b" },
+      };
+    });
     const categoriaAlojamento = categorias.find(c => c.nome === "Alojamento");
     const custosAlojamento: Lancamento[] = (alojamento.data ?? []).map((l: any) => ({
       id: `alojamento-${l.origem}-${l.referencia_id}-${l.data_lancamento}`,
