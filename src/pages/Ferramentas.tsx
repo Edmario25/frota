@@ -17,11 +17,12 @@ import { toast } from "sonner";
 import {
   Wrench, Plus, Pencil, RefreshCw, Search, ShieldAlert,
   AlertTriangle, CheckCircle2, MapPin, User, Clock,
-  FileText, Award, ArrowRightLeft, XCircle, Settings,
+  FileText, Award, ArrowRightLeft, XCircle, Settings, DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useFornecedores } from "@/hooks/useFornecedores";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Obra     { id: string; nome: string }
@@ -35,6 +36,13 @@ interface Ferramenta {
   unidade_medicao: "unidade" | "horimetro"; horimetro_atual: number | null;
   status_operacional: "disponivel" | "operando" | "manutencao" | "bloqueado" | "inativo";
   periodicidade_inspecao_dias: number | null; proxima_inspecao: string | null;
+  data_aquisicao: string | null; valor_aquisicao: number | null;
+  regime_financeiro: "proprio" | "alugado" | "comodato";
+  apropriacao_financeira: "compra" | "depreciacao" | "diaria" | "mensal" | "horimetro" | "sem_custo";
+  obra_aquisicao_id: string | null; fornecedor_id: string | null;
+  compra_registrada_almoxarifado: boolean; vida_util_meses: number | null;
+  valor_residual: number | null; valor_diaria: number | null; valor_hora: number | null;
+  valor_mensal: number | null; documento_fiscal: string | null;
   // da view
   obra_atual_nome: string | null; frente_atual: string | null; condicao: string | null;
   data_alocacao: string | null; cert_status: string; proximo_vencimento: string | null;
@@ -180,6 +188,7 @@ export default function Ferramentas() {
               <Award className="h-3.5 w-3.5" /> Certificações
               {(vencidos + aVencer) > 0 && <span className="ml-1 h-4 min-w-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{vencidos + aVencer}</span>}
             </TabsTrigger>
+            <TabsTrigger value="custos" className="rounded-lg gap-1.5"><DollarSign className="h-3.5 w-3.5" /> Custos</TabsTrigger>
           </TabsList>
 
           <TabsContent value="equipamentos">
@@ -191,6 +200,7 @@ export default function Ferramentas() {
           <TabsContent value="certificacoes">
             <CertificacoesTab ferramentas={ferramentas} onRefresh={fetchFerramentas} />
           </TabsContent>
+          <TabsContent value="custos"><CustosTab ferramentas={ferramentas} obras={obras} /></TabsContent>
         </Tabs>
       </div>
     </Layout>
@@ -253,11 +263,12 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
                   <TableHead>Localização atual</TableHead>
                   <TableHead>Condição</TableHead>
                   <TableHead>Certificação</TableHead>
+                  <TableHead>Regra de custo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">Nenhum equipamento encontrado.</TableCell></TableRow>}
+                {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">Nenhum equipamento encontrado.</TableCell></TableRow>}
                 {filtered.map(f => (
                   <TableRow key={f.id} className={f.cert_status === "vencido" ? "bg-red-50/40 dark:bg-red-950/10" : ""}>
                     <TableCell>
@@ -294,6 +305,16 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
                         </p>
                       )}
                     </TableCell>
+                    <TableCell>
+                      <p className="text-xs font-medium capitalize">{(f.apropriacao_financeira ?? "sem_custo").replace("_", " ")}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {f.compra_registrada_almoxarifado ? "Compra via almoxarifado" :
+                          f.apropriacao_financeira === "mensal" ? (f.valor_mensal ?? 0).toLocaleString("pt-BR", {style:"currency",currency:"BRL"}) + "/mês" :
+                          f.apropriacao_financeira === "diaria" ? (f.valor_diaria ?? 0).toLocaleString("pt-BR", {style:"currency",currency:"BRL"}) + "/dia" :
+                          f.apropriacao_financeira === "horimetro" ? (f.valor_hora ?? 0).toLocaleString("pt-BR", {style:"currency",currency:"BRL"}) + "/h" :
+                          f.valor_aquisicao ? f.valor_aquisicao.toLocaleString("pt-BR", {style:"currency",currency:"BRL"}) : "Valor não informado"}
+                      </p>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs rounded-lg"
@@ -314,7 +335,7 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
         </CardContent>
       </Card>
 
-      <EquipamentoModal open={editOpen} onClose={() => setEditOpen(false)} editing={editing} onSaved={onRefresh} />
+      <EquipamentoModal open={editOpen} onClose={() => setEditOpen(false)} editing={editing} obras={obras} onSaved={onRefresh} />
       <AlocacaoModal open={alocOpen} onClose={() => setAlocOpen(false)} obras={obras} employees={employees}
         ferramentas={ferramentas} preselFerr={selFerr} onSaved={onRefresh} />
     </div>
@@ -545,10 +566,55 @@ function CertificacoesTab({ ferramentas, onRefresh }: { ferramentas: Ferramenta[
   );
 }
 
+function CustosTab({ ferramentas, obras }: { ferramentas: Ferramenta[]; obras: Obra[] }) {
+  const { fornecedores } = useFornecedores();
+  const [rows, setRows] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const vazio = { ferramenta_id: "", obra_id: "", tipo: "manutencao", data_custo: format(new Date(), "yyyy-MM-dd"), descricao: "", quantidade: "1", valor_unitario: "", fornecedor_id: "", documento_fiscal: "" };
+  const [formCusto, setFormCusto] = useState(vazio);
+
+  const load = useCallback(async () => {
+    const { data } = await (supabase as any).from("v_ferramentas_custos_obra")
+      .select("*").order("data_lancamento", { ascending: false });
+    setRows(data ?? []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  async function salvar() {
+    if (!formCusto.ferramenta_id || !formCusto.obra_id || !formCusto.descricao.trim() || !(Number(formCusto.valor_unitario) >= 0)) {
+      toast.error("Preencha equipamento, obra, descrição e valor"); return;
+    }
+    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("ferramentas_custos").insert({ ...formCusto,
+      quantidade: Number(formCusto.quantidade), valor_unitario: Number(formCusto.valor_unitario),
+      fornecedor_id: formCusto.fornecedor_id || null, documento_fiscal: formCusto.documento_fiscal || null,
+      descricao: formCusto.descricao.trim(), criado_por: user?.id });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Custo registrado e enviado ao Orçado x Realizado"); setOpen(false); setFormCusto(vazio); load();
+  }
+
+  const total = rows.reduce((s, r) => s + Number(r.valor), 0);
+  return <div className="mt-4 space-y-4">
+    <Card className="border-0 shadow-medium rounded-2xl"><CardHeader className="pb-3"><div className="flex items-center justify-between"><div><CardTitle className="text-base">Custos de ferramentas e equipamentos</CardTitle><CardDescription>Manutenção, certificação, inspeção, reparo, perda e uso por horímetro.</CardDescription></div><Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />Registrar custo</Button></div></CardHeader>
+      <CardContent><div className="mb-3 text-sm">Total apropriado: <strong>{total.toLocaleString("pt-BR", {style:"currency",currency:"BRL"})}</strong></div><Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Descrição</TableHead><TableHead>Obra</TableHead><TableHead>Origem</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{rows.map(r => <TableRow key={`${r.referencia_id}-${r.data_lancamento}`}><TableCell>{format(parseISO(r.data_lancamento),"dd/MM/yyyy")}</TableCell><TableCell>{r.descricao}</TableCell><TableCell>{obras.find(o=>o.id===r.obra_id)?.nome ?? "—"}</TableCell><TableCell className="capitalize">{r.origem.replace("_"," ")}</TableCell><TableCell className="text-right font-medium">{Number(r.valor).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</TableCell></TableRow>)}{!rows.length && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum custo apropriado.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>Registrar custo do equipamento</DialogTitle><DialogDescription>O valor será apropriado diretamente à obra selecionada.</DialogDescription></DialogHeader><div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3"><div><Label>Equipamento *</Label><Select value={formCusto.ferramenta_id} onValueChange={v=>setFormCusto(x=>({...x,ferramenta_id:v}))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{ferramentas.map(f=><SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent></Select></div><div><Label>Obra *</Label><Select value={formCusto.obra_id} onValueChange={v=>setFormCusto(x=>({...x,obra_id:v}))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{obras.map(o=><SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></div></div>
+      <div className="grid grid-cols-2 gap-3"><div><Label>Tipo</Label><Select value={formCusto.tipo} onValueChange={v=>setFormCusto(x=>({...x,tipo:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["manutencao","certificacao","inspecao","reparo","perda","baixa","uso_horimetro","outro"].map(v=><SelectItem key={v} value={v}>{v.replace("_"," ")}</SelectItem>)}</SelectContent></Select></div><div><Label>Data</Label><Input type="date" value={formCusto.data_custo} onChange={e=>setFormCusto(x=>({...x,data_custo:e.target.value}))} /></div></div>
+      <div><Label>Descrição *</Label><Input value={formCusto.descricao} onChange={e=>setFormCusto(x=>({...x,descricao:e.target.value}))} /></div>
+      <div className="grid grid-cols-2 gap-3"><div><Label>Quantidade</Label><Input type="number" min="0.001" step="0.001" value={formCusto.quantidade} onChange={e=>setFormCusto(x=>({...x,quantidade:e.target.value}))} /></div><div><Label>Valor unitário *</Label><Input type="number" min="0" step="0.01" value={formCusto.valor_unitario} onChange={e=>setFormCusto(x=>({...x,valor_unitario:e.target.value}))} /></div></div>
+      <div className="grid grid-cols-2 gap-3"><div><Label>Fornecedor</Label><Select value={formCusto.fornecedor_id || "__none__"} onValueChange={v=>setFormCusto(x=>({...x,fornecedor_id:v==="__none__"?"":v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">Não informado</SelectItem>{fornecedores.filter(f=>f.status==="ativo").map(f=><SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent></Select></div><div><Label>Documento fiscal</Label><Input value={formCusto.documento_fiscal} onChange={e=>setFormCusto(x=>({...x,documento_fiscal:e.target.value}))} /></div></div>
+    </div><DialogFooter><Button variant="outline" onClick={()=>setOpen(false)}>Cancelar</Button><Button disabled={saving} onClick={salvar}>{saving?"Salvando...":"Salvar custo"}</Button></DialogFooter></DialogContent></Dialog>
+  </div>;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Modal: Cadastro / Edição de Equipamento
 // ═══════════════════════════════════════════════════════════════
-function EquipamentoModal({ open, onClose, editing, onSaved }: { open: boolean; onClose: () => void; editing: Ferramenta | null; onSaved: () => void }) {
+function EquipamentoModal({ open, onClose, editing, obras, onSaved }: { open: boolean; onClose: () => void; editing: Ferramenta | null; obras: Obra[]; onSaved: () => void }) {
+  const { fornecedores } = useFornecedores();
   const [nome, setNome]             = useState("");
   const [descricao, setDesc]        = useState("");
   const [categoria, setCategoria]   = useState("");
@@ -565,6 +631,7 @@ function EquipamentoModal({ open, onClose, editing, onSaved }: { open: boolean; 
   const [exigeCert, setExigeCert]   = useState(false);
   const [ativo, setAtivo]           = useState(true);
   const [saving, setSaving]         = useState(false);
+  const [fin, setFin] = useState({ regime: "proprio", apropriacao: "depreciacao", obraId: "", fornecedorId: "", data: "", valor: "", vidaUtil: "60", residual: "0", diaria: "", hora: "", mensal: "", documento: "", veioAlmox: false });
 
   useEffect(() => {
     if (open && editing) {
@@ -575,17 +642,31 @@ function EquipamentoModal({ open, onClose, editing, onSaved }: { open: boolean; 
       setUnidadeMedicao(editing.unidade_medicao ?? "unidade"); setHorimetro(editing.horimetro_atual?.toString() ?? "");
       setStatusOperacional(editing.status_operacional ?? "disponivel"); setPeriodicidade(editing.periodicidade_inspecao_dias?.toString() ?? "");
       setExigeCert(editing.exige_certificacao); setAtivo(editing.ativo);
+      setFin({ regime: editing.regime_financeiro ?? "proprio", apropriacao: editing.apropriacao_financeira ?? "depreciacao", obraId: editing.obra_aquisicao_id ?? "", fornecedorId: editing.fornecedor_id ?? "", data: editing.data_aquisicao ?? "", valor: editing.valor_aquisicao?.toString() ?? "", vidaUtil: editing.vida_util_meses?.toString() ?? "60", residual: editing.valor_residual?.toString() ?? "0", diaria: editing.valor_diaria?.toString() ?? "", hora: editing.valor_hora?.toString() ?? "", mensal: editing.valor_mensal?.toString() ?? "", documento: editing.documento_fiscal ?? "", veioAlmox: editing.compra_registrada_almoxarifado ?? false });
     } else if (open) {
       setNome(""); setDesc(""); setCategoria(""); setSerie(""); setFabricante(""); setModelo(""); setCapacidade(""); setExigeCert(false); setAtivo(true);
       setTipoItem("equipamento"); setPatrimonio(""); setUnidadeMedicao("unidade"); setHorimetro(""); setStatusOperacional("disponivel"); setPeriodicidade("");
+      setFin({ regime: "proprio", apropriacao: "depreciacao", obraId: "", fornecedorId: "", data: "", valor: "", vidaUtil: "60", residual: "0", diaria: "", hora: "", mensal: "", documento: "", veioAlmox: false });
     }
   }, [open, editing]);
 
   async function handleSave() {
     if (!nome.trim()) { toast.error("Informe o nome do equipamento"); return; }
+    if (["compra", "depreciacao"].includes(fin.apropriacao) && (!fin.data || !(Number(fin.valor) > 0))) { toast.error("Informe data e valor da aquisição"); return; }
+    if (fin.apropriacao === "depreciacao" && !(Number(fin.vidaUtil) > 0)) { toast.error("Informe a vida útil para calcular a depreciação"); return; }
+    if (fin.apropriacao === "mensal" && !(Number(fin.mensal) > 0)) { toast.error("Informe o valor mensal da locação"); return; }
+    if (fin.apropriacao === "diaria" && !(Number(fin.diaria) > 0)) { toast.error("Informe o valor da diária"); return; }
+    if (fin.apropriacao === "horimetro" && !(Number(fin.hora) > 0)) { toast.error("Informe o valor por hora"); return; }
+    if (fin.apropriacao === "compra" && !fin.veioAlmox && !fin.obraId) { toast.error("Selecione a obra que receberá o custo da compra"); return; }
     setSaving(true);
     try {
-      const payload = { nome: nome.trim(), descricao: descricao || null, categoria: categoria || null, numero_serie: serie || null, fabricante: fabricante || null, modelo: modelo || null, capacidade: capacidade || null, exige_certificacao: exigeCert, ativo, tipo_item: tipoItem, codigo_patrimonio: patrimonio || null, unidade_medicao: unidadeMedicao, horimetro_atual: unidadeMedicao === "horimetro" ? Number(horimetro || 0) : null, status_operacional: statusOperacional, periodicidade_inspecao_dias: periodicidade ? Number(periodicidade) : null };
+      const payload = { nome: nome.trim(), descricao: descricao || null, categoria: categoria || null, numero_serie: serie || null, fabricante: fabricante || null, modelo: modelo || null, capacidade: capacidade || null, exige_certificacao: exigeCert, ativo, tipo_item: tipoItem, codigo_patrimonio: patrimonio || null, unidade_medicao: unidadeMedicao, horimetro_atual: unidadeMedicao === "horimetro" ? Number(horimetro || 0) : null, status_operacional: statusOperacional, periodicidade_inspecao_dias: periodicidade ? Number(periodicidade) : null,
+        regime_financeiro: fin.regime, apropriacao_financeira: fin.apropriacao, obra_aquisicao_id: fin.obraId || null,
+        fornecedor_id: fin.fornecedorId || null, data_aquisicao: fin.data || null, valor_aquisicao: fin.valor ? Number(fin.valor) : null,
+        vida_util_meses: fin.vidaUtil ? Number(fin.vidaUtil) : null, valor_residual: Number(fin.residual || 0),
+        valor_diaria: fin.diaria ? Number(fin.diaria) : null, valor_hora: fin.hora ? Number(fin.hora) : null,
+        valor_mensal: fin.mensal ? Number(fin.mensal) : null, documento_fiscal: fin.documento || null,
+        compra_registrada_almoxarifado: fin.veioAlmox };
       const { error } = editing
         ? await (supabase as any).from("ferramentas_catalogo").update(payload).eq("id", editing.id)
         : await (supabase as any).from("ferramentas_catalogo").insert(payload);
@@ -630,6 +711,26 @@ function EquipamentoModal({ open, onClose, editing, onSaved }: { open: boolean; 
             <div className="space-y-1.5"><Label>Inspeção a cada</Label><Input type="number" min="1" value={periodicidade} onChange={e => setPeriodicidade(e.target.value)} placeholder="dias" className="rounded-xl" /></div>
           </div>
           <div className="space-y-1.5"><Label>Status operacional</Label><Select value={statusOperacional} onValueChange={setStatusOperacional}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPERACIONAL.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="rounded-xl border p-4 space-y-3">
+            <div><p className="font-semibold text-sm">Gestão financeira</p><p className="text-xs text-muted-foreground">Define como o custo será apropriado automaticamente às obras.</p></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label>Regime</Label><Select value={fin.regime} onValueChange={v => setFin(x => ({...x, regime:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="proprio">Próprio</SelectItem><SelectItem value="alugado">Alugado</SelectItem><SelectItem value="comodato">Comodato</SelectItem></SelectContent></Select></div>
+              <div className="space-y-1.5"><Label>Apropriação do custo</Label><Select value={fin.apropriacao} onValueChange={v => setFin(x => ({...x, apropriacao:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="compra">Compra integral</SelectItem><SelectItem value="depreciacao">Depreciação mensal</SelectItem><SelectItem value="mensal">Locação mensal</SelectItem><SelectItem value="diaria">Locação diária</SelectItem><SelectItem value="horimetro">Por horímetro</SelectItem><SelectItem value="sem_custo">Sem custo</SelectItem></SelectContent></Select></div>
+              <div className="space-y-1.5"><Label>Obra da aquisição</Label><Select value={fin.obraId || "__none__"} onValueChange={v => setFin(x => ({...x, obraId:v === "__none__" ? "" : v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">Não definida</SelectItem>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-1.5"><Label>Fornecedor</Label><Select value={fin.fornecedorId || "__none__"} onValueChange={v => setFin(x => ({...x, fornecedorId:v === "__none__" ? "" : v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">Não informado</SelectItem>{fornecedores.filter(f => f.status === "ativo").map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-1.5"><Label>Data de aquisição/início</Label><Input type="date" value={fin.data} onChange={e => setFin(x => ({...x,data:e.target.value}))} /></div>
+              <div className="space-y-1.5"><Label>Documento fiscal</Label><Input value={fin.documento} onChange={e => setFin(x => ({...x,documento:e.target.value}))} /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5"><Label>Valor aquisição</Label><Input type="number" min="0" step="0.01" value={fin.valor} onChange={e => setFin(x => ({...x,valor:e.target.value}))} /></div>
+              <div className="space-y-1.5"><Label>Vida útil (meses)</Label><Input type="number" min="1" value={fin.vidaUtil} onChange={e => setFin(x => ({...x,vidaUtil:e.target.value}))} /></div>
+              <div className="space-y-1.5"><Label>Valor residual</Label><Input type="number" min="0" step="0.01" value={fin.residual} onChange={e => setFin(x => ({...x,residual:e.target.value}))} /></div>
+              <div className="space-y-1.5"><Label>Diária</Label><Input type="number" min="0" step="0.01" value={fin.diaria} onChange={e => setFin(x => ({...x,diaria:e.target.value}))} /></div>
+              <div className="space-y-1.5"><Label>Valor/hora</Label><Input type="number" min="0" step="0.01" value={fin.hora} onChange={e => setFin(x => ({...x,hora:e.target.value}))} /></div>
+              <div className="space-y-1.5"><Label>Mensalidade</Label><Input type="number" min="0" step="0.01" value={fin.mensal} onChange={e => setFin(x => ({...x,mensal:e.target.value}))} /></div>
+            </div>
+            <label className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-3"><span><span className="block text-sm font-medium">Compra já registrada no almoxarifado</span><span className="block text-xs text-muted-foreground">Impede contabilização duplicada da aquisição.</span></span><Switch checked={fin.veioAlmox} onCheckedChange={v => setFin(x => ({...x,veioAlmox:v}))} /></label>
+          </div>
           <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
             <div>
               <Label className="cursor-pointer">Exige certificação de segurança</Label>

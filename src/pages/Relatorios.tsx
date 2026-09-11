@@ -1008,16 +1008,17 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
         const custoMaoObra = somaAutomatico("folha");
         const custoMateriais = somaAutomatico("almoxarifado");
         const custoSubcontratadas = somaAutomatico("subcontratada");
+        const custoEquipamentos = somaAutomatico("equipamento");
         const custoManual = custosManuais.filter((c: any) => c.obra_id === obra.id)
           .reduce((s: number, c: any) => s + Number(c.valor ?? 0), 0);
 
         const total = custoManut + custoComb + custoLav + custoBorr + custoAcess + custoMultas + custoAlug + custoFundo + custoAlojamento
-          + custoMaoObra + custoMateriais + custoSubcontratadas + custoManual;
+          + custoMaoObra + custoMateriais + custoSubcontratadas + custoEquipamentos + custoManual;
 
         return {
           ...obra, empCount: empIds.length, vCount: vIds.length,
           custoManut, custoComb, custoLav, custoBorr, custoAcess, custoMultas, custoAlug, custoFundo, custoAlojamento,
-          custoMaoObra, custoMateriais, custoSubcontratadas, custoManual, total,
+          custoMaoObra, custoMateriais, custoSubcontratadas, custoEquipamentos, custoManual, total,
         };
       }).sort((a: any, b: any) => b.total - a.total);
 
@@ -1039,13 +1040,14 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
   const totalMaoObra = rows.reduce((s, r) => s + r.custoMaoObra, 0);
   const totalMateriais = rows.reduce((s, r) => s + r.custoMateriais, 0);
   const totalSubcontratadas = rows.reduce((s, r) => s + r.custoSubcontratadas, 0);
+  const totalEquipamentos = rows.reduce((s, r) => s + r.custoEquipamentos, 0);
   const totalManual = rows.reduce((s, r) => s + r.custoManual, 0);
 
   const exportCSV = () => {
-    const header = ["Obra","Status","Func.","Veíc.","Mão de obra","Materiais","Subcontratadas","Manutenção","Combustível","Lavagem","Borracharia","Acessórios","Multas","Aluguel de veículos","Fundo Fixo","Alojamento","Outros lançamentos","Total"];
+    const header = ["Obra","Status","Func.","Veíc.","Mão de obra","Materiais","Subcontratadas","Equipamentos","Manutenção","Combustível","Lavagem","Borracharia","Acessórios","Multas","Aluguel de veículos","Fundo Fixo","Alojamento","Outros lançamentos","Total"];
     const data = rows.map(r => [
       r.nome, r.status, r.empCount, r.vCount,
-      fmt(r.custoMaoObra), fmt(r.custoMateriais), fmt(r.custoSubcontratadas), fmt(r.custoManut), fmt(r.custoComb), fmt(r.custoLav),
+      fmt(r.custoMaoObra), fmt(r.custoMateriais), fmt(r.custoSubcontratadas), fmt(r.custoEquipamentos), fmt(r.custoManut), fmt(r.custoComb), fmt(r.custoLav),
       fmt(r.custoBorr), fmt(r.custoAcess), fmt(r.custoMultas),
       fmt(r.custoAlug), fmt(r.custoFundo), fmt(r.custoAlojamento), fmt(r.custoManual), fmt(r.total),
     ]);
@@ -1073,6 +1075,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
             { label: "Mão de obra",  val: totalMaoObra, color: "text-blue-700" },
             { label: "Materiais", val: totalMateriais, color: "text-yellow-700" },
             { label: "Subcontratadas", val: totalSubcontratadas, color: "text-violet-700" },
+            { label: "Equipamentos", val: totalEquipamentos, color: "text-emerald-700" },
             { label: "Manutenção",   val: totalManut,  color: "text-amber-600"   },
             { label: "Combustível",  val: totalComb,   color: "text-blue-600"    },
             { label: "Lavagem",      val: totalLav,    color: "text-teal-600"    },
@@ -1106,6 +1109,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                   <TableHead className="text-right">Mão obra</TableHead>
                   <TableHead className="text-right">Materiais</TableHead>
                   <TableHead className="text-right">Subcontr.</TableHead>
+                  <TableHead className="text-right">Equip.</TableHead>
                   <TableHead className="text-right">Manut.</TableHead>
                   <TableHead className="text-right">Comb.</TableHead>
                   <TableHead className="text-right">Lav.</TableHead>
@@ -1128,6 +1132,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                     <TableCell className="text-right text-sm text-blue-700">{fmt(r.custoMaoObra)}</TableCell>
                     <TableCell className="text-right text-sm text-yellow-700">{fmt(r.custoMateriais)}</TableCell>
                     <TableCell className="text-right text-sm text-violet-700">{fmt(r.custoSubcontratadas)}</TableCell>
+                    <TableCell className="text-right text-sm text-emerald-700">{fmt(r.custoEquipamentos)}</TableCell>
                     <TableCell className="text-right text-sm text-amber-700">{fmt(r.custoManut)}</TableCell>
                     <TableCell className="text-right text-sm text-blue-700">{fmt(r.custoComb)}</TableCell>
                     <TableCell className="text-right text-sm text-teal-700">{fmt(r.custoLav)}</TableCell>
@@ -1147,6 +1152,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                     <TableCell className="text-right text-sm text-blue-700">{fmt(totalMaoObra)}</TableCell>
                     <TableCell className="text-right text-sm text-yellow-700">{fmt(totalMateriais)}</TableCell>
                     <TableCell className="text-right text-sm text-violet-700">{fmt(totalSubcontratadas)}</TableCell>
+                    <TableCell className="text-right text-sm text-emerald-700">{fmt(totalEquipamentos)}</TableCell>
                     <TableCell className="text-right text-sm text-amber-700">{fmt(totalManut)}</TableCell>
                     <TableCell className="text-right text-sm text-blue-700">{fmt(totalComb)}</TableCell>
                     <TableCell className="text-right text-sm text-teal-700">{fmt(totalLav)}</TableCell>
@@ -1162,7 +1168,7 @@ function RelatorioCustoObra({ filters, hasFullAccess, userObraId }: ReportProps)
                 )}
                 {rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={17} className="text-center py-10 text-muted-foreground">
+                    <TableCell colSpan={18} className="text-center py-10 text-muted-foreground">
                       <Building2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       Nenhum dado encontrado para o período
                     </TableCell>
