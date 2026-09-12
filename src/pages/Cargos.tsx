@@ -68,19 +68,19 @@ const Cargos = () => {
         {/* Stats */}
         <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
           {[
-            { label: "Total de Cargos", value: cargos.length, color: "text-primary" },
+            { label: "Total de cargos", value: cargos.length, color: "text-primary" },
             {
-              label: "Funcionários",
+              label: "Base operacional",
               value: cargos.filter((c) => c.nivel_acesso === "funcionario").length,
               color: "text-emerald-600",
             },
             {
-              label: "Gest. de Obras",
+              label: "Gestão de obra",
               value: cargos.filter((c) => c.nivel_acesso === "gestor_obra").length,
               color: "text-amber-600",
             },
             {
-              label: "Gest. Contratos",
+              label: "Gestão contratual",
               value: cargos.filter((c) => c.nivel_acesso === "gestor_contrato").length,
               color: "text-violet-600",
             },
@@ -111,7 +111,7 @@ const Cargos = () => {
                 <TableHead>Cargo</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Nível Hier.</TableHead>
-                <TableHead>Classificação</TableHead>
+                <TableHead>Perfil inicial sugerido</TableHead>
                 <TableHead className="w-[90px]">Ações</TableHead>
               </TableRow>
             </TableHeader>

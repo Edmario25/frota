@@ -804,11 +804,7 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
   async function handleAprovar(req: Requisicao) {
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any)
-        .from("requisicoes_compra")
-        .update({ status: "aprovada", aprovado_por: user?.id, motivo_rejeicao: null })
-        .eq("id", req.id);
+      const { error } = await (supabase as any).rpc("processar_requisicao_compra", { p_id:req.id,p_aprovar:true,p_motivo:null });
       if (error) throw error;
       toast.success(`✅ Requisição ${req.numero_req ?? ""} aprovada!`);
       fetchReqs(); onPendentesChange();
@@ -821,11 +817,7 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
     if (!motivoRej.trim()) { toast.error("Informe o motivo da rejeição"); return; }
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any)
-        .from("requisicoes_compra")
-        .update({ status: "rejeitada", aprovado_por: user?.id, motivo_rejeicao: motivoRej.trim() })
-        .eq("id", rejDialog.id);
+      const { error } = await (supabase as any).rpc("processar_requisicao_compra", { p_id:rejDialog.id,p_aprovar:false,p_motivo:motivoRej.trim() });
       if (error) throw error;
       toast.success("Requisição rejeitada.");
       setRejDialog(null); setMotivoRej("");
@@ -1700,7 +1692,11 @@ function OrdemCompraTab({ obras, obraId, setObraId, materiais, fornecedores, can
 
   async function updateStatus(id: string, status: string) {
     setSaving(true);
-    const { error } = await (supabase as any).from("ordens_compra").update({ status }).eq("id", id);
+    const acao=status==="aguardando_aprovacao"?"enviar":status==="aprovada"?"aprovar":status==="rejeitada"?"rejeitar":"cancelar";
+    const exigeMotivo=acao==="rejeitar"||acao==="cancelar";
+    const motivo=exigeMotivo?window.prompt(acao==="rejeitar"?"Motivo da rejeição":"Motivo do cancelamento"):null;
+    if(exigeMotivo&&!motivo?.trim()){setSaving(false);return}
+    const { error } = await (supabase as any).rpc("processar_ordem_compra",{p_id:id,p_acao:acao,p_motivo:motivo});
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Status atualizado!"); fetchOcs();
@@ -1720,6 +1716,9 @@ function OrdemCompraTab({ obras, obraId, setObraId, materiais, fornecedores, can
 
   const STATUS_OC: Record<string, { label: string; cls: string }> = {
     rascunho: { label: "Rascunho", cls: "bg-slate-100 text-slate-600 border-slate-200" },
+    aguardando_aprovacao:{label:"Aguardando aprovação",cls:"bg-amber-100 text-amber-700 border-amber-200"},
+    aprovada:{label:"Aprovada",cls:"bg-emerald-100 text-emerald-700 border-emerald-200"},
+    rejeitada:{label:"Rejeitada",cls:"bg-red-100 text-red-700 border-red-200"},
     enviada:  { label: "Enviada",  cls: "bg-blue-100 text-blue-700 border-blue-200" },
     recebida: { label: "Recebida", cls: "bg-green-100 text-green-700 border-green-200" },
     cancelada:{ label: "Cancelada",cls: "bg-red-100 text-red-700 border-red-200" },
@@ -1801,17 +1800,18 @@ function OrdemCompraTab({ obras, obraId, setObraId, materiais, fornecedores, can
                 </Button>
                 {canEdit && oc.status === "rascunho" && (
                   <Button size="sm" variant="outline" className="gap-1 h-7 text-xs text-blue-600 border-blue-300"
-                    onClick={() => updateStatus(oc.id, "enviada")} disabled={saving}>
-                    <Send className="h-3 w-3" /> Marcar Enviada
+                    onClick={() => updateStatus(oc.id, "aguardando_aprovacao")} disabled={saving}>
+                    <Send className="h-3 w-3" /> Enviar para aprovação
                   </Button>
                 )}
-                {canEdit && oc.status === "enviada" && (
+                {canEdit && oc.status === "aguardando_aprovacao" && <><Button size="sm" className="h-7 text-xs" onClick={()=>updateStatus(oc.id,"aprovada")} disabled={saving}><CheckCircle2 className="mr-1 h-3 w-3"/>Aprovar</Button><Button size="sm" variant="outline" className="h-7 text-xs text-red-600" onClick={()=>updateStatus(oc.id,"rejeitada")} disabled={saving}>Rejeitar</Button></>}
+                {canEdit && (oc.status === "aprovada" || oc.status === "enviada") && (
                   <Button size="sm" variant="outline" className="gap-1 h-7 text-xs text-green-600 border-green-300"
                     onClick={() => receberNoEstoque(oc)} disabled={saving}>
                     <CheckCircle2 className="h-3 w-3" /> Receber no estoque
                   </Button>
                 )}
-                {canEdit && (oc.status === "rascunho" || oc.status === "enviada") && (
+                {canEdit && (oc.status === "rascunho" || oc.status === "aguardando_aprovacao" || oc.status === "rejeitada") && (
                   <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-red-500 ml-auto"
                     onClick={() => updateStatus(oc.id, "cancelada")} disabled={saving}>
                     <Ban className="h-3 w-3" /> Cancelar

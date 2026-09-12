@@ -16,9 +16,8 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { PhotoUpload } from "@/components/ui/photo-upload";
-import { ShieldCheck, Shield, User, Info, KeyRound, ChevronDown, ChevronUp, Smartphone, HardHat, ClipboardList, Package } from "lucide-react";
+import { KeyRound, ChevronDown, ChevronUp, Smartphone, HardHat, ClipboardList, Package } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCargos } from "@/hooks/useCargos";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
@@ -29,12 +28,6 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Employee    = Database['public']['Tables']['employees']['Row'];
 type EmployeeInsert = Database['public']['Tables']['employees']['Insert'];
-
-const nivelAcessoConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  funcionario:     { label: "Funcionário",        color: "bg-emerald-100 text-emerald-700", icon: User },
-  gestor_obra:     { label: "Gestor de Obras",     color: "bg-amber-100 text-amber-700",    icon: Shield },
-  gestor_contrato: { label: "Gestor de Contratos", color: "bg-violet-100 text-violet-700",  icon: ShieldCheck },
-};
 
 const schema = z.object({
   nome:                  z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -65,7 +58,6 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
   const [isSubmitting, setIsSubmitting]     = useState(false);
   const [photoUrl, setPhotoUrl]             = useState("");
   const [obras, setObras]                   = useState<any[]>([]);
-  const [cargoAcesso, setCargoAcesso]       = useState<string | null>(null);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [newPassword, setNewPassword]       = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -89,15 +81,6 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
       acesso_app_almoxarifado: false,
     },
   });
-
-  const selectedCargoId = form.watch("cargo_id");
-
-  // Quando cargo muda, busca o nivel_acesso dele
-  useEffect(() => {
-    if (!selectedCargoId) { setCargoAcesso(null); return; }
-    const cargo = cargos.find((c) => c.id === selectedCargoId);
-    setCargoAcesso(cargo?.nivel_acesso ?? null);
-  }, [selectedCargoId, cargos]);
 
   // Carrega obras
   useEffect(() => {
@@ -232,8 +215,6 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
   };
 
   const isEdit = !!employee;
-  const acessoCfg = cargoAcesso ? nivelAcessoConfig[cargoAcesso] : null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -548,24 +529,9 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
                 />
               </div>
 
-              {/* Hint de permissão derivada do cargo */}
-              {acessoCfg ? (
-                <div className="mt-2 rounded-lg bg-muted/50 border border-border/50 p-2.5 flex items-center gap-2">
-                  <Info className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                  <span className="text-xs text-muted-foreground flex-1">
-                    Permissão definida pelo cargo selecionado:
-                  </span>
-                  <Badge className={`${acessoCfg.color} border-0 text-xs`}>
-                    <acessoCfg.icon className="h-3 w-3 mr-1" />
-                    {acessoCfg.label}
-                  </Badge>
-                </div>
-              ) : (
-                <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  A permissão de acesso é definida automaticamente pelo cargo
-                </p>
-              )}
+              <p className="mt-2 flex items-center gap-1.5 rounded-lg border bg-muted/40 p-2.5 text-xs text-muted-foreground">
+                <KeyRound className="h-3.5 w-3.5" /> Cargo e setor são dados organizacionais. As permissões são atribuídas em Controle de Acesso.
+              </p>
             </div>
 
             {/* Seção: Vínculo e Escala */}
