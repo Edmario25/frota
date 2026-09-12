@@ -84,11 +84,30 @@ export interface UsePermissionsResult {
   loading: boolean;
   /** true se as permissões vieram do banco com sucesso */
   ready: boolean;
-  /** Verifica uma ação granular do novo controle de acesso (ex.: financeiro.aprovar). */
+  /** A ação existe em algum escopo (ex.: para abrir a página). Não diz ONDE vale. */
   canAction: (permission: string) => boolean;
+  /**
+   * A ação vale no alvo, pela mesma regra do banco (pode()): concessão da
+   * empresa, ou da obra informada. Sem obra, só concessões da empresa valem.
+   */
+  pode: (permission: string, alvo?: { obraId?: string | null }) => boolean;
+  /** Obras em que a ação vale; `todas` quando a concessão é da empresa. */
+  obrasCom: (permission: string) => { todas: boolean; ids: string[] };
   /** Perfis efetivos, incluindo escopo e validade. */
   accessProfiles: Array<{ id: string; nome: string; scope_type: string; scope_id: string | null; valido_ate: string | null }>;
 }
+
+type Grant = { chave: string; scope_type: string; scope_id: string | null };
+type EffectiveAccess = {
+  permissions: string[];
+  grants: Grant[];
+  denies: Grant[];
+  profiles: UsePermissionsResult["accessProfiles"];
+};
+const EMPTY_ACCESS: EffectiveAccess = { permissions: [], grants: [], denies: [], profiles: [] };
+
+const cobreObra = (g: Grant, obraId?: string | null) =>
+  g.scope_type === "empresa" || (!!obraId && g.scope_type === "obra" && g.scope_id === obraId);
 
 export function usePermissions(): UsePermissionsResult {
   const { user } = useAuth();
@@ -125,19 +144,37 @@ export function usePermissions(): UsePermissionsResult {
 
   const { data: effectiveAccess, isLoading: loadingEffective } = useQuery({
     queryKey: ["effective-access", user?.id],
-    queryFn: async (): Promise<{ permissions: string[]; profiles: UsePermissionsResult["accessProfiles"] }> => {
-      if (!user) return { permissions: [], profiles: [] };
+    queryFn: async (): Promise<EffectiveAccess> => {
+      if (!user) return EMPTY_ACCESS;
       const { data, error } = await (supabase as any).rpc("get_effective_access");
       // Banco ainda sem a migration nova: segue normalmente pelo modelo legado.
-      if (error || !data) return { permissions: [], profiles: [] };
+      if (error || !data) return EMPTY_ACCESS;
+      const list = (v: unknown) => (Array.isArray(v) ? v : []);
       return {
-        permissions: Array.isArray(data.permissions) ? data.permissions : [],
-        profiles: Array.isArray(data.profiles) ? data.profiles : [],
+        permissions: list(data.permissions),
+        grants: list(data.grants),
+        denies: list(data.denies),
+        profiles: list(data.profiles),
       };
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 2,
   });
+
+  const access = effectiveAccess ?? EMPTY_ACCESS;
+
+  const pode = (permission: string, alvo?: { obraId?: string | null }) =>
+    access.grants.some(g => g.chave === permission && cobreObra(g, alvo?.obraId)) &&
+    !access.denies.some(d => d.chave === permission && cobreObra(d, alvo?.obraId));
+
+  const obrasCom = (permission: string) => {
+    const grants = access.grants.filter(g => g.chave === permission);
+    const negadas = new Set(access.denies.filter(d => d.chave === permission && d.scope_type === "obra").map(d => d.scope_id));
+    return {
+      todas: grants.some(g => g.scope_type === "empresa"),
+      ids: grants.filter(g => g.scope_type === "obra" && g.scope_id && !negadas.has(g.scope_id)).map(g => g.scope_id!),
+    };
+  };
 
   return {
     can:     (key: PermKey) => perms[key] === true,
@@ -145,7 +182,9 @@ export function usePermissions(): UsePermissionsResult {
     obraIds,
     loading: loadingPerms || loadingObras || loadingEffective,
     ready:   isSuccess,
-    canAction: (permission: string) => effectiveAccess?.permissions.includes(permission) === true,
-    accessProfiles: effectiveAccess?.profiles ?? [],
+    canAction: (permission: string) => access.permissions.includes(permission),
+    pode,
+    obrasCom,
+    accessProfiles: access.profiles,
   };
 }

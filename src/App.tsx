@@ -515,7 +515,7 @@ const App = () => (
             } />
             <Route path="/controle-acesso" element={
               <ProtectedRoute>
-                <PermissionProtectedRoute permission="controle_acesso.administrar" legacyRoles={['admin']}>
+                <PermissionProtectedRoute permission="controle_acesso.administrar" legacyRoles={['admin','gestor_contrato','gestor_frota']}>
                   <ControleAcesso />
                 </PermissionProtectedRoute>
               </ProtectedRoute>
