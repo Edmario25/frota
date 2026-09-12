@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useVehicleKmCycles } from "@/hooks/useVehicleKmCycles";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUserObra } from "@/hooks/useUserObra";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getVehicleIdsByObra } from "@/utils/obraFilters";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -20,23 +21,29 @@ export const useVehicles = () => {
   // Renova ciclos automaticamente ao carregar o módulo:
   // fecha ciclos vencidos e abre o próximo mantendo o aniversário de cada veículo
   useEffect(() => { autoRenewCycles(); }, []);
-  const { shouldFilterByObra, loading: loadingRole } = useUserRole();
+  const { role, shouldFilterByObra, loading: loadingRole } = useUserRole();
   const { obraId, loading: loadingObra } = useUserObra();
+  const { canAction, obrasCom, loading: loadingPermissions } = usePermissions();
+  const acessoFrota = obrasCom('frota.visualizar');
+  const obrasPermitidas = acessoFrota.ids.length ? acessoFrota.ids : (shouldFilterByObra && obraId ? [obraId] : []);
+  const acessoLegadoCompleto = role === 'admin' || role === 'gestor_contrato' || role === 'gestor_frota';
+  const acessoEmpresa = acessoFrota.todas || acessoLegadoCompleto;
 
-  const QK = ['vehicles', shouldFilterByObra, obraId] as const;
+  const QK = ['vehicles', acessoEmpresa, obrasPermitidas.join(',')] as const;
 
   const query = useQuery({
     queryKey: QK,
     queryFn: async (): Promise<Vehicle[]> => {
-      if (shouldFilterByObra && obraId) {
-        const vehicleIds = await getVehicleIdsByObra(obraId);
+      if (!acessoEmpresa && obrasPermitidas.length) {
+        const idsPorObra = await Promise.all(obrasPermitidas.map(getVehicleIdsByObra));
+        const vehicleIds = [...new Set(idsPorObra.flat())];
         if (!vehicleIds.length) return [];
         const { data, error } = await (supabase as any)
           .from('vehicles').select('*').in('id', vehicleIds).is('baixado_em', null).order('created_at', { ascending: false });
         if (error) throw error;
         return data ?? [];
       }
-      if (!shouldFilterByObra) {
+      if (acessoEmpresa) {
         const { data, error } = await (supabase as any)
           .from('vehicles').select('*').is('baixado_em', null).order('created_at', { ascending: false });
         if (error) throw error;
@@ -44,7 +51,7 @@ export const useVehicles = () => {
       }
       return [];
     },
-    enabled: !loadingRole && !loadingObra,
+    enabled: !loadingRole && !loadingObra && !loadingPermissions,
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['vehicles'] });
@@ -173,6 +180,12 @@ export const useVehicles = () => {
   return {
     vehicles: query.data ?? [],
     loading: query.isLoading,
+    error: query.error,
+    accessMessage: !query.isLoading && !acessoEmpresa && !obrasPermitidas.length
+      ? (canAction('frota.visualizar') ? 'Seu acesso à frota não possui uma obra definida.' : 'Seu perfil não possui permissão para consultar a frota.')
+      : (!query.isLoading && !acessoEmpresa && obrasPermitidas.length > 0 && (query.data?.length ?? 0) === 0
+          ? 'Não há veículos ativos vinculados às obras permitidas para este perfil.'
+          : null),
     createVehicle: (d: any) => createMutation.mutateAsync(d),
     updateVehicle: (id: string, vehicleData: any) => updateMutation.mutateAsync({ id, vehicleData }),
     deleteVehicle: (id: string, motivo?: string) => retireMutation.mutateAsync({ id, motivo }),

@@ -31,7 +31,7 @@ import type { Database } from "@/integrations/supabase/types";
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
 export const VeiculosPesados: React.FC = () => {
-  const { vehicles, createVehicle, updateVehicle, deleteVehicle, refetchVehicles } = useVehicles();
+  const { vehicles, error: vehiclesError, accessMessage, createVehicle, updateVehicle, deleteVehicle, refetchVehicles } = useVehicles();
   const { employees } = useEmployees();
   const { rentalCompanies } = useRentalCompanies();
   const { inspections } = useHeavyVehicleInspections();
@@ -130,6 +130,7 @@ export const VeiculosPesados: React.FC = () => {
   return (
     <Layout>
       <div className="space-y-6">
+        {(vehiclesError || accessMessage) && <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{vehiclesError instanceof Error ? `Não foi possível consultar os veículos: ${vehiclesError.message}` : accessMessage}</div>}
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">
           <div>

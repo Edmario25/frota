@@ -155,7 +155,7 @@ export function UsuariosAba() {
     queryKey: ["access-users"],
     queryFn: async () => {
       const [u, f, a, p, o, d, s] = await Promise.all([
-        (supabase as any).from("profiles").select("user_id,nome,email").not("user_id", "is", null).order("nome"),
+        (supabase as any).rpc("listar_usuarios_controle_acesso"),
         (supabase as any).from("employees").select("id,nome,user_id,acesso_app_motorista,acesso_app_sms,acesso_app_campo,acesso_app_almoxarifado,cargos(nome)").order("nome"),
         (supabase as any).from("employee_access_profiles").select("*,access_profiles(nome)").is("revogado_em", null),
         (supabase as any).from("access_profiles").select("id,nome,descricao,ativo").order("nome"),
