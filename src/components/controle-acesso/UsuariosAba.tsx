@@ -278,7 +278,7 @@ export function UsuariosAba() {
       <Card><CardContent className="p-0"><div className="divide-y">
         {isLoading && <p className="p-6 text-sm text-muted-foreground">Carregando...</p>}
         {isError && <div className="flex items-center justify-between gap-3 p-5 text-sm text-destructive"><span><b>Não foi possível carregar os usuários.</b><br/>{error instanceof Error?error.message:"Verifique as permissões e atualizações do banco."}</span><Button variant="outline" size="sm" onClick={()=>refetch()}><RefreshCw className="mr-2 h-4 w-4"/>Tentar novamente</Button></div>}
-        {!isError&&data?.avisos.length>0&&<div className="flex items-center gap-2 bg-amber-50 p-3 text-xs text-amber-800"><AlertCircle className="h-4 w-4"/>Usuários carregados, mas alguns cadastros auxiliares estão indisponíveis. Atualize o banco para liberar todos os vínculos.</div>}
+        {!isError&&(data?.avisos?.length??0)>0&&<div className="flex items-center gap-2 bg-amber-50 p-3 text-xs text-amber-800"><AlertCircle className="h-4 w-4"/>Usuários carregados, mas alguns cadastros auxiliares estão indisponíveis. Atualize o banco para liberar todos os vínculos.</div>}
         {!isLoading && !isError && lista.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</p>}
         {lista.map(u => {
           const func = funcionarioDe(u.user_id);
