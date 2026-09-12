@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, Edit, UserX, Eye, ShieldCheck, Shield, User, Download, CreditCard, ClipboardList } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Edit, UserX, Eye, ShieldCheck, User, Download, CreditCard, ClipboardList } from "lucide-react";
 import { CrachaFuncionarioDialog } from "@/components/funcionarios/CrachaFuncionarioDialog";
 import { PerfilRhSheet } from "@/components/funcionarios/PerfilRhSheet";
 import {
@@ -45,15 +45,6 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   inativo:  { label: "Inativo",  color: "bg-slate-100 text-slate-600 border-0" },
   ferias:   { label: "Férias",   color: "bg-blue-100 text-blue-700 border-0" },
   licenca:  { label: "Licença",  color: "bg-amber-100 text-amber-700 border-0" },
-};
-
-const nivelAcessoConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  funcionario:     { label: "Funcionário",        color: "bg-emerald-100 text-emerald-700", icon: User },
-  gestor_obra:     { label: "Gestor de Obras",    color: "bg-amber-100 text-amber-700",     icon: Shield },
-  gestor_contrato: { label: "Gest. Contratos",    color: "bg-violet-100 text-violet-700",   icon: ShieldCheck },
-  colaborador:     { label: "Funcionário",        color: "bg-emerald-100 text-emerald-700", icon: User },
-  // legado
-  gestor_geral:    { label: "Gest. Contratos",    color: "bg-violet-100 text-violet-700",   icon: ShieldCheck },
 };
 
 const Funcionarios = () => {
@@ -137,7 +128,7 @@ const Funcionarios = () => {
               variant="outline"
               size="sm"
               onClick={() => {
-                const headers = ['Nome', 'CPF', 'Email', 'Telefone', 'Cargo', 'Departamento', 'Status', 'Data Admissão', 'Tipo de Acesso'].map(t);
+                const headers = ['Nome', 'CPF', 'Email', 'Telefone', 'Cargo', 'Departamento', 'Status', 'Data Admissão', 'Conta do sistema'].map(t);
                 const rows = filteredEmployees.map(e => [
                   e.nome,
                   canAccessSensitiveRh ? e.cpf : maskCpf(e.cpf),
@@ -147,7 +138,7 @@ const Funcionarios = () => {
                   e.departamentos?.nome ?? '',
                   t(statusConfig[e.status]?.label ?? e.status),
                   e.data_admissao ? date(e.data_admissao) : '',
-                  t(nivelAcessoConfig[e.tipo_acesso ?? '']?.label ?? e.tipo_acesso ?? ''),
+                  e.user_id ? t('Vinculada') : t('Sem acesso'),
                 ]);
                 downloadCsv(headers, rows, `funcionarios_${new Date().toISOString().slice(0, 10)}`);
               }}
@@ -198,7 +189,7 @@ const Funcionarios = () => {
                 <TableHead>{t("Cargo")}</TableHead>
                 <TableHead>{t("Contato")}</TableHead>
                 <TableHead>{t("Status")}</TableHead>
-                <TableHead>{t("Tipo de Acesso")}</TableHead>
+                <TableHead>{t("Conta do sistema")}</TableHead>
                 <TableHead className="w-[100px]">{t("Ações")}</TableHead>
               </TableRow>
             </TableHeader>
@@ -237,14 +228,10 @@ const Funcionarios = () => {
                   </TableCell>
                   <TableCell>
                     {(() => {
-                      // Prefer cargo's nivel_acesso (up to date), fall back to employee.tipo_acesso
-                      const nivel = employee.tipo_acesso || "funcionario";
-                      const cfg = nivelAcessoConfig[nivel] ?? nivelAcessoConfig.funcionario;
-                      const Icon = cfg.icon;
                       return (
-                        <Badge className={`${cfg.color} border-0 flex items-center gap-1 w-fit text-xs`}>
-                          <Icon className="h-3 w-3" />
-                          {t(cfg.label)}
+                        <Badge variant="outline" className={`flex w-fit items-center gap-1 text-xs ${employee.user_id ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "text-muted-foreground"}`}>
+                          {employee.user_id ? <ShieldCheck className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                          {employee.user_id ? t("Vinculada") : t("Sem acesso")}
                         </Badge>
                       );
                     })()}

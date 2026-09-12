@@ -9,11 +9,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, EyeOff, KeyRound, Search, Trash2, UserPlus, AlertCircle, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Search, Trash2, UserPlus, AlertCircle, RefreshCw, Smartphone, HardHat, ClipboardList, Package, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 type Usuario = { user_id: string; nome: string | null; email: string | null };
-type Funcionario = { id: string; nome: string; user_id: string | null; cargos: { nome: string } | null };
+type Funcionario = {
+  id: string; nome: string; user_id: string | null; cargos: { nome: string } | null;
+  acesso_app_motorista: boolean; acesso_app_sms: boolean; acesso_app_campo: boolean; acesso_app_almoxarifado: boolean;
+};
 type Perfil = { id: string; nome: string; descricao: string | null; ativo: boolean };
 type Atribuicao = {
   id: string; user_id: string; profile_id: string; scope_type: string; scope_id: string | null;
@@ -32,6 +35,12 @@ const ESCOPOS: Array<{ valor: string; rotulo: string; ajuda: string }> = [
 
 type NovaAtribuicao = { perfil: string; escopo: string; alvos: string[]; validade: string; motivo: string };
 const atribuicaoVazia = (): NovaAtribuicao => ({ perfil: "", escopo: "obra", alvos: [], validade: "", motivo: "" });
+const APLICATIVOS = [
+  { chave: "motorista", campo: "acesso_app_motorista", nome: "App Motorista", ajuda: "Jornadas, veículos, abastecimentos e checklists.", icone: Smartphone },
+  { chave: "sms", campo: "acesso_app_sms", nome: "App SMS Campo", ajuda: "DDS, APR, inspeções, desvios, PT, RDO e ocorrências.", icone: HardHat },
+  { chave: "campo", campo: "acesso_app_campo", nome: "App Apontador de Campo", ajuda: "Efetivo, ponto e frentes de serviço da obra.", icone: ClipboardList },
+  { chave: "almoxarifado", campo: "acesso_app_almoxarifado", nome: "App Almoxarifado", ajuda: "Entregas, devoluções e movimentações de materiais.", icone: Package },
+] as const;
 
 /** Linhas de employee_access_profiles para gravar; obra gera uma linha por obra marcada. */
 function montarLinhas(userId: string, a: NovaAtribuicao) {
@@ -147,7 +156,7 @@ export function UsuariosAba() {
     queryFn: async () => {
       const [u, f, a, p, o, d, s] = await Promise.all([
         (supabase as any).from("profiles").select("user_id,nome,email").not("user_id", "is", null).order("nome"),
-        (supabase as any).from("employees").select("id,nome,user_id,cargos(nome)").order("nome"),
+        (supabase as any).from("employees").select("id,nome,user_id,acesso_app_motorista,acesso_app_sms,acesso_app_campo,acesso_app_almoxarifado,cargos(nome)").order("nome"),
         (supabase as any).from("employee_access_profiles").select("*,access_profiles(nome)").is("revogado_em", null),
         (supabase as any).from("access_profiles").select("id,nome,descricao,ativo").order("nome"),
         (supabase as any).from("obras").select("id,nome").order("nome"),
@@ -263,6 +272,23 @@ export function UsuariosAba() {
     toast.success("Funcionário vinculado"); recarregar();
   };
 
+  const alterarAplicativo = async (funcionarioId: string, aplicativo: string, permitir: boolean) => {
+    setSalvando(true);
+    try {
+      const { data: resultado, error } = await (supabase as any).rpc("gerenciar_acesso_aplicativo", {
+        p_employee_id: funcionarioId, p_app: aplicativo, p_permitir: permitir,
+      });
+      if (error) throw error;
+      if (resultado?.success === false) throw new Error(resultado.error ?? "Não foi possível alterar o aplicativo");
+      toast.success(permitir ? "Aplicativo liberado" : "Aplicativo bloqueado");
+      recarregar();
+    } catch (e: any) {
+      toast.error(e.message ?? "Não foi possível alterar o aplicativo");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   const semVinculo = (data?.funcionarios ?? []).filter(f => !f.user_id);
 
   return (
@@ -299,6 +325,9 @@ export function UsuariosAba() {
                   <Badge key={a.id} variant={vencido(a) ? "destructive" : "secondary"} className="font-normal">
                     {a.access_profiles?.nome} · {nomeAlvo(a)}{vencido(a) && " (vencido)"}
                   </Badge>
+                ))}
+                {func && APLICATIVOS.filter(app => func[app.campo]).map(app => (
+                  <Badge key={app.chave} variant="outline" className="border-blue-200 bg-blue-50 font-normal text-blue-700">{app.nome}</Badge>
                 ))}
               </div>
               <Button variant="outline" size="sm" onClick={() => { setGerindo(u); setInclusao(atribuicaoVazia()); }}>
@@ -398,6 +427,30 @@ export function UsuariosAba() {
                       .map(f => <SelectItem key={f.id} value={f.id}>{f.nome}{f.cargos?.nome ? ` · ${f.cargos.nome}` : ""}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Aplicativos liberados</h3>
+                </div>
+                {!funcionarioDe(gerindo.user_id) && (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Vincule este usuário a um colaborador para liberar aplicativos operacionais.</p>
+                )}
+                {funcionarioDe(gerindo.user_id) && (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {APLICATIVOS.map(app => {
+                      const funcionario = funcionarioDe(gerindo.user_id)!;
+                      const ativo = funcionario[app.campo] === true;
+                      const Icone = app.icone;
+                      return <label key={app.chave} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${ativo ? "border-primary/40 bg-primary/5" : "hover:bg-muted/40"}`}>
+                        <Checkbox checked={ativo} disabled={salvando} onCheckedChange={v => alterarAplicativo(funcionario.id, app.chave, v === true)} />
+                        <span className="min-w-0"><span className="flex items-center gap-1.5 text-sm font-medium"><Icone className="h-4 w-4 text-primary" />{app.nome}</span><span className="mt-1 block text-xs text-muted-foreground">{app.ajuda}</span></span>
+                      </label>;
+                    })}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Essas autorizações controlam a entrada nos aplicativos e ficam registradas na auditoria.</p>
               </div>
 
               <div className="space-y-2">

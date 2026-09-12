@@ -411,4 +411,7 @@ export const catalog: Record<string, readonly [string, string]> = {
   "{count} funcionários vinculados": ["{count} assigned employees", "{count} empleados asignados"],
   "Nenhum funcionário vinculado a esta obra.": ["No employees assigned to this project.", "No hay empleados asignados a esta obra."],
   "Sem função": ["No assigned role", "Sin función asignada"],
+  "Conta do sistema": ["System account", "Cuenta del sistema"],
+  "Vinculada": ["Linked", "Vinculada"],
+  "Sem acesso": ["No access", "Sin acceso"],
 };

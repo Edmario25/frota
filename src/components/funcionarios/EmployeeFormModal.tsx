@@ -17,13 +17,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PhotoUpload } from "@/components/ui/photo-upload";
-import { KeyRound, ChevronDown, ChevronUp, Smartphone, HardHat, ClipboardList, Package } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { KeyRound, ShieldCheck } from "lucide-react";
 import { useCargos } from "@/hooks/useCargos";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
 import { useEscalas } from "@/hooks/useEscalas";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
 type Employee    = Database['public']['Tables']['employees']['Row'];
@@ -33,7 +31,6 @@ const schema = z.object({
   nome:                  z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   cpf:                   z.string().min(11, "CPF inválido"),
   email:                 z.string().email("E-mail inválido"),
-  senha:                 z.string().min(6, "Mínimo 6 caracteres").or(z.literal("")),
   telefone:              z.string().optional(),
   cargo_id:              z.string().min(1, "Cargo é obrigatório"),
   departamento_id:       z.string().min(1, "Departamento é obrigatório"),
@@ -41,10 +38,6 @@ const schema = z.object({
   status:                z.enum(["ativo", "inativo", "ferias", "licenca"]),
   obra_id:               z.string().optional(),
   escala_tipo_id:        z.string().optional(),
-  acesso_app_motorista:  z.boolean().default(false),
-  acesso_app_sms:        z.boolean().default(false),
-  acesso_app_campo:      z.boolean().default(false),
-  acesso_app_almoxarifado: z.boolean().default(false),
 });
 
 interface Props {
@@ -58,12 +51,6 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
   const [isSubmitting, setIsSubmitting]     = useState(false);
   const [photoUrl, setPhotoUrl]             = useState("");
   const [obras, setObras]                   = useState<any[]>([]);
-  const [showPasswordSection, setShowPasswordSection] = useState(false);
-  const [newPassword, setNewPassword]       = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError]   = useState("");
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const { toast } = useToast();
 
   const { cargos }       = useCargos();
   const { departamentos } = useDepartamentos();
@@ -72,13 +59,9 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      nome: "", cpf: "", email: "", senha: "", telefone: "",
+      nome: "", cpf: "", email: "", telefone: "",
       cargo_id: "", departamento_id: "", data_admissao: "",
       status: "ativo", obra_id: "", escala_tipo_id: "",
-      acesso_app_motorista: false,
-      acesso_app_sms:       false,
-      acesso_app_campo:     false,
-      acesso_app_almoxarifado: false,
     },
   });
 
@@ -88,49 +71,6 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
     supabase.from("obras" as any).select("id, nome, status").order("nome")
       .then(({ data }) => setObras(data || []));
   }, [open]);
-
-  // Reseta campos de senha ao abrir/fechar
-  useEffect(() => {
-    if (!open) {
-      setShowPasswordSection(false);
-      setNewPassword("");
-      setConfirmPassword("");
-      setPasswordError("");
-    }
-  }, [open]);
-
-  const handleChangePassword = async () => {
-    setPasswordError("");
-    if (newPassword.length < 6) {
-      setPasswordError("A senha deve ter pelo menos 6 caracteres");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError("As senhas não coincidem");
-      return;
-    }
-    if (!employee?.user_id) {
-      setPasswordError("Funcionário sem conta de acesso vinculada");
-      return;
-    }
-    setIsChangingPassword(true);
-    try {
-      const { data, error } = await supabase.rpc('update_user_password' as any, {
-        p_user_id: employee.user_id,
-        p_new_password: newPassword,
-      });
-      if (error) throw error;
-      if (data && !(data as any).success) throw new Error((data as any).error || "Erro ao alterar senha");
-      toast({ title: "Senha alterada com sucesso" });
-      setNewPassword("");
-      setConfirmPassword("");
-      setShowPasswordSection(false);
-    } catch (err: any) {
-      setPasswordError(err.message || "Erro ao alterar senha");
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
 
   // Preenche form ao editar
   useEffect(() => {
@@ -150,7 +90,6 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
           nome:                 employee.nome ?? "",
           cpf:                  employee.cpf ?? "",
           email:                employee.email ?? "",
-          senha:                "",
           telefone:             employee.telefone ?? "",
           cargo_id:             employee.cargo_id ?? "",
           departamento_id:      employee.departamento_id ?? "",
@@ -158,19 +97,13 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
           status:               employee.status as any,
           obra_id:              activeObraId,
           escala_tipo_id:       employee.escala_tipo_id ?? "",
-          acesso_app_motorista: employee.acesso_app_motorista ?? false,
-          acesso_app_sms:       employee.acesso_app_sms ?? false,
-          acesso_app_campo:     employee.acesso_app_campo ?? false,
-          acesso_app_almoxarifado: employee.acesso_app_almoxarifado ?? false,
         });
         setPhotoUrl(employee.foto_url ?? "");
       } else {
         form.reset({
-          nome: "", cpf: "", email: "", senha: "", telefone: "",
+          nome: "", cpf: "", email: "", telefone: "",
           cargo_id: "", departamento_id: "", data_admissao: "",
           status: "ativo", obra_id: "", escala_tipo_id: "",
-          acesso_app_motorista: false, acesso_app_sms: false,
-          acesso_app_campo: false, acesso_app_almoxarifado: false,
         });
         setPhotoUrl("");
       }
@@ -190,18 +123,11 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
         departamento_id:      values.departamento_id,
         data_admissao:        values.data_admissao || null,
         status:               values.status,
-        tipo_acesso:          cargoAcesso || "colaborador",
         escala_tipo_id:       values.escala_tipo_id || null,
         foto_url:             photoUrl || null,
-        acesso_app_motorista: values.acesso_app_motorista ?? false,
-        acesso_app_sms:       values.acesso_app_sms ?? false,
-        acesso_app_campo:     values.acesso_app_campo ?? false,
-        acesso_app_almoxarifado: values.acesso_app_almoxarifado ?? false,
       };
 
-      const submitData = employee
-        ? { ...base, obra_id: values.obra_id }
-        : { ...base, senha: values.senha, obra_id: values.obra_id };
+      const submitData = { ...base, obra_id: values.obra_id };
 
       await onSubmit(submitData);
       onOpenChange(false);
@@ -273,213 +199,28 @@ export const EmployeeFormModal = ({ open, onOpenChange, employee, onSubmit }: Pr
               </div>
             </div>
 
-            {/* Seção: Acesso ao Sistema */}
+            {/* E-mail é dado cadastral; login e permissões ficam centralizados. */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Acesso ao Sistema
+                Contato profissional
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <FormField control={form.control} name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>E-mail de Login</FormLabel>
+                      <FormLabel>E-mail corporativo</FormLabel>
                       <FormControl>
-                        <Input placeholder="joao@empresa.com" type="email"
-                          disabled={isEdit} {...field} />
+                        <Input placeholder="joao@empresa.com" type="email" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                {!isEdit && (
-                  <FormField control={form.control} name="senha"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Senha de Acesso</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Mínimo 6 caracteres" type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
               </div>
-            </div>
-
-            {/* Acesso ao App do Motorista */}
-            <FormField
-              control={form.control}
-              name="acesso_app_motorista"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        id="acesso_app_motorista"
-                        className="mt-0.5"
-                      />
-                    </FormControl>
-                    <div className="flex-1">
-                      <label
-                        htmlFor="acesso_app_motorista"
-                        className="text-sm font-semibold cursor-pointer flex items-center gap-2"
-                      >
-                        <Smartphone className="h-4 w-4 text-blue-600" />
-                        Acesso ao App do Motorista
-                      </label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Permite que este funcionário acesse o app mobile para lançar abastecimentos,
-                        manutenções, checklists e consultar a escala de trabalho.
-                      </p>
-                    </div>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            {/* Acesso ao App SMS Campo */}
-            <FormField
-              control={form.control}
-              name="acesso_app_sms"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        id="acesso_app_sms"
-                        className="mt-0.5"
-                      />
-                    </FormControl>
-                    <div className="flex-1">
-                      <label
-                        htmlFor="acesso_app_sms"
-                        className="text-sm font-semibold cursor-pointer flex items-center gap-2"
-                      >
-                        <HardHat className="h-4 w-4 text-green-700" />
-                        Acesso ao App SMS Campo
-                      </label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Permite que este funcionário acesse o app de segurança do trabalho
-                        para registrar DDS, desvios, inspeções, APR, RDO e ocorrências em campo.
-                      </p>
-                    </div>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            {/* Acesso ao App Apontador de Campo */}
-            <FormField
-              control={form.control}
-              name="acesso_app_campo"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-4">
-                    <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange}
-                        id="acesso_app_campo" className="mt-0.5" />
-                    </FormControl>
-                    <div className="flex-1">
-                      <label htmlFor="acesso_app_campo"
-                        className="text-sm font-semibold cursor-pointer flex items-center gap-2">
-                        <ClipboardList className="h-4 w-4 text-orange-600" />
-                        Acesso ao App Apontador de Campo
-                      </label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Permite registrar o ponto e o efetivo das equipes nas frentes de serviço da obra vinculada.
-                      </p>
-                    </div>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            {/* Acesso ao App Almoxarifado */}
-            <FormField
-              control={form.control}
-              name="acesso_app_almoxarifado"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 p-4">
-                    <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange}
-                        id="acesso_app_almoxarifado" className="mt-0.5" />
-                    </FormControl>
-                    <div className="flex-1">
-                      <label htmlFor="acesso_app_almoxarifado"
-                        className="text-sm font-semibold cursor-pointer flex items-center gap-2">
-                        <Package className="h-4 w-4 text-violet-600" />
-                        Acesso ao App Almoxarifado
-                      </label>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Permite registrar saídas de materiais com conferência e assinatura na obra vinculada.
-                      </p>
-                    </div>
-                  </div>
-                </FormItem>
-              )}
-            />
-
-            {/* Seção: Alterar Senha (somente edição) */}
-            {isEdit && (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => { setShowPasswordSection(v => !v); setPasswordError(""); }}
-                  className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <KeyRound className="h-3.5 w-3.5" />
-                  Alterar Senha de Login
-                  {showPasswordSection ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                </button>
-
-                {showPasswordSection && (
-                  <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-4 space-y-3">
-                    {!employee?.user_id && (
-                      <p className="text-xs text-amber-600">Este funcionário não possui conta de acesso vinculada.</p>
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-medium">Nova Senha</label>
-                        <Input
-                          type="password"
-                          placeholder="Mínimo 6 caracteres"
-                          value={newPassword}
-                          onChange={e => setNewPassword(e.target.value)}
-                          disabled={!employee?.user_id || isChangingPassword}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-medium">Confirmar Nova Senha</label>
-                        <Input
-                          type="password"
-                          placeholder="Repita a nova senha"
-                          value={confirmPassword}
-                          onChange={e => setConfirmPassword(e.target.value)}
-                          disabled={!employee?.user_id || isChangingPassword}
-                        />
-                      </div>
-                    </div>
-                    {passwordError && (
-                      <p className="text-xs text-destructive">{passwordError}</p>
-                    )}
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleChangePassword}
-                      disabled={!employee?.user_id || isChangingPassword || !newPassword}
-                    >
-                      {isChangingPassword ? "Alterando..." : "Confirmar Nova Senha"}
-                    </Button>
-                  </div>
-                )}
+              <p className="mt-2 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+                <ShieldCheck className="h-4 w-4 shrink-0" /> Login, senha, perfis e aplicativos são liberados exclusivamente em Controle de Acesso.
+              </p>
               </div>
-            )}
 
             {/* Seção: Cargo e Departamento */}
             <div>

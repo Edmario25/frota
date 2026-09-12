@@ -91,7 +91,7 @@ export const useEmployees = () => {
         .single();
       if (error) throw error;
 
-      toast({ title: "Funcionário cadastrado", description: "Cadastro, acesso e vínculo concluídos com segurança." });
+      toast({ title: "Colaborador cadastrado", description: "Dados profissionais e vínculo registrados. O acesso ao sistema pode ser liberado em Controle de Acesso." });
       return data;
     },
     onSuccess: (novo) => {
@@ -120,13 +120,6 @@ export const useEmployees = () => {
             status: true,
           }]);
         }
-      }
-
-      if (data.user_id && data.cargo_id) {
-        const { error: roleError } = await supabase.rpc('sync_employee_access_role' as any, {
-          p_employee_id: data.id,
-        });
-        if (roleError) throw roleError;
       }
 
       return data;
