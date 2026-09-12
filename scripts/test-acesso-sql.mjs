@@ -54,6 +54,8 @@ try {
     await db.exec(await read('20260911000008_controle_acesso_comparacao.sql'));
     await db.exec(await read('20260911000009_acesso_estrutura_configuracoes.sql'));
     await db.exec(await read('20260911000010_acesso_modelo_novo_definitivo.sql'));
+    await db.exec(await read('20260911000011_acesso_cadastros_com_perfil.sql'));
+    await db.exec(await read('20260911000012_acesso_vinculo_obra.sql'));
   }
   await db.exec('CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();');
   await db.exec(`ALTER TABLE employees ADD CONSTRAINT fk_gestor FOREIGN KEY (gestor_imediato_id) REFERENCES employees(id);`);
