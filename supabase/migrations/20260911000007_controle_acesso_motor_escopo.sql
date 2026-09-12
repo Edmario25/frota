@@ -52,7 +52,7 @@ INSERT INTO public.access_profile_permissions(profile_id,permission_id,permitido
 SELECT p.id,x.id,true FROM public.access_profiles p CROSS JOIN public.access_permissions x
 WHERE (p.nome='Administrador do Sistema')
    OR (p.nome='Administrador Tecnico' AND x.modulo<>'rh_sensivel')
-   OR (p.nome='Gestor de Contrato' AND x.modulo NOT IN ('controle_acesso','rh_sensivel','chat'))
+   OR (p.nome='Gestor de Contrato' AND x.modulo NOT IN ('controle_acesso','rh_sensivel','chat','auditoria'))
    OR (p.nome='Gestor de Obra' AND x.modulo NOT IN ('controle_acesso','auditoria','rh_sensivel') AND x.acao<>'administrar')
    OR (p.nome='Aprovador Financeiro' AND x.modulo IN ('financeiro','fundo_fixo'))
    OR (p.nome='Financeiro Operacional' AND x.chave IN ('fundo_fixo.solicitar','fundo_fixo.conferir','fundo_fixo.prestar_contas'))

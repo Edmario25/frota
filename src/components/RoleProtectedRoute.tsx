@@ -1,5 +1,4 @@
 import { useLocation } from "react-router-dom";
-import { useUserRole } from "@/hooks/useUserRole";
 import { usePermissions } from "@/hooks/usePermissions";
 import { permissionForPath } from "@/lib/accessMap";
 import { AcessoNegado } from "@/components/access/AcessoNegado";
@@ -9,19 +8,18 @@ type AppRole = Database['public']['Enums']['app_role'];
 
 interface RoleProtectedRouteProps {
   children: React.ReactNode;
-  /** Regra antiga: vale só para quem ainda não recebeu perfil de acesso. */
-  allowedRoles: AppRole[];
+  /** Obsoleto: o acesso vem só do perfil (src/lib/accessMap.ts). Mantido para não mexer em todas as rotas. */
+  allowedRoles?: AppRole[];
   redirectTo?: string;
 }
 
-export const RoleProtectedRoute = ({ children, allowedRoles }: RoleProtectedRouteProps) => {
-  const { role, loading } = useUserRole();
-  const { canAction, accessProfiles, loading: permissionsLoading } = usePermissions();
+/** Protege a rota pela permissão do mapa único — a mesma que o menu usa. */
+export const RoleProtectedRoute = ({ children }: RoleProtectedRouteProps) => {
+  const { canAction, loading } = usePermissions();
   const location = useLocation();
-  // Mesma permissão que o menu usa para mostrar o item (src/lib/accessMap.ts)
   const permission = permissionForPath(location.pathname);
 
-  if (loading || permissionsLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -32,12 +30,7 @@ export const RoleProtectedRoute = ({ children, allowedRoles }: RoleProtectedRout
     );
   }
 
-  // Assim que o usuário possui perfil novo, o papel legado deixa de ser um atalho.
-  const permitted = accessProfiles.length > 0
-    ? !permission || canAction(permission)
-    : (!!role && (allowedRoles as string[]).includes(role)) || (!!permission && canAction(permission));
-
-  if (!permitted) return <AcessoNegado permission={permission} />;
+  if (permission && !canAction(permission)) return <AcessoNegado permission={permission} />;
 
   return <>{children}</>;
 };

@@ -20,7 +20,7 @@ const OBRA_A = id(201), OBRA_B = id(202);
 try {
   await db.exec(`
     CREATE ROLE anon; CREATE ROLE authenticated; CREATE SCHEMA auth;
-    CREATE TABLE auth.users(id uuid PRIMARY KEY);
+    CREATE TABLE auth.users(id uuid PRIMARY KEY, email text, raw_user_meta_data jsonb);
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('test.uid',true),'')::uuid $$;
     CREATE TYPE app_role AS ENUM ('admin','gestor_frota','funcionario','gestor_obra','gestor_contrato','tecnico_sms');
     CREATE TABLE user_roles(id uuid DEFAULT gen_random_uuid(), user_id uuid, role app_role, created_at timestamptz DEFAULT now());
@@ -32,7 +32,7 @@ try {
     CREATE TABLE employees(id uuid PRIMARY KEY, user_id uuid, nome text, status text DEFAULT 'ativo', cargo_id uuid, departamento_id uuid);
     CREATE TABLE employee_obra_assignments(employee_id uuid, obra_id uuid, PRIMARY KEY(employee_id, obra_id));
     CREATE TABLE obra_funcionarios(employee_id uuid, obra_id uuid, status boolean);
-    CREATE TABLE profiles(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid, nome text);
+    CREATE TABLE profiles(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid UNIQUE, nome text, email text);
     CREATE TABLE vehicles(id uuid PRIMARY KEY, responsavel_id uuid);
     CREATE TABLE obra_veiculos(vehicle_id uuid, obra_id uuid);
 
@@ -53,7 +53,9 @@ try {
     await db.exec(await read('20260911000007_controle_acesso_motor_escopo.sql'));
     await db.exec(await read('20260911000008_controle_acesso_comparacao.sql'));
     await db.exec(await read('20260911000009_acesso_estrutura_configuracoes.sql'));
+    await db.exec(await read('20260911000010_acesso_modelo_novo_definitivo.sql'));
   }
+  await db.exec('CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();');
   await db.exec(`ALTER TABLE employees ADD CONSTRAINT fk_gestor FOREIGN KEY (gestor_imediato_id) REFERENCES employees(id);`);
 
   const perfil = nome => one('SELECT id FROM access_profiles WHERE nome=$1', [nome]);
@@ -136,6 +138,30 @@ try {
   assert.equal(await one('SELECT can_manage_obra_data($1)', [OBRA_B]), false);
   await como(U_FUNC);
   await assert.rejects(q("SELECT access_set_modo('can_manage_obra_data','legado')"), /Acesso negado/, 'só administrador troca a regra');
+
+  // ── Papel antigo desligado: o papel vem do perfil ─────────────────────────
+  assert.equal(await one('SELECT get_user_role($1)::text', [U_GESTOR]), 'gestor_obra');
+  assert.equal(await one('SELECT get_user_role($1)::text', [U_ADMIN]), 'admin');
+  const U_NOVO = id(106);
+  await q(`INSERT INTO auth.users(id,email) VALUES ($1,'novo@teste')`, [U_NOVO]);
+  await q(`INSERT INTO user_roles(user_id,role) VALUES ($1,'admin')`, [U_NOVO]);
+  assert.equal(await one('SELECT get_user_role($1)::text', [U_NOVO]), 'funcionario', 'user_roles não dá mais acesso');
+  assert.equal(await one("SELECT scope_type FROM employee_access_profiles WHERE user_id=$1", [U_NOVO]), 'proprio',
+    'usuário novo nasce com perfil Funcionario nos próprios registros');
+  await como(U_NOVO);
+  assert.equal(await one('SELECT access_is_admin()'), false);
+  await como(U_FUNC);
+  assert.equal(await one('SELECT can_access_obra_data($1)', [OBRA_A]), true, 'funcionário consulta a obra em que trabalha');
+
+  // Vincular/desvincular obra acompanha o perfil de gestor de obra
+  await q('INSERT INTO employee_obra_assignments VALUES ($1,$2)', [E_GESTOR, OBRA_B]);
+  await como(U_GESTOR);
+  assert.equal(await one("SELECT pode('obras.editar',$1)", [OBRA_B]), true, 'vincular obra concede o perfil nela');
+  await q('DELETE FROM employee_obra_assignments WHERE employee_id=$1 AND obra_id=$2', [E_GESTOR, OBRA_B]);
+  assert.equal(await one("SELECT pode('obras.editar',$1)", [OBRA_B]), false, 'desvincular revoga');
+  await q('DELETE FROM employee_obra_assignments WHERE employee_id=$1', [E_GESTOR]);
+  await q('INSERT INTO employee_obra_assignments VALUES ($1,$2)', [E_GESTOR, OBRA_A]);
+  assert.equal(await one("SELECT pode('obras.editar',$1)", [OBRA_A]), true, 'salvar de novo na tela de usuários mantém o acesso');
 
   // ── Desligamento revoga na hora ───────────────────────────────────────────
   await q("UPDATE employees SET status='desligado' WHERE id=$1", [E_FUNC]);

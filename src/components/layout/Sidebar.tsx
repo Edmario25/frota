@@ -44,7 +44,6 @@ import {
   KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUserRole } from "@/hooks/useUserRole";
 import { usePermissions, type PermKey } from "@/hooks/usePermissions";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { useChatGestorBadge } from "@/hooks/useChat";
@@ -172,8 +171,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
   const { t } = useI18n();
   const location = useLocation();
-  const { role, loading: loadingRole } = useUserRole();
-  const { can, canAction, accessProfiles, loading: loadingPerms, ready: permsReady } = usePermissions();
+  const { canAction, loading: loadingPerms } = usePermissions();
   const { settings: branding } = useSystemSettings();
   const chatUnread = useChatGestorBadge();
   const [openGroups, setOpenGroups] = useState<string[]>(() => {
@@ -185,7 +183,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
     }
   });
 
-  const loading = loadingRole || loadingPerms;
+  const loading = loadingPerms;
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -194,15 +192,11 @@ export function Sidebar({ collapsed, onToggle, onNavigate }: SidebarProps) {
 
   // A permissão de cada item é a mesma que protege a rota (src/lib/accessMap.ts),
   // então o menu nunca mostra uma página que a URL não deixa abrir.
+  // Só o perfil de acesso decide; rota livre (Dashboard, Meu Perfil) é sempre visível.
   const itemVisible = (item: { url: string; roles: string[]; perm: PermKey | null }) => {
     if (loading) return false;
     const permission = permissionForPath(item.url);
-    // Usuários já migrados: só o perfil de acesso decide (rota livre = sempre visível)
-    if (accessProfiles.length > 0) return !permission || canAction(permission);
-    // Ainda sem perfil: regra antiga (permissão do cargo ou papel)
-    if (permission && canAction(permission)) return true;
-    if (item.perm !== null && permsReady && can(item.perm)) return true;
-    return !!role && item.roles.includes(role);
+    return !permission || canAction(permission);
   };
 
   const filteredGroups = menuGroups

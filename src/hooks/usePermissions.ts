@@ -38,52 +38,14 @@ export type PermKey =
   // Escopo
   | "acessa_todas_obras";
 
+// Chaves antigas por cargo: só rotulam os itens do menu. Não dão acesso.
 export type PermissionsMap = Record<PermKey, boolean>;
 
-// ─── Permissões padrão (tudo false — fallback seguro) ────────────────────────
-const DEFAULT_PERMS: PermissionsMap = {
-  acesso_dashboard:         false,
-  acesso_frota:             false,
-  acesso_escalas:           false,
-  acesso_manutencao:        false,
-  acesso_colaboradores:     false,
-  acesso_fundo_fixo:        false,
-  acesso_relatorios:        false,
-  acesso_sms_dashboard:     false,
-  acesso_sms_desvios:       false,
-  acesso_sms_inspecoes:     false,
-  acesso_sms_apr:           false,
-  acesso_sms_dds:           false,
-  acesso_sms_epis:          false,
-  acesso_sms_treinamentos:  false,
-  acesso_sms_admissao:      false,
-  acesso_sms_rdo:           false,
-  acesso_sms_velocidade:    false,
-  acesso_efetivo:           false,
-  acesso_almoxarifado:      false,
-  acesso_ferramentas:       false,
-  acesso_cronograma:        false,
-  acesso_subcontratadas:    false,
-  acesso_financeiro:        false,
-  acesso_qualidade:         false,
-  acesso_comunicados:       false,
-  acesso_visitantes:        false,
-  acesso_fornecedores:      false,
-  acesso_alojamento:        false,
-  acessa_todas_obras:       false,
-};
-
 export interface UsePermissionsResult {
-  /** Verifica se o usuário tem uma permissão específica */
-  can: (key: PermKey) => boolean;
-  /** Mapa completo de permissões */
-  perms: PermissionsMap;
-  /** IDs das obras que o usuário pode acessar */
+  /** IDs das obras do usuário (perfis por obra e vínculos do próprio funcionário) */
   obraIds: string[];
   /** true enquanto carregando */
   loading: boolean;
-  /** true se as permissões vieram do banco com sucesso */
-  ready: boolean;
   /** A ação existe em algum escopo (ex.: para abrir a página). Não diz ONDE vale. */
   canAction: (permission: string) => boolean;
   /**
@@ -112,21 +74,6 @@ const cobreObra = (g: Grant, obraId?: string | null) =>
 export function usePermissions(): UsePermissionsResult {
   const { user } = useAuth();
 
-  // ─── Permissões do cargo ────────────────────────────────────────────────────
-  const { data: rawPerms, isLoading: loadingPerms, isSuccess } = useQuery({
-    queryKey: ["user-permissions", user?.id],
-    queryFn: async (): Promise<PermissionsMap> => {
-      if (!user) return DEFAULT_PERMS;
-      const { data, error } = await (supabase as any).rpc("get_user_permissions");
-      if (error || !data) return DEFAULT_PERMS;
-      // Mescla com defaults para garantir que chaves novas existam
-      return { ...DEFAULT_PERMS, ...data } as PermissionsMap;
-    },
-    enabled: !!user,
-    staleTime: 1000 * 60 * 5,   // 5 min — cargo muda raramente
-    gcTime:    1000 * 60 * 10,
-  });
-
   // ─── Obras vinculadas ───────────────────────────────────────────────────────
   const { data: obraIds = [], isLoading: loadingObras } = useQuery({
     queryKey: ["user-obra-ids", user?.id],
@@ -139,8 +86,6 @@ export function usePermissions(): UsePermissionsResult {
     enabled: !!user,
     staleTime: 1000 * 60 * 5,
   });
-
-  const perms: PermissionsMap = rawPerms ?? DEFAULT_PERMS;
 
   const { data: effectiveAccess, isLoading: loadingEffective } = useQuery({
     queryKey: ["effective-access", user?.id],
@@ -177,11 +122,8 @@ export function usePermissions(): UsePermissionsResult {
   };
 
   return {
-    can:     (key: PermKey) => perms[key] === true,
-    perms,
     obraIds,
-    loading: loadingPerms || loadingObras || loadingEffective,
-    ready:   isSuccess,
+    loading: loadingObras || loadingEffective,
     canAction: (permission: string) => access.permissions.includes(permission),
     pode,
     obrasCom,
