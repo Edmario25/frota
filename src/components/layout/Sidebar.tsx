@@ -75,6 +75,7 @@ const menuGroups = [
     group: "Pessoas",
     items: [
       { title: "Funcionários",   icon: Users,    url: "/funcionarios", roles: OBRA_ACCESS, perm: "acesso_colaboradores" as PermKey },
+      { title: "Cargos",         icon: Briefcase, url: "/cargos",      roles: FULL_ACCESS, perm: null },
       { title: "Escalas",        icon: Calendar, url: "/escalas",      roles: OBRA_ACCESS, perm: "acesso_escalas" as PermKey },
       { title: "Efetivo / Ponto",   icon: Timer,        url: "/efetivo",           roles: OBRA_ACCESS, perm: "acesso_efetivo" as PermKey },
       { title: "Espelho de Ponto",  icon: CalendarDays, url: "/efetivo/relatorio", roles: OBRA_ACCESS, perm: "acesso_efetivo" as PermKey },
@@ -147,11 +148,10 @@ const menuGroups = [
   {
     group: "Admin",
     items: [
-      { title: "Cargos",         icon: Briefcase, url: "/cargos",         roles: FULL_ACCESS, perm: null },
-      { title: "Departamentos",  icon: Network,   url: "/departamentos",  roles: FULL_ACCESS, perm: null },
+      { title: "Controle de Acesso", icon: KeyRound, url: "/controle-acesso", roles: FULL_ACCESS, perm: null },
+      { title: "Departamentos e Setores", icon: Network, url: "/departamentos", roles: FULL_ACCESS, perm: null },
       { title: "Configurações",  icon: Settings,  url: "/configuracoes",  roles: FULL_ACCESS, perm: null },
       { title: "Auditoria do Sistema", icon: History, url: "/auditoria", roles: ['admin'], perm: null },
-      { title: "Controle de Acesso", icon: KeyRound, url: "/controle-acesso", roles: FULL_ACCESS, perm: null },
     ]
   },
   {

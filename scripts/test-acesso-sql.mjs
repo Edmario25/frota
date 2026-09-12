@@ -56,6 +56,7 @@ try {
     await db.exec(await read('20260911000010_acesso_modelo_novo_definitivo.sql'));
     await db.exec(await read('20260911000011_acesso_cadastros_com_perfil.sql'));
     await db.exec(await read('20260911000012_acesso_vinculo_obra.sql'));
+    await db.exec(await read('20260911000013_acesso_regrant_setores.sql'));
   }
   await db.exec('CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();');
   await db.exec(`ALTER TABLE employees ADD CONSTRAINT fk_gestor FOREIGN KEY (gestor_imediato_id) REFERENCES employees(id);`);
@@ -165,8 +166,18 @@ try {
   await q('INSERT INTO employee_obra_assignments VALUES ($1,$2)', [E_GESTOR, OBRA_A]);
   assert.equal(await one("SELECT pode('obras.editar',$1)", [OBRA_A]), true, 'salvar de novo na tela de usuários mantém o acesso');
 
+  // Revogar e conceder de novo o mesmo acesso
+  await como(U_ADMIN);
+  const liderId = await one("SELECT id FROM employee_access_profiles WHERE user_id=$1 AND scope_type='equipe'", [U_GESTOR]);
+  await q('UPDATE employee_access_profiles SET revogado_em=now() WHERE id=$1', [liderId]);
+  await q(`INSERT INTO employee_access_profiles(user_id,profile_id,scope_type,justificativa) VALUES ($1,$2,'equipe','de novo')`,
+    [U_GESTOR, await perfil('Lider / Supervisor')]);
+  assert.equal(Number(await one("SELECT count(*) FROM employee_access_profiles WHERE user_id=$1 AND scope_type='equipe'", [U_GESTOR])), 2,
+    'a revogação fica no histórico e a nova concessão é aceita');
+
   // ── Desligamento revoga na hora ───────────────────────────────────────────
   await q("UPDATE employees SET status='desligado' WHERE id=$1", [E_FUNC]);
+  await como(U_FUNC);
   assert.equal(await one("SELECT pode('obras.editar',$1)", [OBRA_B]), false, 'desligado perde a substituição');
   assert.equal(Number(await one('SELECT count(*) FROM employee_access_profiles WHERE user_id=$1 AND revogado_em IS NULL', [U_FUNC])), 0);
 

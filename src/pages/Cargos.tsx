@@ -56,7 +56,7 @@ const Cargos = () => {
           <div>
             <h1 className="text-xl font-extrabold text-foreground tracking-tight">Cargos</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Gerencie os cargos e as permissões de acesso por função
+              Cargos e hierarquia da empresa. Os acessos ao sistema ficam em Controle de Acesso.
             </p>
           </div>
           <Button size="sm" onClick={() => setIsFormModalOpen(true)}>
@@ -111,7 +111,7 @@ const Cargos = () => {
                 <TableHead>Cargo</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Nível Hier.</TableHead>
-                <TableHead>Permissão de Acesso</TableHead>
+                <TableHead>Classificação</TableHead>
                 <TableHead className="w-[90px]">Ações</TableHead>
               </TableRow>
             </TableHeader>

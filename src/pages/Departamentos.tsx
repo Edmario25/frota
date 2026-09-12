@@ -18,6 +18,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { DepartamentoFormModal } from "@/components/departamentos/DepartamentoFormModal";
 import { ConfirmDeleteDepartamentoModal } from "@/components/departamentos/ConfirmDeleteDepartamentoModal";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { SetoresPainel } from "@/components/departamentos/SetoresPainel";
 import type { Database } from "@/integrations/supabase/types";
 
 type Departamento = Database['public']['Tables']['departamentos']['Row'];
@@ -81,8 +82,8 @@ const Departamentos = () => {
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">
           <div>
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Departamentos</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Gerencie os departamentos da empresa</p>
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Departamentos e Setores</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Estrutura da empresa: departamentos, responsáveis e setores</p>
           </div>
           <Button size="sm" onClick={() => setIsFormModalOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" />
@@ -195,6 +196,8 @@ const Departamentos = () => {
             </TableBody>
           </Table>
         </Card>
+
+        <SetoresPainel departamentos={departamentos} />
 
         {/* Modals */}
         <DepartamentoFormModal

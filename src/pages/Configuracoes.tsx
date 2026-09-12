@@ -1,28 +1,22 @@
 import { Layout } from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Users, Car, Satellite } from "lucide-react";
-import { UserManagementTab } from "@/components/configuracoes/UserManagementTab";
+import { Settings, Car, Satellite } from "lucide-react";
 import { GeneralSettingsTab } from "@/components/configuracoes/GeneralSettingsTab";
 import { FleetParametersTab } from "@/components/configuracoes/FleetParametersTab";
 import { TraccarSettingsTab } from "@/components/configuracoes/TraccarSettingsTab";
 
+// Usuários e acessos ficam em Admin → Controle de Acesso.
 const Configuracoes = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Configurações</h1>
-          <p className="text-muted-foreground mt-1">Gerencie usuários, parâmetros do sistema e preferências gerais.</p>
+          <p className="text-muted-foreground mt-1">Parâmetros do sistema, da frota e integrações. Usuários e acessos ficam em Controle de Acesso.</p>
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="users" className="space-y-6">
+        <Tabs defaultValue="general" className="space-y-6">
           <TabsList className="bg-muted/50 p-1 rounded-xl h-auto flex-wrap">
-            <TabsTrigger value="users" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-subtle px-4 py-2.5">
-              <Users className="h-4 w-4" />
-              <span>Gerenciamento de Usuários</span>
-            </TabsTrigger>
             <TabsTrigger value="general" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-subtle px-4 py-2.5">
               <Settings className="h-4 w-4" />
               <span>Configurações Gerais</span>
@@ -36,10 +30,6 @@ const Configuracoes = () => {
               <span>GPS / Traccar</span>
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="users">
-            <UserManagementTab />
-          </TabsContent>
 
           <TabsContent value="general">
             <GeneralSettingsTab />
