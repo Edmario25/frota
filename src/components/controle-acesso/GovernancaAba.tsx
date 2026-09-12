@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, CheckCircle2, ClipboardCheck, ShieldAlert } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, ShieldAlert, UserCheck, CalendarClock, History } from "lucide-react";
 import { toast } from "sonner";
 
 type Alerta={tipo:string;severidade:"alta"|"media"|"baixa";quantidade:number;descricao:string};
@@ -14,7 +14,7 @@ type Revisao={id:string;titulo:string;referencia:string;status:string;created_at
 type Item={id:string;review_id:string;assignment_id:string|null;user_id:string;profile_id:string;decisao:string|null;observacao:string|null;access_profiles?:{nome:string}|null};
 type Usuario={user_id:string|null;nome:string|null;email:string|null};
 
-export function GovernancaAba(){
+export function GovernancaAba({onCreateReview}:{onCreateReview:()=>void}){
   const qc=useQueryClient();
   const [revisaoId,setRevisaoId]=useState("");
   const [observacoes,setObservacoes]=useState<Record<string,string>>({});
@@ -34,9 +34,10 @@ export function GovernancaAba(){
   const concluir=async()=>{if(!revisao)return;const {error}=await (supabase as any).rpc("concluir_revisao_acesso",{p_review_id:revisao.id});if(error)toast.error(error.message);else{toast.success("Revisão concluída");qc.invalidateQueries({queryKey:["access-governance"]})}};
   if(isLoading)return <p className="py-10 text-center text-muted-foreground">Carregando governança...</p>;
   return <div className="space-y-4">
+    <div className="grid gap-3 md:grid-cols-3"><Card><CardContent className="flex gap-3 p-4"><UserCheck className="text-emerald-600"/><div><p className="font-semibold">Acessos monitorados</p><p className="text-xs text-muted-foreground">Contas, vínculos, validade e perfis são verificados automaticamente.</p></div></CardContent></Card><Card><CardContent className="flex gap-3 p-4"><CalendarClock className="text-primary"/><div><p className="font-semibold">Revisão periódica</p><p className="text-xs text-muted-foreground">Confirme regularmente quem deve manter, ajustar ou perder acesso.</p></div></CardContent></Card><Card><CardContent className="flex gap-3 p-4"><History className="text-primary"/><div><p className="font-semibold">Histórico preservado</p><p className="text-xs text-muted-foreground">Revogações e decisões ficam registradas para auditoria.</p></div></CardContent></Card></div>
     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">{data?.alertas.map(a=><Card key={a.tipo} className={a.severidade==="alta"?"border-red-300":a.severidade==="media"?"border-amber-300":""}><CardContent className="flex gap-3 p-4"><ShieldAlert className={a.severidade==="alta"?"text-red-600":a.severidade==="media"?"text-amber-600":"text-blue-600"}/><div><b className="text-2xl">{a.quantidade}</b><p className="text-sm">{a.descricao}</p><Badge variant="outline" className="mt-2 capitalize">Prioridade {a.severidade}</Badge></div></CardContent></Card>)}{!data?.alertas.length&&<Card className="md:col-span-2 lg:col-span-3"><CardContent className="flex items-center justify-center gap-2 p-6 text-emerald-700"><CheckCircle2/>Nenhuma pendência de governança identificada.</CardContent></Card>}</div>
     <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="flex items-center gap-2 text-base"><ClipboardCheck className="h-5 w-5 text-primary"/>Revisões periódicas</CardTitle><Select value={revisao?.id??""} onValueChange={setRevisaoId}><SelectTrigger className="w-72"><SelectValue placeholder="Selecione uma revisão"/></SelectTrigger><SelectContent>{data?.revisoes.map(r=><SelectItem key={r.id} value={r.id}>{r.titulo} · {r.status}</SelectItem>)}</SelectContent></Select></div></CardHeader><CardContent className="space-y-3">
-      {!revisao&&<p className="py-8 text-center text-muted-foreground">Inicie uma revisão para conferir todos os acessos ativos.</p>}
+      {!revisao&&<div className="flex flex-col items-center gap-3 py-10 text-center"><ClipboardCheck className="h-10 w-10 text-muted-foreground/50"/><div><p className="font-medium">Nenhuma revisão iniciada</p><p className="text-sm text-muted-foreground">Crie a primeira revisão para conferir os acessos dos usuários ativos.</p></div><Button onClick={onCreateReview}>Iniciar revisão de acessos</Button></div>}
       {itens.map(i=><div key={i.id} className="grid gap-3 rounded-lg border p-3 lg:grid-cols-[1fr_1fr_2fr_auto]"><div><p className="font-medium">{nome(i.user_id)}</p><p className="text-xs text-muted-foreground">Usuário</p></div><div><p className="font-medium">{i.access_profiles?.nome??"Perfil removido"}</p><p className="text-xs text-muted-foreground">Perfil concedido</p></div><Textarea className="min-h-9" placeholder="Justificativa obrigatória para revogar ou ajustar" value={observacoes[i.id]??i.observacao??""} onChange={e=>setObservacoes(x=>({...x,[i.id]:e.target.value}))}/><div className="flex flex-wrap items-center gap-1">{i.decisao?<Badge className="capitalize">{i.decisao}</Badge>:<><Button size="sm" variant="outline" onClick={()=>decidir(i,"manter")}>Manter</Button><Button size="sm" variant="outline" onClick={()=>decidir(i,"ajustar")}>Ajustar</Button><Button size="sm" variant="destructive" onClick={()=>decidir(i,"revogar")}>Revogar</Button></>}</div></div>)}
       {revisao&&itens.length>0&&<div className="flex items-center justify-between border-t pt-3"><p className="text-sm text-muted-foreground">{itens.filter(i=>i.decisao).length} de {itens.length} acessos revisados</p><Button disabled={itens.some(i=>!i.decisao)||revisao.status==="concluida"} onClick={concluir}>Concluir revisão</Button></div>}
     </CardContent></Card>

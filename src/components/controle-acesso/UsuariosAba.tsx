@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, EyeOff, KeyRound, Search, Trash2, UserPlus, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Search, Trash2, UserPlus, AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 type Usuario = { user_id: string; nome: string | null; email: string | null };
@@ -142,7 +142,7 @@ export function UsuariosAba() {
   // Incluir acesso em usuário existente
   const [inclusao, setInclusao] = useState<NovaAtribuicao>(atribuicaoVazia());
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["access-users"],
     queryFn: async () => {
       const [u, f, a, p, o, d, s] = await Promise.all([
@@ -154,11 +154,15 @@ export function UsuariosAba() {
         (supabase as any).from("departamentos").select("id,nome").order("nome"),
         (supabase as any).from("departamento_setores").select("id,nome").eq("ativo", true).order("nome"),
       ]);
-      const erro = [u, f, a, p, o, d, s].find(x => x.error)?.error;
-      if (erro) throw erro;
+      // Usuários, perfis e atribuições são essenciais. Cadastros auxiliares não
+      // podem apagar a lista inteira quando uma relação ainda não foi publicada
+      // no cache do banco ou estiver temporariamente indisponível.
+      const erroEssencial = u.error || a.error || p.error;
+      if (erroEssencial) throw erroEssencial;
+      const avisos = [f, o, d, s].filter(x => x.error).map(x => x.error.message);
       return {
-        usuarios: u.data as Usuario[], funcionarios: f.data as Funcionario[], atribuicoes: a.data as Atribuicao[],
-        perfis: p.data as Perfil[], obras: o.data as Opcao[], departamentos: d.data as Opcao[], setores: s.data as Opcao[],
+        usuarios: u.data as Usuario[], funcionarios: (f.data ?? []) as Funcionario[], atribuicoes: a.data as Atribuicao[],
+        perfis: p.data as Perfil[], obras: (o.data ?? []) as Opcao[], departamentos: (d.data ?? []) as Opcao[], setores: (s.data ?? []) as Opcao[], avisos,
       };
     },
   });
@@ -273,7 +277,9 @@ export function UsuariosAba() {
 
       <Card><CardContent className="p-0"><div className="divide-y">
         {isLoading && <p className="p-6 text-sm text-muted-foreground">Carregando...</p>}
-        {!isLoading && lista.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</p>}
+        {isError && <div className="flex items-center justify-between gap-3 p-5 text-sm text-destructive"><span><b>Não foi possível carregar os usuários.</b><br/>{error instanceof Error?error.message:"Verifique as permissões e atualizações do banco."}</span><Button variant="outline" size="sm" onClick={()=>refetch()}><RefreshCw className="mr-2 h-4 w-4"/>Tentar novamente</Button></div>}
+        {!isError&&data?.avisos.length>0&&<div className="flex items-center gap-2 bg-amber-50 p-3 text-xs text-amber-800"><AlertCircle className="h-4 w-4"/>Usuários carregados, mas alguns cadastros auxiliares estão indisponíveis. Atualize o banco para liberar todos os vínculos.</div>}
+        {!isLoading && !isError && lista.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</p>}
         {lista.map(u => {
           const func = funcionarioDe(u.user_id);
           const acessos = acessosDe(u.user_id);
