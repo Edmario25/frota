@@ -52,6 +52,7 @@ try {
     await db.exec(await read('20260911000006_controle_acesso_escopos_revisao.sql'));
     await db.exec(await read('20260911000007_controle_acesso_motor_escopo.sql'));
     await db.exec(await read('20260911000008_controle_acesso_comparacao.sql'));
+    await db.exec(await read('20260911000009_acesso_estrutura_configuracoes.sql'));
   }
   await db.exec(`ALTER TABLE employees ADD CONSTRAINT fk_gestor FOREIGN KEY (gestor_imediato_id) REFERENCES employees(id);`);
 

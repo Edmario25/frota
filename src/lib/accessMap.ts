@@ -4,9 +4,9 @@
 // A ordem importa: caminhos específicos antes dos genéricos ("/sms/rdo" antes de "/sms").
 export const ROUTE_PERMISSIONS: ReadonlyArray<readonly [string, string]> = [
   ["/funcionarios", "colaboradores.visualizar"],
-  ["/cargos", "controle_acesso.administrar"],
-  ["/departamentos", "controle_acesso.administrar"],
-  ["/configuracoes", "controle_acesso.administrar"],
+  ["/cargos", "estrutura.visualizar"],
+  ["/departamentos", "estrutura.visualizar"],
+  ["/configuracoes", "configuracoes.visualizar"],
   ["/controle-acesso", "controle_acesso.administrar"],
   ["/auditoria", "auditoria.visualizar"],
 
