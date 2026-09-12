@@ -52,6 +52,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          matricula: string | null
           nome: string
           observacoes: string | null
           obra_id: string
@@ -202,6 +203,7 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           id?: string
+          matricula?: string | null
           nome: string
           responsavel_id?: string | null
           updated_at?: string
@@ -210,6 +212,7 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           id?: string
+          matricula?: string | null
           nome?: string
           responsavel_id?: string | null
           updated_at?: string

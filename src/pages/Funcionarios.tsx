@@ -1,9 +1,11 @@
 import { useI18n } from "@/i18n";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, Plus, MoreHorizontal, Edit, UserX, Eye, ShieldCheck, User, Download, CreditCard, ClipboardList } from "lucide-react";
@@ -31,6 +33,7 @@ import { ViewEmployeeModal } from "@/components/funcionarios/ViewEmployeeModal";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { downloadCsv } from "@/lib/exportCsv";
 import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
 
 type Employee = EmployeeWithRelations;
 
@@ -59,24 +62,46 @@ const Funcionarios = () => {
   const [isRhOpen,     setIsRhOpen]       = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const [cargoFilter, setCargoFilter] = useState("todos");
+  const [obraFilter, setObraFilter] = useState("todos");
+
+  const { data: lotacoes = [] } = useQuery({
+    queryKey: ["employee-current-sites"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("obra_funcionarios")
+        .select("employee_id, obra_id, obras(nome)")
+        .eq("status", true);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const lotacaoPorFuncionario = new Map(lotacoes.map((item: any) => [item.employee_id, item]));
+  const obrasDisponiveis = Array.from(new Map(lotacoes.map((item: any) => [item.obra_id, item.obras?.nome])).entries()).filter(([, nome]) => nome);
+  const cargosDisponiveis = Array.from(new Map(employees.filter(e => e.cargo_id).map(e => [e.cargo_id!, e.cargos?.nome ?? "Cargo"])).entries());
 
   const stats = getEmployeeStats();
 
-  const filteredEmployees = employees.filter(employee => 
-    employee.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.cpf.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.cargos?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.departamentos?.nome?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEmployees = employees.filter(employee => {
+    const busca = searchTerm.toLowerCase();
+    const lotacao = lotacaoPorFuncionario.get(employee.id) as any;
+    const correspondeBusca = employee.nome.toLowerCase().includes(busca) ||
+      employee.cpf.toLowerCase().includes(busca) || employee.email.toLowerCase().includes(busca) ||
+      employee.cargos?.nome?.toLowerCase().includes(busca) || employee.departamentos?.nome?.toLowerCase().includes(busca) ||
+      (employee as any).matricula?.toLowerCase().includes(busca);
+    return correspondeBusca && (statusFilter === "todos" || employee.status === statusFilter) &&
+      (cargoFilter === "todos" || employee.cargo_id === cargoFilter) &&
+      (obraFilter === "todos" || lotacao?.obra_id === obraFilter);
+  });
 
   const handleCreateEmployee = async (data: any) => {
-    await createEmployee(data);
+    return await createEmployee(data);
   };
 
   const handleUpdateEmployee = async (data: any) => {
     if (selectedEmployee) {
-      await updateEmployee(selectedEmployee.id, data);
+      return await updateEmployee(selectedEmployee.id, data);
     }
   };
 
@@ -120,8 +145,8 @@ const Funcionarios = () => {
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">
           <div>
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">{t("Funcionários")}</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">{t("Gerencie o cadastro de funcionários")}</p>
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight">{t("Gestão de Pessoas")}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">{t("Admissão, vínculo, lotação e prontuário dos colaboradores")}</p>
           </div>
           <div className="flex gap-2">
             <Button
@@ -168,15 +193,12 @@ const Funcionarios = () => {
           ))}
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            placeholder={t("Buscar por nome, CPF ou cargo...")}
-            className="pl-8 h-8 text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* Search and operational filters */}
+        <div className="grid gap-2 md:grid-cols-[minmax(260px,1fr)_180px_210px_220px]">
+          <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" /><Input placeholder={t("Buscar por nome, matrícula, CPF ou cargo...")} className="pl-8 h-9 text-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="h-9"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">{t("Todos os status")}</SelectItem>{Object.entries(statusConfig).map(([value,cfg])=><SelectItem key={value} value={value}>{t(cfg.label)}</SelectItem>)}</SelectContent></Select>
+          <Select value={cargoFilter} onValueChange={setCargoFilter}><SelectTrigger className="h-9"><SelectValue placeholder={t("Todos os cargos")} /></SelectTrigger><SelectContent><SelectItem value="todos">{t("Todos os cargos")}</SelectItem>{cargosDisponiveis.map(([id,nome])=><SelectItem key={id} value={id}>{nome}</SelectItem>)}</SelectContent></Select>
+          <Select value={obraFilter} onValueChange={setObraFilter}><SelectTrigger className="h-9"><SelectValue placeholder={t("Todas as lotações")} /></SelectTrigger><SelectContent><SelectItem value="todos">{t("Todas as lotações")}</SelectItem>{obrasDisponiveis.map(([id,nome])=><SelectItem key={id} value={id}>{nome}</SelectItem>)}</SelectContent></Select>
         </div>
 
         {/* Table */}
@@ -189,6 +211,7 @@ const Funcionarios = () => {
                 <TableHead>{t("Cargo")}</TableHead>
                 <TableHead>{t("Contato")}</TableHead>
                 <TableHead>{t("Status")}</TableHead>
+                <TableHead>{t("Lotação atual")}</TableHead>
                 <TableHead>{t("Conta do sistema")}</TableHead>
                 <TableHead className="w-[100px]">{t("Ações")}</TableHead>
               </TableRow>
@@ -206,9 +229,7 @@ const Funcionarios = () => {
                       </Avatar>
                       <div>
                         <div className="font-medium">{employee.nome}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {employee.departamentos?.nome || 'Sem departamento'}
-                        </div>
+                        <div className="text-sm text-muted-foreground">{(employee as any).matricula || "Matrícula pendente"} · {employee.departamentos?.nome || 'Sem departamento'}</div>
                       </div>
                     </div>
                   </TableCell>
@@ -226,6 +247,7 @@ const Funcionarios = () => {
                       return <Badge className={cfg.color}>{t(cfg.label)}</Badge>;
                     })()}
                   </TableCell>
+                  <TableCell>{(lotacaoPorFuncionario.get(employee.id) as any)?.obras?.nome || <span className="text-muted-foreground">Sem lotação</span>}</TableCell>
                   <TableCell>
                     {(() => {
                       return (
@@ -281,7 +303,7 @@ const Funcionarios = () => {
               ))}
               {filteredEmployees.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {searchTerm ? 'Nenhum funcionário encontrado para a busca.' : 'Nenhum funcionário cadastrado.'}
                     </div>

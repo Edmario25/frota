@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, ShieldCheck, Shield, User, Briefcase } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Briefcase, Users } from "lucide-react";
 import {
   Table, TableBody, TableCell,
   TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useCargos } from "@/hooks/useCargos";
+import { useEmployees } from "@/hooks/useEmployees";
 import { CargoFormModal } from "@/components/cargos/CargoFormModal";
 import { ConfirmDeleteCargoModal } from "@/components/cargos/ConfirmDeleteCargoModal";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
@@ -17,14 +18,9 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Cargo = Database['public']['Tables']['cargos']['Row'];
 
-const nivelAcessoConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  funcionario:     { label: "Funcionário",        color: "bg-emerald-100 text-emerald-700", icon: User },
-  gestor_obra:     { label: "Gestor de Obras",     color: "bg-amber-100 text-amber-700",    icon: Shield },
-  gestor_contrato: { label: "Gestor de Contratos", color: "bg-violet-100 text-violet-700",  icon: ShieldCheck },
-};
-
 const Cargos = () => {
   const { cargos, loading, createCargo, updateCargo, deleteCargo } = useCargos();
+  const { employees } = useEmployees();
   const [searchTerm, setSearchTerm] = useState("");
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -66,23 +62,18 @@ const Cargos = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
           {[
             { label: "Total de cargos", value: cargos.length, color: "text-primary" },
             {
-              label: "Base operacional",
-              value: cargos.filter((c) => c.nivel_acesso === "funcionario").length,
+              label: "Cargos ocupados",
+              value: new Set(employees.map(e => e.cargo_id).filter(Boolean)).size,
               color: "text-emerald-600",
             },
             {
-              label: "Gestão de obra",
-              value: cargos.filter((c) => c.nivel_acesso === "gestor_obra").length,
+              label: "Colaboradores alocados",
+              value: employees.filter(e => e.cargo_id).length,
               color: "text-amber-600",
-            },
-            {
-              label: "Gestão contratual",
-              value: cargos.filter((c) => c.nivel_acesso === "gestor_contrato").length,
-              color: "text-violet-600",
             },
           ].map((s) => (
             <div key={s.label} className="rounded-lg border border-border/50 bg-card px-4 py-3 shadow-card">
@@ -111,14 +102,13 @@ const Cargos = () => {
                 <TableHead>Cargo</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Nível Hier.</TableHead>
-                <TableHead>Perfil inicial sugerido</TableHead>
+                <TableHead>Colaboradores</TableHead>
                 <TableHead className="w-[90px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((cargo) => {
-                const cfg = nivelAcessoConfig[cargo.nivel_acesso] ?? nivelAcessoConfig.funcionario;
-                const Icon = cfg.icon;
+                const ocupantes = employees.filter(e => e.cargo_id === cargo.id).length;
                 return (
                   <TableRow key={cargo.id}>
                     <TableCell>
@@ -138,9 +128,9 @@ const Cargos = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={`${cfg.color} border-0 text-xs flex items-center gap-1 w-fit`}>
-                        <Icon className="h-3 w-3" />
-                        {cfg.label}
+                      <Badge variant="secondary" className="flex w-fit items-center gap-1 text-xs">
+                        <Users className="h-3 w-3" />
+                        {ocupantes}
                       </Badge>
                     </TableCell>
                     <TableCell>

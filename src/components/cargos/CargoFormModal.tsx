@@ -7,17 +7,13 @@ import {
   DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Form, FormControl, FormDescription, FormField,
+  Form, FormControl, FormField,
   FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
-import {
-  Select, SelectContent, SelectItem,
-  SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Briefcase, KeyRound } from "lucide-react";
+import { Briefcase, Info } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Cargo = Database['public']['Tables']['cargos']['Row'];
@@ -29,18 +25,16 @@ const schema = z.object({
   nome:              z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   descricao:         z.string().optional(),
   nivel_hierarquico: z.number().min(1).max(10),
-  nivel_acesso:      z.enum(["funcionario", "gestor_obra", "gestor_contrato"]),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-const emptyForm = (): FormValues => ({ nome: "", descricao: "", nivel_hierarquico: 1, nivel_acesso: "funcionario" });
+const emptyForm = (): FormValues => ({ nome: "", descricao: "", nivel_hierarquico: 1 });
 
 const fromCargo = (c: Cargo): FormValues => ({
   nome:              c.nome ?? "",
   descricao:         c.descricao ?? "",
   nivel_hierarquico: c.nivel_hierarquico ?? 1,
-  nivel_acesso:      (c.nivel_acesso as FormValues["nivel_acesso"]) ?? "funcionario",
 });
 
 interface Props {
@@ -69,7 +63,7 @@ export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) =
         nome:              values.nome,
         descricao:         values.descricao || null,
         nivel_hierarquico: values.nivel_hierarquico,
-        nivel_acesso:      values.nivel_acesso,
+        nivel_acesso:      cargo?.nivel_acesso ?? "funcionario",
       } as CargoInsert);
       onOpenChange(false);
       form.reset();
@@ -105,7 +99,7 @@ export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) =
               )}
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <FormField
                 control={form.control}
                 name="nivel_hierarquico"
@@ -115,25 +109,6 @@ export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) =
                     <FormControl>
                       <Input type="number" min="1" max="10" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="nivel_acesso"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Classificação</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="funcionario">Funcionário</SelectItem>
-                        <SelectItem value="gestor_obra">Gestor de Obras</SelectItem>
-                        <SelectItem value="gestor_contrato">Gestor de Contratos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription className="text-xs">Sugere o perfil inicial ao cadastrar o funcionário.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -152,7 +127,7 @@ export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) =
             />
 
             <div className="flex gap-3 rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
-              <KeyRound className="h-4 w-4 shrink-0 text-primary" />
+              <Info className="h-4 w-4 shrink-0 text-primary" />
               <p>
                 O cargo não define o que a pessoa pode fazer no sistema. Os acessos são dados por perfil em
                 <b className="text-foreground"> Admin → Controle de Acesso</b>.
