@@ -167,7 +167,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
         numero_contrato_locacao: (vehicle as any).numero_contrato_locacao || "",
         data_inicio_locacao: (vehicle as any).data_inicio_locacao || "",
         data_fim_locacao: (vehicle as any).data_fim_locacao || "",
-        franquia_km_mensal: Number((vehicle as any).franquia_km_mensal || 0),
+        franquia_km_mensal: Number((vehicle as any).franquia_km_mensal || vehicle.quilometragem_maxima_mensal || 0),
         valor_km_excedente: Number((vehicle as any).valor_km_excedente || 0),
         responsavel_id: vehicle.responsavel_id || "",
         obra_id: "",
@@ -234,7 +234,10 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
         tipo: mapFormTypeToDbType(values.tipo!),
         cor: values.cor || null,
         quilometragem_atual: values.quilometragem_atual || 0,
-        quilometragem_maxima_mensal: values.quilometragem_maxima_mensal || 2000,
+        // Em locação, a franquia contratual é a única fonte do limite mensal.
+        quilometragem_maxima_mensal: values.tipo_propriedade === 'alugado'
+          ? (values.franquia_km_mensal || 0)
+          : (values.quilometragem_maxima_mensal || 2000),
         limite_lavagens_mensal: values.limite_lavagens_mensal || 4,
         valor_aluguel_mensal: values.valor_aluguel_mensal || 0,
         status: values.status || 'disponivel',
@@ -403,7 +406,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 )}
               />
               
-              <FormField
+              {form.watch("tipo_propriedade") !== "alugado" && <FormField
                 control={form.control}
                 name="quilometragem_maxima_mensal"
                 render={({ field }) => (
@@ -420,7 +423,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                     <FormMessage />
                   </FormItem>
                 )}
-              />
+              />}
               
               <FormField
                 control={form.control}
@@ -503,7 +506,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                   </Select><FormMessage />
                 </FormItem>
               )}/>
-              <FormField
+              {form.watch("tipo_propriedade") !== "alugado" && <FormField
                 control={form.control}
                 name="obra_id"
                 render={({ field }) => (
@@ -515,7 +518,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                     </Select><FormMessage />
                   </FormItem>
                 )}
-              />
+              />}
               {form.watch("tipo_uso") === "compartilhado" && <FormField control={form.control} name="setor_id" render={({ field }) => (
                 <FormItem><FormLabel>Setor responsável *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value || "none"}><FormControl><SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger></FormControl>

@@ -161,7 +161,7 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
         numero_contrato_locacao: (vehicle as any).numero_contrato_locacao || "",
         data_inicio_locacao: (vehicle as any).data_inicio_locacao || "",
         data_fim_locacao: (vehicle as any).data_fim_locacao || "",
-        franquia_km_mensal: Number((vehicle as any).franquia_km_mensal || 0),
+        franquia_km_mensal: Number((vehicle as any).franquia_km_mensal || vehicle.quilometragem_maxima_mensal || 0),
         valor_km_excedente: Number((vehicle as any).valor_km_excedente || 0),
         franquia_horas_mensal: Number((vehicle as any).franquia_horas_mensal || 0),
         valor_hora_excedente: Number((vehicle as any).valor_hora_excedente || 0),
@@ -228,7 +228,9 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
         cor: values.cor || null,
         tipo_medicao: values.tipo_medicao || 'km',
         quilometragem_atual: values.tipo_medicao === 'km' ? (values.quilometragem_atual || 0) : 0,
-        quilometragem_maxima_mensal: values.tipo_medicao === 'km' ? (values.quilometragem_maxima_mensal || 5000) : null,
+        quilometragem_maxima_mensal: values.tipo_medicao === 'km'
+          ? (values.tipo_propriedade === 'alugado' ? (values.franquia_km_mensal || 0) : (values.quilometragem_maxima_mensal || 5000))
+          : null,
         horimetro_atual: values.tipo_medicao === 'horimetro' ? (values.horimetro_atual || 0) : null,
         limite_horimetro_mensal: values.tipo_medicao === 'horimetro' ? (values.limite_horimetro_mensal || 250) : null,
         limite_lavagens_mensal: values.limite_lavagens_mensal || 4,
@@ -385,7 +387,7 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
                       </FormItem>
                     )}
                   />
-                  <FormField
+                  {form.watch("tipo_propriedade") !== "alugado" && <FormField
                     control={form.control}
                     name="quilometragem_maxima_mensal"
                     render={({ field }) => (
@@ -398,7 +400,7 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  />}
                 </>
               ) : (
                 <>
