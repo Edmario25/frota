@@ -44,7 +44,9 @@ const vehicleFormSchema = z.object({
   franquia_km_mensal: z.number().min(0).optional(),
   valor_km_excedente: z.number().min(0).optional(),
   responsavel_id: z.string().optional(),
-  obra_id: z.string().optional(),
+  obra_id: z.string().min(1, "Selecione a obra responsável pelo veículo"),
+  tipo_uso: z.enum(['compartilhado', 'dedicado']),
+  setor_id: z.string().optional(),
   traccar_device_id: z.string().optional(), // ID numérico como string para o Input
 });
 
@@ -59,6 +61,7 @@ interface VehicleFormModalProps {
 export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employees = [] }: VehicleFormModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [obras, setObras] = useState<any[]>([]);
+  const [setores, setSetores] = useState<any[]>([]);
   const { fornecedores } = useFornecedores();
 
   const form = useForm<z.infer<typeof vehicleFormSchema>>({
@@ -85,6 +88,8 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
       valor_km_excedente: 0,
       responsavel_id: "",
       obra_id: "",
+      tipo_uso: "compartilhado",
+      setor_id: "",
       traccar_device_id: "",
     },
   });
@@ -114,6 +119,10 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
         } else {
           setObras(data || []);
         }
+        const { data: setoresData, error: setoresError } = await (supabase as any)
+          .from('departamento_setores').select('id, nome, departamento_id, departamentos(nome)').eq('ativo', true).order('nome');
+        if (setoresError) console.error('Erro ao carregar setores:', setoresError);
+        else setSetores(setoresData || []);
         
         // Se estiver editando, buscar a obra vinculada atual
         if (vehicle) {
@@ -162,6 +171,8 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
         valor_km_excedente: Number((vehicle as any).valor_km_excedente || 0),
         responsavel_id: vehicle.responsavel_id || "",
         obra_id: "",
+        tipo_uso: ((vehicle as any).tipo_uso || "compartilhado") as "compartilhado" | "dedicado",
+        setor_id: (vehicle as any).setor_id || "",
         traccar_device_id: (vehicle as any).traccar_device_id != null
           ? String((vehicle as any).traccar_device_id)
           : "",
@@ -189,6 +200,8 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
         valor_km_excedente: 0,
         responsavel_id: "",
         obra_id: "",
+        tipo_uso: "compartilhado",
+        setor_id: "",
         traccar_device_id: "",
       });
     }
@@ -197,6 +210,14 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
   const handleSubmit = async (values: z.infer<typeof vehicleFormSchema>) => {
     if (values.tipo_propriedade === "alugado" && !values.fornecedor_id) {
       form.setError("fornecedor_id", { message: "Selecione o fornecedor responsável pela locação" });
+      return;
+    }
+    if (values.tipo_uso === "compartilhado" && (!values.setor_id || values.setor_id === "none")) {
+      form.setError("setor_id", { message: "Selecione o setor que utilizará este veículo compartilhado" });
+      return;
+    }
+    if ((values.tipo_uso === "dedicado" || values.status === "em_uso") && !values.responsavel_id) {
+      form.setError("responsavel_id", { message: "Informe o condutor responsável antes de liberar o veículo" });
       return;
     }
     setIsSubmitting(true);
@@ -226,6 +247,8 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
         franquia_km_mensal: values.franquia_km_mensal || null,
         valor_km_excedente: values.valor_km_excedente || null,
         responsavel_id: values.responsavel_id === "none" ? null : values.responsavel_id || null,
+        tipo_uso: values.tipo_uso,
+        setor_id: values.setor_id === "none" ? null : values.setor_id || null,
       };
       
       // Adicionar obra_id e traccar_device_id
@@ -473,12 +496,39 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 />
               )}
               
+              <FormField control={form.control} name="tipo_uso" render={({ field }) => (
+                <FormItem><FormLabel>Forma de utilização</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent><SelectItem value="compartilhado">Compartilhado pelo setor</SelectItem><SelectItem value="dedicado">Uso exclusivo</SelectItem></SelectContent>
+                  </Select><FormMessage />
+                </FormItem>
+              )}/>
               <FormField
+                control={form.control}
+                name="obra_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Obra responsável *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione a obra" /></SelectTrigger></FormControl>
+                      <SelectContent>{obras.length === 0 ? <SelectItem value="no-obras" disabled>Nenhuma obra disponível</SelectItem> : obras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nome} - {obra.status}</SelectItem>)}</SelectContent>
+                    </Select><FormMessage />
+                  </FormItem>
+                )}
+              />
+              {form.watch("tipo_uso") === "compartilhado" && <FormField control={form.control} name="setor_id" render={({ field }) => (
+                <FormItem><FormLabel>Setor responsável *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || "none"}><FormControl><SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger></FormControl>
+                    <SelectContent><SelectItem value="none">Selecione um setor</SelectItem>{setores.map((setor) => <SelectItem key={setor.id} value={setor.id}>{setor.nome}{setor.departamentos?.nome ? ` · ${setor.departamentos.nome}` : ""}</SelectItem>)}</SelectContent>
+                  </Select><FormMessage />
+                </FormItem>
+              )}/>}
+              {(form.watch("tipo_uso") === "dedicado" || form.watch("status") === "em_uso") && <FormField
                 control={form.control}
                 name="responsavel_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Responsável (Opcional)</FormLabel>
+                    <FormLabel>Condutor responsável *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || "none"}>
                       <FormControl>
                         <SelectTrigger>
@@ -497,40 +547,10 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                     <FormMessage />
                   </FormItem>
                 )}
-               />
-               
-               <FormField
-                 control={form.control}
-                 name="obra_id"
-                 render={({ field }) => (
-                   <FormItem>
-                     <FormLabel>Obra (Opcional)</FormLabel>
-                     <Select onValueChange={(value) => {
-                       console.log('Obra selecionada no formulário de veículo:', value);
-                       field.onChange(value);
-                     }} value={field.value}>
-                       <FormControl>
-                         <SelectTrigger>
-                           <SelectValue placeholder="Selecione uma obra (opcional)" />
-                         </SelectTrigger>
-                       </FormControl>
-                       <SelectContent>
-                         {obras.length === 0 ? (
-                           <SelectItem value="no-obras" disabled>Nenhuma obra disponível</SelectItem>
-                         ) : (
-                           obras.map((obra) => (
-                             <SelectItem key={obra.id} value={obra.id}>
-                               {obra.nome} - {obra.status}
-                             </SelectItem>
-                           ))
-                         )}
-                       </SelectContent>
-                     </Select>
-                     <FormMessage />
-                   </FormItem>
-                 )}
-               />
+               />}
              </div>
+
+            {form.watch("tipo_uso") === "compartilhado" && <p className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">Veículo compartilhado permanece sob responsabilidade do setor. O condutor será registrado na saída, inspeção ou abastecimento.</p>}
 
             {form.watch("tipo_propriedade") === "alugado" && <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
               <div><p className="font-medium">Condições da locação</p><p className="text-xs text-muted-foreground">A mensalidade e o excedente serão apropriados automaticamente no custo da obra vinculada.</p></div>

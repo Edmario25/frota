@@ -70,6 +70,18 @@ export const useVehicles = () => {
     if (error) throw new Error(`Veículo cadastrado, mas não foi possível vincular o fornecedor à obra: ${error.message}`);
   };
 
+  const configurarOperacao = async (vehicleId: string, data: any) => {
+    const { error } = await (supabase as any).rpc('configurar_operacao_veiculo', {
+      p_vehicle_id: vehicleId,
+      p_obra_id: data.obra_id || null,
+      p_setor_id: data.setor_id || null,
+      p_responsavel_id: data.responsavel_id || null,
+      p_tipo_uso: data.tipo_uso || 'compartilhado',
+      p_status: data.status || 'disponivel',
+    });
+    if (error) throw new Error(error.message);
+  };
+
   const createMutation = useMutation({
     mutationFn: async (vehicleData: any) => {
       const { obra_id, ...vehicleDataWithoutObra } = vehicleData;
@@ -77,21 +89,16 @@ export const useVehicles = () => {
       if (error) throw error;
 
       if (obra_id && obra_id !== "") {
-        const { error: obraError } = await (supabase as any).rpc('vincular_veiculo_obra', {
-          p_vehicle_id: data.id,
-          p_obra_id: obra_id,
-          p_tipo_vinculo: 'compartilhado',
-        });
-        if (obraError) {
+        try {
+          await configurarOperacao(data.id, vehicleData);
+        } catch (operacaoError: any) {
           // Compensacao: nao deixa cadastro orfao quando o vinculo obrigatorio falhar.
           await supabase.from('vehicles').delete().eq('id', data.id);
-          throw new Error(`Não foi possível vincular o veículo à obra: ${obraError.message}`);
+          throw new Error(`Não foi possível configurar a operação do veículo: ${operacaoError.message}`);
         }
         await vincularFornecedorLocacao(obra_id, vehicleDataWithoutObra.fornecedor_id, vehicleDataWithoutObra.valor_aluguel_mensal);
         toast({ title: "Veículo cadastrado", description: "Cadastro e vínculo com a obra concluídos com sucesso." });
-      } else {
-        toast({ title: "Veículo cadastrado", description: "O veículo foi cadastrado com sucesso." });
-      }
+      } else throw new Error('Selecione a obra responsável pelo veículo.');
       return data;
     },
     onSuccess: invalidate,
@@ -100,7 +107,7 @@ export const useVehicles = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, vehicleData }: { id: string; vehicleData: any }) => {
-      const { obra_id, ...rest } = vehicleData;
+      const { obra_id, setor_id, tipo_uso, ...rest } = vehicleData;
       const vehicleDataWithoutObra: VehicleUpdate = {
         placa: rest.placa, modelo: rest.modelo, marca: rest.marca, ano: rest.ano,
         tipo: rest.tipo, cor: rest.cor,
@@ -128,12 +135,7 @@ export const useVehicles = () => {
       const { data, error } = await supabase.from('vehicles').update(vehicleDataWithoutObra).eq('id', id).select().single();
       if (error) throw error;
 
-      const { error: linkError } = await (supabase as any).rpc('vincular_veiculo_obra', {
-        p_vehicle_id: id,
-        p_obra_id: obra_id || null,
-        p_tipo_vinculo: 'compartilhado',
-      });
-      if (linkError) throw new Error(`Veículo atualizado, mas a alocação não pôde ser concluída: ${linkError.message}`);
+      await configurarOperacao(id, { ...rest, obra_id, setor_id, tipo_uso });
       await vincularFornecedorLocacao(obra_id, rest.fornecedor_id, rest.valor_aluguel_mensal);
       return data;
     },
