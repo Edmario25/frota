@@ -56,6 +56,20 @@ export const useVehicles = () => {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['vehicles'] });
 
+  const vincularFornecedorLocacao = async (obraId?: string | null, fornecedorId?: string | null, valor?: number | null) => {
+    if (!obraId || !fornecedorId) return;
+    const { error } = await (supabase as any).from('obra_fornecedores').upsert({
+      obra_id: obraId,
+      fornecedor_id: fornecedorId,
+      data_inicio: new Date().toISOString().slice(0, 10),
+      tipo_contrato: 'locacao_frota',
+      valor_contrato: valor || null,
+      status: true,
+      observacoes: 'Vínculo criado automaticamente a partir da locação de veículo.',
+    }, { onConflict: 'obra_id,fornecedor_id', ignoreDuplicates: true });
+    if (error) throw new Error(`Veículo cadastrado, mas não foi possível vincular o fornecedor à obra: ${error.message}`);
+  };
+
   const createMutation = useMutation({
     mutationFn: async (vehicleData: any) => {
       const { obra_id, ...vehicleDataWithoutObra } = vehicleData;
@@ -73,6 +87,7 @@ export const useVehicles = () => {
           await supabase.from('vehicles').delete().eq('id', data.id);
           throw new Error(`Não foi possível vincular o veículo à obra: ${obraError.message}`);
         }
+        await vincularFornecedorLocacao(obra_id, vehicleDataWithoutObra.fornecedor_id, vehicleDataWithoutObra.valor_aluguel_mensal);
         toast({ title: "Veículo cadastrado", description: "Cadastro e vínculo com a obra concluídos com sucesso." });
       } else {
         toast({ title: "Veículo cadastrado", description: "O veículo foi cadastrado com sucesso." });
@@ -98,9 +113,17 @@ export const useVehicles = () => {
         status: rest.status, observacoes: rest.observacoes,
         tipo_propriedade: rest.tipo_propriedade,
         rental_company_id: rest.rental_company_id,
+        fornecedor_id: rest.fornecedor_id,
+        numero_contrato_locacao: rest.numero_contrato_locacao,
+        data_inicio_locacao: rest.data_inicio_locacao,
+        data_fim_locacao: rest.data_fim_locacao,
+        franquia_km_mensal: rest.franquia_km_mensal,
+        valor_km_excedente: rest.valor_km_excedente,
+        franquia_horas_mensal: rest.franquia_horas_mensal,
+        valor_hora_excedente: rest.valor_hora_excedente,
         responsavel_id: rest.responsavel_id,
         traccar_device_id: rest.traccar_device_id ?? null,
-      };
+      } as any;
 
       const { data, error } = await supabase.from('vehicles').update(vehicleDataWithoutObra).eq('id', id).select().single();
       if (error) throw error;
@@ -111,6 +134,7 @@ export const useVehicles = () => {
         p_tipo_vinculo: 'compartilhado',
       });
       if (linkError) throw new Error(`Veículo atualizado, mas a alocação não pôde ser concluída: ${linkError.message}`);
+      await vincularFornecedorLocacao(obra_id, rest.fornecedor_id, rest.valor_aluguel_mensal);
       return data;
     },
     onSuccess: () => {

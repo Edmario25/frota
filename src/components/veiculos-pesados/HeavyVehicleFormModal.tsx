@@ -16,7 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import type { Database } from "@/integrations/supabase/types";
-import { useRentalCompanies } from "@/hooks/useRentalCompanies";
+import { useFornecedores } from "@/hooks/useFornecedores";
 import { supabase } from "@/integrations/supabase/client";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -38,7 +38,14 @@ const heavyVehicleFormSchema = z.object({
   status: z.enum(['disponivel', 'em_uso', 'manutencao']).optional(),
   observacoes: z.string().optional(),
   tipo_propriedade: z.enum(['proprio', 'alugado']),
-  rental_company_id: z.string().optional(),
+  fornecedor_id: z.string().optional(),
+  numero_contrato_locacao: z.string().optional(),
+  data_inicio_locacao: z.string().optional(),
+  data_fim_locacao: z.string().optional(),
+  franquia_km_mensal: z.number().min(0).optional(),
+  valor_km_excedente: z.number().min(0).optional(),
+  franquia_horas_mensal: z.number().min(0).optional(),
+  valor_hora_excedente: z.number().min(0).optional(),
   responsavel_id: z.string().optional(),
   obra_id: z.string().optional(),
 });
@@ -54,7 +61,7 @@ interface HeavyVehicleFormModalProps {
 export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employees = [] }: HeavyVehicleFormModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [obras, setObras] = useState<any[]>([]);
-  const { rentalCompanies } = useRentalCompanies();
+  const { fornecedores } = useFornecedores();
 
   const form = useForm<z.infer<typeof heavyVehicleFormSchema>>({
     resolver: zodResolver(heavyVehicleFormSchema),
@@ -74,7 +81,14 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
       status: "disponivel",
       observacoes: "",
       tipo_propriedade: "proprio",
-      rental_company_id: "",
+      fornecedor_id: "",
+      numero_contrato_locacao: "",
+      data_inicio_locacao: "",
+      data_fim_locacao: "",
+      franquia_km_mensal: 0,
+      valor_km_excedente: 0,
+      franquia_horas_mensal: 0,
+      valor_hora_excedente: 0,
       responsavel_id: "",
       obra_id: "",
     },
@@ -136,7 +150,14 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
         status: vehicle.status as "disponivel" | "em_uso" | "manutencao",
         observacoes: vehicle.observacoes || "",
         tipo_propriedade: (vehicle.tipo_propriedade as "proprio" | "alugado") || "proprio",
-        rental_company_id: vehicle.rental_company_id || "",
+        fornecedor_id: (vehicle as any).fornecedor_id || "",
+        numero_contrato_locacao: (vehicle as any).numero_contrato_locacao || "",
+        data_inicio_locacao: (vehicle as any).data_inicio_locacao || "",
+        data_fim_locacao: (vehicle as any).data_fim_locacao || "",
+        franquia_km_mensal: Number((vehicle as any).franquia_km_mensal || 0),
+        valor_km_excedente: Number((vehicle as any).valor_km_excedente || 0),
+        franquia_horas_mensal: Number((vehicle as any).franquia_horas_mensal || 0),
+        valor_hora_excedente: Number((vehicle as any).valor_hora_excedente || 0),
         responsavel_id: vehicle.responsavel_id || "",
         obra_id: "",
       });
@@ -157,7 +178,14 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
         status: "disponivel",
         observacoes: "",
         tipo_propriedade: "proprio",
-        rental_company_id: "",
+        fornecedor_id: "",
+        numero_contrato_locacao: "",
+        data_inicio_locacao: "",
+        data_fim_locacao: "",
+        franquia_km_mensal: 0,
+        valor_km_excedente: 0,
+        franquia_horas_mensal: 0,
+        valor_hora_excedente: 0,
         responsavel_id: "",
         obra_id: "",
       });
@@ -165,6 +193,10 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
   }, [vehicle, form]);
 
   const handleSubmit = async (values: z.infer<typeof heavyVehicleFormSchema>) => {
+    if (values.tipo_propriedade === "alugado" && !values.fornecedor_id) {
+      form.setError("fornecedor_id", { message: "Selecione o fornecedor responsável pela locação" });
+      return;
+    }
     setIsSubmitting(true);
     try {
       // Ensure required fields are present and set tipo as "pesado"
@@ -185,7 +217,14 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
         status: values.status || 'disponivel',
         observacoes: values.observacoes || null,
         tipo_propriedade: values.tipo_propriedade!,
-        rental_company_id: values.rental_company_id || null,
+        fornecedor_id: values.fornecedor_id || null,
+        numero_contrato_locacao: values.numero_contrato_locacao?.trim() || null,
+        data_inicio_locacao: values.data_inicio_locacao || null,
+        data_fim_locacao: values.data_fim_locacao || null,
+        franquia_km_mensal: values.franquia_km_mensal || null,
+        valor_km_excedente: values.valor_km_excedente || null,
+        franquia_horas_mensal: values.franquia_horas_mensal || null,
+        valor_hora_excedente: values.valor_hora_excedente || null,
         responsavel_id: values.responsavel_id === "none" ? null : values.responsavel_id || null,
         obra_id: values.obra_id || null,
       };
@@ -423,20 +462,20 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
               {form.watch("tipo_propriedade") === "alugado" && (
                 <FormField
                   control={form.control}
-                  name="rental_company_id"
+                  name="fornecedor_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Locadora</FormLabel>
+                      <FormLabel>Fornecedor / locadora *</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione a locadora" />
+                            <SelectValue placeholder="Selecione entre os fornecedores cadastrados" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {rentalCompanies.map((company) => (
-                            <SelectItem key={company.id} value={company.id}>
-                              {company.nome}
+                          {fornecedores.filter(f => f.status === "ativo").map((fornecedor) => (
+                            <SelectItem key={fornecedor.id} value={fornecedor.id}>
+                              {fornecedor.nome}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -501,7 +540,17 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
                   </FormItem>
                 )}
               />
-            </div>
+             </div>
+
+            {form.watch("tipo_propriedade") === "alugado" && <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <div><p className="font-medium">Condições da locação</p><p className="text-xs text-muted-foreground">Mensalidade e excedentes entram automaticamente no custo da obra vinculada.</p></div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField control={form.control} name="numero_contrato_locacao" render={({ field }) => <FormItem><FormLabel>Nº do contrato</FormLabel><FormControl><Input placeholder="Ex.: CT-2026-015" {...field}/></FormControl><FormMessage/></FormItem>}/>
+                <FormField control={form.control} name="data_inicio_locacao" render={({ field }) => <FormItem><FormLabel>Início da locação</FormLabel><FormControl><Input type="date" {...field}/></FormControl><FormMessage/></FormItem>}/>
+                <FormField control={form.control} name="data_fim_locacao" render={({ field }) => <FormItem><FormLabel>Término previsto</FormLabel><FormControl><Input type="date" {...field}/></FormControl><FormMessage/></FormItem>}/>
+                {form.watch("tipo_medicao")==="km" ? <><FormField control={form.control} name="franquia_km_mensal" render={({ field }) => <FormItem><FormLabel>Franquia de KM / mês</FormLabel><FormControl><Input type="number" min="0" placeholder="Ex.: 10000" {...field} onChange={e=>field.onChange(Number(e.target.value)||0)}/></FormControl><FormMessage/></FormItem>}/><FormField control={form.control} name="valor_km_excedente" render={({ field }) => <FormItem><FormLabel>Valor por KM excedente (R$)</FormLabel><FormControl><Input type="number" min="0" step="0.0001" placeholder="0,00" {...field} onChange={e=>field.onChange(Number(e.target.value)||0)}/></FormControl><FormMessage/></FormItem>}/></> : <><FormField control={form.control} name="franquia_horas_mensal" render={({ field }) => <FormItem><FormLabel>Franquia de horas / mês</FormLabel><FormControl><Input type="number" min="0" step="0.1" placeholder="Ex.: 250" {...field} onChange={e=>field.onChange(Number(e.target.value)||0)}/></FormControl><FormMessage/></FormItem>}/><FormField control={form.control} name="valor_hora_excedente" render={({ field }) => <FormItem><FormLabel>Valor por hora excedente (R$)</FormLabel><FormControl><Input type="number" min="0" step="0.0001" placeholder="0,00" {...field} onChange={e=>field.onChange(Number(e.target.value)||0)}/></FormControl><FormMessage/></FormItem>}/></>}
+              </div>
+            </div>}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
