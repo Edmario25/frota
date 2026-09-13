@@ -126,15 +126,15 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
         
         // Se estiver editando, buscar a obra vinculada atual
         if (vehicle) {
-          const { data: vinculoData } = await supabase
+          const { data: vinculosData } = await supabase
             .from('obra_veiculos')
             .select('obra_id')
             .eq('vehicle_id', vehicle.id)
             .eq('status', true)
-            .single();
+            .limit(1);
           
-          if (vinculoData?.obra_id) {
-            form.setValue('obra_id', vinculoData.obra_id);
+          if (vinculosData?.[0]?.obra_id) {
+            form.setValue('obra_id', vinculosData[0].obra_id);
           }
         }
       } catch (error) {

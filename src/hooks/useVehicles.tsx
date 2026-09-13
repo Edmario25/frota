@@ -132,12 +132,15 @@ export const useVehicles = () => {
         traccar_device_id: rest.traccar_device_id ?? null,
       } as any;
 
-      const { data, error } = await supabase.from('vehicles').update(vehicleDataWithoutObra).eq('id', id).select().single();
+      // Não solicitamos o registro de volta: em alguns perfis a política de
+      // leitura filtra a linha atualizada, e o `.single()` transforma uma
+      // atualização válida em erro técnico de objeto JSON único.
+      const { error } = await supabase.from('vehicles').update(vehicleDataWithoutObra).eq('id', id);
       if (error) throw error;
 
       await configurarOperacao(id, { ...rest, obra_id, setor_id, tipo_uso });
       await vincularFornecedorLocacao(obra_id, rest.fornecedor_id, rest.valor_aluguel_mensal);
-      return data;
+      return { id };
     },
     onSuccess: () => {
       invalidate();
