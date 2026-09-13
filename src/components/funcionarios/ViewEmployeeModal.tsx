@@ -456,10 +456,10 @@ export const ViewEmployeeModal = ({
                                 <div>
                                   <p className="font-medium">{obra.obra.nome}</p>
                                   <p className="text-sm text-muted-foreground">
-                                    {obra.funcao_obra} • {formatDate(obra.data_entrada)} - {formatDate(obra.data_saida)}
+                                    {obra.funcao_obra} • {formatDate(obra.data_entrada)} — encerrado em {formatDate(obra.data_saida)}
                                   </p>
                                 </div>
-                                <Badge variant="outline">{getObraStatusText(obra.obra.status)}</Badge>
+                                <Badge variant="secondary">Lotação encerrada</Badge>
                               </div>
                             </CardContent>
                           </Card>

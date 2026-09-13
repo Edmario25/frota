@@ -114,15 +114,11 @@ export const useEmployees = () => {
       if (error) throw error;
 
       if (obra_id !== undefined) {
-        await supabase.from('obra_funcionarios').update({ status: false }).eq('employee_id', id);
-        if (obra_id && obra_id !== "none" && obra_id !== "") {
-          await supabase.from('obra_funcionarios').insert([{
-            obra_id, employee_id: id,
-            funcao_obra: "Colaborador",
-            data_entrada: new Date().toISOString().split('T')[0],
-            status: true,
-          }]);
-        }
+        const { error: lotacaoError } = await (supabase as any).rpc('sincronizar_lotacao_principal', {
+          p_employee_id: id,
+          p_obra_id: obra_id && obra_id !== 'none' && obra_id !== '' ? obra_id : null,
+        });
+        if (lotacaoError) throw lotacaoError;
       }
 
       return { id, changes: employeeOnly };

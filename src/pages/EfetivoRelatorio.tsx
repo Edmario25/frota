@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Download, RefreshCw, BarChart3, Users, Clock, AlertCircle, CalendarDays, TriangleAlert } from "lucide-react";
@@ -24,6 +27,8 @@ interface DiaInfo {
   horas_extras:     number;
   fonte:            "supervisor" | "campo" | "csv" | "totem";
   incompleto:       boolean;
+  tipo_ausencia?:   string | null;
+  justificada?:      boolean;
 }
 
 interface VinculoPeriodo {
@@ -40,9 +45,12 @@ interface EmpRow {
   total_hhe:   number;
   presencas:   number;
   faltas:      number;
+  justificadas: number;
   nao_reg:     number;
   periodos:    VinculoPeriodo[];
 }
+
+interface PendenciaFrequencia { employee_id: string; nome: string; data: string }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtH(h: number): string {
@@ -83,6 +91,11 @@ export default function EfetivoRelatorio() {
   const [empRows, setEmpRows] = useState<EmpRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded]   = useState(false);
+  const [pendencia, setPendencia] = useState<PendenciaFrequencia | null>(null);
+  const [tipoAusencia, setTipoAusencia] = useState("atestado_medico");
+  const [motivoAusencia, setMotivoAusencia] = useState("");
+  const [documentoUrl, setDocumentoUrl] = useState("");
+  const [salvandoJustificativa, setSalvandoJustificativa] = useState(false);
 
   useEffect(() => {
     supabase.from("obras").select("id, nome").order("nome")
@@ -103,7 +116,7 @@ export default function EfetivoRelatorio() {
       // Equipe histórica: considera quem esteve vinculado em qualquer parte do mês.
       const { data: emps, error: empsError } = await (supabase as any)
         .from("obra_funcionarios")
-        .select("employee_id, data_entrada, data_saida, employees(id, nome, cargos(nome))")
+        .select("employee_id, data_entrada, data_saida, employees(id, nome, controla_jornada, cargos(nome))")
         .eq("obra_id", obraId)
         .lte("data_entrada", dataFim)
         .or(`data_saida.is.null,data_saida.gte.${dataIni}`);
@@ -115,7 +128,7 @@ export default function EfetivoRelatorio() {
         if (!employee) continue;
         const current = empMap.get(employee.id) ?? { employee, periodos: [] };
         current.periodos.push({ data_entrada: link.data_entrada, data_saida: link.data_saida });
-        empMap.set(employee.id, current);
+        if (employee.controla_jornada !== false) empMap.set(employee.id, current);
       }
 
       // IDs dos funcionários (para filtrar totem por employee_id)
@@ -124,11 +137,19 @@ export default function EfetivoRelatorio() {
       // Apontamentos salvos pelo supervisor
       const { data: pontos, error: pontosError } = await (supabase as any)
         .from("efetivo_ponto")
-        .select("employee_id, data, ausencia, horas_trabalhadas, horas_extras, hora_entrada, hora_saida, frente, fonte")
+        .select("employee_id, data, ausencia, horas_trabalhadas, horas_extras, hora_entrada, hora_saida, frente, fonte, tipo_ausencia")
         .eq("obra_id", obraId)
         .gte("data", dataIni)
         .lte("data", dataFim);
       if (pontosError) throw pontosError;
+
+      const { data: afastamentos, error: afastamentosError } = empIds.length > 0
+        ? await (supabase as any).from("employee_ferias")
+            .select("employee_id, tipo, data_inicio, data_fim, motivo")
+            .in("employee_id", empIds).eq("aprovado", true)
+            .lte("data_inicio", dataFim).or(`data_fim.is.null,data_fim.gte.${dataIni}`)
+        : { data: [], error: null };
+      if (afastamentosError) throw afastamentosError;
 
       // Vínculos em outras obras são usados para não atribuir batida sem obra
       // quando o funcionário estava alocado em mais de um local no mesmo dia.
@@ -219,6 +240,8 @@ export default function EfetivoRelatorio() {
           horas_extras:      p.horas_extras ?? 0,
           fonte:             (["supervisor", "campo", "csv"].includes(p.fonte) ? p.fonte : "supervisor") as DiaInfo["fonte"],
           incompleto:        !p.ausencia && Boolean(p.hora_entrada) !== Boolean(p.hora_saida),
+          tipo_ausencia:     p.tipo_ausencia,
+          justificada:       Boolean(p.tipo_ausencia && p.tipo_ausencia !== "falta_injustificada"),
         };
       });
 
@@ -244,10 +267,14 @@ export default function EfetivoRelatorio() {
                 fonte:             "totem",
                 incompleto:        t.incompleto,
               };
+            } else {
+              const dataDia = `${mes}-${String(d).padStart(2, "0")}`;
+              const afastamento = (afastamentos ?? []).find((a: any) => a.employee_id === e.id && a.data_inicio <= dataDia && (!a.data_fim || a.data_fim >= dataDia));
+              if (afastamento) diasEmp[d] = { ausencia:true, horas_trabalhadas:null, hora_entrada:null, hora_saida:null, frente:null, horas_extras:0, fonte:"supervisor", incompleto:false, tipo_ausencia:afastamento.tipo, justificada:true };
             }
           }
 
-          let total_hht = 0, total_hhe = 0, presencas = 0, faltas = 0, nao_reg = 0;
+          let total_hht = 0, total_hhe = 0, presencas = 0, faltas = 0, justificadas = 0, nao_reg = 0;
           for (let d = 1; d <= diasNoMes; d++) {
             const dataDia = `${mes}-${String(d).padStart(2, "0")}`;
             if (!dentroDoVinculo(dataDia, periodos)) continue;
@@ -256,7 +283,7 @@ export default function EfetivoRelatorio() {
               if (dataDia < hoje && diaUtil(dataDia)) nao_reg++;
               continue;
             }
-            if (dia.ausencia) { faltas++; }
+            if (dia.ausencia) { if (dia.justificada) justificadas++; else faltas++; }
             else if (!dia.incompleto) { presencas++; total_hht += dia.horas_trabalhadas ?? 0; }
             total_hhe += dia.horas_extras;
           }
@@ -270,6 +297,7 @@ export default function EfetivoRelatorio() {
             total_hhe,
             presencas,
             faltas,
+            justificadas,
             nao_reg,
             periodos,
           } satisfies EmpRow;
@@ -322,11 +350,28 @@ export default function EfetivoRelatorio() {
   // KPIs
   const totalPresencas = empRows.reduce((s, r) => s + r.presencas, 0);
   const totalFaltas    = empRows.reduce((s, r) => s + r.faltas, 0);
+  const totalJustificadas = empRows.reduce((s, r) => s + r.justificadas, 0);
   const totalHHT       = empRows.reduce((s, r) => s + r.total_hht, 0);
   const totalHHE       = empRows.reduce((s, r) => s + r.total_hhe, 0);
   const totalPendentes = empRows.reduce((s, r) => s + r.nao_reg, 0);
   const obraNome       = obras.find(o => o.id === obraId)?.nome ?? "";
   const mesLabel       = MESES.find(m => m.value === mes)?.label ?? mes;
+
+  function abrirJustificativa(employee_id: string, nome: string, data: string) {
+    setPendencia({ employee_id, nome, data }); setTipoAusencia("atestado_medico"); setMotivoAusencia(""); setDocumentoUrl("");
+  }
+
+  async function salvarJustificativa() {
+    if (!pendencia || motivoAusencia.trim().length < 5) { toast.error("Informe um motivo com pelo menos 5 caracteres."); return; }
+    setSalvandoJustificativa(true);
+    const { error } = await (supabase as any).rpc("registrar_ausencia_rh", {
+      p_obra_id: obraId, p_employee_id: pendencia.employee_id, p_data: pendencia.data,
+      p_tipo: tipoAusencia, p_motivo: motivoAusencia.trim(), p_documento_url: documentoUrl.trim() || null,
+    });
+    setSalvandoJustificativa(false);
+    if (error) { toast.error(error.message || "Não foi possível registrar a justificativa."); return; }
+    toast.success("Frequência tratada pelo RH."); setPendencia(null); void handleCarregar();
+  }
 
   return (
     <Layout>
@@ -392,10 +437,11 @@ export default function EfetivoRelatorio() {
 
         {/* KPIs */}
         {loaded && !loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
               { label: "Total Presenças",    value: totalPresencas, icon: Users,        color: "bg-green-100 text-green-600 dark:bg-green-900/30" },
               { label: "Total Faltas",       value: totalFaltas,    icon: AlertCircle,  color: totalFaltas > 0 ? "bg-red-100 text-red-600 dark:bg-red-900/30" : "bg-muted/50 text-muted-foreground" },
+              { label: "Justificadas",        value: totalJustificadas, icon: CalendarDays, color: totalJustificadas > 0 ? "bg-violet-100 text-violet-600 dark:bg-violet-900/30" : "bg-muted/50 text-muted-foreground" },
               { label: "Pendências",          value: totalPendentes, icon: TriangleAlert,color: totalPendentes > 0 ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30" : "bg-muted/50 text-muted-foreground" },
               { label: "HHT Mensal",         value: fmtH(totalHHT), icon: Clock,        color: "bg-blue-100 text-blue-600 dark:bg-blue-900/30" },
               { label: "H. Extras no Mês",   value: fmtH(totalHHE), icon: CalendarDays, color: totalHHE > 0 ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30" : "bg-muted/50 text-muted-foreground" },
@@ -430,6 +476,7 @@ export default function EfetivoRelatorio() {
                 <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-blue-100 dark:bg-blue-900/30 inline-block" /> Q = Totem QR</span>
                 <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-violet-100 dark:bg-violet-900/30 inline-block" /> I = Importado</span>
                 <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-red-100 dark:bg-red-900/30 inline-block" /> A = Ausente</span>
+                <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-violet-100 inline-block" /> J = Justificada pelo RH</span>
                 <span className="flex items-center gap-1"><span className="h-4 w-4 rounded bg-amber-100 inline-block" /> ? = Pendente · ! = Incompleto</span>
               </div>
             </CardHeader>
@@ -445,6 +492,7 @@ export default function EfetivoRelatorio() {
                       ))}
                       <th className="py-2 px-2 font-semibold text-center text-green-600 min-w-12">P</th>
                       <th className="py-2 px-2 font-semibold text-center text-red-600 min-w-12">F</th>
+                      <th className="py-2 px-2 font-semibold text-center text-violet-600 min-w-12">J</th>
                       <th className="py-2 px-2 font-semibold text-center text-blue-600 min-w-16">HHT</th>
                       <th className="py-2 px-2 font-semibold text-center text-amber-600 min-w-16">HHE</th>
                     </tr>
@@ -466,11 +514,11 @@ export default function EfetivoRelatorio() {
                           return (
                             <td key={d} className={cn("py-1 px-0.5 text-center", !diaUtil(dataDia) && "bg-muted/30")}>
                               {!dia ? pendente ? (
-                                <span title="Dia útil sem apontamento" className="inline-flex items-center justify-center h-6 w-7 rounded text-[10px] font-bold bg-amber-100 text-amber-700">?</span>
+                                <button type="button" onClick={() => abrirJustificativa(r.employee_id, r.nome, dataDia)} title="Dia útil sem apontamento — clique para tratar no RH" className="inline-flex items-center justify-center h-6 w-7 rounded text-[10px] font-bold bg-amber-100 text-amber-700 hover:ring-2 hover:ring-amber-400">?</button>
                               ) : (
                                 <span className="text-muted-foreground/30">{noVinculo ? "·" : "—"}</span>
                               ) : dia.ausencia ? (
-                                <span className="inline-flex items-center justify-center h-6 w-7 rounded text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">A</span>
+                                <span title={dia.tipo_ausencia ? `Ausência tratada pelo RH: ${dia.tipo_ausencia.replaceAll("_", " ")}` : "Ausência"} className={cn("inline-flex items-center justify-center h-6 w-7 rounded text-[10px] font-bold", dia.tipo_ausencia && dia.tipo_ausencia !== "falta_injustificada" ? "bg-violet-100 text-violet-700" : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400")}>{dia.tipo_ausencia && dia.tipo_ausencia !== "falta_injustificada" ? "J" : "A"}</span>
                               ) : dia.incompleto ? (
                                 <span
                                   title={`${origemLabel} · ponto incompleto · ${dia.hora_entrada ?? "?"}–${dia.hora_saida ?? "?"}`}
@@ -491,6 +539,7 @@ export default function EfetivoRelatorio() {
                         })}
                         <td className="py-2 px-2 text-center font-bold text-green-600">{r.presencas}</td>
                         <td className="py-2 px-2 text-center font-bold text-red-500">{r.faltas || "—"}</td>
+                        <td className="py-2 px-2 text-center font-bold text-violet-600">{r.justificadas || "—"}</td>
                         <td className="py-2 px-2 text-center font-medium text-blue-600">{fmtH(r.total_hht)}</td>
                         <td className="py-2 px-2 text-center font-medium text-amber-600">{r.total_hhe > 0 ? fmtH(r.total_hhe) : "—"}</td>
                       </tr>
@@ -513,6 +562,7 @@ export default function EfetivoRelatorio() {
                       })}
                       <td className="py-2 px-2 text-center font-bold text-green-600">{totalPresencas}</td>
                       <td className="py-2 px-2 text-center font-bold text-red-500">{totalFaltas || "—"}</td>
+                      <td className="py-2 px-2 text-center font-bold text-violet-600">{totalJustificadas || "—"}</td>
                       <td className="py-2 px-2 text-center font-bold text-blue-600">{fmtH(totalHHT)}</td>
                       <td className="py-2 px-2 text-center font-bold text-amber-600">{totalHHE > 0 ? fmtH(totalHHE) : "—"}</td>
                     </tr>
@@ -543,6 +593,13 @@ export default function EfetivoRelatorio() {
             </p>
           </div>
         )}
+        <Dialog open={!!pendencia} onOpenChange={(open) => !open && setPendencia(null)}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Tratar pendência de frequência</DialogTitle><DialogDescription>{pendencia ? `${pendencia.nome} · ${format(new Date(`${pendencia.data}T12:00:00`), "dd/MM/yyyy")}` : ""}</DialogDescription></DialogHeader>
+            <div className="space-y-4"><div><Label>Classificação</Label><Select value={tipoAusencia} onValueChange={setTipoAusencia}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="atestado_medico">Atestado médico</SelectItem><SelectItem value="licenca">Licença / afastamento</SelectItem><SelectItem value="abono">Falta abonada</SelectItem><SelectItem value="falta_justificada">Falta justificada</SelectItem><SelectItem value="falta_injustificada">Falta injustificada</SelectItem><SelectItem value="outro">Outro motivo</SelectItem></SelectContent></Select></div><div><Label>Motivo e referência do documento</Label><Textarea value={motivoAusencia} onChange={e=>setMotivoAusencia(e.target.value)} placeholder="Ex.: Atestado médico apresentado ao RH, protocolo 123." /></div><div><Label>Link do documento (opcional)</Label><Input value={documentoUrl} onChange={e=>setDocumentoUrl(e.target.value)} placeholder="URL do atestado ou documento no prontuário" /></div><p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">A decisão não cria uma batida de ponto. Ela registra a ausência, seu motivo, responsável e data de tratamento.</p></div>
+            <DialogFooter><Button variant="outline" onClick={()=>setPendencia(null)}>Cancelar</Button><Button onClick={salvarJustificativa} disabled={salvandoJustificativa}>{salvandoJustificativa ? "Registrando..." : "Confirmar tratamento"}</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
