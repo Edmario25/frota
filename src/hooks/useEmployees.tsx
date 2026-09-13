@@ -106,8 +106,11 @@ export const useEmployees = () => {
     mutationFn: async ({ id, d }: { id: string; d: EmployeeUpdate & { obra_id?: string } }) => {
       const { obra_id, ...employeeOnly } = d as any;
 
-      const { data, error } = await supabase
-        .from('employees').update(employeeOnly).eq('id', id).select(EMPLOYEE_SELECT).single();
+      // Não pedimos a linha de volta: a política de leitura pode ocultar as
+      // relações do registro atualizado, fazendo uma atualização válida falhar
+      // com o erro técnico de objeto JSON único.
+      const { error } = await supabase
+        .from('employees').update(employeeOnly).eq('id', id);
       if (error) throw error;
 
       if (obra_id !== undefined) {
@@ -122,12 +125,12 @@ export const useEmployees = () => {
         }
       }
 
-      return data;
+      return { id, changes: employeeOnly };
     },
     onSuccess: (atualizado) => {
-      updateEmployeeCaches((old) =>
-        old.map(e => e.id === atualizado.id ? atualizado : e),
-      );
+      updateEmployeeCaches((old) => old.map((e) =>
+        e.id === atualizado.id ? { ...e, ...atualizado.changes } : e,
+      ));
       invalidate();
       toast({ title: "Funcionário atualizado", description: "O funcionário foi atualizado com sucesso." });
     },
