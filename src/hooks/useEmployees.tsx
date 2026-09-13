@@ -109,8 +109,19 @@ export const useEmployees = () => {
       // Não pedimos a linha de volta: a política de leitura pode ocultar as
       // relações do registro atualizado, fazendo uma atualização válida falhar
       // com o erro técnico de objeto JSON único.
-      const { error } = await supabase
+      let { error } = await supabase
         .from('employees').update(employeeOnly).eq('id', id);
+      let migrationPendente = false;
+
+      // A interface pode ser publicada antes da migração do banco. Nesse caso,
+      // preservamos a edição funcional e avisamos que a regra de jornada ainda
+      // não pôde ser gravada, em vez de bloquear todo o cadastro.
+      if (error?.message?.includes('controla_jornada') || error?.message?.includes('motivo_dispensa_ponto')) {
+        const { controla_jornada, motivo_dispensa_ponto, ...dadosCompativeis } = employeeOnly;
+        const retry = await supabase.from('employees').update(dadosCompativeis).eq('id', id);
+        error = retry.error;
+        migrationPendente = !error;
+      }
       if (error) throw error;
 
       if (obra_id !== undefined) {
@@ -121,14 +132,14 @@ export const useEmployees = () => {
         if (lotacaoError) throw lotacaoError;
       }
 
-      return { id, changes: employeeOnly };
+      return { id, changes: employeeOnly, migrationPendente };
     },
     onSuccess: (atualizado) => {
       updateEmployeeCaches((old) => old.map((e) =>
         e.id === atualizado.id ? { ...e, ...atualizado.changes } : e,
       ));
       invalidate();
-      toast({ title: "Funcionário atualizado", description: "O funcionário foi atualizado com sucesso." });
+      toast({ title: "Funcionário atualizado", description: atualizado.migrationPendente ? "Dados salvos. A regra de jornada será ativada após aplicar a atualização do banco." : "O funcionário foi atualizado com sucesso." });
     },
     onError: (e: any) => toast({ title: "Erro ao atualizar funcionário", description: friendlyDbError(e), variant: "destructive" }),
   });
