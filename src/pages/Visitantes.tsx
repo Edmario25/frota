@@ -37,6 +37,8 @@ type Visitante = {
   id: string; nome: string; tipo_doc: string; numero_doc: string;
   empresa: string | null; cargo_empresa: string | null; telefone: string | null;
   foto_url: string | null; bloqueado: boolean; motivo_bloqueio: string | null; observacoes: string | null;
+  documento_validade?: string | null; documento_url?: string | null;
+  cnh_numero?: string | null; cnh_categoria?: string | null; cnh_validade?: string | null; cnh_url?: string | null;
 };
 
 type Visita = {
@@ -44,6 +46,10 @@ type Visita = {
   setor_destino: string | null; responsavel_id: string | null; autorizado_por: string | null;
   status: string; entrada: string | null; saida: string | null;
   placa_veiculo: string | null; cracha_numero: string | null;
+  conduz_veiculo?: boolean; veiculo_marca_modelo?: string | null; veiculo_documento?: string | null;
+  veiculo_documento_validade?: string | null; briefing_sms_versao?: string | null;
+  briefing_sms_aceite?: boolean; briefing_sms_realizado_em?: string | null;
+  cracha_validade?: string | null; credencial_veiculo_numero?: string | null; credencial_veiculo_validade?: string | null;
   observacoes: string | null; motivo_negado: string | null; created_at: string;
   // joins
   visitante?: Visitante;
@@ -55,6 +61,9 @@ type VisitaAtiva = {
   entrada: string | null; cracha_numero: string | null; placa_veiculo: string | null; status: string;
   visitante_nome: string; visitante_empresa: string | null; tipo_doc: string; numero_doc: string;
   minutos_dentro: number | null; responsavel_nome: string | null;
+  cracha_validade?: string | null; conduz_veiculo?: boolean;
+  credencial_veiculo_numero?: string | null; credencial_veiculo_validade?: string | null;
+  briefing_sms_versao?: string | null; briefing_sms_realizado_em?: string | null;
 };
 
 type Kpi = {
@@ -97,7 +106,8 @@ function VisitanteModal({
   const { toast } = useToast();
   const blank = {
     nome: "", tipo_doc: "cpf", numero_doc: "", empresa: "", cargo_empresa: "",
-    telefone: "", foto_url: "", observacoes: "",
+    telefone: "", foto_url: "", observacoes: "", documento_validade: "", documento_url: "",
+    cnh_numero: "", cnh_categoria: "", cnh_validade: "", cnh_url: "",
   };
   const [f, setF] = useState(blank);
   const [saving, setSaving] = useState(false);
@@ -109,6 +119,9 @@ function VisitanteModal({
         empresa: editing.empresa ?? "", cargo_empresa: editing.cargo_empresa ?? "",
         telefone: editing.telefone ?? "", foto_url: editing.foto_url ?? "",
         observacoes: editing.observacoes ?? "",
+        documento_validade: editing.documento_validade ?? "", documento_url: editing.documento_url ?? "",
+        cnh_numero: editing.cnh_numero ?? "", cnh_categoria: editing.cnh_categoria ?? "",
+        cnh_validade: editing.cnh_validade ?? "", cnh_url: editing.cnh_url ?? "",
       } : blank);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,6 +139,9 @@ function VisitanteModal({
       empresa: f.empresa || null, cargo_empresa: f.cargo_empresa || null,
       telefone: f.telefone || null, foto_url: f.foto_url || null,
       observacoes: f.observacoes || null,
+      documento_validade: f.documento_validade || null, documento_url: f.documento_url || null,
+      cnh_numero: f.cnh_numero || null, cnh_categoria: f.cnh_categoria || null,
+      cnh_validade: f.cnh_validade || null, cnh_url: f.cnh_url || null,
     };
     const q = editing
       ? (supabase as any).from("visitantes").update(payload).eq("id", editing.id).select().single()
@@ -163,6 +179,14 @@ function VisitanteModal({
             <Input value={f.numero_doc} onChange={e => set("numero_doc", e.target.value)} />
           </div>
           <div>
+            <Label>Validade do documento</Label>
+            <Input type="date" value={f.documento_validade} onChange={e => set("documento_validade", e.target.value)} />
+          </div>
+          <div>
+            <Label>Comprovante do documento</Label>
+            <Input value={f.documento_url} onChange={e => set("documento_url", e.target.value)} placeholder="Link do arquivo (opcional)" />
+          </div>
+          <div>
             <Label>Empresa</Label>
             <Input value={f.empresa} onChange={e => set("empresa", e.target.value)} />
           </div>
@@ -181,6 +205,16 @@ function VisitanteModal({
           <div className="col-span-2">
             <Label>Observações</Label>
             <Textarea value={f.observacoes} onChange={e => set("observacoes", e.target.value)} rows={2} />
+          </div>
+          <div className="col-span-2 rounded-lg border bg-muted/30 p-3">
+            <p className="mb-2 text-sm font-semibold">Habilitação do condutor</p>
+            <p className="mb-3 text-xs text-muted-foreground">Preencha quando esta pessoa puder dirigir um veículo para dentro da obra.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>CNH</Label><Input value={f.cnh_numero} onChange={e => set("cnh_numero", e.target.value)} /></div>
+              <div><Label>Categoria</Label><Input value={f.cnh_categoria} onChange={e => set("cnh_categoria", e.target.value.toUpperCase())} placeholder="Ex.: B" /></div>
+              <div><Label>Validade da CNH</Label><Input type="date" value={f.cnh_validade} onChange={e => set("cnh_validade", e.target.value)} /></div>
+              <div><Label>Comprovante CNH</Label><Input value={f.cnh_url} onChange={e => set("cnh_url", e.target.value)} placeholder="Link do arquivo" /></div>
+            </div>
           </div>
         </div>
         <DialogFooter>
@@ -209,6 +243,8 @@ function EntradaModal({
   const [f, setF] = useState({
     obra_id: obras[0]?.id ?? "", motivo: "", setor_destino: "",
     responsavel_id: "", placa_veiculo: "", observacoes: "", negar: false, motivo_negado: "",
+    conduz_veiculo: false, veiculo_marca_modelo: "", veiculo_documento: "", veiculo_documento_validade: "",
+    briefing_sms_aceite: false, cracha_validade: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
   });
   const [saving, setSaving] = useState(false);
 
@@ -217,7 +253,7 @@ function EntradaModal({
       setVisitante(visitantePre);
       setBusca("");
       setResultados([]);
-      setF({ obra_id: obras[0]?.id ?? "", motivo: "", setor_destino: "", responsavel_id: "", placa_veiculo: "", observacoes: "", negar: false, motivo_negado: "" });
+      setF({ obra_id: obras[0]?.id ?? "", motivo: "", setor_destino: "", responsavel_id: "", placa_veiculo: "", observacoes: "", negar: false, motivo_negado: "", conduz_veiculo: false, veiculo_marca_modelo: "", veiculo_documento: "", veiculo_documento_validade: "", briefing_sms_aceite: false, cracha_validade: new Date(Date.now() + 86400000).toISOString().slice(0, 10) });
     }
   }, [open, visitantePre, obras]);
 
@@ -238,6 +274,10 @@ function EntradaModal({
     if (!visitante) { toast({ title: "Selecione um visitante", variant: "destructive" }); return; }
     if (!f.obra_id || !f.motivo.trim()) { toast({ title: "Obra e motivo são obrigatórios", variant: "destructive" }); return; }
     if (visitante.bloqueado) { toast({ title: "Visitante bloqueado", description: visitante.motivo_bloqueio ?? "", variant: "destructive" }); return; }
+    if (!f.negar && !f.briefing_sms_aceite) { toast({ title: "Briefing SMS obrigatório", description: "Registre a orientação de segurança antes de liberar a entrada.", variant: "destructive" }); return; }
+    if (!f.negar && f.conduz_veiculo && (!f.placa_veiculo || !f.veiculo_documento || !f.veiculo_documento_validade)) {
+      toast({ title: "Documentos do veículo pendentes", description: "Informe placa, documento e validade do veículo.", variant: "destructive" }); return;
+    }
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     const status = f.negar ? "negado" : "autorizado";
@@ -249,6 +289,15 @@ function EntradaModal({
       placa_veiculo: f.placa_veiculo || null,
       observacoes: f.observacoes || null,
       motivo_negado: f.negar ? (f.motivo_negado || null) : null,
+      conduz_veiculo: f.conduz_veiculo,
+      veiculo_marca_modelo: f.veiculo_marca_modelo || null,
+      veiculo_documento: f.veiculo_documento || null,
+      veiculo_documento_validade: f.veiculo_documento_validade || null,
+      briefing_sms_versao: f.negar ? null : "VIS-01",
+      briefing_sms_aceite: f.negar ? false : f.briefing_sms_aceite,
+      briefing_sms_realizado_em: f.negar ? null : new Date().toISOString(),
+      briefing_sms_responsavel_id: f.responsavel_id || null,
+      cracha_validade: f.negar ? null : `${f.cracha_validade}T23:59:59`,
     };
     const { error } = await (supabase as any).from("visitas").insert(payload);
     setSaving(false);
@@ -351,9 +400,30 @@ function EntradaModal({
                     </Select>
                   </div>
                 </div>
-                <div>
-                  <Label>Placa do Veículo</Label>
-                  <Input value={f.placa_veiculo} onChange={e => set("placa_veiculo", e.target.value.toUpperCase())} placeholder="ABC-1234" />
+                <div className="rounded-lg border p-3 space-y-3">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" checked={f.conduz_veiculo} onChange={e => set("conduz_veiculo", e.target.checked)} className="h-4 w-4" />
+                    Visitante é o condutor de um veículo
+                  </label>
+                  {f.conduz_veiculo && <>
+                    <p className="text-xs text-muted-foreground">A entrada só será liberada com CNH válida do condutor e documento válido do veículo.</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label>Placa *</Label><Input value={f.placa_veiculo} onChange={e => set("placa_veiculo", e.target.value.toUpperCase())} placeholder="ABC-1234" /></div>
+                      <div><Label>Marca / modelo</Label><Input value={f.veiculo_marca_modelo} onChange={e => set("veiculo_marca_modelo", e.target.value)} placeholder="Ex.: Fiat Toro" /></div>
+                      <div><Label>Documento do veículo *</Label><Input value={f.veiculo_documento} onChange={e => set("veiculo_documento", e.target.value)} placeholder="CRLV-e / RENAVAM" /></div>
+                      <div><Label>Validade do documento *</Label><Input type="date" value={f.veiculo_documento_validade} onChange={e => set("veiculo_documento_validade", e.target.value)} /></div>
+                    </div>
+                  </>}
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3 space-y-2">
+                  <p className="text-sm font-semibold text-emerald-900">Procedimento SMS antes da entrada</p>
+                  <p className="text-xs text-emerald-800">Oriente sobre rotas permitidas, áreas restritas, EPI, circulação de veículos, emergência e acompanhamento pelo responsável.</p>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" checked={f.briefing_sms_aceite} onChange={e => set("briefing_sms_aceite", e.target.checked)} className="h-4 w-4" />
+                    Briefing SMS realizado e aceito pelo visitante *
+                  </label>
+                  <div className="max-w-xs"><Label>Validade do crachá *</Label><Input type="date" value={f.cracha_validade} min={new Date().toISOString().slice(0, 10)} onChange={e => set("cracha_validade", e.target.value)} /></div>
+                  <p className="text-xs text-emerald-800">Será emitido um crachá pessoal e, quando houver veículo, uma credencial vinculada à placa com a mesma validade.</p>
                 </div>
                 <div>
                   <Label>Observações</Label>
@@ -512,6 +582,8 @@ function RecepcaoTab({
                         <BadgeCheck className="h-3 w-3" /> {a.cracha_numero}
                       </div>
                     )}
+                    {a.cracha_validade && <div className="mt-1 text-muted-foreground">válido até {fmtDatetime(a.cracha_validade)}</div>}
+                    {a.credencial_veiculo_numero && <div className="mt-1 font-mono text-amber-700">veículo: {a.credencial_veiculo_numero}</div>}
                     <div className="text-muted-foreground flex items-center gap-1 justify-end">
                       <Clock className="h-3 w-3" />
                       {fmtDuration(a.minutos_dentro)}

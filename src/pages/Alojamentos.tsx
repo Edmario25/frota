@@ -32,6 +32,7 @@ import { ChamadosAba } from "@/components/alojamentos/ChamadosAba";
 import { AlojadosAba } from "@/components/alojamentos/AlojadosAba";
 import { PainelGestao } from "@/components/alojamentos/PainelGestao";
 import { CustosAba } from "@/components/alojamentos/CustosAba";
+import { RelatoriosAlojamento } from "@/components/alojamentos/RelatoriosAlojamento";
 
 type Modal =
   | "complexo" | "alojamento" | "ambiente" | "quarto" | "bem" | "reserva" | "checkin"
@@ -358,6 +359,7 @@ export default function Alojamentos() {
           <Tabs value={aba} onValueChange={setAba} className="rounded-xl border bg-card p-4">
             <TabsList className="mb-4 h-auto flex-wrap">
               <TabsTrigger value="painel">Painel</TabsTrigger>
+              <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
               <TabsTrigger value="mapa">Mapa de leitos</TabsTrigger>
               <TabsTrigger value="custos">Custos</TabsTrigger>
               <TabsTrigger value="alojados">Alojados</TabsTrigger>
@@ -371,6 +373,11 @@ export default function Alojamentos() {
                 complexoIds={new Set((complexoId === "todos" ? complexosEscopo : complexosEscopo.filter(c => c.id === complexoId)).map(c => c.id))}
                 versao={versaoCustos}
                 onLancar={() => { setAba("custos"); setPedidoLancamento(n => n + 1); }} />
+            </TabsContent>
+
+            <TabsContent value="relatorios">
+              <RelatoriosAlojamento dados={dados} unidades={unidades} leitos={leitosEscopo}
+                leitoIds={leitoIds} nome={nome} />
             </TabsContent>
 
             <TabsContent value="custos" forceMount className="data-[state=inactive]:hidden">
