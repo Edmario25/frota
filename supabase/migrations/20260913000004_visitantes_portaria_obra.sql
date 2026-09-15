@@ -117,14 +117,18 @@ CREATE OR REPLACE VIEW public.v_visitas_ativas
 WITH (security_invoker = true) AS
 SELECT
   v.id, v.obra_id, v.motivo, v.setor_destino, v.entrada,
-  v.cracha_numero, v.cracha_validade, v.placa_veiculo, v.conduz_veiculo,
-  v.credencial_veiculo_numero, v.credencial_veiculo_validade,
-  v.briefing_sms_versao, v.briefing_sms_realizado_em, v.status,
+  -- As colunas originais precisam manter exatamente a mesma ordem. O
+  -- PostgreSQL permite acrescentar campos a uma view, mas não reposicioná-los.
+  v.cracha_numero, v.placa_veiculo, v.status,
   o.nome AS obra_nome,
   vi.nome AS visitante_nome, vi.empresa AS visitante_empresa,
   vi.tipo_doc, vi.numero_doc,
   EXTRACT(EPOCH FROM (now() - v.entrada)) / 60 AS minutos_dentro,
-  e.nome AS responsavel_nome
+  e.nome AS responsavel_nome,
+  -- Novos dados de portaria acrescentados ao final.
+  v.cracha_validade, v.conduz_veiculo,
+  v.credencial_veiculo_numero, v.credencial_veiculo_validade,
+  v.briefing_sms_versao, v.briefing_sms_realizado_em
 FROM public.visitas v
 JOIN public.obras o ON o.id = v.obra_id
 JOIN public.visitantes vi ON vi.id = v.visitante_id
