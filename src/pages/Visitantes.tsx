@@ -638,7 +638,7 @@ function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[
     setLoadError(null);
     let q = (supabase as any)
       .from("visitas")
-      .select("*, visitante:visitantes(*), responsavel:employees(nome)")
+      .select("*, visitante:visitantes(*), responsavel:employees!visitas_responsavel_id_fkey(nome)")
       .order("created_at", { ascending: false })
       .limit(200);
     if (obraFiltro !== "todas") q = q.eq("obra_id", obraFiltro);
