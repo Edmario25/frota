@@ -26,7 +26,10 @@ import {
   UserCheck, Plus, Pencil, Trash2, LogIn, LogOut, XCircle,
   Clock, ShieldCheck, Users, BarChart3, Search, AlertTriangle,
   BadgeCheck,
+  ClipboardCheck, QrCode, Printer,
 } from "lucide-react";
+import { AutenticacaoEntradaVisitanteDialog } from "@/components/visitantes/AutenticacaoEntradaVisitanteDialog";
+import { CredencialVisitanteDialog, type CredencialVisitante } from "@/components/visitantes/CredencialVisitanteDialog";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -71,6 +74,14 @@ type Kpi = {
   negados: number; hoje: number; visitantes_distintos: number; tempo_medio_min: number | null;
 };
 
+type CredencialStatus = {
+  id: string; visitante_id: string; obra_id: string; tipo: "pessoa" | "veiculo"; numero: string; qr_token: string;
+  validade_ate: string; status: string; placa_veiculo?: string | null; veiculo_marca_modelo?: string | null;
+  veiculo_documento?: string | null; veiculo_documento_validade?: string | null; visitante_nome: string;
+  visitante_empresa?: string | null; briefing_realizacao_id?: string | null; briefing_versao?: string | null;
+  briefing_realizado_em?: string | null; briefing_validade_ate?: string | null; tem_veiculo?: boolean; acesso_valido: boolean;
+};
+
 // ─── Lookups ────────────────────────────────────────────────────────────────
 
 const STATUS_VISITA: Record<string, { label: string; cls: string; dot: string }> = {
@@ -99,15 +110,16 @@ function fmtDatetime(iso: string | null): string {
 // ─── Modal: Visitante ─────────────────────────────────────────────────────
 
 function VisitanteModal({
-  open, onClose, onSaved, editing,
+  open, onClose, onSaved, editing, obras,
 }: {
-  open: boolean; onClose: () => void; onSaved: (v: Visitante) => void; editing: Visitante | null;
+  open: boolean; onClose: () => void; onSaved: (v: Visitante) => void; editing: Visitante | null; obras: Obra[];
 }) {
   const { toast } = useToast();
   const blank = {
     nome: "", tipo_doc: "cpf", numero_doc: "", empresa: "", cargo_empresa: "",
     telefone: "", foto_url: "", observacoes: "", documento_validade: "", documento_url: "",
     cnh_numero: "", cnh_categoria: "", cnh_validade: "", cnh_url: "",
+    obra_credencial: "", cracha_validade: "", placa_veiculo: "", veiculo_marca_modelo: "", veiculo_documento: "", veiculo_documento_validade: "",
   };
   const [f, setF] = useState(blank);
   const [saving, setSaving] = useState(false);
@@ -122,6 +134,7 @@ function VisitanteModal({
         documento_validade: editing.documento_validade ?? "", documento_url: editing.documento_url ?? "",
         cnh_numero: editing.cnh_numero ?? "", cnh_categoria: editing.cnh_categoria ?? "",
         cnh_validade: editing.cnh_validade ?? "", cnh_url: editing.cnh_url ?? "",
+        obra_credencial: "", cracha_validade: "", placa_veiculo: "", veiculo_marca_modelo: "", veiculo_documento: "", veiculo_documento_validade: "",
       } : blank);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,6 +145,9 @@ function VisitanteModal({
   const save = async () => {
     if (!f.nome.trim() || !f.numero_doc.trim()) {
       toast({ title: "Nome e documento são obrigatórios", variant: "destructive" }); return;
+    }
+    if (!editing && (!f.obra_credencial || !f.cracha_validade)) {
+      toast({ title: "Defina a obra e a validade do crachá", description: "Todo visitante novo precisa receber uma credencial de acesso.", variant: "destructive" }); return;
     }
     setSaving(true);
     const payload = {
@@ -152,7 +168,15 @@ function VisitanteModal({
       const msg = error.message.includes("unique") ? "Documento já cadastrado." : error.message;
       toast({ title: "Erro", description: msg, variant: "destructive" }); return;
     }
-    toast({ title: editing ? "Visitante atualizado" : "Visitante cadastrado" });
+    if (!editing) {
+      const { error: credentialError } = await (supabase as any).rpc("emitir_credencial_visitante", {
+        p_visitante_id: data.id, p_obra_id: f.obra_credencial, p_validade_ate: `${f.cracha_validade}T23:59:59`,
+        p_placa_veiculo: f.placa_veiculo || null, p_veiculo_marca_modelo: f.veiculo_marca_modelo || null,
+        p_veiculo_documento: f.veiculo_documento || null, p_veiculo_documento_validade: f.veiculo_documento_validade || null,
+      });
+      if (credentialError) { toast({ title: "Visitante salvo, mas sem credencial", description: credentialError.message, variant: "destructive" }); onSaved(data as Visitante); return; }
+    }
+    toast({ title: editing ? "Visitante atualizado" : "Visitante cadastrado com credencial" });
     onSaved(data as Visitante);
   };
 
@@ -216,6 +240,18 @@ function VisitanteModal({
               <div><Label>Comprovante CNH</Label><Input value={f.cnh_url} onChange={e => set("cnh_url", e.target.value)} placeholder="Link do arquivo" /></div>
             </div>
           </div>
+          {!editing && <div className="col-span-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <p className="mb-1 text-sm font-semibold text-primary">Credencial de acesso</p>
+            <p className="mb-3 text-xs text-muted-foreground">O crachá é emitido agora. A entrada só será liberada após a confirmação do briefing de segurança.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Obra *</Label><Select value={f.obra_credencial} onValueChange={v => set("obra_credencial", v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></div>
+              <div><Label>Validade do crachá *</Label><Input type="date" min={new Date().toISOString().slice(0, 10)} value={f.cracha_validade} onChange={e => set("cracha_validade", e.target.value)} /></div>
+              <div><Label>Placa do veículo</Label><Input value={f.placa_veiculo} onChange={e => set("placa_veiculo", e.target.value.toUpperCase())} placeholder="Opcional" /></div>
+              <div><Label>Documento do veículo</Label><Input value={f.veiculo_documento} onChange={e => set("veiculo_documento", e.target.value)} placeholder="Obrigatório se houver placa" /></div>
+              <div><Label>Marca / modelo</Label><Input value={f.veiculo_marca_modelo} onChange={e => set("veiculo_marca_modelo", e.target.value)} /></div>
+              <div><Label>Validade documento veículo</Label><Input type="date" value={f.veiculo_documento_validade} onChange={e => set("veiculo_documento_validade", e.target.value)} /></div>
+            </div>
+          </div>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
@@ -462,6 +498,7 @@ function EntradaModal({
       <VisitanteModal
         open={novoModal} onClose={() => setNovoModal(false)}
         editing={null}
+        obras={obras}
         onSaved={v => { setVisitante(v); setNovoModal(false); }}
       />
     </>
@@ -490,9 +527,8 @@ function RecepcaoTab({
   useEffect(() => { load(); }, [load, refresh]);
 
   const registrarSaida = async (id: string) => {
-    await (supabase as any).from("visitas").update({
-      status: "saiu", saida: new Date().toISOString(),
-    }).eq("id", id);
+    const { error } = await (supabase as any).rpc("registrar_saida_visitante", { p_visita_id: id });
+    if (error) { toast({ title: "Não foi possível registrar a saída", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Saída registrada ✓" });
     triggerRefresh();
   };
@@ -534,7 +570,7 @@ function RecepcaoTab({
           </SelectContent>
         </Select>
         <Button size="sm" onClick={() => setEntradaModal(true)}>
-          <LogIn className="h-4 w-4 mr-1" /> Registrar Entrada
+          <ShieldCheck className="h-4 w-4 mr-1" /> Autenticar entrada
         </Button>
       </div>
 
@@ -604,10 +640,9 @@ function RecepcaoTab({
         </div>
       )}
 
-      <EntradaModal
-        open={entradaModal} onClose={() => setEntradaModal(false)}
-        onSaved={() => { setEntradaModal(false); triggerRefresh(); }}
-        obras={obras} employees={employees} visitantePre={null}
+      <AutenticacaoEntradaVisitanteDialog
+        open={entradaModal} onOpenChange={setEntradaModal}
+        obras={obras} employees={employees} onSaved={triggerRefresh}
       />
     </div>
   );
@@ -621,6 +656,8 @@ function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[
   const [filterStatus, setFilterStatus] = useState("todos");
   const [busca, setBusca] = useState("");
   const [obraFiltro, setObraFiltro] = useState(obraId || "todas");
+  const [dataInicio, setDataInicio] = useState(() => new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10));
+  const [dataFim, setDataFim] = useState(() => new Date().toISOString().slice(0, 10));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -630,10 +667,12 @@ function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[
       .order("created_at", { ascending: false })
       .limit(200);
     if (obraFiltro !== "todas") q = q.eq("obra_id", obraFiltro);
+    if (dataInicio) q = q.gte("created_at", `${dataInicio}T00:00:00`);
+    if (dataFim) q = q.lte("created_at", `${dataFim}T23:59:59`);
     const { data: rows } = await q;
     setData(rows ?? []);
     setLoading(false);
-  }, [obraFiltro]);
+  }, [obraFiltro, dataInicio, dataFim]);
 
   useEffect(() => { load(); }, [load, refresh]);
 
@@ -670,6 +709,8 @@ function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[
             {Object.entries(STATUS_VISITA).map(([k, s]) => <SelectItem key={k} value={k}>{s.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-1"><Label className="text-xs whitespace-nowrap">De</Label><Input className="h-8 w-36 text-xs" type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} /></div>
+        <div className="flex items-center gap-1"><Label className="text-xs whitespace-nowrap">Até</Label><Input className="h-8 w-36 text-xs" type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
       </div>
 
       {loading ? (
@@ -735,7 +776,7 @@ function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[
 
 // ─── Tab: Cadastro de Visitantes ──────────────────────────────────────────
 
-function CadastroTab({ refresh, triggerRefresh }: { refresh: number; triggerRefresh: () => void }) {
+function CadastroTab({ refresh, triggerRefresh, obras }: { refresh: number; triggerRefresh: () => void; obras: Obra[] }) {
   const { toast } = useToast();
   const [data, setData] = useState<Visitante[]>([]);
   const [loading, setLoading] = useState(false);
@@ -854,9 +895,62 @@ function CadastroTab({ refresh, triggerRefresh }: { refresh: number; triggerRefr
         open={modal} onClose={() => setModal(false)}
         onSaved={() => { setModal(false); triggerRefresh(); }}
         editing={editing}
+        obras={obras}
       />
     </div>
   );
+}
+
+// ─── Tab: Briefings e credenciais ─────────────────────────────────────────
+
+function BriefingsTab({ obras, refresh, triggerRefresh }: { obras: Obra[]; refresh: number; triggerRefresh: () => void }) {
+  const { toast } = useToast();
+  const [data, setData] = useState<CredencialStatus[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [obraFiltro, setObraFiltro] = useState("todas");
+  const [credencialImpressa, setCredencialImpressa] = useState<CredencialVisitante | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    let q = (supabase as any).from("v_credenciais_visitantes_status").select("*").eq("tipo", "pessoa").order("validade_ate");
+    if (obraFiltro !== "todas") q = q.eq("obra_id", obraFiltro);
+    const { data: rows, error } = await q;
+    if (error) toast({ title: "Não foi possível carregar as credenciais", description: error.message, variant: "destructive" });
+    setData(rows ?? []); setLoading(false);
+  }, [obraFiltro, toast]);
+
+  useEffect(() => { load(); }, [load, refresh]);
+
+  const confirmar = async (credencial: CredencialStatus) => {
+    if (!confirm(`Confirmar que o briefing de segurança foi realizado para ${credencial.visitante_nome}?`)) return;
+    const { error } = await (supabase as any).rpc("confirmar_briefing_visitante", { p_credencial_pessoa_id: credencial.id, p_observacoes: null });
+    if (error) { toast({ title: "Briefing não confirmado", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Briefing confirmado", description: "A credencial ficará liberada somente até a validade indicada pelo procedimento." });
+    triggerRefresh();
+  };
+
+  const imprimir = (credencial: CredencialStatus, tipo: "pessoa" | "veiculo") => {
+    const obra = obras.find(o => o.id === credencial.obra_id);
+    if (tipo === "pessoa") {
+      setCredencialImpressa({ ...credencial, tipo: "pessoa", visitante_nome: credencial.visitante_nome, visitante_empresa: credencial.visitante_empresa, obra_nome: obra?.nome ?? "Obra" });
+      return;
+    }
+    (supabase as any).from("visitante_credenciais").select("*").eq("visitante_id", credencial.visitante_id).eq("obra_id", credencial.obra_id).eq("tipo", "veiculo").eq("status", "ativa").maybeSingle()
+      .then(({ data: vehicle }: any) => {
+        if (!vehicle) { toast({ title: "Sem credencial de veículo", description: "Este visitante não possui veículo ativo nesta obra.", variant: "destructive" }); return; }
+        setCredencialImpressa({ ...vehicle, tipo: "veiculo", visitante_nome: credencial.visitante_nome, visitante_empresa: credencial.visitante_empresa, obra_nome: obra?.nome ?? "Obra" });
+      });
+  };
+
+  const agora = Date.now();
+  const validas = data.filter(c => c.acesso_valido).length;
+  const pendentes = data.filter(c => !c.acesso_valido && new Date(c.validade_ate).getTime() > agora && c.status === "ativa").length;
+  return <div className="space-y-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3"><Card className="p-3 border-l-4 border-l-emerald-500"><p className="text-xs text-muted-foreground">Acessos liberados</p><p className="text-2xl font-bold text-emerald-600">{validas}</p></Card><Card className="p-3 border-l-4 border-l-amber-500"><p className="text-xs text-muted-foreground">Briefing pendente ou vencido</p><p className="text-2xl font-bold text-amber-600">{pendentes}</p></Card><Card className="p-3"><p className="text-xs text-muted-foreground">Regra de liberação</p><p className="text-sm font-semibold mt-1">Crachá + briefing válidos</p></Card></div>
+    <div className="flex flex-wrap gap-2 justify-between items-center"><Select value={obraFiltro} onValueChange={setObraFiltro}><SelectTrigger className="h-8 w-52 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todas">Todas as obras</SelectItem>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select><p className="text-xs text-muted-foreground">Ao vencer o briefing, a recepção bloqueia automaticamente a entrada.</p></div>
+    {loading ? <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p> : <div className="border rounded-lg overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Visitante</TableHead><TableHead>Crachá</TableHead><TableHead>Validade do crachá</TableHead><TableHead>Briefing</TableHead><TableHead>Status de acesso</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader><TableBody>{data.length === 0 ? <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma credencial de visitante encontrada.</TableCell></TableRow> : data.map(c => { const crachaVencido = new Date(c.validade_ate).getTime() <= agora; const briefingValido = c.acesso_valido; return <TableRow key={c.id}><TableCell><p className="font-medium text-sm">{c.visitante_nome}</p><p className="text-xs text-muted-foreground">{c.visitante_empresa ?? "—"}</p></TableCell><TableCell className="font-mono text-xs">{c.numero}</TableCell><TableCell className="text-xs">{fmtDatetime(c.validade_ate)}</TableCell><TableCell className="text-xs">{c.briefing_validade_ate ? <>feito até {fmtDatetime(c.briefing_validade_ate)}</> : "Não realizado"}</TableCell><TableCell>{briefingValido ? <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">Liberado</Badge> : <Badge className="bg-red-100 text-red-700 border-0 text-xs">{crachaVencido ? "Crachá vencido" : "Briefing pendente/vencido"}</Badge>}</TableCell><TableCell><div className="flex justify-end gap-1"><Button size="sm" className="h-7 text-xs" variant={briefingValido ? "outline" : "default"} onClick={() => confirmar(c)} disabled={crachaVencido || c.status !== "ativa"}><ClipboardCheck className="h-3.5 w-3.5 mr-1" />{briefingValido ? "Refazer briefing" : "Confirmar briefing"}</Button><Button size="icon" variant="ghost" className="h-7 w-7" title="Imprimir crachá pessoal" onClick={() => imprimir(c, "pessoa")}><Printer className="h-3.5 w-3.5" /></Button>{c.tem_veiculo && <Button size="icon" variant="ghost" className="h-7 w-7" title="Imprimir credencial do veículo" onClick={() => imprimir(c, "veiculo")}><QrCode className="h-3.5 w-3.5" /></Button>}</div></TableCell></TableRow>; })}</TableBody></Table></div>}
+    <CredencialVisitanteDialog open={!!credencialImpressa} onOpenChange={v => !v && setCredencialImpressa(null)} credencial={credencialImpressa} />
+  </div>;
 }
 
 // ─── Tab: Relatório ───────────────────────────────────────────────────────
@@ -1005,6 +1099,9 @@ export default function Visitantes() {
             <TabsTrigger value="cadastro">
               <Users className="h-3.5 w-3.5 mr-1.5" /> Visitantes
             </TabsTrigger>
+            <TabsTrigger value="briefings">
+              <ClipboardCheck className="h-3.5 w-3.5 mr-1.5" /> Briefings e Crachás
+            </TabsTrigger>
             <TabsTrigger value="relatorio">
               <BarChart3 className="h-3.5 w-3.5 mr-1.5" /> Relatório
             </TabsTrigger>
@@ -1020,7 +1117,10 @@ export default function Visitantes() {
             <HistoricoTab obraId={obraId} obras={obras} refresh={refresh} />
           </TabsContent>
           <TabsContent value="cadastro">
-            <CadastroTab refresh={refresh} triggerRefresh={triggerRefresh} />
+            <CadastroTab refresh={refresh} triggerRefresh={triggerRefresh} obras={obras} />
+          </TabsContent>
+          <TabsContent value="briefings">
+            <BriefingsTab obras={obras} refresh={refresh} triggerRefresh={triggerRefresh} />
           </TabsContent>
           <TabsContent value="relatorio">
             <RelatorioTab refresh={refresh} />
