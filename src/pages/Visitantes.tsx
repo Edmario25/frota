@@ -182,68 +182,41 @@ function VisitanteModal({
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>{editing ? "Editar Visitante" : "Cadastrar Visitante"}</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 gap-4 py-2">
-          <div className="col-span-2">
-            <Label>Nome Completo *</Label>
-            <Input value={f.nome} onChange={e => set("nome", e.target.value)} />
-          </div>
-          <div>
-            <Label>Tipo Doc *</Label>
-            <Select value={f.tipo_doc} onValueChange={v => set("tipo_doc", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(TIPO_DOC).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Nº Documento *</Label>
-            <Input value={f.numero_doc} onChange={e => set("numero_doc", e.target.value)} />
-          </div>
-          <div>
-            <Label>Validade do documento</Label>
-            <Input type="date" value={f.documento_validade} onChange={e => set("documento_validade", e.target.value)} />
-          </div>
-          <div>
-            <Label>Comprovante do documento</Label>
-            <Input value={f.documento_url} onChange={e => set("documento_url", e.target.value)} placeholder="Link do arquivo (opcional)" />
-          </div>
-          <div>
-            <Label>Empresa</Label>
-            <Input value={f.empresa} onChange={e => set("empresa", e.target.value)} />
-          </div>
-          <div>
-            <Label>Cargo na Empresa</Label>
-            <Input value={f.cargo_empresa} onChange={e => set("cargo_empresa", e.target.value)} />
-          </div>
-          <div>
-            <Label>Telefone</Label>
-            <Input value={f.telefone} onChange={e => set("telefone", e.target.value)} />
-          </div>
-          <div>
-            <Label>URL da Foto</Label>
-            <Input value={f.foto_url} onChange={e => set("foto_url", e.target.value)} placeholder="https://..." />
-          </div>
-          <div className="col-span-2">
-            <Label>Observações</Label>
-            <Textarea value={f.observacoes} onChange={e => set("observacoes", e.target.value)} rows={2} />
-          </div>
-          <div className="col-span-2 rounded-lg border bg-muted/30 p-3">
-            <p className="mb-2 text-sm font-semibold">Habilitação do condutor</p>
-            <p className="mb-3 text-xs text-muted-foreground">Preencha quando esta pessoa puder dirigir um veículo para dentro da obra.</p>
-            <div className="grid grid-cols-2 gap-3">
+        <Tabs defaultValue="identificacao" className="py-2">
+          <TabsList className="w-full justify-start overflow-x-auto">
+            <TabsTrigger value="identificacao">Identificação</TabsTrigger>
+            <TabsTrigger value="contato">Empresa e contato</TabsTrigger>
+            <TabsTrigger value="condutor">Condutor</TabsTrigger>
+            {!editing && <TabsTrigger value="credencial">Credencial</TabsTrigger>}
+          </TabsList>
+          <TabsContent value="identificacao" className="grid grid-cols-2 gap-4 pt-4">
+            <div className="col-span-2"><Label>Nome completo *</Label><Input value={f.nome} onChange={e => set("nome", e.target.value)} /></div>
+            <div><Label>Tipo de documento *</Label><Select value={f.tipo_doc} onValueChange={v => set("tipo_doc", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(TIPO_DOC).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Nº do documento *</Label><Input value={f.numero_doc} onChange={e => set("numero_doc", e.target.value)} /></div>
+            <div><Label>Validade do documento</Label><Input type="date" value={f.documento_validade} onChange={e => set("documento_validade", e.target.value)} /></div>
+            <div><Label>Comprovante do documento</Label><Input value={f.documento_url} onChange={e => set("documento_url", e.target.value)} placeholder="Link do arquivo" /></div>
+          </TabsContent>
+          <TabsContent value="contato" className="grid grid-cols-2 gap-4 pt-4">
+            <div><Label>Empresa</Label><Input value={f.empresa} onChange={e => set("empresa", e.target.value)} /></div>
+            <div><Label>Cargo na empresa</Label><Input value={f.cargo_empresa} onChange={e => set("cargo_empresa", e.target.value)} /></div>
+            <div><Label>Telefone</Label><Input value={f.telefone} onChange={e => set("telefone", e.target.value)} /></div>
+            <div><Label>URL da foto</Label><Input value={f.foto_url} onChange={e => set("foto_url", e.target.value)} placeholder="https://..." /></div>
+            <div className="col-span-2"><Label>Observações</Label><Textarea value={f.observacoes} onChange={e => set("observacoes", e.target.value)} rows={4} /></div>
+          </TabsContent>
+          <TabsContent value="condutor" className="space-y-4 pt-4">
+            <div className="rounded-lg border bg-muted/30 p-3"><p className="mb-1 text-sm font-semibold">Habilitação do condutor</p><p className="text-xs text-muted-foreground">Preencha somente se esta pessoa puder dirigir veículo dentro da obra.</p></div>
+            <div className="grid grid-cols-2 gap-4">
               <div><Label>CNH</Label><Input value={f.cnh_numero} onChange={e => set("cnh_numero", e.target.value)} /></div>
               <div><Label>Categoria</Label><Input value={f.cnh_categoria} onChange={e => set("cnh_categoria", e.target.value.toUpperCase())} placeholder="Ex.: B" /></div>
               <div><Label>Validade da CNH</Label><Input type="date" value={f.cnh_validade} onChange={e => set("cnh_validade", e.target.value)} /></div>
               <div><Label>Comprovante CNH</Label><Input value={f.cnh_url} onChange={e => set("cnh_url", e.target.value)} placeholder="Link do arquivo" /></div>
             </div>
-          </div>
-          {!editing && <div className="col-span-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
-            <p className="mb-1 text-sm font-semibold text-primary">Credencial de acesso</p>
-            <p className="mb-3 text-xs text-muted-foreground">O crachá é emitido agora. A entrada só será liberada após a confirmação do briefing de segurança.</p>
-            <div className="grid grid-cols-2 gap-3">
+          </TabsContent>
+          {!editing && <TabsContent value="credencial" className="space-y-4 pt-4">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3"><p className="mb-1 text-sm font-semibold text-primary">Credencial de acesso</p><p className="text-xs text-muted-foreground">A entrada só será liberada após a confirmação do briefing de segurança.</p></div>
+            <div className="grid grid-cols-2 gap-4">
               <div><Label>Obra *</Label><Select value={f.obra_credencial} onValueChange={v => set("obra_credencial", v)}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></div>
               <div><Label>Validade do crachá *</Label><Input type="date" min={new Date().toISOString().slice(0, 10)} value={f.cracha_validade} onChange={e => set("cracha_validade", e.target.value)} /></div>
               <div><Label>Placa do veículo</Label><Input value={f.placa_veiculo} onChange={e => set("placa_veiculo", e.target.value.toUpperCase())} placeholder="Opcional" /></div>
@@ -251,8 +224,8 @@ function VisitanteModal({
               <div><Label>Marca / modelo</Label><Input value={f.veiculo_marca_modelo} onChange={e => set("veiculo_marca_modelo", e.target.value)} /></div>
               <div><Label>Validade documento veículo</Label><Input type="date" value={f.veiculo_documento_validade} onChange={e => set("veiculo_documento_validade", e.target.value)} /></div>
             </div>
-          </div>}
-        </div>
+          </TabsContent>}
+        </Tabs>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={save} disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
@@ -653,6 +626,7 @@ function RecepcaoTab({
 function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[]; refresh: number }) {
   const [data, setData] = useState<Visita[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState("todos");
   const [busca, setBusca] = useState("");
   const [obraFiltro, setObraFiltro] = useState(obraId || "todas");
@@ -661,6 +635,7 @@ function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     let q = (supabase as any)
       .from("visitas")
       .select("*, visitante:visitantes(*), responsavel:employees(nome)")
@@ -669,7 +644,8 @@ function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[
     if (obraFiltro !== "todas") q = q.eq("obra_id", obraFiltro);
     if (dataInicio) q = q.gte("created_at", `${dataInicio}T00:00:00`);
     if (dataFim) q = q.lte("created_at", `${dataFim}T23:59:59`);
-    const { data: rows } = await q;
+    const { data: rows, error } = await q;
+    if (error) setLoadError(error.message);
     setData(rows ?? []);
     setLoading(false);
   }, [obraFiltro, dataInicio, dataFim]);
@@ -711,10 +687,16 @@ function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[
         </Select>
         <div className="flex items-center gap-1"><Label className="text-xs whitespace-nowrap">De</Label><Input className="h-8 w-36 text-xs" type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} /></div>
         <div className="flex items-center gap-1"><Label className="text-xs whitespace-nowrap">Até</Label><Input className="h-8 w-36 text-xs" type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
+        <Button className="h-8 text-xs" variant="outline" onClick={load}>Atualizar</Button>
       </div>
 
       {loading ? (
         <p className="text-sm text-muted-foreground py-8 text-center">Carregando…</p>
+      ) : loadError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-5 text-sm">
+          <p className="font-medium text-destructive">Não foi possível carregar o histórico.</p>
+          <p className="mt-1 text-muted-foreground">{loadError}</p>
+        </div>
       ) : (
         <div className="border rounded-lg overflow-x-auto">
           <Table>
@@ -734,7 +716,7 @@ function HistoricoTab({ obraId, obras, refresh }: { obraId: string; obras: Obra[
               {filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                    Nenhum registro.
+                    Nenhuma visita encontrada para os filtros selecionados.
                   </TableCell>
                 </TableRow>
               )}
