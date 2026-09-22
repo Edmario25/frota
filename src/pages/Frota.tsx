@@ -33,6 +33,7 @@ import { AvariaRapidaDialog } from "@/components/frota/AvariaRapidaDialog";
 import { DevolverVeiculoModal } from "@/components/frota/DevolverVeiculoModal";
 import { TransferirVeiculoModal } from "@/components/frota/TransferirVeiculoModal";
 import type { Database } from "@/integrations/supabase/types";
+import { T } from "@/i18n";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
@@ -142,8 +143,8 @@ const Frota = () => {
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">
           <div>
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Veículos Leves</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Gerencie sua frota de veículos leves</p>
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight"><T>Veículos Leves</T></h1>
+            <p className="text-sm text-muted-foreground mt-0.5"><T>Gerencie sua frota de veículos leves</T></p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsRentalCompanyModalOpen(true)}>

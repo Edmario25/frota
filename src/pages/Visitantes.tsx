@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { AutenticacaoEntradaVisitanteDialog } from "@/components/visitantes/AutenticacaoEntradaVisitanteDialog";
 import { CredencialVisitanteDialog, type CredencialVisitante } from "@/components/visitantes/CredencialVisitanteDialog";
+import { T } from "@/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -1065,8 +1066,8 @@ export default function Visitantes() {
             <UserCheck className="h-5 w-5 text-teal-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Controle de Visitantes</h1>
-            <p className="text-sm text-muted-foreground">Recepção, histórico e gestão de acessos</p>
+            <h1 className="text-xl font-bold"><T>Controle de Visitantes</T></h1>
+            <p className="text-sm text-muted-foreground"><T>Recepção, histórico e gestão de acessos</T></p>
           </div>
         </div>
 

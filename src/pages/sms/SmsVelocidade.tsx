@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { useObras } from "@/hooks/useObras";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
+import { T } from "@/i18n";
 
 // ─── Tipos ───────────────────────────────────────────────────────────
 
@@ -242,7 +243,7 @@ export default function SmsVelocidade() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primary">SMS / SSMA</p>
-            <h1 className="text-2xl font-bold">Controle de velocidade</h1>
+            <h1 className="text-2xl font-bold"><T>Controle de velocidade</T></h1>
             <p className="text-sm text-muted-foreground">
               Checkpoints com radar e leitura RFID nas vias internas da obra.
             </p>

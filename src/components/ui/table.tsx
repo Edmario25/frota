@@ -1,6 +1,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { localizeChildren, useI18n } from "@/i18n"
 
 const Table = React.forwardRef<
   HTMLTableElement,
@@ -69,16 +70,17 @@ TableRow.displayName = "TableRow"
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
   React.ThHTMLAttributes<HTMLTableCellElement>
->(({ className, ...props }, ref) => (
-  <th
+>(({ className, children, ...props }, ref) => {
+  const { t } = useI18n()
+  return <th
     ref={ref}
     className={cn(
       "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
       className
     )}
     {...props}
-  />
-))
+  >{localizeChildren(children, t)}</th>
+})
 TableHead.displayName = "TableHead"
 
 const TableCell = React.forwardRef<

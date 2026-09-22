@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useMemo } from "react";
+import { Children, useSyncExternalStore, useMemo, type ReactNode } from "react";
 import { dateFormat, isLanguage, moneyFormat, numberFormat, storageKey, translate, type Language, type Params } from "./core";
 export { languages } from "./core";
 
@@ -39,4 +39,16 @@ export function useI18n() {
 export function T({ children, values }: { children: string; values?: Params }) {
   const { t } = useI18n();
   return <>{t(children, values)}</>;
+}
+
+// Keeps icons, values and React elements intact while translating only the
+// static text nodes rendered by shared UI components.
+export function localizeChildren(children: ReactNode, t: (source: string) => string): ReactNode {
+  return Children.map(children, child => {
+    if (typeof child !== "string") return child;
+    const leading = child.match(/^\s*/)?.[0] ?? "";
+    const trailing = child.match(/\s*$/)?.[0] ?? "";
+    const source = child.trim();
+    return source ? `${leading}${t(source)}${trailing}` : child;
+  });
 }

@@ -1,9 +1,11 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/i18n"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, placeholder, ...props }, ref) => {
+    const { t } = useI18n()
     return (
       <input
         type={type}
@@ -12,6 +14,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
+        placeholder={typeof placeholder === "string" ? t(placeholder) : placeholder}
         {...props}
       />
     )

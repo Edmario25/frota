@@ -27,6 +27,7 @@ import { TransferirVeiculoModal } from "@/components/frota/TransferirVeiculoModa
 import { useVehicleLiberacao } from "@/hooks/useVehicleLiberacao";
 import { getVehicleStatusColor, getVehicleStatusText } from "@/lib/statusHelpers";
 import type { Database } from "@/integrations/supabase/types";
+import { T } from "@/i18n";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
@@ -134,8 +135,8 @@ export const VeiculosPesados: React.FC = () => {
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">
           <div>
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Veículos Pesados</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Gerencie sua frota de veículos pesados</p>
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight"><T>Veículos Pesados</T></h1>
+            <p className="text-sm text-muted-foreground mt-0.5"><T>Gerencie sua frota de veículos pesados</T></p>
           </div>
           <Button size="sm" onClick={() => { setSelectedVehicle(null); setIsVehicleFormModalOpen(true); }}>
             <Plus className="w-3.5 h-3.5 mr-1.5" />

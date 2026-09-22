@@ -1,5 +1,5 @@
 import * as React from "react"
-import { T } from "@/i18n"
+import { T, localizeChildren, useI18n } from "@/i18n"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
@@ -83,28 +83,30 @@ DialogFooter.displayName = "DialogFooter"
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title
+>(({ className, children, ...props }, ref) => {
+  const { t } = useI18n()
+  return <DialogPrimitive.Title
     ref={ref}
     className={cn(
       "text-lg font-semibold leading-none tracking-tight",
       className
     )}
     {...props}
-  />
-))
+  >{localizeChildren(children, t)}</DialogPrimitive.Title>
+})
 DialogTitle.displayName = DialogPrimitive.Title.displayName
 
 const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Description
+>(({ className, children, ...props }, ref) => {
+  const { t } = useI18n()
+  return <DialogPrimitive.Description
     ref={ref}
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
-  />
-))
+  >{localizeChildren(children, t)}</DialogPrimitive.Description>
+})
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
 export {
