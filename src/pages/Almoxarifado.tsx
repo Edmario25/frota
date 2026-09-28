@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useObras } from "@/hooks/useObras";
 import { toast } from "sonner";
+import { T, useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -213,6 +214,7 @@ ${oc.observacoes?`<div style="margin-top:14px"><div class="sec-t">Observações<
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 export default function Almoxarifado() {
+  const { t } = useI18n();
   const { role } = useUserRole();
   const { obras } = useObras();
   const [materiais,    setMateriais]   = useState<Material[]>([]);
@@ -248,17 +250,17 @@ export default function Almoxarifado() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-slate-500" /> Almoxarifado
+              <Building2 className="h-5 w-5 text-slate-500" /> <T>Almoxarifado</T>
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Controle de materiais, estoque, requisições e fornecedores por obra
+              <T>Controle de materiais, estoque, requisições e fornecedores por obra</T>
             </p>
           </div>
           {canApprove && tabPendentes > 0 && (
             <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
               <Clock className="h-4 w-4 text-amber-600" />
               <span className="text-sm font-semibold text-amber-700">
-                {tabPendentes} requisição{tabPendentes > 1 ? "ões" : ""} aguardando aprovação
+                {t("{count} requisições aguardando aprovação", { count: tabPendentes })}
               </span>
             </div>
           )}
@@ -375,6 +377,8 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
   obras: any[]; obraId: string; setObraId: (v: string) => void;
   materiais: Material[]; fornecedores: Fornecedor[];
 }) {
+  const { t, money, number } = useI18n();
+  const quantity = (value: number, unit: string) => `${number(value, { maximumFractionDigits: 2 })} ${unit}`;
   const [estoque,    setEstoque]    = useState<Estoque[]>([]);
   const [loading,    setLoading]    = useState(false);
   const [search,     setSearch]     = useState("");
@@ -413,10 +417,10 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
 
   function exportCSV() {
     const obraNome = obras.find(o => o.id === obraId)?.nome ?? obraId;
-    const rows = ["Material,Categoria,Unidade,Quantidade,Mínimo,Localização,Status"].concat(
+    const rows = [["Material", "Categoria", "Unidade", "Quantidade", "Mínimo", "Localização", "Status"].map(t).join(",")].concat(
       filtered.map(e => {
         const s = e.quantidade === 0 ? "Zerado" : e.quantidade <= e.quantidade_minima && e.quantidade_minima > 0 ? "Alerta" : "OK";
-        return `"${e.materiais_catalogo.nome}","${e.materiais_catalogo.categoria ?? ""}","${e.materiais_catalogo.unidade}",${e.quantidade},${e.quantidade_minima},"${e.localizacao ?? ""}","${s}"`;
+        return `"${e.materiais_catalogo.nome}","${t(e.materiais_catalogo.categoria ?? "")}","${e.materiais_catalogo.unidade}",${e.quantidade},${e.quantidade_minima},"${e.localizacao ?? ""}","${t(s)}"`;
       })
     ).join("\n");
     const a = document.createElement("a");
@@ -439,12 +443,12 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
         {obraId && (
           <>
             <Button onClick={() => { setSelMat(null); setMovOpen(true); }} className="gap-2">
-              <Plus className="h-4 w-4" /> Nova Movimentação
+              <Plus className="h-4 w-4" /> <T>Nova Movimentação</T>
             </Button>
             {(zerado + alerta) > 0 && (
               <Button variant="outline" onClick={() => setAutoReqOpen(true)}
                 className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50">
-                <Zap className="h-4 w-4" /> Auto-Requisição ({zerado + alerta})
+                <Zap className="h-4 w-4" /> {t("Auto-Requisição ({count})", { count: zerado + alerta })}
               </Button>
             )}
             <Button variant="outline" onClick={exportCSV} className="gap-2">
@@ -455,7 +459,7 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
         )}
       </div>
 
-      {!obraId && <EmptyState icon={Package} msg="Selecione uma obra para ver o estoque." />}
+      {!obraId && <EmptyState icon={Package} msg={t("Selecione uma obra para ver o estoque.")} />}
 
       {obraId && (
         <>
@@ -471,7 +475,7 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
                 <s.icon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                 <div>
                   <p className="text-2xl font-extrabold leading-none">{s.value}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t(s.label)}</p>
                 </div>
               </div>
             ))}
@@ -487,7 +491,7 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
               <SelectTrigger className="w-44 h-9 text-sm"><SelectValue placeholder="Categoria" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas categorias</SelectItem>
-                {categorias.map(c => <SelectItem key={c!} value={c!}>{c}</SelectItem>)}
+                {categorias.map(c => <SelectItem key={c!} value={c!}>{t(c!)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -514,7 +518,7 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
                 ))}
                 {!loading && filtered.length === 0 && (
                   <TableRow><TableCell colSpan={9} className="py-12 text-center text-sm text-muted-foreground">
-                    {estoque.length === 0 ? "Nenhum material no estoque. Registre a primeira entrada." : "Nenhum resultado para os filtros aplicados."}
+                    {t(estoque.length === 0 ? "Nenhum material no estoque. Registre a primeira entrada." : "Nenhum resultado para os filtros aplicados.")}
                   </TableCell></TableRow>
                 )}
                 {!loading && filtered.map(e => {
@@ -526,25 +530,25 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
                         <p className="font-medium text-sm">{e.materiais_catalogo.nome}</p>
                         {e.materiais_catalogo.codigo_interno && <p className="text-xs text-muted-foreground font-mono">{e.materiais_catalogo.codigo_interno}</p>}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground capitalize">{e.materiais_catalogo.categoria ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground capitalize">{e.materiais_catalogo.categoria ? t(e.materiais_catalogo.categoria) : "—"}</TableCell>
                       <TableCell className={cn("text-right font-bold text-sm tabular-nums", isZerado ? "text-red-600" : isAlerta ? "text-amber-600" : "text-foreground")}>
-                        {fmtQtd(e.quantidade, e.materiais_catalogo.unidade)}
+                        {quantity(e.quantidade, e.materiais_catalogo.unidade)}
                       </TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground tabular-nums">
-                        {e.quantidade_minima > 0 ? fmtQtd(e.quantidade_minima, e.materiais_catalogo.unidade) : "—"}
+                        {e.quantidade_minima > 0 ? quantity(e.quantidade_minima, e.materiais_catalogo.unidade) : "—"}
                       </TableCell>
                       {/* Sem custo médio, o consumo deste item entra no Orçado x Realizado com valor zero */}
                       <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
                         {Number(e.custo_medio ?? 0) > 0
-                          ? Number(e.custo_medio).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-                          : <span className="text-amber-600" title="Nenhuma entrada com preço. O consumo deste item sai sem custo.">sem preço</span>}
+                          ? money(Number(e.custo_medio))
+                          : <span className="text-amber-600" title={t("Nenhuma entrada com preço. O consumo deste item sai sem custo.")}><T>sem preço</T></span>}
                       </TableCell>
                       <TableCell className="text-right text-sm tabular-nums">
                         {Number(e.custo_medio ?? 0) > 0 && e.quantidade > 0
                           ? <>
-                              {(e.quantidade * Number(e.custo_medio)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                              {money(e.quantidade * Number(e.custo_medio))}
                               {e.materiais_catalogo.apropriacao_custo === "compra" &&
-                                <p className="text-[10px] text-muted-foreground" title="Item com custo na compra: este valor já entrou no Orçado x Realizado.">já no custo da obra</p>}
+                                <p className="text-[10px] text-muted-foreground" title={t("Item com custo na compra: este valor já entrou no Orçado x Realizado.")}><T>já no custo da obra</T></p>}
                             </>
                           : "—"}
                       </TableCell>
@@ -552,11 +556,11 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
                       <TableCell>
                         {isZerado ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
-                            <TrendingDown className="h-3 w-3" /> Zerado
+                            <TrendingDown className="h-3 w-3" /> <T>Zerado</T>
                           </span>
                         ) : isAlerta ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-                            <AlertTriangle className="h-3 w-3" /> Alerta
+                            <AlertTriangle className="h-3 w-3" /> <T>Alerta</T>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
@@ -592,6 +596,8 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
   obras: any[]; obraId: string; setObraId: (v: string) => void;
   materiais: Material[]; fornecedores: Fornecedor[];
 }) {
+  const { t, money, date, number } = useI18n();
+  const quantity = (value: number, unit: string) => `${number(value, { maximumFractionDigits: 2 })} ${unit}`;
   const [movs,    setMovs]    = useState<Movimento[]>([]);
   const [loading, setLoading] = useState(false);
   const [movOpen, setMovOpen] = useState(false);
@@ -642,7 +648,7 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os tipos</SelectItem>
-            {TIPOS_MOV.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+            {TIPOS_MOV.map(item => <SelectItem key={item.value} value={item.value}>{t(item.label)}</SelectItem>)}
           </SelectContent>
         </Select>
         <Button onClick={() => setMovOpen(true)} disabled={!obraId} className="gap-2">
@@ -651,7 +657,7 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
         <Button variant="ghost" size="icon" onClick={fetchMovs}><RefreshCw className="h-4 w-4" /></Button>
       </div>
 
-      {!obraId && <EmptyState icon={ClipboardList} msg="Selecione uma obra para ver as movimentações." />}
+      {!obraId && <EmptyState icon={ClipboardList} msg={t("Selecione uma obra para ver as movimentações.")} />}
 
       {obraId && (
         <>
@@ -664,22 +670,22 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="rounded-xl border bg-card p-3">
                   <p className="text-lg font-extrabold text-green-600">{movs.filter(m=>m.tipo==="entrada").length}</p>
-                  <p className="text-xs font-semibold text-muted-foreground">Entradas</p>
-                  {custoEntradas > 0 && <p className="text-xs font-bold text-green-700 mt-0.5">{moedaBR(custoEntradas)}</p>}
+                  <p className="text-xs font-semibold text-muted-foreground"><T>Entradas</T></p>
+                  {custoEntradas > 0 && <p className="text-xs font-bold text-green-700 mt-0.5">{money(custoEntradas)}</p>}
                 </div>
                 <div className="rounded-xl border bg-card p-3">
                   <p className="text-lg font-extrabold text-red-600">{movs.filter(m=>m.tipo==="saida").length}</p>
-                  <p className="text-xs font-semibold text-muted-foreground">Saídas</p>
-                  {custoSaidas > 0 && <p className="text-xs font-bold text-red-700 mt-0.5">{moedaBR(custoSaidas)}</p>}
+                  <p className="text-xs font-semibold text-muted-foreground"><T>Saídas</T></p>
+                  {custoSaidas > 0 && <p className="text-xs font-bold text-red-700 mt-0.5">{money(custoSaidas)}</p>}
                 </div>
                 <div className="rounded-xl border bg-card p-3">
                   <p className="text-lg font-extrabold">{movs.length}</p>
-                  <p className="text-xs font-semibold text-muted-foreground">Total registros</p>
+                  <p className="text-xs font-semibold text-muted-foreground"><T>Total registros</T></p>
                 </div>
                 <div className={cn("rounded-xl border p-3", custoTotal > 0 ? "bg-blue-50 border-blue-200" : "bg-card")}>
-                  <p className={cn("text-lg font-extrabold", custoTotal > 0 ? "text-blue-700" : "text-muted-foreground")}>{moedaBR(custoTotal)}</p>
-                  <p className="text-xs font-semibold text-muted-foreground">Custo total período</p>
-                  {custoTotal === 0 && <p className="text-[10px] text-muted-foreground mt-0.5">Informe preço nas entradas</p>}
+                  <p className={cn("text-lg font-extrabold", custoTotal > 0 ? "text-blue-700" : "text-muted-foreground")}>{money(custoTotal)}</p>
+                  <p className="text-xs font-semibold text-muted-foreground"><T>Custo total período</T></p>
+                  {custoTotal === 0 && <p className="text-[10px] text-muted-foreground mt-0.5"><T>Informe preço nas entradas</T></p>}
                 </div>
               </div>
             );
@@ -710,7 +716,7 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
                   <TableRow key={i}>{Array.from({ length: 8 }).map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-16" /></TableCell>)}</TableRow>
                 ))}
                 {!loading && filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">Nenhuma movimentação no período.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground"><T>Nenhuma movimentação no período.</T></TableCell></TableRow>
                 )}
                 {!loading && filtered.map(m => {
                   const ti = TIPOS_MOV.find(t => t.value === m.tipo)!;
@@ -718,16 +724,16 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
                   const isSaida   = m.tipo === "saida";
                   return (
                     <TableRow key={m.id} className="hover:bg-muted/30">
-                      <TableCell className="text-sm tabular-nums whitespace-nowrap">{fmtDate(m.data_movimento)}</TableCell>
+                      <TableCell className="text-sm tabular-nums whitespace-nowrap">{date(m.data_movimento)}</TableCell>
                       <TableCell>
                         <span className={cn("flex items-center gap-1 text-xs font-semibold", ti.color)}>
-                          <ti.icon className="h-3.5 w-3.5" />{ti.label}
+                          <ti.icon className="h-3.5 w-3.5" />{t(ti.label)}
                         </span>
                       </TableCell>
                       <TableCell className="font-medium text-sm">{m.materiais_catalogo.nome}</TableCell>
                       <TableCell className={cn("text-right font-bold text-sm tabular-nums",
                         isEntrada ? "text-green-600" : isSaida ? "text-red-600" : "text-blue-600")}>
-                        {isEntrada ? "+" : isSaida ? "−" : "↔"}{fmtQtd(m.quantidade, m.materiais_catalogo.unidade)}
+                        {isEntrada ? "+" : isSaida ? "−" : "↔"}{quantity(m.quantidade, m.materiais_catalogo.unidade)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {m.frente ?? (m.obras_destino?.nome ? `→ ${m.obras_destino.nome}` : "—")}
@@ -739,12 +745,12 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
                         {!m.fornecedor && !m.nota_fiscal && "—"}
                       </TableCell>
                       <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                        {m.preco_unitario ? moedaBR(m.preco_unitario) : "—"}
+                        {m.preco_unitario ? money(m.preco_unitario) : "—"}
                       </TableCell>
                       <TableCell className="text-right text-sm tabular-nums font-semibold">
                         {m.preco_unitario
                           ? <span className={m.tipo === "entrada" ? "text-green-700" : m.tipo === "saida" ? "text-red-700" : "text-foreground"}>
-                              {moedaBR(m.preco_unitario * m.quantidade)}
+                              {money(m.preco_unitario * m.quantidade)}
                             </span>
                           : "—"}
                       </TableCell>
@@ -753,10 +759,10 @@ function MovimentacoesTab({ obras, obraId, setObraId, materiais, fornecedores }:
                 })}
                 {!loading && filtered.some(m => m.preco_unitario) && (
                   <TableRow className="bg-muted/40 font-bold border-t-2">
-                    <TableCell colSpan={6} className="text-right text-sm text-muted-foreground">Total do período:</TableCell>
+                    <TableCell colSpan={6} className="text-right text-sm text-muted-foreground"><T>Total do período:</T></TableCell>
                     <TableCell className="text-right text-sm tabular-nums text-muted-foreground">—</TableCell>
                     <TableCell className="text-right text-sm tabular-nums font-extrabold">
-                      {moedaBR(filtered.filter(m=>m.preco_unitario).reduce((s,m)=>s+(m.preco_unitario??0)*m.quantidade,0))}
+                      {money(filtered.filter(m=>m.preco_unitario).reduce((s,m)=>s+(m.preco_unitario??0)*m.quantidade,0))}
                     </TableCell>
                   </TableRow>
                 )}
@@ -778,6 +784,8 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
   obras: any[]; obraId: string; setObraId: (v: string) => void;
   materiais: Material[]; canApprove: boolean; onPendentesChange: () => void;
 }) {
+  const { t, date, number } = useI18n();
+  const quantity = (value: number, unit: string) => `${number(value, { maximumFractionDigits: 2 })} ${unit}`;
   const [reqs,         setReqs]         = useState<Requisicao[]>([]);
   const [loading,      setLoading]      = useState(false);
   const [reqOpen,      setReqOpen]      = useState(false);
@@ -806,7 +814,7 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
     try {
       const { error } = await (supabase as any).rpc("processar_requisicao_compra", { p_id:req.id,p_aprovar:true,p_motivo:null });
       if (error) throw error;
-      toast.success(`✅ Requisição ${req.numero_req ?? ""} aprovada!`);
+      toast.success(t("Requisição {number} aprovada!", { number: req.numero_req ?? "" }));
       fetchReqs(); onPendentesChange();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -814,12 +822,12 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
 
   async function handleRejeitar() {
     if (!rejDialog) return;
-    if (!motivoRej.trim()) { toast.error("Informe o motivo da rejeição"); return; }
+    if (!motivoRej.trim()) { toast.error(t("Informe o motivo da rejeição")); return; }
     setSaving(true);
     try {
       const { error } = await (supabase as any).rpc("processar_requisicao_compra", { p_id:rejDialog.id,p_aprovar:false,p_motivo:motivoRej.trim() });
       if (error) throw error;
-      toast.success("Requisição rejeitada.");
+      toast.success(t("Requisição rejeitada."));
       setRejDialog(null); setMotivoRej("");
       fetchReqs(); onPendentesChange();
     } catch (e: any) { toast.error(e.message); }
@@ -830,7 +838,7 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
     setSaving(true);
     try {
       await (supabase as any).from("requisicoes_compra").update({ status: "entregue" }).eq("id", req.id);
-      toast.success("Marcado como entregue!");
+      toast.success(t("Marcado como entregue!"));
       fetchReqs(); onPendentesChange();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -850,7 +858,7 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
         <div className="flex-1 min-w-48 space-y-1.5">
           <Label>Obra</Label>
           <Select value={obraId || "all"} onValueChange={v => setObraId(v === "all" ? "" : v)}>
-            <SelectTrigger><SelectValue placeholder="Todas as obras" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder={t("Todas as obras")} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as obras</SelectItem>
               {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}
@@ -875,7 +883,7 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
             className={cn("px-3 py-1 rounded-full text-xs font-semibold transition-all border border-transparent",
               filtroStatus === val ? cls + " ring-2 ring-offset-1 ring-current" : "bg-muted/60 text-muted-foreground hover:bg-muted"
             )}>
-            {label}
+            {t(label)}
             {val !== "todos" && counts[val as keyof typeof counts] > 0 && (
               <span className="ml-1.5 font-mono">{counts[val as keyof typeof counts]}</span>
             )}
@@ -887,7 +895,7 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
       {!canApprove && (
         <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
           <ShieldCheck className="h-4 w-4 flex-shrink-0" />
-          <span>Apenas <strong>Gestores de Obra</strong> podem aprovar ou rejeitar requisições.</span>
+          <span><T>Apenas</T> <strong><T>Gestores de Obra</T></strong> <T>podem aprovar ou rejeitar requisições.</T></span>
         </div>
       )}
 
@@ -895,7 +903,7 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
       {loading && <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>}
 
       {!loading && reqs.length === 0 && (
-        <EmptyState icon={ShoppingCart} msg={`Nenhuma requisição ${filtroStatus !== "todos" ? `"${filtroStatus}"` : ""} encontrada.`} />
+        <EmptyState icon={ShoppingCart} msg={filtroStatus === "todos" ? t("Nenhuma requisição encontrada.") : t("Nenhuma requisição com status {status} encontrada.", { status: t(STATUS_CFG[filtroStatus]?.label ?? filtroStatus) })} />
       )}
 
       <div className="space-y-3">
@@ -922,16 +930,16 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
                       </span>
                     )}
                     <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border", sts.cls)}>
-                      <StsIcon className="h-3 w-3" /> {sts.label}
+                      <StsIcon className="h-3 w-3" /> {t(sts.label)}
                     </span>
                     {urg && (
                       <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", urg.cls)}>
-                        {urg.label}
+                        {t(urg.label)}
                       </span>
                     )}
                     <span className="text-xs text-muted-foreground ml-auto">
-                      {fmtDate(r.data_solicitacao)}
-                      {r.data_necessidade && <> · necessário até <strong>{fmtDate(r.data_necessidade)}</strong></>}
+                      {date(r.data_solicitacao)}
+                      {r.data_necessidade && <> · <T>necessário até</T> <strong>{date(r.data_necessidade)}</strong></>}
                     </span>
                   </div>
 
@@ -942,9 +950,9 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
                         <span className="text-muted-foreground text-xs w-4 text-right">{idx + 1}.</span>
                         <span className="font-medium">{it.materiais_catalogo?.nome ?? "—"}</span>
                         <span className="text-muted-foreground">·</span>
-                        <span className="tabular-nums">{fmtQtd(it.quantidade, it.materiais_catalogo?.unidade ?? "un")}</span>
+                        <span className="tabular-nums">{quantity(it.quantidade, it.materiais_catalogo?.unidade ?? "un")}</span>
                         {it.qtd_aprovada != null && it.qtd_aprovada !== it.quantidade && (
-                          <span className="text-xs text-amber-600">(aprovado: {fmtQtd(it.qtd_aprovada, it.materiais_catalogo?.unidade ?? "un")})</span>
+                          <span className="text-xs text-amber-600">(<T>aprovado:</T> {quantity(it.qtd_aprovada, it.materiais_catalogo?.unidade ?? "un")})</span>
                         )}
                       </div>
                     ))}
@@ -956,11 +964,11 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
                   {r.motivo_rejeicao && (
                     <div className="mt-2 flex items-start gap-1.5 text-xs text-red-600 bg-red-50 rounded px-2 py-1.5">
                       <Ban className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                      <span><strong>Motivo da rejeição:</strong> {r.motivo_rejeicao}</span>
+                      <span><strong><T>Motivo da rejeição:</T></strong> {r.motivo_rejeicao}</span>
                     </div>
                   )}
                   {r.observacoes_aprovador && !r.motivo_rejeicao && (
-                    <p className="text-xs text-muted-foreground mt-1">Obs. do aprovador: {r.observacoes_aprovador}</p>
+                    <p className="text-xs text-muted-foreground mt-1"><T>Obs. do aprovador:</T> {r.observacoes_aprovador}</p>
                   )}
                 </div>
 
@@ -1005,13 +1013,13 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
           </DialogHeader>
           <div className="space-y-3 py-1">
             {rejDialog?.numero_req && (
-              <p className="text-sm text-muted-foreground">Requisição <strong>{rejDialog.numero_req}</strong></p>
+              <p className="text-sm text-muted-foreground"><T>Requisição</T> <strong>{rejDialog.numero_req}</strong></p>
             )}
             <div className="space-y-1.5">
               <Label>Motivo da rejeição <span className="text-red-500">*</span></Label>
               <Textarea
                 rows={3}
-                placeholder="Informe o motivo para o solicitante..."
+                placeholder={t("Informe o motivo para o solicitante...")}
                 value={motivoRej}
                 onChange={e => setMotivoRej(e.target.value)}
               />
@@ -1041,6 +1049,7 @@ function RequisicoesTab({ obras, obraId, setObraId, materiais, canApprove, onPen
 function FornecedoresTab({ fornecedores, onRefresh, canEdit }: {
   fornecedores: Fornecedor[]; onRefresh: () => void; canEdit: boolean;
 }) {
+  const { t } = useI18n();
   const [search,    setSearch]   = useState("");
   const [open,      setOpen]     = useState(false);
   const [editing,   setEditing]  = useState<Fornecedor | null>(null);
@@ -1055,7 +1064,7 @@ function FornecedoresTab({ fornecedores, onRefresh, canEdit }: {
   }
 
   async function handleSave() {
-    if (!form.nome.trim()) { toast.error("Informe o nome do fornecedor"); return; }
+    if (!form.nome.trim()) { toast.error(t("Informe o nome do fornecedor")); return; }
     setSaving(true);
     const payload = {
       nome: form.nome.trim(), cnpj: form.cnpj || null,
@@ -1069,7 +1078,7 @@ function FornecedoresTab({ fornecedores, onRefresh, canEdit }: {
       : await (supabase as any).from("fornecedores").insert([payload]);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success(editing ? "Fornecedor atualizado!" : "Fornecedor cadastrado!");
+    toast.success(t(editing ? "Fornecedor atualizado!" : "Fornecedor cadastrado!"));
     setOpen(false); onRefresh();
   }
 
@@ -1083,14 +1092,14 @@ function FornecedoresTab({ fornecedores, onRefresh, canEdit }: {
       <div className="flex gap-3 items-center flex-wrap">
         <div className="relative flex-1 min-w-48 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input placeholder="Buscar fornecedor..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-sm" />
+          <Input placeholder={t("Buscar fornecedor...")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-sm" />
         </div>
         {canEdit && <Button onClick={openNew} className="gap-2 ml-auto"><Plus className="h-4 w-4" /> Novo Fornecedor</Button>}
         <Button variant="ghost" size="icon" onClick={onRefresh}><RefreshCw className="h-4 w-4" /></Button>
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Truck} msg={fornecedores.length === 0 ? "Nenhum fornecedor cadastrado ainda." : "Nenhum resultado para a busca."} />
+        <EmptyState icon={Truck} msg={t(fornecedores.length === 0 ? "Nenhum fornecedor cadastrado ainda." : "Nenhum resultado para a busca.")} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(f => (
@@ -1103,7 +1112,7 @@ function FornecedoresTab({ fornecedores, onRefresh, canEdit }: {
                 <div className="flex items-center gap-1.5">
                   <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full",
                     f.ativo ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground")}>
-                    {f.ativo ? "Ativo" : "Inativo"}
+                    {t(f.ativo ? "Ativo" : "Inativo")}
                   </span>
                   {canEdit && (
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(f)}>
@@ -1131,25 +1140,25 @@ function FornecedoresTab({ fornecedores, onRefresh, canEdit }: {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-slate-500" /> {editing ? "Editar Fornecedor" : "Novo Fornecedor"}
+              <Truck className="h-5 w-5 text-slate-500" /> {t(editing ? "Editar Fornecedor" : "Novo Fornecedor")}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div className="space-y-1.5">
               <Label>Nome <span className="text-red-500">*</span></Label>
-              <Input placeholder="Razão social ou nome fantasia" value={form.nome} onChange={e => setForm(f => ({...f, nome: e.target.value}))} />
+              <Input placeholder={t("Razão social ou nome fantasia")} value={form.nome} onChange={e => setForm(f => ({...f, nome: e.target.value}))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>CNPJ</Label><Input placeholder="00.000.000/0001-00" value={form.cnpj} onChange={e => setForm(f => ({...f, cnpj: e.target.value}))} /></div>
-              <div className="space-y-1.5"><Label>Contato</Label><Input placeholder="Nome do contato" value={form.contato_nome} onChange={e => setForm(f => ({...f, contato_nome: e.target.value}))} /></div>
+              <div className="space-y-1.5"><Label>Contato</Label><Input placeholder={t("Nome do contato")} value={form.contato_nome} onChange={e => setForm(f => ({...f, contato_nome: e.target.value}))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Telefone</Label><Input placeholder="(00) 00000-0000" value={form.telefone} onChange={e => setForm(f => ({...f, telefone: e.target.value}))} /></div>
               <div className="space-y-1.5"><Label>E-mail</Label><Input type="email" placeholder="contato@..." value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} /></div>
             </div>
             <div className="space-y-1.5">
-              <Label>Categorias fornecidas <span className="text-xs text-muted-foreground">(separadas por vírgula)</span></Label>
-              <Input placeholder="Cimento, Ferro, Hidráulico..." value={form.categorias} onChange={e => setForm(f => ({...f, categorias: e.target.value}))} />
+              <Label><T>Categorias fornecidas</T> <span className="text-xs text-muted-foreground"><T>(separadas por vírgula)</T></span></Label>
+              <Input placeholder={t("Cimento, Ferro, Hidráulico...")} value={form.categorias} onChange={e => setForm(f => ({...f, categorias: e.target.value}))} />
             </div>
             <div className="space-y-1.5"><Label>Observações</Label><Textarea rows={2} value={form.observacoes} onChange={e => setForm(f => ({...f, observacoes: e.target.value}))} /></div>
             <div className="flex items-center justify-between rounded-lg border px-4 py-2.5">
@@ -1525,6 +1534,7 @@ function RequisicaoModal({ open, onClose, obraId, obras, materiais, onSaved }: {
   open: boolean; onClose: () => void; obraId: string; obras: any[];
   materiais: Material[]; onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const [obraLocal,    setObraLocal]  = useState(obraId);
   const [urgencia,     setUrgencia]   = useState("normal");
   const [justificativa,setJust]       = useState("");
@@ -1544,9 +1554,9 @@ function RequisicaoModal({ open, onClose, obraId, obras, materiais, onSaved }: {
 
   async function handleSave() {
     const obraFinal = obraLocal || obraId;
-    if (!obraFinal)      { toast.error("Selecione a obra"); return; }
+    if (!obraFinal)      { toast.error(t("Selecione a obra")); return; }
     const itensValidos = itens.filter(it => it.material_id && parseFloat(it.quantidade) > 0);
-    if (itensValidos.length === 0) { toast.error("Adicione pelo menos um item com material e quantidade"); return; }
+    if (itensValidos.length === 0) { toast.error(t("Adicione pelo menos um item com material e quantidade")); return; }
 
     setSaving(true);
     try {
@@ -1577,7 +1587,7 @@ function RequisicaoModal({ open, onClose, obraId, obras, materiais, onSaved }: {
       }));
       await (supabase as any).from("requisicao_itens").insert(itensPayload);
 
-      toast.success(`✅ Requisição enviada com ${itensValidos.length} item(s)!`);
+      toast.success(t("Requisição enviada com {count} item(s)!", { count: itensValidos.length }));
       onSaved(); onClose();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -1596,7 +1606,7 @@ function RequisicaoModal({ open, onClose, obraId, obras, materiais, onSaved }: {
             <div className="space-y-1.5">
               <Label>Obra <span className="text-red-500">*</span></Label>
               <Select value={obraLocal} onValueChange={setObraLocal}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("Selecione...")} /></SelectTrigger>
                 <SelectContent>{obras.map(o=><SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -1604,7 +1614,7 @@ function RequisicaoModal({ open, onClose, obraId, obras, materiais, onSaved }: {
               <Label>Urgência</Label>
               <Select value={urgencia} onValueChange={setUrgencia}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{URGENCIAS.map(u=><SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}</SelectContent>
+                <SelectContent>{URGENCIAS.map(u=><SelectItem key={u.value} value={u.value}>{t(u.label)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
@@ -1626,7 +1636,7 @@ function RequisicaoModal({ open, onClose, obraId, obras, materiais, onSaved }: {
               <div key={i} className="flex gap-2 items-end bg-muted/30 rounded-lg p-2">
                 <div className="flex-1 space-y-1">
                   <Select value={it.material_id} onValueChange={v => updateItem(i, "material_id", v)}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Material..." /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={t("Material...")} /></SelectTrigger>
                     <SelectContent className="max-h-48">
                       {materiais.filter(m => m.ativo).map(m => <SelectItem key={m.id} value={m.id}>{m.nome} ({m.unidade})</SelectItem>)}
                     </SelectContent>
@@ -1634,7 +1644,7 @@ function RequisicaoModal({ open, onClose, obraId, obras, materiais, onSaved }: {
                 </div>
                 <div className="w-24">
                   <Input type="number" min="0.001" step="any" className="h-8 text-sm text-center"
-                    value={it.quantidade} onChange={e => updateItem(i, "quantidade", e.target.value)} placeholder="Qtd." />
+                    value={it.quantidade} onChange={e => updateItem(i, "quantidade", e.target.value)} placeholder={t("Qtd.")} />
                 </div>
                 {itens.length > 1 && (
                   <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600 flex-shrink-0"
@@ -1648,14 +1658,14 @@ function RequisicaoModal({ open, onClose, obraId, obras, materiais, onSaved }: {
 
           <div className="space-y-1.5">
             <Label>Justificativa</Label>
-            <Textarea rows={2} placeholder="Por que este(s) material(is) é(são) necessário(s)?" value={justificativa} onChange={e => setJust(e.target.value)} className="resize-none text-sm" />
+            <Textarea rows={2} placeholder={t("Por que este(s) material(is) é(são) necessário(s)?")} value={justificativa} onChange={e => setJust(e.target.value)} className="resize-none text-sm" />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving} className="gap-1.5">
             {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShoppingCart className="h-4 w-4" />}
-            {saving ? "Enviando..." : `Enviar Requisição${itens.filter(it => it.material_id).length > 1 ? ` (${itens.filter(it => it.material_id).length} itens)` : ""}`}
+            {saving ? t("Enviando...") : itens.filter(it => it.material_id).length > 1 ? t("Enviar Requisição ({count} itens)", { count: itens.filter(it => it.material_id).length }) : t("Enviar Requisição")}
           </Button>
         </DialogFooter>
       </DialogContent>

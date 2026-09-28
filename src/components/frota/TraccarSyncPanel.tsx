@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 /**
  * TraccarSyncPanel — painel de sincronização GPS
  *
@@ -60,6 +61,7 @@ interface TraccarSyncPanelProps {
 }
 
 export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
+  const { t, number, date } = useI18n();
   const navigate = useNavigate();
   const { getDevices, getPositions, getMonthlySummary } = useTraccar();
 
@@ -210,7 +212,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
 
       if (saveError) {
         console.error("[TraccarSync] Erro ao salvar veículo:", saveError);
-        throw new Error(`Erro ao salvar: ${saveError.message}`);
+        throw new Error(t("Erro ao salvar: {message}", { message: saveError.message }));
       }
 
       // Notifica Frota.tsx se o km mudou
@@ -257,7 +259,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
         )
       );
     }
-  }, [config, devices, getPositions, getMonthlySummary, fetchFuelInMonth, year, month]);
+  }, [config, devices, getPositions, getMonthlySummary, fetchFuelInMonth, year, month, onKmUpdate, t]);
 
   // ── Sincroniza TODOS ─────────────────────────────────────────────
   async function syncAll() {
@@ -267,10 +269,10 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
       for (const v of vehicles) {
         await syncVehicle(v);
       }
-      toast.success("Sincronização concluída!");
+      toast.success(t("Sincronização concluída!"));
     } catch (err: any) {
       console.error("[TraccarSync] Erro inesperado no syncAll:", err?.message);
-      toast.error("Erro na sincronização", { description: err?.message });
+      toast.error(t("Erro na sincronização"), { description: err?.message });
     } finally {
       setSyncingAll(false);
     }
@@ -288,8 +290,8 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
       const positions = await getPositions(config, [v.traccar_device_id]);
 
       if (!positions.length || !positions[0].latitude) {
-        toast.error("Posição não disponível", {
-          description: "O dispositivo ainda não enviou coordenadas.",
+        toast.error(t("Posição não disponível"), {
+          description: t("O dispositivo ainda não enviou coordenadas."),
         });
         return;
       }
@@ -309,11 +311,11 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
       const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}&z=16`;
       window.open(mapsUrl, "_blank");
 
-      toast.success(`${v.placa} localizado`, {
-        description: `${speed > 0 ? `${Math.round(speed)} km/h` : "Parado"} • ${new Date(fixTime).toLocaleString("pt-BR")}`,
+      toast.success(t("{plate} localizado", { plate: v.placa }), {
+        description: `${speed > 0 ? `${number(Math.round(speed))} km/h` : t("Parado")} • ${date(new Date(fixTime), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`,
       });
     } catch (e: any) {
-      toast.error("Erro ao localizar veículo", { description: e.message });
+      toast.error(t("Erro ao localizar veículo"), { description: e.message });
     } finally {
       setVehicles(prev =>
         prev.map(x => x.id === v.id ? { ...x, locating: false } : x)
@@ -327,7 +329,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground py-8 justify-center">
         <Loader2 className="h-5 w-5 animate-spin" />
-        <span>Carregando integração GPS...</span>
+        <span>{t("Carregando integração GPS...")}</span>
       </div>
     );
   }
@@ -340,19 +342,15 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
             <Satellite className="h-7 w-7 text-sky-500" />
           </div>
           <div>
-            <p className="font-semibold text-base">Traccar não configurado</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure o servidor GPS para sincronizar odômetro e consumo automaticamente.
-            </p>
+            <p className="font-semibold text-base">{t("Traccar não configurado")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("Configure o servidor GPS para sincronizar odômetro e consumo automaticamente.")}</p>
           </div>
           <Button
             variant="outline"
             className="gap-2 rounded-xl"
             onClick={() => navigate("/configuracoes?tab=traccar")}
           >
-            <Settings className="h-4 w-4" />
-            Configurar Traccar
-          </Button>
+            <Settings className="h-4 w-4" />{t("Configurar Traccar")}</Button>
         </CardContent>
       </Card>
     );
@@ -366,10 +364,8 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
             <AlertCircle className="h-7 w-7 text-amber-500" />
           </div>
           <div>
-            <p className="font-semibold text-base">Nenhum veículo com rastreador vinculado</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Edite os veículos e informe o <strong>ID do dispositivo Traccar</strong> para ativar a sincronização.
-            </p>
+            <p className="font-semibold text-base">{t("Nenhum veículo com rastreador vinculado")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("Edite os veículos e informe o")}{" "}<strong>{t("ID do dispositivo Traccar")}</strong>{" "}{t("para ativar a sincronização.")}</p>
           </div>
         </CardContent>
       </Card>
@@ -385,10 +381,10 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
               <Satellite className="h-5 w-5 text-sky-600" />
             </div>
             <div>
-              <CardTitle className="text-lg">Sincronização GPS</CardTitle>
+              <CardTitle className="text-lg">{t("Sincronização GPS")}</CardTitle>
               <CardDescription>
-                {vehicles.length} veículo{vehicles.length > 1 ? "s" : ""} com rastreador •{" "}
-                {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                {t("{count} veículo(s) com rastreador", { count: number(vehicles.length) })} •{" "}
+                {date(new Date(), { month: "long", year: "numeric" })}
               </CardDescription>
             </div>
           </div>
@@ -399,9 +395,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
           >
             {syncingAll
               ? <Loader2 className="h-4 w-4 animate-spin" />
-              : <RefreshCw className="h-4 w-4" />}
-            Sincronizar Todos
-          </Button>
+              : <RefreshCw className="h-4 w-4" />}{t("Sincronizar Todos")}</Button>
         </div>
       </CardHeader>
 
@@ -410,13 +404,13 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-t border-border">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Veículo</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status GPS</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">KM Atual (GPS)</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">KM no Mês</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Combustível Mês</th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Eficiência</th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Ações</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("Veículo")}</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t("Status GPS")}</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t("KM Atual (GPS)")}</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t("KM no Mês")}</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t("Combustível Mês")}</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t("Eficiência")}</th>
+                <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t("Ações")}</th>
               </tr>
             </thead>
             <tbody>
@@ -448,8 +442,8 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
                             : "bg-gray-100 text-gray-500 border-0 text-xs"
                         }>
                           {v.gps_status === "online"
-                            ? <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1.5 animate-pulse" />Online</>
-                            : <><WifiOff className="h-3 w-3 mr-1 inline" />Offline</>
+                            ? <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1.5 animate-pulse" />{t("Online")}</>
+                            : <><WifiOff className="h-3 w-3 mr-1 inline" />{t("Offline")}</>
                           }
                         </Badge>
                       ) : (
@@ -461,17 +455,17 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
                     <td className="px-4 py-3 text-right">
                       <div>
                         <span className="font-semibold">
-                          {v.quilometragem_atual.toLocaleString("pt-BR")}
+                          {number(v.quilometragem_atual)}
                         </span>
                         <span className="text-xs text-muted-foreground ml-1">km</span>
                       </div>
                       {v.synced && v.gps_delta_km !== null && v.gps_delta_km !== undefined && (
                         <div className={`text-xs font-medium ${v.gps_delta_km > 0 ? "text-sky-600" : "text-muted-foreground"}`}>
-                          {v.gps_delta_km > 0 ? `+${v.gps_delta_km} km rodados` : "sem movimento"}
+                          {v.gps_delta_km > 0 ? t("+{distance} km rodados", { distance: number(v.gps_delta_km) }) : t("sem movimento")}
                         </div>
                       )}
                       {v.synced && v.traccar_last_distance === null && (
-                        <div className="text-xs text-amber-600">baseline registrada</div>
+                        <div className="text-xs text-amber-600">{t("baseline registrada")}</div>
                       )}
                     </td>
 
@@ -481,7 +475,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
                         <div className="space-y-1">
                           <div className="flex items-center justify-end gap-1">
                             <Route className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="font-medium">{v.km_mes.toLocaleString("pt-BR")} km</span>
+                            <span className="font-medium">{number(v.km_mes)} km</span>
                           </div>
                           {pct !== null && (
                             <div className="w-24 ml-auto">
@@ -489,7 +483,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
                                 value={pct}
                                 className="h-1.5"
                               />
-                              <span className="text-xs text-muted-foreground">{pct.toFixed(0)}% do limite</span>
+                              <span className="text-xs text-muted-foreground">{t("{percent}% do limite", { percent: number(pct, { maximumFractionDigits: 0 }) })}</span>
                             </div>
                           )}
                         </div>
@@ -503,7 +497,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
                       {v.combustivel_mes != null ? (
                         <div className="flex items-center justify-end gap-1">
                           <Fuel className="h-3.5 w-3.5 text-amber-500" />
-                          <span>{v.combustivel_mes.toFixed(1)} L</span>
+                          <span>{number(v.combustivel_mes, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L</span>
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-xs">—</span>
@@ -516,7 +510,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
                         <div className="flex items-center justify-end gap-1">
                           <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
                           <span className="font-semibold text-emerald-700">
-                            {v.eficiencia.toFixed(1)} km/L
+                            {number(v.eficiencia, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km/L
                           </span>
                         </div>
                       ) : (
@@ -535,7 +529,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
                           className="h-7 w-7 p-0 rounded-lg text-sky-600 hover:text-sky-700 hover:bg-sky-50"
                           onClick={() => locateVehicle(v)}
                           disabled={v.locating}
-                          title="Ver localização atual no mapa"
+                          title={t("Ver localização atual no mapa")}
                         >
                           {v.locating
                             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -558,7 +552,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
                             variant="ghost"
                             className="h-7 w-7 p-0 rounded-lg"
                             onClick={() => syncVehicle(v)}
-                            title="Sincronizar odômetro"
+                            title={t("Sincronizar odômetro")}
                           >
                             <RefreshCw className="h-3.5 w-3.5" />
                           </Button>

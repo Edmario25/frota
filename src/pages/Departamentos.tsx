@@ -19,11 +19,13 @@ import { DepartamentoFormModal } from "@/components/departamentos/DepartamentoFo
 import { ConfirmDeleteDepartamentoModal } from "@/components/departamentos/ConfirmDeleteDepartamentoModal";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { SetoresPainel } from "@/components/departamentos/SetoresPainel";
+import { T, useI18n } from "@/i18n";
 import type { Database } from "@/integrations/supabase/types";
 
 type Departamento = Database['public']['Tables']['departamentos']['Row'];
 
 const Departamentos = () => {
+  const { t } = useI18n();
   const { departamentos, loading, createDepartamento, updateDepartamento, deleteDepartamento } = useDepartamentos();
   const { employees } = useEmployees();
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,12 +84,12 @@ const Departamentos = () => {
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">
           <div>
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Departamentos e Setores</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Estrutura da empresa: departamentos, responsáveis e setores</p>
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight"><T>Departamentos e Setores</T></h1>
+            <p className="text-sm text-muted-foreground mt-0.5"><T>Estrutura da empresa: departamentos, responsáveis e setores</T></p>
           </div>
           <Button size="sm" onClick={() => setIsFormModalOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Novo Departamento
+            <T>Novo Departamento</T>
           </Button>
         </div>
 
@@ -108,7 +110,7 @@ const Departamentos = () => {
           ].map((s) => (
             <div key={s.label} className="rounded-lg border border-border/50 bg-card px-4 py-3 shadow-card">
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</p>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">{t(s.label)}</p>
             </div>
           ))}
         </div>
@@ -117,7 +119,7 @@ const Departamentos = () => {
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Buscar departamento..."
+            placeholder={t("Buscar departamento...")}
             className="pl-8 h-8 text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -149,7 +151,7 @@ const Departamentos = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {departamento.descricao || <span className="italic text-muted-foreground/60">Sem descrição</span>}
+                      {departamento.descricao || <span className="italic text-muted-foreground/60"><T>Sem descrição</T></span>}
                     </TableCell>
                     <TableCell>
                       {responsavel ? (
@@ -159,7 +161,7 @@ const Departamentos = () => {
                         </div>
                       ) : (
                         <Badge variant="outline" className="text-xs text-muted-foreground">
-                          Não definido
+                          <T>Não definido</T>
                         </Badge>
                       )}
                     </TableCell>
@@ -189,7 +191,7 @@ const Departamentos = () => {
               {filteredDepartamentos.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? "Nenhum departamento encontrado para a busca." : "Nenhum departamento cadastrado."}
+                    {t(searchTerm ? "Nenhum departamento encontrado para a busca." : "Nenhum departamento cadastrado.")}
                   </TableCell>
                 </TableRow>
               )}

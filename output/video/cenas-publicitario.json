@@ -1,0 +1,173 @@
+[
+  {
+    "index": 1,
+    "key": "abertura",
+    "filename": "01-abertura.png",
+    "duration": 14.33883445945946,
+    "narration": "A gestão da obra começa onde a operação acontece. O Ápice Gestão conecta o motorista, o apontador, a frota e o canteiro aos gestores em uma única plataforma.",
+    "start": 0,
+    "end": 14.33883445945946
+  },
+  {
+    "index": 2,
+    "key": "motorista",
+    "filename": "02-motorista.png",
+    "duration": 15.642364864864867,
+    "narration": "No App do Motorista, o profissional consulta seu veículo e sua escala, recebe informações da gestão e mantém um canal direto de comunicação. A rotina deixa de depender de mensagens dispersas.",
+    "start": 14.33883445945946,
+    "end": 29.981199324324326
+  },
+  {
+    "index": 3,
+    "key": "motorista-registros",
+    "filename": "03-motorista-registros.png",
+    "duration": 19.118445945945947,
+    "narration": "Antes de sair, ele pode preencher o checklist de inspeção. Durante a operação, registra abastecimentos, solicita manutenção e informa avarias, multas, lavagens, serviços de pneus e testes de fumaça. Os lançamentos podem aguardar sincronização quando a conexão estiver indisponível.",
+    "start": 29.981199324324326,
+    "end": 49.09964527027027
+  },
+  {
+    "index": 4,
+    "key": "gps",
+    "filename": "04-gps.png",
+    "duration": 17.380405405405405,
+    "narration": "Com o rastreador vinculado ao veículo e a integração GPS configurada, a frota passa a consultar status de comunicação, posição e odômetro, além de sincronizar dados para acompanhar quilometragem e apoiar a conferência dos contratos.",
+    "start": 49.09964527027027,
+    "end": 66.48005067567567
+  },
+  {
+    "index": 5,
+    "key": "checkpoint",
+    "filename": "05-checkpoint.png",
+    "duration": 23.02903716216216,
+    "narration": "Em áreas críticas do canteiro, como acessos, cruzamentos e trechos com circulação de pessoas, os checkpoints permitem definir limites de velocidade. Com radar e identificação do veículo configurados, cada passagem pode registrar local, horário, velocidade e limite aplicável. Excedentes viram infrações rastreáveis para análise, notificação e ação corretiva.",
+    "start": 66.48005067567567,
+    "end": 89.50908783783782
+  },
+  {
+    "index": 6,
+    "key": "apontador",
+    "filename": "06-apontador.png",
+    "duration": 22.594527027027027,
+    "narration": "No App do Apontador, a equipe é vinculada à obra e o apontamento acontece na frente de serviço. O profissional seleciona a equipe, registra presença e jornada, evita duplicidades e consulta a lista do dia. Quando necessário, os registros podem ser sincronizados após o retorno da conexão.",
+    "start": 89.50908783783782,
+    "end": 112.10361486486485
+  },
+  {
+    "index": 7,
+    "key": "gestao",
+    "filename": "07-gestao.png",
+    "duration": 11.297263513513514,
+    "narration": "O resultado aparece para a gestão: frota e pessoas deixam rastros operacionais que alimentam consultas, indicadores e relatórios, com menos redigitação.",
+    "start": 112.10361486486485,
+    "end": 123.40087837837837
+  },
+  {
+    "index": 8,
+    "key": "pessoas",
+    "filename": "08-pessoas.png",
+    "duration": 14.773344594594594,
+    "narration": "Gestão de Pessoas reúne cadastro funcional, cargo, departamento, setor, lotação, escala e jornada. O RH acompanha presenças, pendências e justificativas no espelho de ponto, com apoio do Ponto QR.",
+    "start": 123.40087837837837,
+    "end": 138.17422297297296
+  },
+  {
+    "index": 9,
+    "key": "acesso",
+    "filename": "09-acesso.png",
+    "duration": 12.600793918918919,
+    "narration": "O controle de acesso define perfis, permissões e escopos por função. A auditoria registra ações relevantes e ajuda a proteger as informações da empresa.",
+    "start": 138.17422297297296,
+    "end": 150.77501689189188
+  },
+  {
+    "index": 10,
+    "key": "obras",
+    "filename": "10-obras.png",
+    "duration": 9.559222972972973,
+    "narration": "Obras, cronograma e subcontratadas organizam etapas, prazos, equipes e contratos. A execução permanece vinculada ao projeto certo.",
+    "start": 150.77501689189188,
+    "end": 160.33423986486486
+  },
+  {
+    "index": 11,
+    "key": "almox",
+    "filename": "11-almox.png",
+    "duration": 13.904324324324325,
+    "narration": "No almoxarifado, catálogo, estoque por obra, movimentações, requisições, compras e inventário formam uma trilha de suprimentos. O App do Almoxarifado leva conferência e distribuição para o campo.",
+    "start": 160.33423986486486,
+    "end": 174.2385641891892
+  },
+  {
+    "index": 12,
+    "key": "ativos",
+    "filename": "12-ativos.png",
+    "duration": 8.25569256756757,
+    "narration": "Fornecedores, ferramentas e equipamentos trazem cadastro, alocação, responsáveis, condição e certificações, reduzindo controles paralelos.",
+    "start": 174.2385641891892,
+    "end": 182.49425675675676
+  },
+  {
+    "index": 13,
+    "key": "pesados",
+    "filename": "13-pesados.png",
+    "duration": 12.166283783783785,
+    "narration": "A frota inclui também veículos pesados, operador, fornecedor, locação, manutenção e conservação. Mensalidades, franquias e excedentes ajudam a compor os custos da obra.",
+    "start": 182.49425675675676,
+    "end": 194.66054054054055
+  },
+  {
+    "index": 14,
+    "key": "sms",
+    "filename": "14-sms.png",
+    "duration": 12.166283783783785,
+    "narration": "Em Saúde, Meio Ambiente e Segurança, inspeções, desvios, ocorrências, APR, DDS, EPIs, treinamentos e requisitos legais são acompanhados com responsáveis, evidências e prazos.",
+    "start": 194.66054054054055,
+    "end": 206.82682432432435
+  },
+  {
+    "index": 15,
+    "key": "qualidade",
+    "filename": "15-qualidade.png",
+    "duration": 9.124712837837837,
+    "narration": "Qualidade, não conformidades e registros diários transformam observações de campo em histórico e planos de ação.",
+    "start": 206.82682432432435,
+    "end": 215.9515371621622
+  },
+  {
+    "index": 16,
+    "key": "alojamentos",
+    "filename": "16-alojamentos.png",
+    "duration": 7.386672297297297,
+    "narration": "Alojamentos mostra capacidade, ocupação, disponibilidade, manutenção e custos, inclusive com relatórios gerenciais.",
+    "start": 215.9515371621622,
+    "end": 223.3382094594595
+  },
+  {
+    "index": 17,
+    "key": "visitantes",
+    "filename": "17-visitantes.png",
+    "duration": 9.99373310810811,
+    "narration": "A portaria confere documentos, briefing de segurança e credenciais com validade e QR Code para pessoas e veículos.",
+    "start": 223.3382094594595,
+    "end": 233.3319425675676
+  },
+  {
+    "index": 18,
+    "key": "custos",
+    "filename": "18-custos.png",
+    "duration": 12.166283783783785,
+    "narration": "Orçado versus Realizado, fundo fixo e relatórios apoiam o controle financeiro. Portal do cliente e comunicados levam a informação adequada a cada público.",
+    "start": 233.3319425675676,
+    "end": 245.4982263513514
+  },
+  {
+    "index": 19,
+    "key": "fecho",
+    "filename": "19-fecho.png",
+    "duration": 11.73177364864865,
+    "narration": "Ápice Gestão. Do motorista ao gestor, da segurança ao resultado: uma visão integrada para conduzir a obra com mais clareza e controle.",
+    "start": 245.4982263513514,
+    "end": 257.2300000000001
+  }
+]

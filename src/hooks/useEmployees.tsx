@@ -62,6 +62,8 @@ export const useEmployees = () => {
   // Traduz erros de constraint do PostgreSQL em mensagens amigáveis
   function friendlyDbError(e: any): string {
     const msg: string = e?.message ?? ''
+    if (e?.code === 'PGRST202' && msg.includes('sincronizar_lotacao_principal'))
+      return 'A atualização da lotação ainda não foi aplicada no banco. As outras alterações não foram salvas; solicite a atualização SQL de lotação.'
     if (msg.includes('employees_cpf_key'))    return 'Já existe um funcionário cadastrado com este CPF.'
     if (msg.includes('employees_email_key'))  return 'Já existe um funcionário com este e-mail de login.'
     if (msg.includes('duplicate key'))        return 'Registro duplicado — verifique CPF e e-mail.'
@@ -106,6 +108,31 @@ export const useEmployees = () => {
     mutationFn: async ({ id, d }: { id: string; d: EmployeeUpdate & { obra_id?: string } }) => {
       const { obra_id, ...employeeOnly } = d as any;
 
+      // O formulário sempre envia obra_id, mesmo quando ela não foi alterada.
+      // Não dependa da RPC de lotação para salvar mudanças de outros campos.
+      if (obra_id !== undefined) {
+        const novaObraId = obra_id && obra_id !== 'none' ? obra_id : null;
+        const { data: lotacoesAtivas, error: consultaLotacaoError } = await supabase
+          .from('obra_funcionarios')
+          .select('obra_id')
+          .eq('employee_id', id)
+          .eq('status', true);
+        if (consultaLotacaoError) throw consultaLotacaoError;
+
+        const lotacaoInalterada = novaObraId
+          ? lotacoesAtivas?.length === 1 && lotacoesAtivas[0].obra_id === novaObraId
+          : !lotacoesAtivas?.length;
+        if (!lotacaoInalterada) {
+          // Verifique a função antes de alterar a ficha do colaborador: sem a
+          // migração, falhar aqui evita informar erro após um salvamento parcial.
+          const { error: lotacaoError } = await (supabase as any).rpc('sincronizar_lotacao_principal', {
+            p_employee_id: id,
+            p_obra_id: novaObraId,
+          });
+          if (lotacaoError) throw lotacaoError;
+        }
+      }
+
       // Não pedimos a linha de volta: a política de leitura pode ocultar as
       // relações do registro atualizado, fazendo uma atualização válida falhar
       // com o erro técnico de objeto JSON único.
@@ -123,14 +150,6 @@ export const useEmployees = () => {
         migrationPendente = !error;
       }
       if (error) throw error;
-
-      if (obra_id !== undefined) {
-        const { error: lotacaoError } = await (supabase as any).rpc('sincronizar_lotacao_principal', {
-          p_employee_id: id,
-          p_obra_id: obra_id && obra_id !== 'none' && obra_id !== '' ? obra_id : null,
-        });
-        if (lotacaoError) throw lotacaoError;
-      }
 
       return { id, changes: employeeOnly, migrationPendente };
     },

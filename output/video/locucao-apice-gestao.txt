@@ -1,0 +1,39 @@
+ÁPICE GESTÃO — LOCUÇÃO PARA VÍDEO DE APRESENTAÇÃO
+
+A gestão da obra começa onde a operação acontece. O Ápice Gestão conecta o motorista, o apontador, a frota e o canteiro aos gestores em uma única plataforma.
+
+No App do Motorista, o profissional consulta seu veículo e sua escala, recebe informações da gestão e mantém um canal direto de comunicação. A rotina deixa de depender de mensagens dispersas.
+
+Antes de sair, ele pode preencher o checklist de inspeção. Durante a operação, registra abastecimentos, solicita manutenção e informa avarias, multas, lavagens, serviços de pneus e testes de fumaça. Os lançamentos podem aguardar sincronização quando a conexão estiver indisponível.
+
+Com o rastreador vinculado ao veículo e a integração GPS configurada, a frota passa a consultar status de comunicação, posição e odômetro, além de sincronizar dados para acompanhar quilometragem e apoiar a conferência dos contratos.
+
+Em áreas críticas do canteiro, como acessos, cruzamentos e trechos com circulação de pessoas, os checkpoints permitem definir limites de velocidade. Com radar e identificação do veículo configurados, cada passagem pode registrar local, horário, velocidade e limite aplicável. Excedentes viram infrações rastreáveis para análise, notificação e ação corretiva.
+
+No App do Apontador, a equipe é vinculada à obra e o apontamento acontece na frente de serviço. O profissional seleciona a equipe, registra presença e jornada, evita duplicidades e consulta a lista do dia. Quando necessário, os registros podem ser sincronizados após o retorno da conexão.
+
+O resultado aparece para a gestão: frota e pessoas deixam rastros operacionais que alimentam consultas, indicadores e relatórios, com menos redigitação.
+
+Gestão de Pessoas reúne cadastro funcional, cargo, departamento, setor, lotação, escala e jornada. O RH acompanha presenças, pendências e justificativas no espelho de ponto, com apoio do Ponto QR.
+
+O controle de acesso define perfis, permissões e escopos por função. A auditoria registra ações relevantes e ajuda a proteger as informações da empresa.
+
+Obras, cronograma e subcontratadas organizam etapas, prazos, equipes e contratos. A execução permanece vinculada ao projeto certo.
+
+No almoxarifado, catálogo, estoque por obra, movimentações, requisições, compras e inventário formam uma trilha de suprimentos. O App do Almoxarifado leva conferência e distribuição para o campo.
+
+Fornecedores, ferramentas e equipamentos trazem cadastro, alocação, responsáveis, condição e certificações, reduzindo controles paralelos.
+
+A frota inclui também veículos pesados, operador, fornecedor, locação, manutenção e conservação. Mensalidades, franquias e excedentes ajudam a compor os custos da obra.
+
+Em Saúde, Meio Ambiente e Segurança, inspeções, desvios, ocorrências, APR, DDS, EPIs, treinamentos e requisitos legais são acompanhados com responsáveis, evidências e prazos.
+
+Qualidade, não conformidades e registros diários transformam observações de campo em histórico e planos de ação.
+
+Alojamentos mostra capacidade, ocupação, disponibilidade, manutenção e custos, inclusive com relatórios gerenciais.
+
+A portaria confere documentos, briefing de segurança e credenciais com validade e QR Code para pessoas e veículos.
+
+Orçado versus Realizado, fundo fixo e relatórios apoiam o controle financeiro. Portal do cliente e comunicados levam a informação adequada a cada público.
+
+Ápice Gestão. Do motorista ao gestor, da segurança ao resultado: uma visão integrada para conduzir a obra com mais clareza e controle.

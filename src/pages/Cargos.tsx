@@ -14,11 +14,13 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { CargoFormModal } from "@/components/cargos/CargoFormModal";
 import { ConfirmDeleteCargoModal } from "@/components/cargos/ConfirmDeleteCargoModal";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { T, useI18n } from "@/i18n";
 import type { Database } from "@/integrations/supabase/types";
 
 type Cargo = Database['public']['Tables']['cargos']['Row'];
 
 const Cargos = () => {
+  const { t } = useI18n();
   const { cargos, loading, createCargo, updateCargo, deleteCargo } = useCargos();
   const { employees } = useEmployees();
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,14 +52,14 @@ const Cargos = () => {
         {/* Header */}
         <div className="flex flex-wrap justify-between items-start gap-3">
           <div>
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Cargos</h1>
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight"><T>Cargos</T></h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Cargos e hierarquia da empresa. Os acessos ao sistema ficam em Controle de Acesso.
+              <T>Cargos e hierarquia da empresa. Os acessos ao sistema ficam em Controle de Acesso.</T>
             </p>
           </div>
           <Button size="sm" onClick={() => setIsFormModalOpen(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Novo Cargo
+            <T>Novo Cargo</T>
           </Button>
         </div>
 
@@ -78,7 +80,7 @@ const Cargos = () => {
           ].map((s) => (
             <div key={s.label} className="rounded-lg border border-border/50 bg-card px-4 py-3 shadow-card">
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</p>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">{t(s.label)}</p>
             </div>
           ))}
         </div>
@@ -87,7 +89,7 @@ const Cargos = () => {
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Buscar cargo..."
+            placeholder={t("Buscar cargo...")}
             className="pl-8 h-8 text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -120,11 +122,11 @@ const Cargos = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                      {cargo.descricao || <span className="italic text-muted-foreground/50">Sem descrição</span>}
+                      {cargo.descricao || <span className="italic text-muted-foreground/50"><T>Sem descrição</T></span>}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
-                        Nível {cargo.nivel_hierarquico ?? "—"}
+                        {t("Nível")} {cargo.nivel_hierarquico ?? "—"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -151,7 +153,7 @@ const Cargos = () => {
               {filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? "Nenhum cargo encontrado para a busca." : "Nenhum cargo cadastrado."}
+                    {searchTerm ? t("Nenhum cargo encontrado para a busca.") : t("Nenhum cargo cadastrado.")}
                   </TableCell>
                 </TableRow>
               )}

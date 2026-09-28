@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { T, useI18n } from "@/i18n";
 import type { Database } from "@/integrations/supabase/types";
 
 type Departamento = Database['public']['Tables']['departamentos']['Row'];
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export const DepartamentoFormModal = ({ open, onOpenChange, departamento, onSubmit }: Props) => {
+  const { t } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [employees, setEmployees] = useState<{ id: string; nome: string }[]>([]);
 
@@ -102,9 +104,9 @@ export const DepartamentoFormModal = ({ open, onOpenChange, departamento, onSubm
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{departamento ? "Editar Departamento" : "Novo Departamento"}</DialogTitle>
+          <DialogTitle>{t(departamento ? "Editar Departamento" : "Novo Departamento")}</DialogTitle>
           <DialogDescription>
-            {departamento ? "Edite as informações do departamento" : "Cadastre um novo departamento"}
+            {t(departamento ? "Edite as informações do departamento" : "Cadastre um novo departamento")}
           </DialogDescription>
         </DialogHeader>
 
@@ -115,9 +117,9 @@ export const DepartamentoFormModal = ({ open, onOpenChange, departamento, onSubm
               name="nome"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome do Departamento</FormLabel>
+                  <FormLabel><T>Nome do Departamento</T></FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Operações, RH, Financeiro..." {...field} />
+                    <Input placeholder={t("Ex: Operações, RH, Financeiro...")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -129,9 +131,9 @@ export const DepartamentoFormModal = ({ open, onOpenChange, departamento, onSubm
               name="descricao"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descrição</FormLabel>
+                  <FormLabel><T>Descrição</T></FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Descrição do departamento..." {...field} />
+                    <Textarea placeholder={t("Descrição do departamento...")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -143,18 +145,18 @@ export const DepartamentoFormModal = ({ open, onOpenChange, departamento, onSubm
               name="responsavel_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Responsável (Opcional)</FormLabel>
+                  <FormLabel><T>Responsável (Opcional)</T></FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     value={field.value ?? ""}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione um responsável" />
+                        <SelectValue placeholder={t("Selecione um responsável")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="none">Sem responsável</SelectItem>
+                      <SelectItem value="none"><T>Sem responsável</T></SelectItem>
                       {employees.map((emp) => (
                         <SelectItem key={emp.id} value={emp.id}>
                           {emp.nome}
@@ -169,10 +171,10 @@ export const DepartamentoFormModal = ({ open, onOpenChange, departamento, onSubm
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+                <T>Cancelar</T>
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : departamento ? "Salvar" : "Cadastrar"}
+                {t(isSubmitting ? "Salvando..." : departamento ? "Salvar" : "Cadastrar")}
               </Button>
             </DialogFooter>
           </form>

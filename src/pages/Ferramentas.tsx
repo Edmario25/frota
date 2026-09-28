@@ -21,8 +21,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, differenceInDays, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useFornecedores } from "@/hooks/useFornecedores";
+import { T, useI18n } from "@/i18n";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface Obra     { id: string; nome: string }
@@ -83,6 +83,16 @@ const CONDICOES    = [
   { value: "regular",    label: "Regular",   color: "text-amber-600 bg-amber-50 border-amber-200" },
   { value: "danificado", label: "Danificado",color: "text-red-600 bg-red-50 border-red-200" },
 ];
+const APPROPRIATION_LABELS: Record<string, string> = {
+  compra: "Compra integral", depreciacao: "Depreciação mensal", mensal: "Locação mensal",
+  diaria: "Locação diária", horimetro: "Por horímetro", sem_custo: "Sem custo",
+};
+const COST_TYPE_LABELS: Record<string, string> = {
+  aquisicao: "Aquisição", depreciacao: "Depreciação", diaria: "Locação diária",
+  mensal: "Locação mensal", manutencao: "Manutenção", certificacao: "Certificação",
+  inspecao: "Inspeção", reparo: "Reparo", perda: "Perda", baixa: "Baixa",
+  uso_horimetro: "Uso por horímetro", outro: "Outro",
+};
 
 function condicaoColor(c: string) { return CONDICOES.find(x => x.value === c)?.color ?? ""; }
 function condicaoLabel(c: string) { return CONDICOES.find(x => x.value === c)?.label ?? c; }
@@ -90,10 +100,10 @@ function condicaoLabel(c: string) { return CONDICOES.find(x => x.value === c)?.l
 // Status de certificação
 function certBadge(status: string, proximo?: string | null) {
   if (status === "nao_exige") return null;
-  if (status === "vencido")   return <Badge variant="outline" className="text-xs rounded-full bg-red-50 text-red-700 border-red-300"><XCircle className="h-2.5 w-2.5 mr-1" />Cert. Vencido</Badge>;
-  if (status === "a_vencer")  return <Badge variant="outline" className="text-xs rounded-full bg-amber-50 text-amber-700 border-amber-300"><AlertTriangle className="h-2.5 w-2.5 mr-1" />Vence em breve</Badge>;
-  if (status === "valido")    return <Badge variant="outline" className="text-xs rounded-full bg-green-50 text-green-700 border-green-300"><CheckCircle2 className="h-2.5 w-2.5 mr-1" />Certificado OK</Badge>;
-  if (status === "sem_cert")  return <Badge variant="outline" className="text-xs rounded-full bg-muted text-muted-foreground"><ShieldAlert className="h-2.5 w-2.5 mr-1" />Sem certificado</Badge>;
+  if (status === "vencido")   return <Badge variant="outline" className="text-xs rounded-full bg-red-50 text-red-700 border-red-300"><XCircle className="h-2.5 w-2.5 mr-1" /><T>Cert. Vencido</T></Badge>;
+  if (status === "a_vencer")  return <Badge variant="outline" className="text-xs rounded-full bg-amber-50 text-amber-700 border-amber-300"><AlertTriangle className="h-2.5 w-2.5 mr-1" /><T>Vence em breve</T></Badge>;
+  if (status === "valido")    return <Badge variant="outline" className="text-xs rounded-full bg-green-50 text-green-700 border-green-300"><CheckCircle2 className="h-2.5 w-2.5 mr-1" /><T>Certificado OK</T></Badge>;
+  if (status === "sem_cert")  return <Badge variant="outline" className="text-xs rounded-full bg-muted text-muted-foreground"><ShieldAlert className="h-2.5 w-2.5 mr-1" /><T>Sem certificado</T></Badge>;
   return null;
 }
 
@@ -110,6 +120,7 @@ function certStatusColor(data_vencimento: string): string {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Ferramentas() {
+  const { t } = useI18n();
   const [obras, setObras]         = useState<Obra[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [ferramentas, setFerr]    = useState<Ferramenta[]>([]);
@@ -138,8 +149,8 @@ export default function Ferramentas() {
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Ferramentas e Equipamentos</h1>
-            <p className="text-muted-foreground text-sm">Controle de alocação e certificações de segurança (NR-11 / NR-18)</p>
+            <h1 className="text-2xl font-bold tracking-tight"><T>Ferramentas e Equipamentos</T></h1>
+            <p className="text-muted-foreground text-sm"><T>Controle de alocação e certificações de segurança (NR-11 / NR-18)</T></p>
           </div>
         </div>
 
@@ -151,9 +162,9 @@ export default function Ferramentas() {
             <ShieldAlert className={cn("h-5 w-5 flex-shrink-0 mt-0.5", vencidos > 0 ? "text-red-600" : "text-amber-600")} />
             <div>
               <p className={cn("font-semibold text-sm", vencidos > 0 ? "text-red-700" : "text-amber-700")}>
-                {vencidos > 0 ? `⚠️ ${vencidos} equipamento(s) com certificação VENCIDA` : `${aVencer} certificação(ões) vencendo nos próximos 30 dias`}
+                {vencidos > 0 ? t("⚠️ {count} equipamento(s) com certificação VENCIDA", { count: vencidos }) : t("{count} certificação(ões) vencendo nos próximos 30 dias", { count: aVencer })}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">Verifique a aba Certificações e providencie a renovação antes do uso em campo.</p>
+              <p className="text-xs text-muted-foreground mt-0.5"><T>Verifique a aba Certificações e providencie a renovação antes do uso em campo.</T></p>
             </div>
           </div>
         )}
@@ -173,7 +184,7 @@ export default function Ferramentas() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold leading-tight">{s.value}</p>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-xs text-muted-foreground">{t(s.label)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -182,13 +193,13 @@ export default function Ferramentas() {
 
         <Tabs defaultValue="equipamentos">
           <TabsList className="rounded-xl h-10">
-            <TabsTrigger value="equipamentos"  className="rounded-lg gap-1.5"><Wrench className="h-3.5 w-3.5" /> Equipamentos</TabsTrigger>
-            <TabsTrigger value="alocacoes"     className="rounded-lg gap-1.5"><ArrowRightLeft className="h-3.5 w-3.5" /> Alocações</TabsTrigger>
+            <TabsTrigger value="equipamentos"  className="rounded-lg gap-1.5"><Wrench className="h-3.5 w-3.5" /> <T>Equipamentos</T></TabsTrigger>
+            <TabsTrigger value="alocacoes"     className="rounded-lg gap-1.5"><ArrowRightLeft className="h-3.5 w-3.5" /> <T>Alocações</T></TabsTrigger>
             <TabsTrigger value="certificacoes" className="rounded-lg gap-1.5">
-              <Award className="h-3.5 w-3.5" /> Certificações
+              <Award className="h-3.5 w-3.5" /> <T>Certificações</T>
               {(vencidos + aVencer) > 0 && <span className="ml-1 h-4 min-w-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{vencidos + aVencer}</span>}
             </TabsTrigger>
-            <TabsTrigger value="custos" className="rounded-lg gap-1.5"><DollarSign className="h-3.5 w-3.5" /> Custos</TabsTrigger>
+            <TabsTrigger value="custos" className="rounded-lg gap-1.5"><DollarSign className="h-3.5 w-3.5" /> <T>Custos</T></TabsTrigger>
           </TabsList>
 
           <TabsContent value="equipamentos">
@@ -214,6 +225,7 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
   ferramentas: Ferramenta[]; loading: boolean;
   obras: Obra[]; employees: Employee[]; onRefresh: () => void;
 }) {
+  const { t, money, date } = useI18n();
   const [search, setSearch]       = useState("");
   const [catFiltro, setCatFiltro] = useState("");
   const [editOpen, setEditOpen]   = useState(false);
@@ -233,22 +245,22 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <CardTitle className="text-base">Equipamentos cadastrados</CardTitle>
-              <CardDescription>{ferramentas.length} equipamentos</CardDescription>
+              <CardDescription>{t("{count} equipamentos", { count: ferramentas.length })}</CardDescription>
             </div>
             <Button onClick={() => { setEditing(null); setEditOpen(true); }} className="gap-2 rounded-xl">
-              <Plus className="h-4 w-4" /> Novo Equipamento
+              <Plus className="h-4 w-4" /> <T>Novo Equipamento</T>
             </Button>
           </div>
           <div className="flex gap-2 flex-wrap mt-3">
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input placeholder="Buscar por nome ou série..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 rounded-xl h-9 text-sm" />
+              <Input placeholder={t("Buscar por nome ou série...")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 rounded-xl h-9 text-sm" />
             </div>
             <Select value={catFiltro || "__all__"} onValueChange={v => setCatFiltro(v === "__all__" ? "" : v)}>
-              <SelectTrigger className="h-9 rounded-xl w-36 text-sm"><SelectValue placeholder="Categoria..." /></SelectTrigger>
+              <SelectTrigger className="h-9 rounded-xl w-36 text-sm"><SelectValue placeholder={t("Categoria...")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">Todas</SelectItem>
-                {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                <SelectItem value="__all__"><T>Todas</T></SelectItem>
+                {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{t(c)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -268,19 +280,19 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">Nenhum equipamento encontrado.</TableCell></TableRow>}
+                {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm"><T>Nenhum equipamento encontrado.</T></TableCell></TableRow>}
                 {filtered.map(f => (
                   <TableRow key={f.id} className={f.cert_status === "vencido" ? "bg-red-50/40 dark:bg-red-950/10" : ""}>
                     <TableCell>
                       <p className="font-medium text-sm">{f.nome}</p>
                       <div className="flex gap-1.5 mt-0.5 flex-wrap">
-                        {f.numero_serie && <span className="text-xs text-muted-foreground">Série: {f.numero_serie}</span>}
-                        {f.codigo_patrimonio && <span className="text-xs font-mono text-muted-foreground">Patrimônio: {f.codigo_patrimonio}</span>}
+                        {f.numero_serie && <span className="text-xs text-muted-foreground">{t("Série:")} {f.numero_serie}</span>}
+                        {f.codigo_patrimonio && <span className="text-xs font-mono text-muted-foreground">{t("Patrimônio:")} {f.codigo_patrimonio}</span>}
                         {f.capacidade && <Badge variant="outline" className="text-[10px] rounded-full px-1.5">{f.capacidade}</Badge>}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="space-y-1"><Badge className="text-[10px] rounded-full capitalize">{f.tipo_item}</Badge>{f.categoria && <p className="text-xs text-muted-foreground">{f.categoria}</p>}</div>
+                      <div className="space-y-1"><Badge className="text-[10px] rounded-full capitalize">{t(TIPOS_ITEM.find(item => item.value === f.tipo_item)?.label ?? f.tipo_item)}</Badge>{f.categoria && <p className="text-xs text-muted-foreground">{t(f.categoria)}</p>}</div>
                     </TableCell>
                     <TableCell>
                       {f.obra_atual_nome ? (
@@ -288,38 +300,38 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
                           <p className="text-sm font-medium flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" />{f.obra_atual_nome}</p>
                           {f.frente_atual && <p className="text-xs text-muted-foreground">{f.frente_atual}</p>}
                         </div>
-                      ) : <span className="text-xs text-muted-foreground italic">Disponível</span>}
+                      ) : <span className="text-xs text-muted-foreground italic"><T>Disponível</T></span>}
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">{f.condicao
-                        ? <Badge variant="outline" className={cn("text-xs rounded-full", condicaoColor(f.condicao))}>{condicaoLabel(f.condicao)}</Badge>
+                        ? <Badge variant="outline" className={cn("text-xs rounded-full", condicaoColor(f.condicao))}>{t(condicaoLabel(f.condicao))}</Badge>
                         : <span className="text-muted-foreground text-sm">—</span>}
-                        <p className="text-[10px] text-muted-foreground">{STATUS_OPERACIONAL.find(s => s.value === f.status_operacional)?.label ?? f.status_operacional}</p>
+                        <p className="text-[10px] text-muted-foreground">{t(STATUS_OPERACIONAL.find(s => s.value === f.status_operacional)?.label ?? f.status_operacional)}</p>
                         {f.unidade_medicao === "horimetro" && <p className="text-[10px] font-medium">{f.horimetro_atual ?? 0} h</p>}</div>
                     </TableCell>
                     <TableCell>
                       {certBadge(f.cert_status, f.proximo_vencimento) ?? <span className="text-muted-foreground text-xs">—</span>}
                       {f.proximo_vencimento && f.cert_status !== "vencido" && (
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {format(parseISO(f.proximo_vencimento), "dd/MM/yyyy")}
+                          {date(f.proximo_vencimento)}
                         </p>
                       )}
                     </TableCell>
                     <TableCell>
-                      <p className="text-xs font-medium capitalize">{(f.apropriacao_financeira ?? "sem_custo").replace("_", " ")}</p>
+                      <p className="text-xs font-medium">{t(APPROPRIATION_LABELS[f.apropriacao_financeira ?? "sem_custo"] ?? f.apropriacao_financeira ?? "Sem custo")}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {f.compra_registrada_almoxarifado ? "Compra via almoxarifado" :
-                          f.apropriacao_financeira === "mensal" ? (f.valor_mensal ?? 0).toLocaleString("pt-BR", {style:"currency",currency:"BRL"}) + "/mês" :
-                          f.apropriacao_financeira === "diaria" ? (f.valor_diaria ?? 0).toLocaleString("pt-BR", {style:"currency",currency:"BRL"}) + "/dia" :
-                          f.apropriacao_financeira === "horimetro" ? (f.valor_hora ?? 0).toLocaleString("pt-BR", {style:"currency",currency:"BRL"}) + "/h" :
-                          f.valor_aquisicao ? f.valor_aquisicao.toLocaleString("pt-BR", {style:"currency",currency:"BRL"}) : "Valor não informado"}
+                        {f.compra_registrada_almoxarifado ? t("Compra via almoxarifado") :
+                          f.apropriacao_financeira === "mensal" ? `${money(f.valor_mensal ?? 0)}${t("/mês")}` :
+                          f.apropriacao_financeira === "diaria" ? `${money(f.valor_diaria ?? 0)}${t("/dia")}` :
+                          f.apropriacao_financeira === "horimetro" ? `${money(f.valor_hora ?? 0)}/h` :
+                          f.valor_aquisicao ? money(f.valor_aquisicao) : t("Valor não informado")}
                       </p>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
                         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs rounded-lg"
                           onClick={() => { setSelFerr(f); setAlocOpen(true); }}>
-                          <ArrowRightLeft className="h-3 w-3" /> Alocar
+                          <ArrowRightLeft className="h-3 w-3" /> <T>Alocar</T>
                         </Button>
                         <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs rounded-lg"
                           onClick={() => { setEditing(f); setEditOpen(true); }}>
@@ -348,6 +360,7 @@ function EquipamentosTab({ ferramentas, loading, obras, employees, onRefresh }: 
 function AlocacoesTab({ obras, employees, ferramentas, onRefresh }: {
   obras: Obra[]; employees: Employee[]; ferramentas: Ferramenta[]; onRefresh: () => void;
 }) {
+  const { t, date } = useI18n();
   const [alocacoes, setAlocacoes] = useState<Alocacao[]>([]);
   const [loading, setLoading]     = useState(false);
   const [obraId, setObraId]       = useState("");
@@ -371,7 +384,7 @@ function AlocacoesTab({ obras, employees, ferramentas, onRefresh }: {
 
   async function handleDevolver(id: string) {
     await (supabase as any).from("ferramentas_alocacao").update({ data_devolucao: format(new Date(), "yyyy-MM-dd") }).eq("id", id);
-    toast.success("Devolução registrada!");
+    toast.success(t("Devolução registrada!"));
     fetch(); onRefresh();
   }
 
@@ -381,21 +394,21 @@ function AlocacoesTab({ obras, employees, ferramentas, onRefresh }: {
         <CardContent className="pt-5 pb-4">
           <div className="flex gap-4 items-end flex-wrap">
             <div className="flex-1 min-w-48 space-y-1.5">
-              <Label>Filtrar por obra</Label>
+              <Label><T>Filtrar por obra</T></Label>
               <Select value={obraId || "__all__"} onValueChange={v => setObraId(v === "__all__" ? "" : v)}>
-                <SelectTrigger className="rounded-xl"><SelectValue placeholder="Todas as obras" /></SelectTrigger>
+                <SelectTrigger className="rounded-xl"><SelectValue placeholder={t("Todas as obras")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">Todas</SelectItem>
+                  <SelectItem value="__all__"><T>Todas</T></SelectItem>
                   {obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <label className="flex items-center gap-2 cursor-pointer pb-1">
               <Switch checked={soAtivas} onCheckedChange={setSoAtivas} />
-              <span className="text-sm">Somente ativas</span>
+              <span className="text-sm"><T>Somente ativas</T></span>
             </label>
             <Button onClick={() => setAlocOpen(true)} className="gap-2 rounded-xl">
-              <Plus className="h-4 w-4" /> Nova Alocação
+              <Plus className="h-4 w-4" /> <T>Nova Alocação</T>
             </Button>
           </div>
         </CardContent>
@@ -418,7 +431,7 @@ function AlocacoesTab({ obras, employees, ferramentas, onRefresh }: {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {alocacoes.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-sm">Nenhuma alocação encontrada.</TableCell></TableRow>}
+                {alocacoes.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-sm"><T>Nenhuma alocação encontrada.</T></TableCell></TableRow>}
                 {alocacoes.map(a => (
                   <TableRow key={a.id}>
                     <TableCell>
@@ -428,18 +441,18 @@ function AlocacoesTab({ obras, employees, ferramentas, onRefresh }: {
                     <TableCell className="text-sm">{a.obras?.nome ?? "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{a.frente ?? "—"}</TableCell>
                     <TableCell className="text-sm">{a.employees?.nome ?? "—"}</TableCell>
-                    <TableCell className="text-sm whitespace-nowrap">{format(parseISO(a.data_alocacao), "dd/MM/yyyy")}</TableCell>
-                    <TableCell><Badge variant="outline" className={cn("text-xs rounded-full", condicaoColor(a.condicao))}>{condicaoLabel(a.condicao)}</Badge></TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">{date(a.data_alocacao)}</TableCell>
+                    <TableCell><Badge variant="outline" className={cn("text-xs rounded-full", condicaoColor(a.condicao))}>{t(condicaoLabel(a.condicao))}</Badge></TableCell>
                     <TableCell>
                       {a.data_devolucao
-                        ? <Badge variant="outline" className="text-xs rounded-full text-muted-foreground">Devolvido {format(parseISO(a.data_devolucao), "dd/MM")}</Badge>
-                        : <Badge variant="outline" className="text-xs rounded-full bg-blue-50 text-blue-600 border-blue-200">Ativo</Badge>
+                        ? <Badge variant="outline" className="text-xs rounded-full text-muted-foreground">{t("Devolvido em {date}", { date: date(a.data_devolucao) })}</Badge>
+                        : <Badge variant="outline" className="text-xs rounded-full bg-blue-50 text-blue-600 border-blue-200"><T>Ativo</T></Badge>
                       }
                     </TableCell>
                     <TableCell className="text-right">
                       {!a.data_devolucao && (
                         <Button variant="ghost" size="sm" className="h-7 text-xs rounded-lg gap-1 text-amber-600" onClick={() => handleDevolver(a.id)}>
-                          <RefreshCw className="h-3 w-3" /> Devolver
+                          <RefreshCw className="h-3 w-3" /> <T>Devolver</T>
                         </Button>
                       )}
                     </TableCell>
@@ -461,6 +474,7 @@ function AlocacoesTab({ obras, employees, ferramentas, onRefresh }: {
 // Tab: Certificações
 // ═══════════════════════════════════════════════════════════════
 function CertificacoesTab({ ferramentas, onRefresh }: { ferramentas: Ferramenta[]; onRefresh: () => void }) {
+  const { t, date } = useI18n();
   const [certs, setCerts]       = useState<Certificacao[]>([]);
   const [loading, setLoading]   = useState(false);
   const [certOpen, setCertOpen] = useState(false);
@@ -495,13 +509,13 @@ function CertificacoesTab({ ferramentas, onRefresh }: { ferramentas: Ferramenta[
         <CardContent className="pt-5 pb-4">
           <div className="flex gap-3 items-end flex-wrap">
             <div className="space-y-1.5">
-              <Label>Filtrar status</Label>
+              <Label><T>Filtrar status</T></Label>
               <div className="flex gap-2 flex-wrap">
                 {[
-                  { value: "todos",    label: `Todos (${certs.length})` },
-                  { value: "vencidos", label: `Vencidos (${vencidos})`,    cl: "border-red-300 text-red-700" },
-                  { value: "a_vencer", label: `A vencer (${aVencer})`,     cl: "border-amber-300 text-amber-700" },
-                  { value: "validos",  label: `Válidos (${certs.length - vencidos - aVencer})`, cl: "border-green-300 text-green-700" },
+                  { value: "todos",    label: t("Todos ({count})", { count: certs.length }) },
+                  { value: "vencidos", label: t("Vencidos ({count})", { count: vencidos }), cl: "border-red-300 text-red-700" },
+                  { value: "a_vencer", label: t("A vencer ({count})", { count: aVencer }), cl: "border-amber-300 text-amber-700" },
+                  { value: "validos",  label: t("Válidos ({count})", { count: certs.length - vencidos - aVencer }), cl: "border-green-300 text-green-700" },
                 ].map(f => (
                   <button key={f.value} onClick={() => setFiltro(f.value)}
                     className={cn("px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors",
@@ -511,7 +525,7 @@ function CertificacoesTab({ ferramentas, onRefresh }: { ferramentas: Ferramenta[
               </div>
             </div>
             <Button onClick={() => setCertOpen(true)} className="gap-2 rounded-xl ml-auto">
-              <Plus className="h-4 w-4" /> Nova Certificação
+              <Plus className="h-4 w-4" /> <T>Nova Certificação</T>
             </Button>
           </div>
         </CardContent>
@@ -533,23 +547,23 @@ function CertificacoesTab({ ferramentas, onRefresh }: { ferramentas: Ferramenta[
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">Nenhuma certificação encontrada.</TableCell></TableRow>}
+                {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm"><T>Nenhuma certificação encontrada.</T></TableCell></TableRow>}
                 {filtered.map(c => {
                   const dias = diasParaVencer(c.data_vencimento);
                   return (
                     <TableRow key={c.id} className={cn("border-l-2", dias < 0 ? "border-l-red-400 bg-red-50/40 dark:bg-red-950/10" : dias <= 30 ? "border-l-amber-400 bg-amber-50/40 dark:bg-amber-950/10" : "border-l-green-400")}>
                       <TableCell className="font-medium text-sm">{c.ferramentas_catalogo?.nome ?? "—"}</TableCell>
-                      <TableCell className="text-sm">{c.tipo_certificacao}</TableCell>
+                      <TableCell className="text-sm">{t(c.tipo_certificacao)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{c.empresa_certificadora ?? "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{c.numero_certificado ?? "—"}</TableCell>
-                      <TableCell className="text-sm whitespace-nowrap">{c.data_emissao ? format(parseISO(c.data_emissao), "dd/MM/yyyy") : "—"}</TableCell>
-                      <TableCell className="text-sm font-semibold whitespace-nowrap">{format(parseISO(c.data_vencimento), "dd/MM/yyyy")}</TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{c.data_emissao ? date(c.data_emissao) : "—"}</TableCell>
+                      <TableCell className="text-sm font-semibold whitespace-nowrap">{date(c.data_vencimento)}</TableCell>
                       <TableCell>
                         {dias < 0
-                          ? <Badge variant="outline" className="text-xs rounded-full bg-red-50 text-red-700 border-red-300">Vencido há {Math.abs(dias)}d</Badge>
+                          ? <Badge variant="outline" className="text-xs rounded-full bg-red-50 text-red-700 border-red-300">{t("Vencido há {count}d", { count: Math.abs(dias) })}</Badge>
                           : dias <= 30
-                            ? <Badge variant="outline" className="text-xs rounded-full bg-amber-50 text-amber-700 border-amber-300">Vence em {dias}d</Badge>
-                            : <Badge variant="outline" className="text-xs rounded-full bg-green-50 text-green-700 border-green-300">Válido ({dias}d)</Badge>
+                            ? <Badge variant="outline" className="text-xs rounded-full bg-amber-50 text-amber-700 border-amber-300">{t("Vence em {count}d", { count: dias })}</Badge>
+                            : <Badge variant="outline" className="text-xs rounded-full bg-green-50 text-green-700 border-green-300">{t("Válido ({count}d)", { count: dias })}</Badge>
                         }
                       </TableCell>
                     </TableRow>
@@ -567,6 +581,11 @@ function CertificacoesTab({ ferramentas, onRefresh }: { ferramentas: Ferramenta[
 }
 
 function CustosTab({ ferramentas, obras }: { ferramentas: Ferramenta[]; obras: Obra[] }) {
+  const { t, money, date } = useI18n();
+  const description = (value: string) => {
+    const prefix = ["Aquisição: ", "Depreciação: ", "Locação: "].find(item => value.startsWith(item));
+    return prefix ? `${t(prefix.trim())} ${value.slice(prefix.length)}` : value;
+  };
   const { fornecedores } = useFornecedores();
   const [rows, setRows] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -583,7 +602,7 @@ function CustosTab({ ferramentas, obras }: { ferramentas: Ferramenta[]; obras: O
 
   async function salvar() {
     if (!formCusto.ferramenta_id || !formCusto.obra_id || !formCusto.descricao.trim() || !(Number(formCusto.valor_unitario) >= 0)) {
-      toast.error("Preencha equipamento, obra, descrição e valor"); return;
+      toast.error(t("Preencha equipamento, obra, descrição e valor")); return;
     }
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -593,20 +612,20 @@ function CustosTab({ ferramentas, obras }: { ferramentas: Ferramenta[]; obras: O
       descricao: formCusto.descricao.trim(), criado_por: user?.id });
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Custo registrado e enviado ao Orçado x Realizado"); setOpen(false); setFormCusto(vazio); load();
+    toast.success(t("Custo registrado e enviado ao Orçado x Realizado")); setOpen(false); setFormCusto(vazio); load();
   }
 
   const total = rows.reduce((s, r) => s + Number(r.valor), 0);
   return <div className="mt-4 space-y-4">
-    <Card className="border-0 shadow-medium rounded-2xl"><CardHeader className="pb-3"><div className="flex items-center justify-between"><div><CardTitle className="text-base">Custos de ferramentas e equipamentos</CardTitle><CardDescription>Manutenção, certificação, inspeção, reparo, perda e uso por horímetro.</CardDescription></div><Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" />Registrar custo</Button></div></CardHeader>
-      <CardContent><div className="mb-3 text-sm">Total apropriado: <strong>{total.toLocaleString("pt-BR", {style:"currency",currency:"BRL"})}</strong></div><Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Descrição</TableHead><TableHead>Obra</TableHead><TableHead>Origem</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{rows.map(r => <TableRow key={`${r.referencia_id}-${r.data_lancamento}`}><TableCell>{format(parseISO(r.data_lancamento),"dd/MM/yyyy")}</TableCell><TableCell>{r.descricao}</TableCell><TableCell>{obras.find(o=>o.id===r.obra_id)?.nome ?? "—"}</TableCell><TableCell className="capitalize">{r.origem.replace("_"," ")}</TableCell><TableCell className="text-right font-medium">{Number(r.valor).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</TableCell></TableRow>)}{!rows.length && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum custo apropriado.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+    <Card className="border-0 shadow-medium rounded-2xl"><CardHeader className="pb-3"><div className="flex items-center justify-between"><div><CardTitle className="text-base">Custos de ferramentas e equipamentos</CardTitle><CardDescription>Manutenção, certificação, inspeção, reparo, perda e uso por horímetro.</CardDescription></div><Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" /><T>Registrar custo</T></Button></div></CardHeader>
+      <CardContent><div className="mb-3 text-sm"><T>Total apropriado:</T> <strong>{money(total)}</strong></div><Table><TableHeader><TableRow><TableHead>Data</TableHead><TableHead>Descrição</TableHead><TableHead>Obra</TableHead><TableHead>Origem</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{rows.map(r => <TableRow key={`${r.referencia_id}-${r.data_lancamento}`}><TableCell>{date(r.data_lancamento)}</TableCell><TableCell>{description(r.descricao)}</TableCell><TableCell>{obras.find(o=>o.id===r.obra_id)?.nome ?? "—"}</TableCell><TableCell>{t(COST_TYPE_LABELS[r.origem] ?? r.origem)}</TableCell><TableCell className="text-right font-medium">{money(Number(r.valor))}</TableCell></TableRow>)}{!rows.length && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground"><T>Nenhum custo apropriado.</T></TableCell></TableRow>}</TableBody></Table></CardContent></Card>
     <Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>Registrar custo do equipamento</DialogTitle><DialogDescription>O valor será apropriado diretamente à obra selecionada.</DialogDescription></DialogHeader><div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3"><div><Label>Equipamento *</Label><Select value={formCusto.ferramenta_id} onValueChange={v=>setFormCusto(x=>({...x,ferramenta_id:v}))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{ferramentas.map(f=><SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent></Select></div><div><Label>Obra *</Label><Select value={formCusto.obra_id} onValueChange={v=>setFormCusto(x=>({...x,obra_id:v}))}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{obras.map(o=><SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></div></div>
-      <div className="grid grid-cols-2 gap-3"><div><Label>Tipo</Label><Select value={formCusto.tipo} onValueChange={v=>setFormCusto(x=>({...x,tipo:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["manutencao","certificacao","inspecao","reparo","perda","baixa","uso_horimetro","outro"].map(v=><SelectItem key={v} value={v}>{v.replace("_"," ")}</SelectItem>)}</SelectContent></Select></div><div><Label>Data</Label><Input type="date" value={formCusto.data_custo} onChange={e=>setFormCusto(x=>({...x,data_custo:e.target.value}))} /></div></div>
+      <div className="grid grid-cols-2 gap-3"><div><Label>Equipamento *</Label><Select value={formCusto.ferramenta_id} onValueChange={v=>setFormCusto(x=>({...x,ferramenta_id:v}))}><SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger><SelectContent>{ferramentas.map(f=><SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent></Select></div><div><Label>Obra *</Label><Select value={formCusto.obra_id} onValueChange={v=>setFormCusto(x=>({...x,obra_id:v}))}><SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger><SelectContent>{obras.map(o=><SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></div></div>
+      <div className="grid grid-cols-2 gap-3"><div><Label>Tipo</Label><Select value={formCusto.tipo} onValueChange={v=>setFormCusto(x=>({...x,tipo:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["manutencao","certificacao","inspecao","reparo","perda","baixa","uso_horimetro","outro"].map(v=><SelectItem key={v} value={v}>{t(COST_TYPE_LABELS[v])}</SelectItem>)}</SelectContent></Select></div><div><Label>Data</Label><Input type="date" value={formCusto.data_custo} onChange={e=>setFormCusto(x=>({...x,data_custo:e.target.value}))} /></div></div>
       <div><Label>Descrição *</Label><Input value={formCusto.descricao} onChange={e=>setFormCusto(x=>({...x,descricao:e.target.value}))} /></div>
       <div className="grid grid-cols-2 gap-3"><div><Label>Quantidade</Label><Input type="number" min="0.001" step="0.001" value={formCusto.quantidade} onChange={e=>setFormCusto(x=>({...x,quantidade:e.target.value}))} /></div><div><Label>Valor unitário *</Label><Input type="number" min="0" step="0.01" value={formCusto.valor_unitario} onChange={e=>setFormCusto(x=>({...x,valor_unitario:e.target.value}))} /></div></div>
-      <div className="grid grid-cols-2 gap-3"><div><Label>Fornecedor</Label><Select value={formCusto.fornecedor_id || "__none__"} onValueChange={v=>setFormCusto(x=>({...x,fornecedor_id:v==="__none__"?"":v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">Não informado</SelectItem>{fornecedores.filter(f=>f.status==="ativo").map(f=><SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent></Select></div><div><Label>Documento fiscal</Label><Input value={formCusto.documento_fiscal} onChange={e=>setFormCusto(x=>({...x,documento_fiscal:e.target.value}))} /></div></div>
-    </div><DialogFooter><Button variant="outline" onClick={()=>setOpen(false)}>Cancelar</Button><Button disabled={saving} onClick={salvar}>{saving?"Salvando...":"Salvar custo"}</Button></DialogFooter></DialogContent></Dialog>
+      <div className="grid grid-cols-2 gap-3"><div><Label>Fornecedor</Label><Select value={formCusto.fornecedor_id || "__none__"} onValueChange={v=>setFormCusto(x=>({...x,fornecedor_id:v==="__none__"?"":v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__"><T>Não informado</T></SelectItem>{fornecedores.filter(f=>f.status==="ativo").map(f=><SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent></Select></div><div><Label>Documento fiscal</Label><Input value={formCusto.documento_fiscal} onChange={e=>setFormCusto(x=>({...x,documento_fiscal:e.target.value}))} /></div></div>
+    </div><DialogFooter><Button variant="outline" onClick={()=>setOpen(false)}><T>Cancelar</T></Button><Button disabled={saving} onClick={salvar}>{t(saving?"Salvando...":"Salvar custo")}</Button></DialogFooter></DialogContent></Dialog>
   </div>;
 }
 
@@ -614,6 +633,7 @@ function CustosTab({ ferramentas, obras }: { ferramentas: Ferramenta[]; obras: O
 // Modal: Cadastro / Edição de Equipamento
 // ═══════════════════════════════════════════════════════════════
 function EquipamentoModal({ open, onClose, editing, obras, onSaved }: { open: boolean; onClose: () => void; editing: Ferramenta | null; obras: Obra[]; onSaved: () => void }) {
+  const { t } = useI18n();
   const { fornecedores } = useFornecedores();
   const [nome, setNome]             = useState("");
   const [descricao, setDesc]        = useState("");
@@ -651,13 +671,13 @@ function EquipamentoModal({ open, onClose, editing, obras, onSaved }: { open: bo
   }, [open, editing]);
 
   async function handleSave() {
-    if (!nome.trim()) { toast.error("Informe o nome do equipamento"); return; }
-    if (["compra", "depreciacao"].includes(fin.apropriacao) && (!fin.data || !(Number(fin.valor) > 0))) { toast.error("Informe data e valor da aquisição"); return; }
-    if (fin.apropriacao === "depreciacao" && !(Number(fin.vidaUtil) > 0)) { toast.error("Informe a vida útil para calcular a depreciação"); return; }
-    if (fin.apropriacao === "mensal" && !(Number(fin.mensal) > 0)) { toast.error("Informe o valor mensal da locação"); return; }
-    if (fin.apropriacao === "diaria" && !(Number(fin.diaria) > 0)) { toast.error("Informe o valor da diária"); return; }
-    if (fin.apropriacao === "horimetro" && !(Number(fin.hora) > 0)) { toast.error("Informe o valor por hora"); return; }
-    if (fin.apropriacao === "compra" && !fin.veioAlmox && !fin.obraId) { toast.error("Selecione a obra que receberá o custo da compra"); return; }
+    if (!nome.trim()) { toast.error(t("Informe o nome do equipamento")); return; }
+    if (["compra", "depreciacao"].includes(fin.apropriacao) && (!fin.data || !(Number(fin.valor) > 0))) { toast.error(t("Informe data e valor da aquisição")); return; }
+    if (fin.apropriacao === "depreciacao" && !(Number(fin.vidaUtil) > 0)) { toast.error(t("Informe a vida útil para calcular a depreciação")); return; }
+    if (fin.apropriacao === "mensal" && !(Number(fin.mensal) > 0)) { toast.error(t("Informe o valor mensal da locação")); return; }
+    if (fin.apropriacao === "diaria" && !(Number(fin.diaria) > 0)) { toast.error(t("Informe o valor da diária")); return; }
+    if (fin.apropriacao === "horimetro" && !(Number(fin.hora) > 0)) { toast.error(t("Informe o valor por hora")); return; }
+    if (fin.apropriacao === "compra" && !fin.veioAlmox && !fin.obraId) { toast.error(t("Selecione a obra que receberá o custo da compra")); return; }
     setSaving(true);
     try {
       const payload = { nome: nome.trim(), descricao: descricao || null, categoria: categoria || null, numero_serie: serie || null, fabricante: fabricante || null, modelo: modelo || null, capacidade: capacidade || null, exige_certificacao: exigeCert, ativo, tipo_item: tipoItem, codigo_patrimonio: patrimonio || null, unidade_medicao: unidadeMedicao, horimetro_atual: unidadeMedicao === "horimetro" ? Number(horimetro || 0) : null, status_operacional: statusOperacional, periodicidade_inspecao_dias: periodicidade ? Number(periodicidade) : null,
@@ -671,7 +691,7 @@ function EquipamentoModal({ open, onClose, editing, obras, onSaved }: { open: bo
         ? await (supabase as any).from("ferramentas_catalogo").update(payload).eq("id", editing.id)
         : await (supabase as any).from("ferramentas_catalogo").insert(payload);
       if (error) throw new Error(error.message);
-      toast.success(editing ? "Equipamento atualizado!" : "Equipamento cadastrado!");
+      toast.success(t(editing ? "Equipamento atualizado!" : "Equipamento cadastrado!"));
       onSaved(); onClose();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -681,21 +701,21 @@ function EquipamentoModal({ open, onClose, editing, obras, onSaved }: { open: bo
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg rounded-2xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
-          <DialogTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 text-primary" />{editing ? "Editar Equipamento" : "Novo Equipamento"}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 text-primary" />{t(editing ? "Editar Equipamento" : "Novo Equipamento")}</DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          <div className="space-y-1.5"><Label>Nome <span className="text-red-500">*</span></Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Talha Elétrica 5t" className="rounded-xl" /></div>
+          <div className="space-y-1.5"><Label>Nome <span className="text-red-500">*</span></Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder={t("Ex: Talha Elétrica 5t")} className="rounded-xl" /></div>
           <div className="space-y-1.5"><Label>Descrição</Label><Textarea value={descricao} onChange={e => setDesc(e.target.value)} rows={2} className="rounded-xl resize-none text-sm" /></div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Classificação *</Label><Select value={tipoItem} onValueChange={setTipoItem}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_ITEM.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-1.5"><Label>Classificação *</Label><Select value={tipoItem} onValueChange={setTipoItem}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{TIPOS_ITEM.map(item => <SelectItem key={item.value} value={item.value}>{t(item.label)}</SelectItem>)}</SelectContent></Select></div>
             <div className="space-y-1.5"><Label>Código patrimonial</Label><Input value={patrimonio} onChange={e => setPatrimonio(e.target.value)} placeholder="PAT-0001" className="rounded-xl" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Categoria</Label>
               <Select value={categoria} onValueChange={setCategoria}>
-                <SelectTrigger className="rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectTrigger className="rounded-xl"><SelectValue placeholder={t("Selecione...")} /></SelectTrigger>
+                <SelectContent>{CATEGORIAS.map(c => <SelectItem key={c} value={c}>{t(c)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5"><Label>Capacidade</Label><Input value={capacidade} onChange={e => setCapacidade(e.target.value)} placeholder="5t, 500kg..." className="rounded-xl" /></div>
@@ -706,18 +726,18 @@ function EquipamentoModal({ open, onClose, editing, obras, onSaved }: { open: bo
             <div className="space-y-1.5"><Label>Modelo</Label><Input value={modelo} onChange={e => setModelo(e.target.value)} className="rounded-xl" /></div>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5"><Label>Controle</Label><Select value={unidadeMedicao} onValueChange={setUnidadeMedicao}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unidade">Por unidade</SelectItem><SelectItem value="horimetro">Por horímetro</SelectItem></SelectContent></Select></div>
+            <div className="space-y-1.5"><Label>Controle</Label><Select value={unidadeMedicao} onValueChange={setUnidadeMedicao}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unidade"><T>Por unidade</T></SelectItem><SelectItem value="horimetro"><T>Por horímetro</T></SelectItem></SelectContent></Select></div>
             <div className="space-y-1.5"><Label>Horímetro atual</Label><Input type="number" min="0" value={horimetro} onChange={e => setHorimetro(e.target.value)} disabled={unidadeMedicao !== "horimetro"} className="rounded-xl" /></div>
-            <div className="space-y-1.5"><Label>Inspeção a cada</Label><Input type="number" min="1" value={periodicidade} onChange={e => setPeriodicidade(e.target.value)} placeholder="dias" className="rounded-xl" /></div>
+            <div className="space-y-1.5"><Label>Inspeção a cada</Label><Input type="number" min="1" value={periodicidade} onChange={e => setPeriodicidade(e.target.value)} placeholder={t("dias")} className="rounded-xl" /></div>
           </div>
-          <div className="space-y-1.5"><Label>Status operacional</Label><Select value={statusOperacional} onValueChange={setStatusOperacional}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPERACIONAL.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1.5"><Label>Status operacional</Label><Select value={statusOperacional} onValueChange={setStatusOperacional}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPERACIONAL.map(s => <SelectItem key={s.value} value={s.value}>{t(s.label)}</SelectItem>)}</SelectContent></Select></div>
           <div className="rounded-xl border p-4 space-y-3">
-            <div><p className="font-semibold text-sm">Gestão financeira</p><p className="text-xs text-muted-foreground">Define como o custo será apropriado automaticamente às obras.</p></div>
+            <div><p className="font-semibold text-sm"><T>Gestão financeira</T></p><p className="text-xs text-muted-foreground"><T>Define como o custo será apropriado automaticamente às obras.</T></p></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label>Regime</Label><Select value={fin.regime} onValueChange={v => setFin(x => ({...x, regime:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="proprio">Próprio</SelectItem><SelectItem value="alugado">Alugado</SelectItem><SelectItem value="comodato">Comodato</SelectItem></SelectContent></Select></div>
-              <div className="space-y-1.5"><Label>Apropriação do custo</Label><Select value={fin.apropriacao} onValueChange={v => setFin(x => ({...x, apropriacao:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="compra">Compra integral</SelectItem><SelectItem value="depreciacao">Depreciação mensal</SelectItem><SelectItem value="mensal">Locação mensal</SelectItem><SelectItem value="diaria">Locação diária</SelectItem><SelectItem value="horimetro">Por horímetro</SelectItem><SelectItem value="sem_custo">Sem custo</SelectItem></SelectContent></Select></div>
-              <div className="space-y-1.5"><Label>Obra da aquisição</Label><Select value={fin.obraId || "__none__"} onValueChange={v => setFin(x => ({...x, obraId:v === "__none__" ? "" : v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">Não definida</SelectItem>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></div>
-              <div className="space-y-1.5"><Label>Fornecedor</Label><Select value={fin.fornecedorId || "__none__"} onValueChange={v => setFin(x => ({...x, fornecedorId:v === "__none__" ? "" : v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__">Não informado</SelectItem>{fornecedores.filter(f => f.status === "ativo").map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-1.5"><Label>Regime</Label><Select value={fin.regime} onValueChange={v => setFin(x => ({...x, regime:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="proprio"><T>Próprio</T></SelectItem><SelectItem value="alugado"><T>Alugado</T></SelectItem><SelectItem value="comodato"><T>Comodato</T></SelectItem></SelectContent></Select></div>
+              <div className="space-y-1.5"><Label>Apropriação do custo</Label><Select value={fin.apropriacao} onValueChange={v => setFin(x => ({...x, apropriacao:v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="compra"><T>Compra integral</T></SelectItem><SelectItem value="depreciacao"><T>Depreciação mensal</T></SelectItem><SelectItem value="mensal"><T>Locação mensal</T></SelectItem><SelectItem value="diaria"><T>Locação diária</T></SelectItem><SelectItem value="horimetro"><T>Por horímetro</T></SelectItem><SelectItem value="sem_custo"><T>Sem custo</T></SelectItem></SelectContent></Select></div>
+              <div className="space-y-1.5"><Label>Obra da aquisição</Label><Select value={fin.obraId || "__none__"} onValueChange={v => setFin(x => ({...x, obraId:v === "__none__" ? "" : v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__"><T>Não definida</T></SelectItem>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-1.5"><Label>Fornecedor</Label><Select value={fin.fornecedorId || "__none__"} onValueChange={v => setFin(x => ({...x, fornecedorId:v === "__none__" ? "" : v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__none__"><T>Não informado</T></SelectItem>{fornecedores.filter(f => f.status === "ativo").map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-1.5"><Label>Data de aquisição/início</Label><Input type="date" value={fin.data} onChange={e => setFin(x => ({...x,data:e.target.value}))} /></div>
               <div className="space-y-1.5"><Label>Documento fiscal</Label><Input value={fin.documento} onChange={e => setFin(x => ({...x,documento:e.target.value}))} /></div>
             </div>
@@ -729,12 +749,12 @@ function EquipamentoModal({ open, onClose, editing, obras, onSaved }: { open: bo
               <div className="space-y-1.5"><Label>Valor/hora</Label><Input type="number" min="0" step="0.01" value={fin.hora} onChange={e => setFin(x => ({...x,hora:e.target.value}))} /></div>
               <div className="space-y-1.5"><Label>Mensalidade</Label><Input type="number" min="0" step="0.01" value={fin.mensal} onChange={e => setFin(x => ({...x,mensal:e.target.value}))} /></div>
             </div>
-            <label className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-3"><span><span className="block text-sm font-medium">Compra já registrada no almoxarifado</span><span className="block text-xs text-muted-foreground">Impede contabilização duplicada da aquisição.</span></span><Switch checked={fin.veioAlmox} onCheckedChange={v => setFin(x => ({...x,veioAlmox:v}))} /></label>
+            <label className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-3"><span><span className="block text-sm font-medium"><T>Compra já registrada no almoxarifado</T></span><span className="block text-xs text-muted-foreground"><T>Impede contabilização duplicada da aquisição.</T></span></span><Switch checked={fin.veioAlmox} onCheckedChange={v => setFin(x => ({...x,veioAlmox:v}))} /></label>
           </div>
           <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
             <div>
               <Label className="cursor-pointer">Exige certificação de segurança</Label>
-              <p className="text-xs text-muted-foreground">Equipamentos de içamento, elétricos, etc.</p>
+              <p className="text-xs text-muted-foreground"><T>Equipamentos de içamento, elétricos, etc.</T></p>
             </div>
             <Switch checked={exigeCert} onCheckedChange={setExigeCert} />
           </div>
@@ -744,9 +764,9 @@ function EquipamentoModal({ open, onClose, editing, obras, onSaved }: { open: bo
           </div>
         </div>
         <DialogFooter className="px-6 py-4 border-t">
-          <Button variant="outline" onClick={onClose} disabled={saving} className="rounded-xl">Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={saving} className="rounded-xl"><T>Cancelar</T></Button>
           <Button onClick={handleSave} disabled={saving} className="rounded-xl gap-2">
-            {saving ? <><RefreshCw className="h-4 w-4 animate-spin" />Salvando...</> : <><Wrench className="h-4 w-4" />{editing ? "Salvar" : "Cadastrar"}</>}
+            {saving ? <><RefreshCw className="h-4 w-4 animate-spin" /><T>Salvando...</T></> : <><Wrench className="h-4 w-4" />{t(editing ? "Salvar" : "Cadastrar")}</>}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -761,6 +781,7 @@ function AlocacaoModal({ open, onClose, obras, employees, ferramentas, preselFer
   open: boolean; onClose: () => void; obras: Obra[]; employees: Employee[];
   ferramentas: Ferramenta[]; preselFerr?: Ferramenta | null; onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const [ferrId, setFerrId]       = useState("");
   const [obraId, setObraId]       = useState("");
   const [frente, setFrente]       = useState("");
@@ -775,7 +796,7 @@ function AlocacaoModal({ open, onClose, obras, employees, ferramentas, preselFer
   }, [open, preselFerr]);
 
   async function handleSave() {
-    if (!ferrId || !obraId) { toast.error("Selecione o equipamento e a obra"); return; }
+    if (!ferrId || !obraId) { toast.error(t("Selecione o equipamento e a obra")); return; }
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -785,9 +806,9 @@ function AlocacaoModal({ open, onClose, obras, employees, ferramentas, preselFer
         observacoes: obs || null, registrado_por: user?.id,
       });
       if (error) throw new Error(error.message);
-      toast.success("Equipamento alocado!");
+      toast.success(t("Equipamento alocado!"));
       onSaved(); onClose();
-    } catch (e: any) { toast.error(e.message.includes("unique") ? "Este equipamento já está alocado. Devolva-o primeiro." : e.message); }
+    } catch (e: any) { toast.error(e.message.includes("unique") ? t("Este equipamento já está alocado. Devolva-o primeiro.") : e.message); }
     finally { setSaving(false); }
   }
 
@@ -795,14 +816,14 @@ function AlocacaoModal({ open, onClose, obras, employees, ferramentas, preselFer
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-primary" /> Alocar Equipamento</DialogTitle>
-          <DialogDescription>Defina onde e com quem o equipamento ficará</DialogDescription>
+          <DialogTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5 text-primary" /> <T>Alocar Equipamento</T></DialogTitle>
+          <DialogDescription><T>Defina onde e com quem o equipamento ficará</T></DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label>Equipamento <span className="text-red-500">*</span></Label>
             <Select value={ferrId} onValueChange={setFerrId}>
-              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue placeholder={t("Selecione...")} /></SelectTrigger>
               <SelectContent className="max-h-56">
                 {ferramentas.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}{f.numero_serie ? ` (${f.numero_serie})` : ""}</SelectItem>)}
               </SelectContent>
@@ -811,21 +832,21 @@ function AlocacaoModal({ open, onClose, obras, employees, ferramentas, preselFer
           <div className="space-y-1.5">
             <Label>Obra <span className="text-red-500">*</span></Label>
             <Select value={obraId} onValueChange={setObraId}>
-              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Selecione a obra..." /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue placeholder={t("Selecione a obra...")} /></SelectTrigger>
               <SelectContent>{obras.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label>Frente</Label><Input value={frente} onChange={e => setFrente(e.target.value)} placeholder="Estrutura, Fundação..." className="rounded-xl" /></div>
+            <div className="space-y-1.5"><Label>Frente</Label><Input value={frente} onChange={e => setFrente(e.target.value)} placeholder={t("Estrutura, Fundação...")} className="rounded-xl" /></div>
             <div className="space-y-1.5"><Label>Data alocação</Label><Input type="date" value={dataAloc} onChange={e => setDataAloc(e.target.value)} className="rounded-xl" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Responsável</Label>
               <Select value={respId || "__none__"} onValueChange={v => setRespId(v === "__none__" ? "" : v)}>
-                <SelectTrigger className="rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectTrigger className="rounded-xl"><SelectValue placeholder={t("Selecione...")} /></SelectTrigger>
                 <SelectContent className="max-h-48">
-                  <SelectItem value="__none__">— Nenhum —</SelectItem>
+                  <SelectItem value="__none__"><T>— Nenhum —</T></SelectItem>
                   {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -834,16 +855,16 @@ function AlocacaoModal({ open, onClose, obras, employees, ferramentas, preselFer
               <Label>Condição</Label>
               <Select value={condicao} onValueChange={setCondicao}>
                 <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent>{CONDICOES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                <SelectContent>{CONDICOES.map(c => <SelectItem key={c.value} value={c.value}>{t(c.label)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
           <div className="space-y-1.5"><Label>Observações</Label><Textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} className="rounded-xl resize-none text-sm" /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving} className="rounded-xl">Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={saving} className="rounded-xl"><T>Cancelar</T></Button>
           <Button onClick={handleSave} disabled={saving} className="rounded-xl gap-2">
-            {saving ? <><RefreshCw className="h-4 w-4 animate-spin" />Salvando...</> : <><ArrowRightLeft className="h-4 w-4" />Alocar</>}
+            {saving ? <><RefreshCw className="h-4 w-4 animate-spin" /><T>Salvando...</T></> : <><ArrowRightLeft className="h-4 w-4" /><T>Alocar</T></>}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -857,6 +878,7 @@ function AlocacaoModal({ open, onClose, obras, employees, ferramentas, preselFer
 function CertificacaoModal({ open, onClose, ferramentas, onSaved }: {
   open: boolean; onClose: () => void; ferramentas: Ferramenta[]; onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const [ferrId, setFerrId]         = useState("");
   const [tipo, setTipo]             = useState("");
   const [numero, setNumero]         = useState("");
@@ -869,7 +891,7 @@ function CertificacaoModal({ open, onClose, ferramentas, onSaved }: {
   useEffect(() => { if (open) { setFerrId(""); setTipo(""); setNumero(""); setCertif(""); setDataEmis(""); setDataVenc(""); setObs(""); } }, [open]);
 
   async function handleSave() {
-    if (!ferrId || !tipo || !dataVenc) { toast.error("Selecione o equipamento, tipo e data de vencimento"); return; }
+    if (!ferrId || !tipo || !dataVenc) { toast.error(t("Selecione o equipamento, tipo e data de vencimento")); return; }
     setSaving(true);
     try {
       const { error } = await (supabase as any).from("ferramentas_certificacoes").insert({
@@ -879,7 +901,7 @@ function CertificacaoModal({ open, onClose, ferramentas, onSaved }: {
         observacoes: obs || null,
       });
       if (error) throw new Error(error.message);
-      toast.success("Certificação registrada!");
+      toast.success(t("Certificação registrada!"));
       onSaved(); onClose();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -889,13 +911,13 @@ function CertificacaoModal({ open, onClose, ferramentas, onSaved }: {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Award className="h-5 w-5 text-primary" /> Registrar Certificação</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><Award className="h-5 w-5 text-primary" /> <T>Registrar Certificação</T></DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label>Equipamento <span className="text-red-500">*</span></Label>
             <Select value={ferrId} onValueChange={setFerrId}>
-              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue placeholder={t("Selecione...")} /></SelectTrigger>
               <SelectContent className="max-h-56">
                 {ferramentas.filter(f => f.exige_certificacao).map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
               </SelectContent>
@@ -904,13 +926,13 @@ function CertificacaoModal({ open, onClose, ferramentas, onSaved }: {
           <div className="space-y-1.5">
             <Label>Tipo de Certificação <span className="text-red-500">*</span></Label>
             <Select value={tipo} onValueChange={setTipo}>
-              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>{TIPOS_CERT.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="rounded-xl"><SelectValue placeholder={t("Selecione...")} /></SelectTrigger>
+              <SelectContent>{TIPOS_CERT.map(type => <SelectItem key={type} value={type}>{t(type)}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>Nº Certificado</Label><Input value={numero} onChange={e => setNumero(e.target.value)} placeholder="CERT-001" className="rounded-xl" /></div>
-            <div className="space-y-1.5"><Label>Certificadora</Label><Input value={certificadora} onChange={e => setCertif(e.target.value)} placeholder="Empresa..." className="rounded-xl" /></div>
+            <div className="space-y-1.5"><Label>Certificadora</Label><Input value={certificadora} onChange={e => setCertif(e.target.value)} placeholder={t("Empresa...")} className="rounded-xl" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>Data emissão</Label><Input type="date" value={dataEmissao} onChange={e => setDataEmis(e.target.value)} className="rounded-xl" /></div>
@@ -919,9 +941,9 @@ function CertificacaoModal({ open, onClose, ferramentas, onSaved }: {
           <div className="space-y-1.5"><Label>Observações</Label><Textarea value={obs} onChange={e => setObs(e.target.value)} rows={2} className="rounded-xl resize-none text-sm" /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving} className="rounded-xl">Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={saving} className="rounded-xl"><T>Cancelar</T></Button>
           <Button onClick={handleSave} disabled={saving} className="rounded-xl gap-2">
-            {saving ? <><RefreshCw className="h-4 w-4 animate-spin" />Salvando...</> : <><Award className="h-4 w-4" />Registrar</>}
+            {saving ? <><RefreshCw className="h-4 w-4 animate-spin" /><T>Salvando...</T></> : <><Award className="h-4 w-4" /><T>Registrar</T></>}
           </Button>
         </DialogFooter>
       </DialogContent>

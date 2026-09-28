@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { Database } from "@/integrations/supabase/types";
+import { T } from "@/i18n";
 
 type Departamento = Database['public']['Tables']['departamentos']['Row'];
 
@@ -31,19 +32,19 @@ export const ConfirmDeleteDepartamentoModal = ({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+          <AlertDialogTitle><T>Confirmar Exclusão</T></AlertDialogTitle>
           <AlertDialogDescription>
-            Tem certeza que deseja excluir o departamento <strong>{departamento.nome}</strong>?
-            Esta ação não pode ser desfeita e pode afetar funcionários associados.
+            <T>Tem certeza que deseja excluir o departamento</T> <strong>{departamento.nome}</strong>?{' '}
+            <T>Esta ação não pode ser desfeita e pode afetar funcionários associados.</T>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel><T>Cancelar</T></AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Excluir
+            <T>Excluir</T>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -229,12 +229,12 @@ const Funcionarios = () => {
                       </Avatar>
                       <div>
                         <div className="font-medium">{employee.nome}</div>
-                        <div className="text-sm text-muted-foreground">{(employee as any).matricula || "Matrícula pendente"} · {employee.departamentos?.nome || 'Sem departamento'}</div>
+                        <div className="text-sm text-muted-foreground">{(employee as any).matricula || t("Matrícula pendente")} · {employee.departamentos?.nome || t("Sem departamento")}</div>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>{canAccessSensitiveRh ? employee.cpf : maskCpf(employee.cpf)}</TableCell>
-                  <TableCell>{employee.cargos?.nome || 'Não informado'}</TableCell>
+                  <TableCell>{employee.cargos?.nome || t("Não informado")}</TableCell>
                   <TableCell>
                     <div className="text-sm">
                       <p>{employee.email}</p>
@@ -247,7 +247,7 @@ const Funcionarios = () => {
                       return <Badge className={cfg.color}>{t(cfg.label)}</Badge>;
                     })()}
                   </TableCell>
-                  <TableCell>{(lotacaoPorFuncionario.get(employee.id) as any)?.obras?.nome || <span className="text-muted-foreground">Sem lotação</span>}</TableCell>
+                  <TableCell>{(lotacaoPorFuncionario.get(employee.id) as any)?.obras?.nome || <span className="text-muted-foreground">{t("Sem lotação")}</span>}</TableCell>
                   <TableCell>
                     {(() => {
                       return (
@@ -282,7 +282,7 @@ const Funcionarios = () => {
                         )}
                         <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setIsCrachaOpen(true); }}>
                           <CreditCard className="h-4 w-4 mr-2 text-violet-500" />
-                          Gerar Crachá
+                          {t("Gerar Crachá")}
                         </DropdownMenuItem>
                         {canAccessSensitiveRh && (
                           <>
@@ -305,7 +305,7 @@ const Funcionarios = () => {
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
                     <div className="text-muted-foreground">
-                      {searchTerm ? 'Nenhum funcionário encontrado para a busca.' : 'Nenhum funcionário cadastrado.'}
+                      {t(searchTerm ? 'Nenhum funcionário encontrado para a busca.' : 'Nenhum funcionário cadastrado.')}
                     </div>
                   </TableCell>
                 </TableRow>

@@ -38,4 +38,37 @@ assert.ok(moneyFormat('en',125).includes('125.00'));
 assert.ok(moneyFormat('en',125).includes('R$'));
 assert.equal(dateFormat('en','2026-09-02',{day:'numeric',month:'long',year:'numeric'}),'September 2, 2026');
 assert.equal(dateFormat('es','not-a-date'),'—');
+// Fleet forms keep database values intact while translating interface messages.
+const { siteStatusLabel } = load('siteStatus');
+assert.equal(siteStatusLabel('em_andamento', source => translate('en', source)), 'In progress');
+assert.equal(siteStatusLabel('concluida', source => translate('es', source)), 'Finalizada');
+assert.equal(siteStatusLabel('custom-status', source => translate('en', source)), 'custom-status');
+assert.equal(siteStatusLabel('__proto__', source => translate('en', source)), '__proto__');
+assert.equal(translate('en', '+{distance} km rodados', { distance: '1,234' }), '+1,234 km traveled');
+assert.equal(translate('es', '{percent}% do limite', { percent: '75' }), '75% del límite');
+assert.equal(translate('en', 'Selecione o fornecedor responsável pela locação'), 'Select the rental supplier');
+assert.equal(translate('es', 'Placa é obrigatória'), 'La matrícula es obligatoria');
+for (const file of ['components/frota/VehicleFormModal.tsx', 'components/veiculos-pesados/HeavyVehicleFormModal.tsx', 'components/frota/TraccarSyncPanel.tsx']) {
+  const source = readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
+  const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  function check(node) {
+    if (ts.isJsxText(node) && node.text.trim()) {
+      const neutralText = new Set(['SUV', 'Sedan', '-', '•', '—', 'km', 'L', 'km/L']);
+      assert.ok(neutralText.has(node.text.trim()), `Untranslated fleet text in ${file}: ${node.text.trim()}`);
+    }
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 't'
+      && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
+      assert.ok(Object.hasOwn(catalog, node.arguments[0].text), `Missing fleet translation: ${node.arguments[0].text}`);
+    }
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+      && ['min', 'max'].includes(node.expression.name.text) && node.arguments[1] && ts.isStringLiteral(node.arguments[1])) {
+      assert.ok(Object.hasOwn(catalog, node.arguments[1].text), `Missing schema translation: ${node.arguments[1].text}`);
+    }
+    if (ts.isPropertyAssignment(node) && node.name.getText(ast) === 'message' && ts.isStringLiteral(node.initializer)) {
+      assert.ok(Object.hasOwn(catalog, node.initializer.text), `Missing validation translation: ${node.initializer.text}`);
+    }
+    ts.forEachChild(node, check);
+  }
+  check(ast);
+}
 console.log(`OK: ${Object.keys(catalog).length} textos em três idiomas; parâmetros, fallback, datas, números e moeda preservada.`);

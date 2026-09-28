@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="900" viewBox="0 0 430 900">
+  <defs>
+    <linearGradient id="header" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#183a80"/><stop offset="1" stop-color="#1d57bd"/>
+    </linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#10213b" flood-opacity=".10"/></filter>
+  </defs>
+  <rect width="430" height="900" fill="#f7f9fc"/>
+  <rect width="430" height="224" fill="url(#header)"/>
+  <text x="22" y="34" fill="#c8dcff" font-family="Arial,sans-serif" font-size="12" font-weight="700">ÁPICE GESTÃO · MOTORISTA</text>
+  <circle cx="44" cy="82" r="24" fill="#ffffff" opacity=".20"/>
+  <text x="44" y="88" fill="#ffffff" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" font-weight="700">MD</text>
+  <text x="82" y="76" fill="#bcd3ff" font-family="Arial,sans-serif" font-size="12">Bom dia,</text>
+  <text x="82" y="96" fill="#ffffff" font-family="Arial,sans-serif" font-size="16" font-weight="700">Motorista Demo</text>
+  <text x="408" y="77" text-anchor="end" fill="#bcd3ff" font-family="Arial,sans-serif" font-size="11">Quinta-feira</text>
+  <text x="408" y="96" text-anchor="end" fill="#ffffff" font-family="Arial,sans-serif" font-size="16" font-weight="700">24/09</text>
+  <rect x="18" y="130" width="394" height="56" rx="14" fill="#ffffff" opacity=".13"/>
+  <circle cx="38" cy="157" r="5" fill="#4ade80"/>
+  <text x="56" y="153" fill="#dbe9ff" font-family="Arial,sans-serif" font-size="12">Escala ativa</text>
+  <text x="56" y="174" fill="#ffffff" font-family="Arial,sans-serif" font-size="14" font-weight="700">Jornada em andamento</text>
+
+  <g filter="url(#shadow)">
+    <rect x="18" y="204" width="394" height="238" rx="18" fill="#ffffff"/>
+    <rect x="18" y="204" width="394" height="52" rx="18" fill="#ffffff"/>
+    <path d="M18 256H412" stroke="#edf1f6"/>
+    <text x="36" y="236" fill="#68768e" font-family="Arial,sans-serif" font-size="12" font-weight="700">MEU VEÍCULO</text>
+    <rect x="340" y="218" width="58" height="25" rx="13" fill="#dceaff"/>
+    <text x="369" y="235" text-anchor="middle" fill="#2355b1" font-family="Arial,sans-serif" font-size="11" font-weight="700">Em uso</text>
+    <rect x="36" y="274" width="56" height="56" rx="13" fill="#e8f0ff"/>
+    <path d="M48 311l5-13h22l5 13M47 311h34v10H47zM54 319h3m14 0h3" fill="none" stroke="#2459bd" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+    <text x="106" y="294" fill="#1b2638" font-family="Arial,sans-serif" font-size="18" font-weight="700">ABC1D23</text>
+    <text x="106" y="315" fill="#76849a" font-family="Arial,sans-serif" font-size="13">Veículo leve · demonstração</text>
+    <text x="106" y="338" fill="#76849a" font-family="Arial,sans-serif" font-size="12">12.450 km totais · GPS sincronizado</text>
+    <path d="M36 358H394" stroke="#edf1f6"/>
+    <text x="36" y="384" fill="#47566e" font-family="Arial,sans-serif" font-size="12" font-weight="700">KM DO MÊS</text>
+    <text x="394" y="384" text-anchor="end" fill="#8b98aa" font-family="Arial,sans-serif" font-size="11">8 dias restantes</text>
+    <text x="36" y="407" fill="#1b2638" font-family="Arial,sans-serif" font-size="13" font-weight="700">780 km rodados</text>
+    <text x="394" y="407" text-anchor="end" fill="#8b98aa" font-family="Arial,sans-serif" font-size="12">/ 2.000 km</text>
+    <rect x="36" y="418" width="358" height="8" rx="4" fill="#e8edf5"/>
+    <rect x="36" y="418" width="140" height="8" rx="4" fill="#22c55e"/>
+  </g>
+
+  <text x="20" y="484" fill="#66758b" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="1">AÇÕES RÁPIDAS</text>
+  <g filter="url(#shadow)" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#3d4a61">
+    <rect x="18" y="504" width="190" height="88" rx="17" fill="#ffffff"/>
+    <rect x="222" y="504" width="190" height="88" rx="17" fill="#ffffff"/>
+    <rect x="18" y="605" width="190" height="88" rx="17" fill="#ffffff"/>
+    <rect x="222" y="605" width="190" height="88" rx="17" fill="#ffffff"/>
+    <rect x="34" y="522" width="38" height="38" rx="10" fill="#3b82f6"/>
+    <rect x="238" y="522" width="38" height="38" rx="10" fill="#f59e0b"/>
+    <rect x="34" y="623" width="38" height="38" rx="10" fill="#8b5cf6"/>
+    <rect x="238" y="623" width="38" height="38" rx="10" fill="#14b8a6"/>
+    <text x="82" y="550">Abastecer</text>
+    <text x="286" y="550">Manutenção</text>
+    <text x="82" y="651">Checklist</text>
+    <text x="286" y="651">Fumaça</text>
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M46 531h14v10H46zm3 10v9m8-9v9"/>
+    <path d="M250 545l12-12m-8-2l10 10"/>
+    <path d="M46 632h15v20H46zm4 5h7m-7 5h7m-7 5h4"/>
+    <path d="M246 641h20m-16-6c5-6 9 0 15-5m-15 18c5-6 9 0 15-5"/>
+  </g>
+
+  <rect x="0" y="768" width="430" height="132" fill="#ffffff"/>
+  <path d="M0 768H430" stroke="#e9edf4"/>
+  <g font-family="Arial,sans-serif" font-size="11" text-anchor="middle" fill="#7a879b">
+    <text x="43" y="826" fill="#235bd0" font-weight="700">Início</text>
+    <text x="112" y="826">Lançar</text>
+    <text x="187" y="826">Checklist</text>
+    <text x="264" y="826">Escala</text>
+    <text x="334" y="826">Chat</text>
+    <text x="394" y="826">Perfil</text>
+  </g>
+  <circle cx="43" cy="794" r="11" fill="#e8f0ff"/>
+  <circle cx="112" cy="794" r="11" fill="#edf1f6"/>
+  <circle cx="187" cy="794" r="11" fill="#edf1f6"/>
+  <circle cx="264" cy="794" r="11" fill="#edf1f6"/>
+  <circle cx="334" cy="794" r="11" fill="#edf1f6"/>
+  <circle cx="394" cy="794" r="11" fill="#edf1f6"/>
+  <text x="215" y="874" text-anchor="middle" fill="#9ca8b8" font-family="Arial,sans-serif" font-size="10">DEMONSTRAÇÃO ILUSTRATIVA · DADOS FICTÍCIOS</text>
+</svg>

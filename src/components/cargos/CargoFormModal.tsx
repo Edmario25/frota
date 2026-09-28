@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Briefcase, Info } from "lucide-react";
+import { T, useI18n } from "@/i18n";
 import type { Database } from "@/integrations/supabase/types";
 
 type Cargo = Database['public']['Tables']['cargos']['Row'];
@@ -45,6 +46,7 @@ interface Props {
 }
 
 export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) => {
+  const { t } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
@@ -80,9 +82,9 @@ export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) =
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Briefcase className="h-5 w-5 text-primary" />
-            {cargo ? "Editar Cargo" : "Novo Cargo"}
+            {t(cargo ? "Editar Cargo" : "Novo Cargo")}
           </DialogTitle>
-          <DialogDescription>Nome, hierarquia e responsabilidades do cargo.</DialogDescription>
+          <DialogDescription><T>Nome, hierarquia e responsabilidades do cargo.</T></DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -92,8 +94,8 @@ export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) =
               name="nome"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome do Cargo <span className="text-red-500">*</span></FormLabel>
-                  <FormControl><Input placeholder="Ex: Técnico de Segurança do Trabalho..." {...field} /></FormControl>
+                  <FormLabel><T>Nome do Cargo</T> <span className="text-red-500">*</span></FormLabel>
+                  <FormControl><Input placeholder={t("Ex: Técnico de Segurança do Trabalho...")} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -105,7 +107,7 @@ export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) =
                 name="nivel_hierarquico"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nível Hierárquico</FormLabel>
+                    <FormLabel><T>Nível Hierárquico</T></FormLabel>
                     <FormControl>
                       <Input type="number" min="1" max="10" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
                     </FormControl>
@@ -120,26 +122,23 @@ export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) =
               name="descricao"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descrição <span className="text-muted-foreground font-normal">(opcional)</span></FormLabel>
-                  <FormControl><Textarea placeholder="Descreva as responsabilidades deste cargo..." rows={3} {...field} /></FormControl>
+                  <FormLabel><T>Descrição</T> <span className="text-muted-foreground font-normal"><T>(opcional)</T></span></FormLabel>
+                  <FormControl><Textarea placeholder={t("Descreva as responsabilidades deste cargo...")} rows={3} {...field} /></FormControl>
                 </FormItem>
               )}
             />
 
             <div className="flex gap-3 rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
               <Info className="h-4 w-4 shrink-0 text-primary" />
-              <p>
-                O cargo não define o que a pessoa pode fazer no sistema. Os acessos são dados por perfil em
-                <b className="text-foreground"> Admin → Controle de Acesso</b>.
-              </p>
+              <p><T>O cargo não define o que a pessoa pode fazer no sistema. Os acessos são dados por perfil em Admin → Controle de Acesso.</T></p>
             </div>
           </form>
         </Form>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancelar</Button>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}><T>Cancelar</T></Button>
           <Button type="submit" form="cargo-form" disabled={isSubmitting}>
-            {isSubmitting ? "Salvando..." : cargo ? "Salvar Alterações" : "Cadastrar Cargo"}
+            {t(isSubmitting ? "Salvando..." : cargo ? "Salvar Alterações" : "Cadastrar Cargo")}
           </Button>
         </DialogFooter>
       </DialogContent>

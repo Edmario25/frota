@@ -1,3 +1,5 @@
+import { useI18n } from "@/i18n";
+import { siteStatusLabel } from "@/i18n/siteStatus";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +61,7 @@ interface VehicleFormModalProps {
 }
 
 export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employees = [] }: VehicleFormModalProps) => {
+  const { t } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [obras, setObras] = useState<any[]>([]);
   const [setores, setSetores] = useState<any[]>([]);
@@ -280,9 +283,9 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{vehicle ? "Editar Veículo" : "Novo Veículo"}</DialogTitle>
+          <DialogTitle>{vehicle ? t("Editar Veículo") : t("Novo Veículo")}</DialogTitle>
           <DialogDescription>
-            {vehicle ? "Edite as informações do veículo" : "Cadastre um novo veículo na frota"}
+            {vehicle ? t("Edite as informações do veículo") : t("Cadastre um novo veículo na frota")}
           </DialogDescription>
         </DialogHeader>
         
@@ -294,7 +297,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="placa"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Placa</FormLabel>
+                    <FormLabel>{t("Placa")}</FormLabel>
                     <FormControl>
                       <Input placeholder="ABC-1234" {...field} />
                     </FormControl>
@@ -308,17 +311,17 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="tipo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo</FormLabel>
+                    <FormLabel>{t("Tipo")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo" />
+                          <SelectValue placeholder={t("Selecione o tipo")} />
                         </SelectTrigger>
                       </FormControl>
                        <SelectContent>
-                         <SelectItem value="compacto">Compacto</SelectItem>
+                         <SelectItem value="compacto">{t("Compacto")}</SelectItem>
                          <SelectItem value="suv">SUV</SelectItem>
-                         <SelectItem value="caminhonete">Caminhonete</SelectItem>
+                         <SelectItem value="caminhonete">{t("Caminhonete")}</SelectItem>
                          <SelectItem value="sedan">Sedan</SelectItem>
                        </SelectContent>
                     </Select>
@@ -332,7 +335,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="marca"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Marca</FormLabel>
+                    <FormLabel>{t("Marca")}</FormLabel>
                     <FormControl>
                       <Input placeholder="Toyota" {...field} />
                     </FormControl>
@@ -346,7 +349,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="modelo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Modelo</FormLabel>
+                    <FormLabel>{t("Modelo")}</FormLabel>
                     <FormControl>
                       <Input placeholder="Corolla" {...field} />
                     </FormControl>
@@ -360,7 +363,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="ano"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ano</FormLabel>
+                    <FormLabel>{t("Ano")}</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
@@ -378,9 +381,9 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="cor"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cor</FormLabel>
+                    <FormLabel>{t("Cor")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Branco" {...field} />
+                      <Input placeholder={t("Branco")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -392,7 +395,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="quilometragem_atual"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quilometragem Atual</FormLabel>
+                    <FormLabel>{t("Quilometragem Atual")}</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
@@ -411,7 +414,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="quilometragem_maxima_mensal"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Limite Km Mensal</FormLabel>
+                    <FormLabel>{t("Limite Km Mensal")}</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
@@ -430,17 +433,17 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status</FormLabel>
+                    <FormLabel>{t("Status")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o status" />
+                          <SelectValue placeholder={t("Selecione o status")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="disponivel">Disponível</SelectItem>
-                        <SelectItem value="em_uso">Em Uso</SelectItem>
-                        <SelectItem value="manutencao">Manutenção</SelectItem>
+                        <SelectItem value="disponivel">{t("Disponível")}</SelectItem>
+                        <SelectItem value="em_uso">{t("Em Uso")}</SelectItem>
+                        <SelectItem value="manutencao">{t("Manutenção")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -455,16 +458,16 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="tipo_propriedade"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Propriedade</FormLabel>
+                    <FormLabel>{t("Tipo de Propriedade")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo" />
+                          <SelectValue placeholder={t("Selecione o tipo")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="proprio">Próprio</SelectItem>
-                        <SelectItem value="alugado">Alugado</SelectItem>
+                        <SelectItem value="proprio">{t("Próprio")}</SelectItem>
+                        <SelectItem value="alugado">{t("Alugado")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -478,11 +481,11 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                   name="fornecedor_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Fornecedor / locadora *</FormLabel>
+                      <FormLabel>{t("Fornecedor / locadora *")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione entre os fornecedores cadastrados" />
+                            <SelectValue placeholder={t("Selecione entre os fornecedores cadastrados")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -500,9 +503,9 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
               )}
               
               <FormField control={form.control} name="tipo_uso" render={({ field }) => (
-                <FormItem><FormLabel>Forma de utilização</FormLabel>
+                <FormItem><FormLabel>{t("Forma de utilização")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                    <SelectContent><SelectItem value="compartilhado">Compartilhado pelo setor</SelectItem><SelectItem value="dedicado">Uso exclusivo</SelectItem></SelectContent>
+                    <SelectContent><SelectItem value="compartilhado">{t("Compartilhado pelo setor")}</SelectItem><SelectItem value="dedicado">{t("Uso exclusivo")}</SelectItem></SelectContent>
                   </Select><FormMessage />
                 </FormItem>
               )}/>
@@ -511,18 +514,18 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="obra_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Obra responsável *</FormLabel>
+                    <FormLabel>{t("Obra responsável *")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione a obra" /></SelectTrigger></FormControl>
-                      <SelectContent>{obras.length === 0 ? <SelectItem value="no-obras" disabled>Nenhuma obra disponível</SelectItem> : obras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nome} - {obra.status}</SelectItem>)}</SelectContent>
+                      <FormControl><SelectTrigger><SelectValue placeholder={t("Selecione a obra")} /></SelectTrigger></FormControl>
+                      <SelectContent>{obras.length === 0 ? <SelectItem value="no-obras" disabled>{t("Nenhuma obra disponível")}</SelectItem> : obras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.nome} - {siteStatusLabel(obra.status, t)}</SelectItem>)}</SelectContent>
                     </Select><FormMessage />
                   </FormItem>
                 )}
               />}
               {form.watch("tipo_uso") === "compartilhado" && <FormField control={form.control} name="setor_id" render={({ field }) => (
-                <FormItem><FormLabel>Setor responsável *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || "none"}><FormControl><SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger></FormControl>
-                    <SelectContent><SelectItem value="none">Selecione um setor</SelectItem>{setores.map((setor) => <SelectItem key={setor.id} value={setor.id}>{setor.nome}{setor.departamentos?.nome ? ` · ${setor.departamentos.nome}` : ""}</SelectItem>)}</SelectContent>
+                <FormItem><FormLabel>{t("Setor responsável *")}</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || "none"}><FormControl><SelectTrigger><SelectValue placeholder={t("Selecione o setor")} /></SelectTrigger></FormControl>
+                    <SelectContent><SelectItem value="none">{t("Selecione um setor")}</SelectItem>{setores.map((setor) => <SelectItem key={setor.id} value={setor.id}>{setor.nome}{setor.departamentos?.nome ? ` · ${setor.departamentos.nome}` : ""}</SelectItem>)}</SelectContent>
                   </Select><FormMessage />
                 </FormItem>
               )}/>}
@@ -531,15 +534,15 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                 name="responsavel_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Condutor responsável *</FormLabel>
+                    <FormLabel>{t("Condutor responsável *")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || "none"}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione um responsável" />
+                          <SelectValue placeholder={t("Selecione um responsável")} />
                         </SelectTrigger>
                       </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">Nenhum responsável</SelectItem>
+                          <SelectItem value="none">{t("Nenhum responsável")}</SelectItem>
                           {employees.map((employee) => (
                             <SelectItem key={employee.id} value={employee.id}>
                               {employee.nome}
@@ -553,23 +556,23 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                />}
              </div>
 
-            {form.watch("tipo_uso") === "compartilhado" && <p className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">Veículo compartilhado permanece sob responsabilidade do setor. O condutor será registrado na saída, inspeção ou abastecimento.</p>}
+            {form.watch("tipo_uso") === "compartilhado" && <p className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">{t("Veículo compartilhado permanece sob responsabilidade do setor. O condutor será registrado na saída, inspeção ou abastecimento.")}</p>}
 
             {form.watch("tipo_propriedade") === "alugado" && <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
-              <div><p className="font-medium">Condições da locação</p><p className="text-xs text-muted-foreground">A mensalidade e o excedente serão apropriados automaticamente no custo da obra vinculada.</p></div>
+              <div><p className="font-medium">{t("Condições da locação")}</p><p className="text-xs text-muted-foreground">{t("A mensalidade e o excedente serão apropriados automaticamente no custo da obra vinculada.")}</p></div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <FormField control={form.control} name="numero_contrato_locacao" render={({ field }) => <FormItem><FormLabel>Nº do contrato</FormLabel><FormControl><Input placeholder="Ex.: CT-2026-015" {...field}/></FormControl><FormMessage/></FormItem>}/>
-                <FormField control={form.control} name="data_inicio_locacao" render={({ field }) => <FormItem><FormLabel>Início da locação</FormLabel><FormControl><Input type="date" {...field}/></FormControl><FormMessage/></FormItem>}/>
-                <FormField control={form.control} name="data_fim_locacao" render={({ field }) => <FormItem><FormLabel>Término previsto</FormLabel><FormControl><Input type="date" {...field}/></FormControl><FormMessage/></FormItem>}/>
-                <FormField control={form.control} name="franquia_km_mensal" render={({ field }) => <FormItem><FormLabel>Franquia de KM / mês</FormLabel><FormControl><Input type="number" min="0" placeholder="Ex.: 3000" {...field} onChange={e=>field.onChange(Number(e.target.value)||0)}/></FormControl><FormMessage/></FormItem>}/>
-                <FormField control={form.control} name="valor_km_excedente" render={({ field }) => <FormItem><FormLabel>Valor por KM excedente (R$)</FormLabel><FormControl><Input type="number" min="0" step="0.0001" placeholder="0,00" {...field} onChange={e=>field.onChange(Number(e.target.value)||0)}/></FormControl><FormMessage/></FormItem>}/>
+                <FormField control={form.control} name="numero_contrato_locacao" render={({ field }) => <FormItem><FormLabel>{t("Nº do contrato")}</FormLabel><FormControl><Input placeholder={t("Ex.: CT-2026-015")} {...field}/></FormControl><FormMessage/></FormItem>}/>
+                <FormField control={form.control} name="data_inicio_locacao" render={({ field }) => <FormItem><FormLabel>{t("Início da locação")}</FormLabel><FormControl><Input type="date" {...field}/></FormControl><FormMessage/></FormItem>}/>
+                <FormField control={form.control} name="data_fim_locacao" render={({ field }) => <FormItem><FormLabel>{t("Término previsto")}</FormLabel><FormControl><Input type="date" {...field}/></FormControl><FormMessage/></FormItem>}/>
+                <FormField control={form.control} name="franquia_km_mensal" render={({ field }) => <FormItem><FormLabel>{t("Franquia de KM / mês")}</FormLabel><FormControl><Input type="number" min="0" placeholder={t("Ex.: 3000")} {...field} onChange={e=>field.onChange(Number(e.target.value)||0)}/></FormControl><FormMessage/></FormItem>}/>
+                <FormField control={form.control} name="valor_km_excedente" render={({ field }) => <FormItem><FormLabel>{t("Valor por KM excedente (R$)")}</FormLabel><FormControl><Input type="number" min="0" step="0.0001" placeholder="0,00" {...field} onChange={e=>field.onChange(Number(e.target.value)||0)}/></FormControl><FormMessage/></FormItem>}/>
               </div>
             </div>}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="limite_lavagens_mensal" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Limite Lavagens / Mês</FormLabel>
+                  <FormLabel>{t("Limite Lavagens / Mês")}</FormLabel>
                   <FormControl>
                     <Input type="number" placeholder="4" {...field}
                       onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
@@ -579,7 +582,7 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
               )} />
               <FormField control={form.control} name="valor_aluguel_mensal" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Valor Aluguel / Mês (R$)</FormLabel>
+                  <FormLabel>{t("Valor Aluguel / Mês (R$)")}</FormLabel>
                   <FormControl>
                     <Input type="number" step="0.01" placeholder="0,00" {...field}
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
@@ -598,26 +601,22 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <span className="text-sm font-semibold">Rastreador GPS (Traccar)</span>
+                <span className="text-sm font-semibold">{t("Rastreador GPS (Traccar)")}</span>
               </div>
               <FormField
                 control={form.control}
                 name="traccar_device_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs text-muted-foreground">
-                      ID do Dispositivo Traccar
-                    </FormLabel>
+                    <FormLabel className="text-xs text-muted-foreground">{t("ID do Dispositivo Traccar")}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Ex: 42  (veja em Configurações → GPS / Traccar)"
+                        placeholder={t("Ex: 42  (veja em Configurações → GPS / Traccar)")}
                         {...field}
                         className="font-mono"
                       />
                     </FormControl>
-                    <p className="text-xs text-muted-foreground">
-                      Deixe em branco se o veículo não possui rastreador.
-                    </p>
+                    <p className="text-xs text-muted-foreground">{t("Deixe em branco se o veículo não possui rastreador.")}</p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -629,10 +628,10 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
+                  <FormLabel>{t("Observações")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observações sobre o veículo..."
+                      placeholder={t("Observações sobre o veículo...")}
                       className="resize-none"
                       {...field}
                     />
@@ -643,11 +642,9 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
             />
             
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
-              </Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("Cancelar")}</Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : vehicle ? "Salvar" : "Cadastrar"}
+                {isSubmitting ? t("Salvando...") : vehicle ? t("Salvar") : t("Cadastrar")}
               </Button>
             </DialogFooter>
           </form>
