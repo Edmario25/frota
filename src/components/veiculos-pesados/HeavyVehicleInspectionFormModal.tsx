@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { enUS, es, ptBR } from "date-fns/locale";
 import { CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -47,6 +47,7 @@ import { PhotoUpload } from "@/components/ui/photo-upload";
 
 import { getChecklistItemColor } from "@/lib/statusHelpers";
 import { useHeavyVehicleInspections } from "@/hooks/useHeavyVehicleInspections";
+import { useI18n } from "@/i18n";
 
 const formSchema = z.object({
   vehicle_id: z.string().min(1, "Selecione um veículo"),
@@ -177,6 +178,8 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
   const { role: userRole } = useUserRole();
   const { employee: currentEmployee } = useCurrentEmployee();
   const { createInspection, createInspectionItem, updateInspection } = useHeavyVehicleInspections();
+  const { t, date, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   
   const [inspectionItems, setInspectionItems] = useState<InspectionItem[]>([]);
   const [checklistPhotos, setChecklistPhotos] = useState<{
@@ -346,7 +349,7 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {inspection ? "Editar Inspeção" : "Nova Inspeção de Veículo Pesado"}
+            {inspection ? t("Editar Inspeção") : t("Nova Inspeção de Veículo Pesado")}
           </DialogTitle>
         </DialogHeader>
 
@@ -359,11 +362,11 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                 name="vehicle_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Veículo</FormLabel>
+                    <FormLabel>{t("Veículo")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o veículo" />
+                          <SelectValue placeholder={t("Selecione o veículo")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -385,7 +388,7 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                 name="data_inspecao"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Data da Inspeção</FormLabel>
+                    <FormLabel>{t("Data da Inspeção")}</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -397,9 +400,9 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                             )}
                           >
                             {field.value ? (
-                              format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                              date(field.value)
                             ) : (
-                              <span>Selecione a data</span>
+                              <span>{t("Selecione a data")}</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -411,7 +414,7 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                           selected={field.value}
                           onSelect={field.onChange}
                           initialFocus
-                          locale={ptBR}
+                          locale={calendarLocale}
                           className="pointer-events-auto"
                         />
                       </PopoverContent>
@@ -427,9 +430,9 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                 name="inspetor_nome"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome do Inspetor</FormLabel>
+                    <FormLabel>{t("Nome do Inspetor")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nome completo do inspetor" {...field} />
+                      <Input placeholder={t("Nome completo do inspetor")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -442,9 +445,9 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                 name="inspetor_funcao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Função do Inspetor</FormLabel>
+                    <FormLabel>{t("Função do Inspetor")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: Técnico de Segurança, Mecânico" {...field} />
+                      <Input placeholder={t("Ex: Técnico de Segurança, Mecânico")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -457,7 +460,7 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                 name="km_atual"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quilometragem Atual</FormLabel>
+                    <FormLabel>{t("Quilometragem Atual")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -477,17 +480,17 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                 name="status_geral"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status da Inspeção</FormLabel>
+                    <FormLabel>{t("Status da Inspeção")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o status" />
+                          <SelectValue placeholder={t("Selecione o status")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="pendente">Pendente</SelectItem>
-                        <SelectItem value="aprovado">Aprovado</SelectItem>
-                        <SelectItem value="reprovado">Reprovado</SelectItem>
+                        <SelectItem value="pendente">{t("Pendente")}</SelectItem>
+                        <SelectItem value="aprovado">{t("Aprovado")}</SelectItem>
+                        <SelectItem value="reprovado">{t("Reprovado")}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -501,7 +504,7 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
             {/* Inspection Items by Category */}
             {!inspection && (
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Itens de Inspeção por Categoria</h3>
+                <h3 className="text-lg font-medium">{t("Itens de Inspeção por Categoria")}</h3>
                 <Tabs defaultValue={Object.keys(INSPECTION_CATEGORIES)[0]} className="w-full">
                   <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
                     {Object.keys(INSPECTION_CATEGORIES).map((categoria) => (
@@ -549,7 +552,7 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                               {item.status !== 'NA' && (
                                 <div>
                                   <Input
-                                    placeholder="Observações sobre este item"
+                                    placeholder={t("Observações sobre este item")}
                                     value={item.observacoes || ''}
                                     onChange={(e) => updateInspectionItem(globalIndex, 'observacoes', e.target.value)}
                                   />
@@ -569,9 +572,10 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
 
             {/* General Photos */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Fotos do Checklist</h3>
+              <h3 className="text-lg font-medium">{t("Fotos do Checklist")}</h3>
               <div className="grid grid-cols-1 gap-3">
                 {[
+                  // Labels are the Portuguese catalog keys; they are translated when rendered.
                   { key: 'frente', label: 'Foto 1: Frente', icon: '🚗' },
                   { key: 'traseira', label: 'Foto 2: Traseira', icon: '🚙' },
                   { key: 'lado_direito', label: 'Foto 3: Lado Direito', icon: '➡️' },
@@ -581,7 +585,7 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
                   <div key={categoria.key} className="border-2 border-dashed border-muted rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span>{categoria.icon}</span>
-                      <span className="text-sm font-medium">{categoria.label}</span>
+                      <span className="text-sm font-medium">{t(categoria.label)}</span>
                     </div>
                     <PhotoUpload
                       label=""
@@ -605,10 +609,10 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
               name="observacoes_gerais"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações Gerais</FormLabel>
+                  <FormLabel>{t("Observações Gerais")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observações gerais sobre a inspeção..."
+                      placeholder={t("Observações gerais sobre a inspeção...")}
                       className="resize-none"
                       {...field}
                     />
@@ -620,10 +624,10 @@ export const HeavyVehicleInspectionFormModal: React.FC<HeavyVehicleInspectionFor
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button type="submit">
-                {inspection ? "Atualizar" : "Salvar"} Inspeção
+                {inspection ? t("Atualizar") : t("Salvar")} {t("Inspeção")}
               </Button>
             </div>
           </form>

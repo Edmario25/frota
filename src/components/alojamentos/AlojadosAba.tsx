@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import { Dados, dataCurta, dataHora } from "./shared";
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 type Visao = "ativos" | "reservas" | "historico";
 
 export function AlojadosAba({ dados, leitoIds, nome, onLeito, onCancelarReserva, onNoShow }: Props) {
+  const { t, number, date } = useI18n();
   const [visao, setVisao] = useState<Visao>("ativos");
   const [busca, setBusca] = useState("");
 
@@ -49,6 +51,9 @@ export function AlojadosAba({ dados, leitoIds, nome, onLeito, onCancelarReserva,
     .sort((a, b) => String(b.data_saida).localeCompare(String(a.data_saida)))
     .slice(0, 300);
 
+  // Labels are the Portuguese catalog keys; they are translated when rendered.
+  // Labels are the Portuguese catalog keys; they are translated when rendered.
+  // Labels are the Portuguese catalog keys; they are translated when rendered.
   const abas: [Visao, string, number][] = [
     ["ativos", "Alojados agora", ativos.length],
     ["reservas", "Reservas", reservas.length],
@@ -63,13 +68,13 @@ export function AlojadosAba({ dados, leitoIds, nome, onLeito, onCancelarReserva,
             <button key={id} onClick={() => setVisao(id)}
               className={cn("rounded-full border px-3 py-1 text-xs font-medium",
                 visao === id ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>
-              {label} <span className="opacity-70">{n}</span>
+              {t(label)} <span className="opacity-70">{n}</span>
             </button>
           ))}
         </div>
         <div className="relative w-full md:w-80">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Nome, bloco ou quarto" className="h-9 pl-8" />
+          <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder={t("Nome, bloco ou quarto")} className="h-9 pl-8" />
         </div>
       </div>
 
@@ -81,8 +86,8 @@ export function AlojadosAba({ dados, leitoIds, nome, onLeito, onCancelarReserva,
             const ausente = o.presenca_status === "ausente_temporariamente";
             return (
               <Linha key={o.id} titulo={nome(o.employee_id)} sub={`${texto} · desde ${dataCurta(o.data_entrada)}`}
-                selo={ausente ? <Badge variant="secondary">Ausente</Badge> : null}
-                acao={<Button size="sm" variant="outline" onClick={() => onLeito(leito)}><BedDouble className="mr-1.5 h-3.5 w-3.5" />Abrir leito</Button>} />
+                selo={ausente ? <Badge variant="secondary">{t("Ausente")}</Badge> : null}
+                acao={<Button size="sm" variant="outline" onClick={() => onLeito(leito)}><BedDouble className="mr-1.5 h-3.5 w-3.5" />{t("Abrir leito")}</Button>} />
             );
           }))}
 
@@ -92,15 +97,15 @@ export function AlojadosAba({ dados, leitoIds, nome, onLeito, onCancelarReserva,
             const { leito, texto } = onde(r.leito_id);
             const hoje = new Date().toISOString().slice(0, 10);
             const atrasada = r.inicio_previsto < hoje;
-            const termina = r.fim_previsto ? ` até ${new Date(`${r.fim_previsto}T12:00:00`).toLocaleDateString("pt-BR")}` : "";
+            const termina = r.fim_previsto ? ` até ${date(`${r.fim_previsto}T12:00:00`)}` : "";
             return (
               <Linha key={r.id} titulo={nome(r.employee_id)}
-                sub={`${texto} · ${new Date(`${r.inicio_previsto}T12:00:00`).toLocaleDateString("pt-BR")}${termina}`}
-                selo={atrasada ? <Badge variant="destructive">Entrada atrasada</Badge> : null}
+                sub={`${texto} · ${date(`${r.inicio_previsto}T12:00:00`)}${termina}`}
+                selo={atrasada ? <Badge variant="destructive">{t("Entrada atrasada")}</Badge> : null}
                 acao={<div className="flex gap-2">
-                  {atrasada && <Button size="sm" variant="outline" onClick={() => onNoShow(r)}>Não compareceu</Button>}
-                  <Button size="sm" variant="ghost" onClick={() => onCancelarReserva(r)}>Cancelar</Button>
-                  <Button size="sm" variant="outline" onClick={() => onLeito(leito)}>Abrir leito</Button>
+                  {atrasada && <Button size="sm" variant="outline" onClick={() => onNoShow(r)}>{t("Não compareceu")}</Button>}
+                  <Button size="sm" variant="ghost" onClick={() => onCancelarReserva(r)}>{t("Cancelar")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => onLeito(leito)}>{t("Abrir leito")}</Button>
                 </div>} />
             );
           }))}

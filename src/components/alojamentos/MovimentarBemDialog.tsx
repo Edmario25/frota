@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useI18n } from "@/i18n";
 import { Dados, ESTADO_BEM, localDoBem } from "./shared";
 
 const GERAL = "__geral";
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function MovimentarBemDialog({ bem, onClose, dados, onDone }: Props) {
+  const { t } = useI18n();
   const [unidade, setUnidade] = useState("");
   const [ambiente, setAmbiente] = useState(GERAL);
   const [leito, setLeito] = useState(QUARTO_TODO);
@@ -50,8 +52,8 @@ export function MovimentarBemDialog({ bem, onClose, dados, onDone }: Props) {
     (leito === QUARTO_TODO || !ehQuarto ? null : leito) === (bem.leito_id ?? null);
 
   async function salvar() {
-    if (motivo.trim().length < 3) return toast.error("Informe o motivo da movimentação.");
-    if (mesmoLugar && estado === "manter") return toast.error("Escolha outro local ou altere o estado.");
+    if (motivo.trim().length < 3) return toast.error(t("Informe o motivo da movimentação."));
+    if (mesmoLugar && estado === "manter") return toast.error(t("Escolha outro local ou altere o estado."));
     setSalvando(true);
     const { error } = await (supabase as any).rpc("alojamento_movimentar_bem", {
       p_bem: bem.id,
@@ -63,7 +65,7 @@ export function MovimentarBemDialog({ bem, onClose, dados, onDone }: Props) {
     });
     setSalvando(false);
     if (error) return toast.error(error.message);
-    toast.success(mesmoLugar ? "Estado do bem atualizado." : "Bem movimentado e registrado no histórico.");
+    toast.success(mesmoLugar ? t("Estado do bem atualizado.") : t("Bem movimentado e registrado no histórico."));
     onClose();
     onDone();
   }
@@ -72,17 +74,17 @@ export function MovimentarBemDialog({ bem, onClose, dados, onDone }: Props) {
     <Dialog open={!!bem} onOpenChange={o => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Movimentar bem</DialogTitle>
+          <DialogTitle>{t("Movimentar bem")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1">
           <div className="rounded-lg border bg-muted/40 p-3">
             <p className="font-medium">{bem.descricao}</p>
             <p className="font-mono text-xs text-muted-foreground">{bem.tombamento}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Hoje em: {localDoBem(bem, dados)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("Hoje em:")} {localDoBem(bem, dados)}</p>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Unidade de destino</Label>
+            <Label>{t("Unidade de destino")}</Label>
             <Select value={unidade} onValueChange={v => { setUnidade(v); setAmbiente(GERAL); setLeito(QUARTO_TODO); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -93,33 +95,33 @@ export function MovimentarBemDialog({ bem, onClose, dados, onDone }: Props) {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1.5">
-              <Label>Ambiente</Label>
+              <Label>{t("Ambiente")}</Label>
               <Select value={ambiente} onValueChange={v => { setAmbiente(v); setLeito(QUARTO_TODO); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={GERAL}>Área geral / depósito</SelectItem>
+                  <SelectItem value={GERAL}>{t("Área geral / depósito")}</SelectItem>
                   {ambientes.map(a => <SelectItem key={a.id} value={a.id}>{a.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Leito</Label>
+              <Label>{t("Leito")}</Label>
               <Select value={leito} onValueChange={setLeito} disabled={!ehQuarto}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={QUARTO_TODO}>Quarto inteiro</SelectItem>
-                  {leitos.map(l => <SelectItem key={l.id} value={l.id}>Leito {l.identificacao}</SelectItem>)}
+                  <SelectItem value={QUARTO_TODO}>{t("Quarto inteiro")}</SelectItem>
+                  {leitos.map(l => <SelectItem key={l.id} value={l.id}>{t("Leito")} {l.identificacao}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Estado</Label>
+            <Label>{t("Estado")}</Label>
             <Select value={estado} onValueChange={setEstado}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="manter">Manter ({ESTADO_BEM[bem.estado]?.label ?? bem.estado})</SelectItem>
+                <SelectItem value="manter">{t("Manter ({state})", { state: t(ESTADO_BEM[bem.estado]?.label ?? bem.estado) })}</SelectItem>
                 {["novo", "bom", "regular", "danificado", "inservivel"].map(e => (
                   <SelectItem key={e} value={e}>{ESTADO_BEM[e].label}</SelectItem>
                 ))}
@@ -128,19 +130,19 @@ export function MovimentarBemDialog({ bem, onClose, dados, onDone }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Motivo</Label>
+            <Label>{t("Motivo")}</Label>
             <Textarea
               value={motivo}
               onChange={e => setMotivo(e.target.value)}
-              placeholder="Ex.: troca de colchão, TV levada para manutenção, redistribuição entre blocos"
+              placeholder={t("Ex.: troca de colchão, TV levada para manutenção, redistribuição entre blocos")}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose}>{t("Cancelar")}</Button>
           <Button onClick={salvar} disabled={salvando}>
             {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MoveRight className="mr-2 h-4 w-4" />}
-            Movimentar
+            {t("Movimentar")}
           </Button>
         </DialogFooter>
       </DialogContent>

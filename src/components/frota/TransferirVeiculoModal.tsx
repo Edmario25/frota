@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useObras } from "@/hooks/useObras";
 import type { Database } from "@/integrations/supabase/types";
+import { useI18n } from "@/i18n";
 
 type Vehicle = Database["public"]["Tables"]["vehicles"]["Row"];
 
@@ -26,6 +27,7 @@ interface Props {
 export function TransferirVeiculoModal({ open, onOpenChange, vehicle, onSuccess }: Props) {
   const { toast } = useToast();
   const { obras } = useObras();
+  const { t } = useI18n();
   const [obraDestinoId, setObraDestinoId] = useState("");
   const [dataTransferencia, setDataTransferencia] = useState(new Date().toISOString().split("T")[0]);
   const [loading, setLoading] = useState(false);
@@ -60,15 +62,18 @@ export function TransferirVeiculoModal({ open, onOpenChange, vehicle, onSuccess 
 
       const obraDestino = obras.find(o => o.id === obraDestinoId);
       toast({
-        title: "Veículo transferido",
-        description: `${vehicle.placa} transferido para ${obraDestino?.nome ?? "nova obra"} com sucesso.`,
+        title: t("Veículo transferido"),
+        description: t("{plate} transferido para {site} com sucesso.", {
+          plate: vehicle.placa,
+          site: obraDestino?.nome ?? t("nova obra"),
+        }),
       });
 
       setObraDestinoId("");
       onOpenChange(false);
       onSuccess();
     } catch (err: any) {
-      toast({ title: "Erro ao transferir veículo", description: err.message, variant: "destructive" });
+      toast({ title: t("Erro ao transferir veículo"), description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -84,24 +89,24 @@ export function TransferirVeiculoModal({ open, onOpenChange, vehicle, onSuccess 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowLeftRight className="h-5 w-5 text-blue-600" />
-            Transferir Veículo
+            {t("Transferir Veículo")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* Info do veículo */}
           <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">Veículo</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">{t("Veículo")}</p>
             <p className="font-bold text-foreground">{vehicle.placa}</p>
             <p className="text-sm text-muted-foreground">{vehicle.marca} {vehicle.modelo} · {vehicle.ano}</p>
           </div>
 
           {/* Obra destino */}
           <div className="space-y-1.5">
-            <Label>Obra destino <span className="text-destructive">*</span></Label>
+            <Label>{t("Obra destino")} <span className="text-destructive">*</span></Label>
             <Select value={obraDestinoId} onValueChange={setObraDestinoId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione a obra destino..." />
+                <SelectValue placeholder={t("Selecione a obra destino...")} />
               </SelectTrigger>
               <SelectContent>
                 {obrasAtivas.map(obra => (
@@ -116,7 +121,7 @@ export function TransferirVeiculoModal({ open, onOpenChange, vehicle, onSuccess 
 
           {/* Data */}
           <div className="space-y-1.5">
-            <Label>Data da transferência</Label>
+            <Label>{t("Data da transferência")}</Label>
             <Input
               type="date"
               value={dataTransferencia}
@@ -125,21 +130,21 @@ export function TransferirVeiculoModal({ open, onOpenChange, vehicle, onSuccess 
           </div>
 
           <p className="text-xs text-muted-foreground">
-            O histórico na obra atual será mantido com a data de saída registrada. O veículo permanecerá <strong>Em Uso</strong> na nova obra.
+            {t("O histórico na obra atual será mantido com a data de saída registrada. O veículo permanecerá Em Uso na nova obra.")}
           </p>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancelar
+            {t("Cancelar")}
           </Button>
           <Button
             onClick={handleTransferir}
             disabled={loading || !obraDestinoId}
           >
             {loading
-              ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Transferindo...</>
-              : <><ArrowLeftRight className="h-4 w-4 mr-2" />Confirmar Transferência</>
+              ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("Transferindo...")}</>
+              : <><ArrowLeftRight className="h-4 w-4 mr-2" />{t("Confirmar Transferência")}</>
             }
           </Button>
         </DialogFooter>

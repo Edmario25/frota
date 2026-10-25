@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -29,6 +30,7 @@ interface Props {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+// Labels are the Portuguese catalog keys; they are translated when rendered.
 const trStatusStyle: Record<string, { label: string; cls: string }> = {
   em_dia:   { label: "Em dia",   cls: "bg-green-100 text-green-800" },
   a_vencer: { label: "A vencer", cls: "bg-amber-100 text-amber-800" },
@@ -44,6 +46,7 @@ function trIcone(status: string) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props) {
+  const { t, date } = useI18n();
   const { toast } = useToast()
   const [qrDataUrl, setQrDataUrl] = useState<string>("")
   const [treinamentos, setTrein]  = useState<Treinamento[]>([])
@@ -72,7 +75,7 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
   const gerarQr = async () => {
     try {
       const { data: token, error } = await (supabase as any).rpc("obter_token_cracha", { p_employee: employee.id })
-      if (error || !token) throw error ?? new Error("Token do crachá indisponível")
+      if (error || !token) throw error ?? new Error(t("Token do crachá indisponível"))
       const QRCode = (await import("qrcode")).default
       const url = await QRCode.toDataURL(token, {
         width: 500, margin: 2,
@@ -82,20 +85,20 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
       setQrDataUrl(url)
     } catch (e: any) {
       setQrDataUrl("")
-      toast({ title: "Não foi possível gerar o QR seguro", description: e?.message, variant: "destructive" })
+      toast({ title: t("Não foi possível gerar o QR seguro"), description: e?.message, variant: "destructive" })
     }
   }
 
   const renovarQr = async () => {
-    if (!window.confirm("O QR Code anterior deixará de funcionar. Deseja continuar?")) return
+    if (!window.confirm(t("O QR Code anterior deixará de funcionar. Deseja continuar?"))) return
     setLoading(true)
     try {
       const { data, error } = await (supabase as any).rpc("renovar_token_cracha", { p_employee: employee.id })
       if (error) throw error
       const QRCode = (await import("qrcode")).default
       setQrDataUrl(await QRCode.toDataURL(data, { width: 500, margin: 2, color: { dark: "#0f172a", light: "#ffffff" }, errorCorrectionLevel: "H" }))
-      toast({ title: "QR Code renovado", description: "Imprima um novo crachá. O anterior foi revogado." })
-    } catch (e: any) { toast({ title: "Falha ao renovar", description: e?.message, variant: "destructive" }) }
+      toast({ title: t("QR Code renovado"), description: t("Imprima um novo crachá. O anterior foi revogado.") })
+    } catch (e: any) { toast({ title: t("Falha ao renovar"), description: e?.message, variant: "destructive" }) }
     finally { setLoading(false) }
   }
 
@@ -106,10 +109,10 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
       .eq("colaborador_id", employee.id)
       .order("status")
     setTrein(
-      (data ?? []).map((t: any) => ({
-        nome: t.sms_treinamentos_catalogo?.nome ?? "—",
-        status: t.status ?? "pendente",
-        data_vencimento: t.data_vencimento,
+      (data ?? []).map((treino: any) => ({
+        nome: treino.sms_treinamentos_catalogo?.nome ?? "—",
+        status: treino.status ?? "pendente",
+        data_vencimento: treino.data_vencimento,
       }))
     )
   }
@@ -168,7 +171,7 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
     const html = gerarHtmlCracha()
     const win = window.open("", "_blank", "width=900,height=700")
     if (!win) {
-      toast({ title: "Popup bloqueado", description: "Permita popups e tente novamente.", variant: "destructive" })
+      toast({ title: t("Popup bloqueado"), description: t("Permita popups e tente novamente."), variant: "destructive" })
       return
     }
     win.document.write(html)
@@ -191,8 +194,8 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
   // ── HTML imprimível ───────────────────────────────────────────────────────
 
   const gerarHtmlCracha = () => {
-    const vencidos  = treinamentos.filter(t => t.status === "vencido").length
-    const aVencer   = treinamentos.filter(t => t.status === "a_vencer").length
+    const vencidos  = treinamentos.filter(treino => treino.status === "vencido").length
+    const aVencer   = treinamentos.filter(treino => treino.status === "a_vencer").length
     const statusCor = vencidos > 0 ? "#dc2626" : aVencer > 0 ? "#d97706" : "#16a34a"
     const statusTxt = vencidos > 0 ? "IRREGULAR" : aVencer > 0 ? "A VENCER" : "REGULAR"
 
@@ -204,14 +207,14 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
       ? `<img src="${fotoSrcHtml}" style="width:100%;height:100%;object-fit:cover;" />`
       : `<div style="width:100%;height:100%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#475569;">${iniciais}</div>`
 
-    const trRows = treinamentos.map(t => {
-      const cor = t.status === "em_dia" ? "#16a34a" : t.status === "a_vencer" ? "#d97706" : "#dc2626"
-      const venc = t.data_vencimento
-        ? new Date(t.data_vencimento).toLocaleDateString("pt-BR")
+    const trRows = treinamentos.map(treino => {
+      const cor = treino.status === "em_dia" ? "#16a34a" : treino.status === "a_vencer" ? "#d97706" : "#dc2626"
+      const venc = treino.data_vencimento
+        ? date(treino.data_vencimento)
         : "—"
       return `<tr>
-        <td style="padding:2.5px 5px;font-size:8.5px;border-bottom:1px solid #f1f5f9">${t.nome}</td>
-        <td style="padding:2.5px 5px;font-size:8.5px;font-weight:700;color:${cor};border-bottom:1px solid #f1f5f9">${t.status.replace("_"," ").toUpperCase()}</td>
+        <td style="padding:2.5px 5px;font-size:8.5px;border-bottom:1px solid #f1f5f9">${treino.nome}</td>
+        <td style="padding:2.5px 5px;font-size:8.5px;font-weight:700;color:${cor};border-bottom:1px solid #f1f5f9">${treino.status.replace("_"," ").toUpperCase()}</td>
         <td style="padding:2.5px 5px;font-size:8.5px;color:#64748b;border-bottom:1px solid #f1f5f9">${venc}</td>
       </tr>`
     }).join("") || `<tr><td colspan="3" style="padding:6px;text-align:center;font-size:8px;color:#94a3b8">Nenhum treinamento registrado</td></tr>`
@@ -360,13 +363,13 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
       <div class="footer-row">
         <span class="footer-txt">ID: ${employee.id.slice(0, 8).toUpperCase()}</span>
         ${employee.cpf ? `<span class="footer-txt">· CPF: ${employee.cpf}</span>` : ""}
-        ${employee.data_admissao ? `<span class="footer-txt">· Adm: ${new Date(employee.data_admissao).toLocaleDateString("pt-BR")}</span>` : ""}
+        ${employee.data_admissao ? `<span class="footer-txt">· Adm: ${date(employee.data_admissao)}</span>` : ""}
       </div>
     </div>
 
     <!-- QR grande -->
     <div class="qr-area">
-      ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR Code"/>` : ""}
+      ${qrDataUrl ? `<img src="${qrDataUrl}" alt={t("QR Code")}/>` : ""}
       <span class="qr-label">PONTO QR</span>
     </div>
   </div>
@@ -398,7 +401,7 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
       </div>
       <div class="back-footer">
         <span class="back-footer-txt">ID: ${employee.id.slice(0, 8).toUpperCase()}</span>
-        <span class="back-footer-txt">Gerado em ${new Date().toLocaleDateString("pt-BR")}</span>
+        <span class="back-footer-txt">Gerado em ${date(new Date())}</span>
       </div>
     </div>
   </div>
@@ -416,8 +419,8 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
 
   // ── Preview no dialog ─────────────────────────────────────────────────────
 
-  const vencidos  = treinamentos.filter(t => t.status === "vencido").length
-  const aVencer   = treinamentos.filter(t => t.status === "a_vencer").length
+  const vencidos  = treinamentos.filter(treino => treino.status === "vencido").length
+  const aVencer   = treinamentos.filter(treino => treino.status === "a_vencer").length
   const statusCor = vencidos > 0 ? "#dc2626" : aVencer > 0 ? "#d97706" : "#16a34a"
   const statusTxt = vencidos > 0 ? "IRREGULAR" : aVencer > 0 ? "A VENCER" : "REGULAR"
   const iniciais  = employee.nome.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
@@ -429,30 +432,30 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <QrCode className="h-5 w-5 text-primary" />
-            Crachá — {employee.nome}
+            {t("Crachá — {name}", { name: employee.nome })}
           </DialogTitle>
         </DialogHeader>
 
         {loading ? (
           <div className="flex items-center justify-center py-10 text-muted-foreground text-sm">
-            Gerando crachá...
+            {t("Gerando crachá...")}
           </div>
         ) : (
           <div className="space-y-4">
 
             {/* Tabs frente / verso */}
             <div className="flex rounded-lg bg-muted/40 p-1 gap-1">
-              {(["frente", "verso"] as const).map(t => (
+              {(["frente", "verso"] as const).map(aba => (
                 <button
-                  key={t}
-                  onClick={() => setActiveTab(t)}
+                  key={aba}
+                  onClick={() => setActiveTab(aba)}
                   className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                    activeTab === t
+                    activeTab === aba
                       ? "bg-background shadow-sm text-foreground"
                       : "text-muted-foreground"
                   }`}
                 >
-                  {t === "frente" ? "🪪 Frente" : "📋 Verso (treinamentos)"}
+                  {aba === "frente" ? "🪪 Frente" : "📋 Verso (treinamentos)"}
                 </button>
               ))}
             </div>
@@ -479,7 +482,7 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
                 <div className="flex items-start py-3 pl-2 flex-shrink-0">
                   <div className="w-14 h-[72px] rounded-md overflow-hidden border border-border flex-shrink-0 bg-muted flex items-center justify-center">
                     {fotoSrc ? (
-                      <img src={fotoSrc} alt="foto" className="w-full h-full object-cover" />
+                      <img src={fotoSrc} alt={t("Foto do funcionário")} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-xl font-bold text-muted-foreground">{iniciais}</span>
                     )}
@@ -503,7 +506,7 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
                     </span>
                   </div>
                   <p className="text-[9px] text-muted-foreground">
-                    ID: {employee.id.slice(0, 8).toUpperCase()}
+                    {t("ID:")} {employee.id.slice(0, 8).toUpperCase()}
                     {employee.cpf ? ` · ${employee.cpf}` : ""}
                   </p>
                 </div>
@@ -511,8 +514,8 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
                 {/* QR GRANDE */}
                 {qrDataUrl && (
                   <div className="flex flex-col items-center justify-center px-2 flex-shrink-0 gap-1">
-                    <img src={qrDataUrl} alt="QR" className="w-20 h-20" />
-                    <span className="text-[8px] text-muted-foreground font-medium">PONTO QR</span>
+                    <img src={qrDataUrl} alt={t("QR Code")} className="w-20 h-20" />
+                    <span className="text-[8px] text-muted-foreground font-medium">{t("PONTO QR")}</span>
                   </div>
                 )}
               </div>
@@ -536,23 +539,23 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
                 {/* Tabela de treinamentos */}
                 <div className="flex-1 px-3 py-2 flex flex-col overflow-hidden">
                   <p className="text-[9px] font-black uppercase tracking-wider text-foreground border-b border-border/50 pb-1 mb-1.5">
-                    Treinamentos — {employee.nome.split(" ")[0]}
+                    {t("Treinamentos — {name}", { name: employee.nome.split(" ")[0] })}
                   </p>
                   <div className="flex-1 overflow-y-auto space-y-1">
                     {treinamentos.length === 0 ? (
-                      <p className="text-[10px] text-muted-foreground text-center pt-4">Nenhum treinamento registrado</p>
-                    ) : treinamentos.map((t, i) => {
-                      const st = trStatusStyle[t.status]
+                      <p className="text-[10px] text-muted-foreground text-center pt-4">{t("Nenhum treinamento registrado")}</p>
+                    ) : treinamentos.map((treino, i) => {
+                      const st = trStatusStyle[treino.status]
                       return (
                         <div key={i} className="flex items-center gap-1.5">
-                          {trIcone(t.status)}
-                          <span className="text-[10px] flex-1 truncate">{t.nome}</span>
+                          {trIcone(treino.status)}
+                          <span className="text-[10px] flex-1 truncate">{treino.nome}</span>
                           <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${st.cls} flex-shrink-0`}>
-                            {st.label}
+                            {t(st.label)}
                           </span>
-                          {t.data_vencimento && (
+                          {treino.data_vencimento && (
                             <span className="text-[8px] text-muted-foreground flex-shrink-0">
-                              {new Date(t.data_vencimento).toLocaleDateString("pt-BR")}
+                              {date(treino.data_vencimento)}
                             </span>
                           )}
                         </div>
@@ -560,7 +563,7 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
                     })}
                   </div>
                   <p className="text-[8px] text-muted-foreground border-t border-border/50 pt-1 mt-1">
-                    ID: {employee.id.slice(0, 8).toUpperCase()} · {new Date().toLocaleDateString("pt-BR")}
+                    {t("ID:")} {employee.id.slice(0, 8).toUpperCase()} · {date(new Date())}
                   </p>
                 </div>
               </div>
@@ -570,15 +573,15 @@ export function CrachaFuncionarioDialog({ open, onOpenChange, employee }: Props)
             <div className="flex gap-2 pt-1">
               <Button className="flex-1" onClick={handlePrint}>
                 <Printer className="h-4 w-4 mr-2" />
-                Imprimir Frente + Verso
+                {t("Imprimir Frente + Verso")}
               </Button>
               <Button variant="outline" onClick={handleDownload}>
                 <Download className="h-4 w-4 mr-2" />
-                Baixar HTML
+                {t("Baixar HTML")}
               </Button>
             </div>
             <Button variant="ghost" className="w-full text-destructive" onClick={renovarQr}>
-              Revogar QR anterior e gerar outro
+              {t("Revogar QR anterior e gerar outro")}
             </Button>
           </div>
         )}

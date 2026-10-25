@@ -1,6 +1,4 @@
 import React from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { 
   Calendar, 
   Car, 
@@ -24,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
+import { useI18n } from "@/i18n";
 
 interface SmokeTest {
   id: string;
@@ -61,6 +60,7 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
   onClose,
   smokeTest,
 }) => {
+  const { t, number, date } = useI18n();
   const { vehicles } = useVehicles();
   const { employees } = useEmployees();
 
@@ -70,6 +70,7 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
   const employee = employees.find(e => e.id === smokeTest.employee_id);
   const isApproved = smokeTest.dentro_limite ?? smokeTest.resultado?.toLowerCase() === 'aprovado';
 
+  // The descriptions below are the Portuguese catalog keys; they are translated when rendered.
   const getRingelmannDescription = (indice: number) => {
     const descriptions = {
       1: "Densidade 20% - Fumaça clara",
@@ -95,7 +96,7 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes do Teste de Fumaça - Escala Ringelmann</DialogTitle>
+          <DialogTitle>{t("Detalhes do Teste de Fumaça - Escala Ringelmann")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -107,11 +108,11 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
                 {vehicle?.placa} - {vehicle?.marca} {vehicle?.modelo}
               </p>
               <p className="text-sm text-muted-foreground">
-                Ano: {vehicle?.ano} | Cor: {vehicle?.cor} | Tipo: {vehicle?.tipo}
+                {t("Ano:")} {vehicle?.ano} {t("| Cor:")} {vehicle?.cor} {t("| Tipo:")} {vehicle?.tipo}
               </p>
               {smokeTest.motor_tipo && (
                 <p className="text-sm text-muted-foreground">
-                  Motor: {getMotorTypeLabel(smokeTest.motor_tipo)}
+                  {t("Motor:")} {t(getMotorTypeLabel(smokeTest.motor_tipo))}
                 </p>
               )}
             </div>
@@ -122,7 +123,7 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
           {/* Test Result with Ringelmann Scale */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Resultado do Teste</label>
+              <label className="text-sm font-medium">{t("Resultado do Teste")}</label>
               <div className="flex items-center gap-2">
                 {isApproved ? (
                   <CheckCircle className="h-5 w-5 text-green-600" />
@@ -141,19 +142,19 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
                   <div className="space-y-2">
                     <label className="text-sm font-medium flex items-center gap-2">
                       <Gauge className="h-4 w-4" />
-                      Escala Ringelmann
+                      {t("Escala Ringelmann")}
                     </label>
                     <p className="text-lg font-semibold">
-                      Nº {smokeTest.indice_ringelmann}
+                      {t("Nº")} {smokeTest.indice_ringelmann}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {getRingelmannDescription(smokeTest.indice_ringelmann)}
+                      {t(getRingelmannDescription(smokeTest.indice_ringelmann))}
                     </p>
                   </div>
                   
                   {smokeTest.densidade_percentual && (
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Densidade</label>
+                      <label className="text-sm font-medium">{t("Densidade")}</label>
                       <p className="text-lg font-semibold">
                         {smokeTest.densidade_percentual}%
                       </p>
@@ -171,14 +172,11 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
-                  Data e Hora do Teste
+                  {t("Data e Hora do Teste")}
                 </label>
                 <p className="text-sm">
-                  {format(
-                    new Date(smokeTest.data_hora_teste || smokeTest.data_afericao), 
-                    "dd 'de' MMMM 'de' yyyy 'às' HH:mm", 
-                    { locale: ptBR }
-                  )}
+                  {date(smokeTest.data_hora_teste || smokeTest.data_afericao,
+                    { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
 
@@ -187,9 +185,9 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <Ruler className="h-4 w-4" />
-                    Distância do Observador
+                    {t("Distância do Observador")}
                   </label>
-                  <p className="text-sm">{smokeTest.distancia_observador} metros</p>
+                  <p className="text-sm">{smokeTest.distancia_observador} {t("metros")}</p>
                 </div>
               )}
 
@@ -198,15 +196,15 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <Gauge className="h-4 w-4" />
-                    Quilometragem Atual
+                    {t("Quilometragem Atual")}
                   </label>
-                  <p className="text-sm">{smokeTest.quilometragem_atual?.toLocaleString()} km</p>
+                  <p className="text-sm">{number(smokeTest.quilometragem_atual ?? 0)} km</p>
                 </div>
               )}
 
               {/* Vehicle Manufacturing Year */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Ano de Fabricação</label>
+                <label className="text-sm font-medium">{t("Ano de Fabricação")}</label>
                 <p className="text-sm">{smokeTest.ano_fabricacao}</p>
               </div>
             </div>
@@ -219,24 +217,24 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <User className="h-4 w-4" />
-                Condutor
+                {t("Condutor")}
               </label>
               <p className="text-sm">{smokeTest.condutor}</p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Cargo</label>
+              <label className="text-sm font-medium">{t("Cargo")}</label>
               <p className="text-sm">{smokeTest.cargo}</p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Responsável pela Elaboração</label>
+              <label className="text-sm font-medium">{t("Responsável pela Elaboração")}</label>
               <p className="text-sm">{smokeTest.responsavel_elaboracao}</p>
             </div>
 
             {employee && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">Funcionário Responsável</label>
+                <label className="text-sm font-medium">{t("Funcionário Responsável")}</label>
                 <p className="text-sm">{employee.nome}</p>
               </div>
             )}
@@ -247,7 +245,7 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Building className="h-4 w-4" />
-                Obra
+                {t("Obra")}
               </label>
               <p className="text-sm">{smokeTest.obra}</p>
             </div>
@@ -258,7 +256,7 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Zap className="h-4 w-4" />
-                Condições do Teste
+                {t("Condições do Teste")}
               </label>
               <p className="text-sm bg-muted/50 p-3 rounded-lg">
                 {smokeTest.condicoes_teste}
@@ -271,7 +269,7 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Camera className="h-4 w-4" />
-                Evidências
+                {t("Evidências")}
               </label>
               <a 
                 href={smokeTest.evidencias_url} 
@@ -279,7 +277,7 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
                 rel="noopener noreferrer"
                 className="text-sm text-blue-600 hover:underline"
               >
-                Ver evidência
+                {t("Ver evidência")}
               </a>
             </div>
           )}
@@ -289,7 +287,7 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Observações Adicionais
+                {t("Observações Adicionais")}
               </label>
               <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
                 {smokeTest.observacoes}
@@ -301,11 +299,11 @@ export const SmokeTestDetailModal: React.FC<SmokeTestDetailModalProps> = ({
           <Separator />
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>
-              Registrado em: {format(new Date(smokeTest.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {t("Registrado em:")} {date(smokeTest.created_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
             {smokeTest.updated_at !== smokeTest.created_at && (
               <p>
-                Última atualização: {format(new Date(smokeTest.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {t("Última atualização:")} {date(smokeTest.updated_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
           </div>

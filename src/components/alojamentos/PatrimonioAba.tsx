@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import { Dados, ESTADO_BEM, dataHora, localDoBem } from "./shared";
 
 interface Props {
@@ -25,6 +26,7 @@ const TIPO_MOV: Record<string, string> = {
 };
 
 export function PatrimonioAba({ dados, unidadeIds, onNovo, onMover, onRecarregar }: Props) {
+  const { t, money } = useI18n();
   const [busca, setBusca] = useState("");
   const [estado, setEstado] = useState("todos");
   const [situacao, setSituacao] = useState<"ativos" | "baixados">("ativos");
@@ -58,7 +60,7 @@ export function PatrimonioAba({ dados, unidadeIds, onNovo, onMover, onRecarregar
   }
 
   async function confirmarBaixaOuReativacao() {
-    if (motivo.trim().length < 3) return toast.error("Informe o motivo.");
+    if (motivo.trim().length < 3) return toast.error(t("Informe o motivo."));
     setSalvando(true);
     const { error } = baixaDe.ativo
       ? await (supabase as any).rpc("alojamento_baixar_bem", { p_bem: baixaDe.id, p_motivo: motivo.trim(), p_estado: "inservivel" })
@@ -79,38 +81,40 @@ export function PatrimonioAba({ dados, unidadeIds, onNovo, onMover, onRecarregar
       <div className="flex flex-col gap-2 md:flex-row md:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Tombamento, descrição, série ou local" className="h-9 pl-8" />
+          <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder={t("Tombamento, descrição, série ou local")} className="h-9 pl-8" />
         </div>
         <Select value={estado} onValueChange={setEstado}>
           <SelectTrigger className="h-9 md:w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos os estados</SelectItem>
+            <SelectItem value="todos">{t("Todos os estados")}</SelectItem>
             {Object.entries(ESTADO_BEM).filter(([k]) => k !== "ausente").map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={situacao} onValueChange={v => setSituacao(v as any)}>
           <SelectTrigger className="h-9 md:w-36"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="ativos">Ativos</SelectItem>
-            <SelectItem value="baixados">Baixados</SelectItem>
+            <SelectItem value="ativos">{t("Ativos")}</SelectItem>
+            <SelectItem value="baixados">{t("Baixados")}</SelectItem>
           </SelectContent>
         </Select>
-        <Button size="sm" className="h-9" onClick={onNovo}><Plus className="mr-1.5 h-4 w-4" />Novo bem</Button>
+        <Button size="sm" className="h-9" onClick={onNovo}><Plus className="mr-1.5 h-4 w-4" />{t("Novo bem")}</Button>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {lista.length} {lista.length === 1 ? "bem" : "bens"} · valor de aquisição {valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+        {lista.length === 1
+          ? t("1 bem · valor de aquisição {value}", { value: money(valorTotal) })
+          : t("{count} bens · valor de aquisição {value}", { count: lista.length, value: money(valorTotal) })}
       </p>
 
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
             <tr>
-              <th className="p-3 font-medium">Tombamento</th>
-              <th className="p-3 font-medium">Descrição</th>
-              <th className="p-3 font-medium">Local</th>
-              <th className="p-3 font-medium">Estado</th>
-              <th className="p-3 text-right font-medium">Valor</th>
+              <th className="p-3 font-medium">{t("Tombamento")}</th>
+              <th className="p-3 font-medium">{t("Descrição")}</th>
+              <th className="p-3 font-medium">{t("Local")}</th>
+              <th className="p-3 font-medium">{t("Estado")}</th>
+              <th className="p-3 text-right font-medium">{t("Valor")}</th>
               <th className="p-3" />
             </tr>
           </thead>
@@ -120,7 +124,7 @@ export function PatrimonioAba({ dados, unidadeIds, onNovo, onMover, onRecarregar
                 <td className="p-3 font-mono text-xs">{b.tombamento}</td>
                 <td className="p-3">
                   <p className="font-medium">{b.descricao}</p>
-                  <p className="text-xs text-muted-foreground">{[b.categoria, b.numero_serie && `S/N ${b.numero_serie}`].filter(Boolean).join(" · ") || "Sem categoria"}</p>
+                  <p className="text-xs text-muted-foreground">{[b.categoria, b.numero_serie && `S/N ${b.numero_serie}`].filter(Boolean).join(" · ") || t("Sem categoria")}</p>
                 </td>
                 <td className="p-3 text-xs">{localDoBem(b, dados)}</td>
                 <td className="p-3">
@@ -129,19 +133,19 @@ export function PatrimonioAba({ dados, unidadeIds, onNovo, onMover, onRecarregar
                   </span>
                 </td>
                 <td className="p-3 text-right tabular-nums">
-                  {b.valor_aquisicao ? Number(b.valor_aquisicao).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}
+                  {b.valor_aquisicao ? money(Number(b.valor_aquisicao)) : "—"}
                 </td>
                 <td className="p-3">
                   <div className="flex justify-end gap-1">
                     {b.ativo && (
                       <Button size="sm" variant="outline" className="h-7" onClick={() => onMover(b)}>
-                        <MoveRight className="mr-1 h-3.5 w-3.5" />Mover
+                        <MoveRight className="mr-1 h-3.5 w-3.5" />{t("Mover")}
                       </Button>
                     )}
-                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Histórico" onClick={() => abrirHistorico(b)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title={t("Histórico")} onClick={() => abrirHistorico(b)}>
                       <History className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" title={b.ativo ? "Dar baixa" : "Reativar"}
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title={b.ativo ? t("Dar baixa") : t("Reativar")}
                       onClick={() => { setBaixaDe(b); setMotivo(""); }}>
                       {b.ativo ? <Archive className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
                     </Button>
@@ -151,18 +155,18 @@ export function PatrimonioAba({ dados, unidadeIds, onNovo, onMover, onRecarregar
             ))}
           </tbody>
         </table>
-        {!lista.length && <p className="p-10 text-center text-sm text-muted-foreground">Nenhum bem encontrado.</p>}
+        {!lista.length && <p className="p-10 text-center text-sm text-muted-foreground">{t("Nenhum bem encontrado.")}</p>}
       </div>
 
       {/* Histórico do bem */}
       <Dialog open={!!historicoDe} onOpenChange={o => !o && setHistoricoDe(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader><DialogTitle>Histórico · {historicoDe?.tombamento}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("Histórico · {tag}", { tag: historicoDe?.tombamento ?? "" })}</DialogTitle></DialogHeader>
           <p className="-mt-2 text-sm text-muted-foreground">{historicoDe?.descricao}</p>
           {historico === null ? (
             <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : !historico.length ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Sem movimentações registradas.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">{t("Sem movimentações registradas.")}</p>
           ) : (
             <ol className="relative space-y-4 border-l pl-5">
               {historico.map(h => (
@@ -179,7 +183,7 @@ export function PatrimonioAba({ dados, unidadeIds, onNovo, onMover, onRecarregar
                   )}
                   {h.tipo === "cadastro" && <p className="mt-1 text-xs">{nomeLocal(h.alojamento_destino_id, h.ambiente_destino_id, h.leito_destino_id)}</p>}
                   {h.estado_anterior && h.estado_novo && h.estado_anterior !== h.estado_novo && (
-                    <p className="mt-1 text-xs">Estado: {ESTADO_BEM[h.estado_anterior]?.label ?? h.estado_anterior} → {ESTADO_BEM[h.estado_novo]?.label ?? h.estado_novo}</p>
+                    <p className="mt-1 text-xs">{t("Estado:")} {ESTADO_BEM[h.estado_anterior]?.label ?? h.estado_anterior} → {ESTADO_BEM[h.estado_novo]?.label ?? h.estado_novo}</p>
                   )}
                   {h.motivo && <p className="mt-1 text-xs text-muted-foreground">{h.motivo}</p>}
                 </li>
@@ -192,25 +196,25 @@ export function PatrimonioAba({ dados, unidadeIds, onNovo, onMover, onRecarregar
       {/* Baixa / reativação */}
       <Dialog open={!!baixaDe} onOpenChange={o => !o && setBaixaDe(null)}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{baixaDe?.ativo ? "Dar baixa no bem" : "Reativar bem"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{baixaDe?.ativo ? t("Dar baixa no bem") : t("Reativar bem")}</DialogTitle></DialogHeader>
           <p className="text-sm">
             <strong>{baixaDe?.descricao}</strong> <span className="font-mono text-xs text-muted-foreground">{baixaDe?.tombamento}</span>
           </p>
           {baixaDe?.ativo && (
             <p className="text-xs text-muted-foreground">
-              O bem sai do inventário ativo e dos termos de entrada e saída, mas continua no histórico.
+              {t("O bem sai do inventário ativo e dos termos de entrada e saída, mas continua no histórico.")}
             </p>
           )}
           <div className="space-y-1.5">
-            <Label>Motivo</Label>
+            <Label>{t("Motivo")}</Label>
             <Textarea value={motivo} onChange={e => setMotivo(e.target.value)}
-              placeholder={baixaDe?.ativo ? "Ex.: dano irreparável, furto registrado em BO, obsolescência" : "Ex.: reparo concluído"} />
+              placeholder={baixaDe?.ativo ? t("Ex.: dano irreparável, furto registrado em BO, obsolescência") : t("Ex.: reparo concluído")} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBaixaDe(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setBaixaDe(null)}>{t("Cancelar")}</Button>
             <Button variant={baixaDe?.ativo ? "destructive" : "default"} disabled={salvando} onClick={confirmarBaixaOuReativacao}>
               {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {baixaDe?.ativo ? "Dar baixa" : "Reativar"}
+              {baixaDe?.ativo ? t("Dar baixa") : t("Reativar")}
             </Button>
           </DialogFooter>
         </DialogContent>

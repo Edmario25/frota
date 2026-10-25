@@ -4,7 +4,9 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useMinhasInfracoes } from "@/hooks/useMinhasInfracoes";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
+// Labels are the Portuguese catalog keys; they are translated when rendered.
 const GRAVIDADE: Record<string, { label: string; badge: string; barra: string }> = {
   leve:       { label: "Leve",       badge: "bg-yellow-100 text-yellow-800", barra: "bg-yellow-400" },
   media:      { label: "Média",      badge: "bg-orange-100 text-orange-800", barra: "bg-orange-400" },
@@ -25,17 +27,21 @@ async function avisar(titulo: string, corpo: string, tag: string) {
 }
 
 export function MinhasInfracoesCard() {
+  const { t, date } = useI18n();
   const { pendentes, loading, darCiencia } = useMinhasInfracoes();
 
   // Dispara o aviso do sistema para cada infração pendente ainda não avisada
   useEffect(() => {
     for (const i of pendentes) {
       const g = GRAVIDADE[i.gravidade]?.label ?? i.gravidade;
+      const local = i.checkpoint_nome ? t(" no {place}", { place: i.checkpoint_nome }) : "";
       avisar(
-        `Excesso de velocidade — ${g}`,
-        `${Math.round(i.velocidade_kmh)} km/h em zona de ${i.limite_kmh} km/h` +
-          (i.checkpoint_nome ? ` no ${i.checkpoint_nome}` : "") +
-          ". Abra o app para dar ciência.",
+        t("Excesso de velocidade — {severity}", { severity: t(g) }),
+        t("{speed} km/h em zona de {limit} km/h{place}. Abra o app para dar ciência.", {
+          speed: Math.round(i.velocidade_kmh),
+          limit: i.limite_kmh,
+          place: local,
+        }),
         `infracao_${i.id}`,
       );
     }
@@ -49,7 +55,7 @@ export function MinhasInfracoesCard() {
         <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex-1">
           {pendentes.length === 1
-            ? "Notificação de velocidade"
+            ? t("Notificação de velocidade")
             : `${pendentes.length} notificações de velocidade`}
         </p>
       </div>
@@ -64,17 +70,17 @@ export function MinhasInfracoesCard() {
             <div key={i.id} className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", g.badge)}>
-                  {g.label}
+                  {t(g.label)}
                 </span>
                 <span className="text-[11px] text-slate-400">
-                  {format(parseISO(i.created_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                  {date(i.created_at, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
 
               <p className="font-bold text-slate-800 dark:text-slate-100 text-[15px] leading-tight">
-                {Math.round(i.velocidade_kmh)} km/h
+                {t("{speed} km/h", { speed: Math.round(i.velocidade_kmh) })}
                 <span className="font-normal text-slate-500 text-sm">
-                  {" "}em zona de {i.limite_kmh} km/h
+                  {" "}{t("em zona de {limit} km/h", { limit: i.limite_kmh })}
                 </span>
               </p>
 
@@ -94,7 +100,7 @@ export function MinhasInfracoesCard() {
                            text-sm font-medium py-2.5 active:scale-[0.98] transition-transform"
               >
                 <Check className="h-4 w-4" />
-                Estou ciente
+                {t("Estou ciente")}
               </button>
             </div>
           );
@@ -102,8 +108,7 @@ export function MinhasInfracoesCard() {
       </div>
 
       <p className="px-4 pb-3 pt-1 text-[11px] text-slate-400 leading-snug">
-        Dar ciência confirma que você viu o aviso. Não é admissão de culpa —
-        se discorda, procure a equipe de segurança.
+        {t("Dar ciência confirma que você viu o aviso. Não é admissão de culpa — se discorda, procure a equipe de segurança.")}
       </p>
     </div>
   );

@@ -1,6 +1,4 @@
 import React from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Calendar, Car, User, FileText, Gauge, Briefcase, CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 import {
   Dialog,
@@ -13,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useInspectionChecklist } from "@/hooks/useInspectionChecklist";
+import { useI18n } from "@/i18n";
 
 interface InspectionChecklist {
   id: string;
@@ -40,6 +39,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
   onClose,
   checklist,
 }) => {
+  const { t, number, date } = useI18n();
   const { vehicles } = useVehicles();
   const { employees } = useEmployees();
   const { getChecklistItems } = useInspectionChecklist();
@@ -67,7 +67,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes da Inspeção</DialogTitle>
+          <DialogTitle>{t("Detalhes da Inspeção")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -79,7 +79,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
                 {vehicle?.placa} - {vehicle?.marca} {vehicle?.modelo}
               </p>
               <p className="text-sm text-muted-foreground">
-                Ano: {vehicle?.ano} | Cor: {vehicle?.cor}
+                {t("Ano:")} {vehicle?.ano} {t("| Cor:")} {vehicle?.cor}
               </p>
             </div>
           </div>
@@ -88,7 +88,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
 
           {/* Service Type */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Tipo de Serviço</label>
+            <label className="text-sm font-medium">{t("Tipo de Serviço")}</label>
             <Badge variant="outline" className="text-sm">
               {checklist.tipo_servico}
             </Badge>
@@ -98,10 +98,10 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Data da Inspeção
+              {t("Data da Inspeção")}
             </label>
             <p className="text-sm">
-              {format(new Date(checklist.data_inspecao), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })}
+              {date(checklist.data_inspecao, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
 
@@ -110,9 +110,9 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Gauge className="h-4 w-4" />
-                Quilometragem Atual
+                {t("Quilometragem Atual")}
               </label>
-              <p className="text-sm">{checklist.km_atual.toLocaleString()} km</p>
+              <p className="text-sm">{number(checklist.km_atual)} km</p>
             </div>
           )}
 
@@ -121,7 +121,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <User className="h-4 w-4" />
-                Responsável pelo Checklist
+                {t("Responsável pelo Checklist")}
               </label>
               <p className="text-sm">{checklist.responsavel_checklist}</p>
             </div>
@@ -132,7 +132,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Briefcase className="h-4 w-4" />
-                Função
+                {t("Função")}
               </label>
               <p className="text-sm">{checklist.funcao}</p>
             </div>
@@ -141,7 +141,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
           {/* Employee Info */}
           {employee && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Funcionário Responsável</label>
+              <label className="text-sm font-medium">{t("Funcionário Responsável")}</label>
               <p className="text-sm">{employee.nome}</p>
             </div>
           )}
@@ -151,7 +151,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Observações Gerais
+                {t("Observações Gerais")}
               </label>
               <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
                 {checklist.observacoes}
@@ -162,7 +162,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
           {/* General Photos */}
           {checklist.fotos_checklist && (
             <div className="space-y-3">
-              <label className="text-sm font-medium">Fotos do Checklist</label>
+              <label className="text-sm font-medium">{t("Fotos do Checklist")}</label>
               <div className="grid grid-cols-1 gap-3">
                 {Object.entries(JSON.parse(checklist.fotos_checklist)).map(([categoria, url]) => 
                   url ? (
@@ -199,7 +199,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
             <>
               <Separator />
               <div className="space-y-3">
-                <h4 className="text-sm font-medium">Itens Inspecionados</h4>
+                <h4 className="text-sm font-medium">{t("Itens Inspecionados")}</h4>
                 <div className="divide-y divide-border rounded-lg border">
                   {checklistItems.map((item, index) => {
                     const getStatusInfo = (status: string) => {
@@ -240,7 +240,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
                           variant="outline"
                           className={`${statusInfo.badgeClass} px-3 py-1 text-xs font-medium`}
                         >
-                          {statusInfo.label}
+                          {t(statusInfo.label)}
                         </Badge>
                       </div>
                     );
@@ -250,7 +250,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
                 {/* Observations section if any item has observations */}
                 {checklistItems.some(item => item.observacoes) && (
                   <div className="space-y-2 mt-4">
-                    <h5 className="text-sm font-medium text-muted-foreground">Observações dos Itens</h5>
+                    <h5 className="text-sm font-medium text-muted-foreground">{t("Observações dos Itens")}</h5>
                     <div className="space-y-2">
                       {checklistItems
                         .filter(item => item.observacoes)
@@ -269,7 +269,7 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
 
           {loadingItems && (
             <div className="text-center py-4">
-              <p className="text-sm text-muted-foreground">Carregando itens...</p>
+              <p className="text-sm text-muted-foreground">{t("Carregando itens...")}</p>
             </div>
           )}
 
@@ -277,11 +277,11 @@ export const InspectionChecklistDetailModal: React.FC<InspectionChecklistDetailM
           <Separator />
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>
-              Registrado em: {format(new Date(checklist.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {t("Registrado em:")} {date(checklist.created_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
             {checklist.updated_at !== checklist.created_at && (
               <p>
-                Última atualização: {format(new Date(checklist.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {t("Última atualização:")} {date(checklist.updated_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
           </div>

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { AlertTriangle, Wrench, CheckCircle2 } from "lucide-react"
+import { useI18n } from "@/i18n"
 
 // ─── Tipos de problema ────────────────────────────────────────────────────────
 const TIPOS_PROBLEMA = [
@@ -37,6 +38,7 @@ interface Props {
 
 export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChanged }: Props) {
   const { toast } = useToast()
+  const { t } = useI18n()
   const [descricao, setDescricao] = useState("")
   const [tipoProblem, setTipoProblem] = useState("motor")
   const [saving, setSaving] = useState(false)
@@ -51,9 +53,10 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error("Usuário não autenticado")
+      if (!user) throw new Error(t("Usuário não autenticado"))
 
-      const tipoLabel = TIPOS_PROBLEMA.find(t => t.value === tipoProblem)?.label ?? tipoProblem
+      // The stored description keeps the Portuguese label: it is data, not interface text.
+      const tipoLabel = TIPOS_PROBLEMA.find(tipo => tipo.value === tipoProblem)?.label ?? tipoProblem
       const descFinal = `[${tipoLabel}] ${descricao.trim()}`
 
       // 1. Criar registro de manutenção
@@ -78,14 +81,14 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
       if (vErr) throw vErr
 
       toast({
-        title: "Veículo reportado como inoperante",
-        description: `${vehicle.placa} marcado em manutenção. Aguardando resolução.`,
+        title: t("Veículo reportado como inoperante"),
+        description: t("{plate} marcado em manutenção. Aguardando resolução.", { plate: vehicle.placa }),
       })
       onStatusChanged()
       onOpenChange(false)
       setDescricao("")
     } catch (e: any) {
-      toast({ title: "Erro ao reportar avaria", description: e.message, variant: "destructive" })
+      toast({ title: t("Erro ao reportar avaria"), description: e.message, variant: "destructive" })
     } finally {
       setSaving(false)
     }
@@ -112,13 +115,13 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
       if (vErr) throw vErr
 
       toast({
-        title: "Veículo retornou ao serviço",
-        description: `${vehicle?.placa} marcado como disponível.`,
+        title: t("Veículo retornou ao serviço"),
+        description: t("{plate} marcado como disponível.", { plate: vehicle?.placa ?? "" }),
       })
       onStatusChanged()
       onOpenChange(false)
     } catch (e: any) {
-      toast({ title: "Erro ao retornar veículo", description: e.message, variant: "destructive" })
+      toast({ title: t("Erro ao retornar veículo"), description: e.message, variant: "destructive" })
     } finally {
       setSaving(false)
     }
@@ -132,7 +135,7 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wrench className="h-5 w-5 text-amber-600" />
-            {emManutencao ? "Veículo em Manutenção" : "Reportar Avaria"}
+            {emManutencao ? t("Veículo em Manutenção") : t("Reportar Avaria")}
           </DialogTitle>
         </DialogHeader>
 
@@ -148,7 +151,7 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
               ? "ml-auto bg-amber-100 text-amber-800 border border-amber-300"
               : "ml-auto bg-green-100 text-green-800 border border-green-300"
           }>
-            {emManutencao ? "🔧 Em manutenção" : "✅ Disponível"}
+            {emManutencao ? `🔧 ${t("Em manutenção")}` : `✅ ${t("Disponível")}`}
           </Badge>
         </div>
 
@@ -159,9 +162,9 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
               <div className="flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-amber-900">Veículo inoperante</p>
+                  <p className="text-sm font-semibold text-amber-900">{t("Veículo inoperante")}</p>
                   <p className="text-xs text-amber-700 mt-0.5">
-                    Este veículo está em manutenção. Sua liberação diária mostrará "Aguardando" até que seja retornado ao serviço.
+                    {t("Este veículo está em manutenção. Sua liberação diária mostrará “Aguardando” até que seja retornado ao serviço.")}
                   </p>
                 </div>
               </div>
@@ -173,7 +176,7 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
               className="w-full bg-green-700 hover:bg-green-800 text-white"
             >
               <CheckCircle2 className="h-4 w-4 mr-2" />
-              {saving ? "Processando..." : "✅ Retornar ao Serviço"}
+              {saving ? t("Processando...") : `✅ ${t("Retornar ao Serviço")}`}
             </Button>
           </div>
         ) : (
@@ -181,20 +184,20 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
           <div className="space-y-4">
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Tipo de problema *
+                {t("Tipo de problema *")}
               </label>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                {TIPOS_PROBLEMA.map(t => (
+                {TIPOS_PROBLEMA.map(tipo => (
                   <button
-                    key={t.value}
-                    onClick={() => setTipoProblem(t.value)}
+                    key={tipo.value}
+                    onClick={() => setTipoProblem(tipo.value)}
                     className={`text-left px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                      tipoProblem === t.value
+                      tipoProblem === tipo.value
                         ? "bg-amber-600 text-white border-amber-600"
                         : "bg-background border-border text-foreground hover:border-amber-400"
                     }`}
                   >
-                    {t.label}
+                    {t(tipo.label)}
                   </button>
                 ))}
               </div>
@@ -202,11 +205,11 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
 
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Descrição do problema *
+                {t("Descrição do problema *")}
               </label>
               <textarea
                 rows={3}
-                placeholder="Ex: Motor apresentou superaquecimento, vazamento de óleo..."
+                placeholder={t("Ex: Motor apresentou superaquecimento, vazamento de óleo...")}
                 className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-500"
                 value={descricao}
                 onChange={e => setDescricao(e.target.value)}
@@ -215,13 +218,13 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
 
             <div className="rounded-xl bg-red-50 border border-red-200 p-3">
               <p className="text-xs text-red-700">
-                <strong>Atenção:</strong> Ao confirmar, o veículo será marcado como <strong>inoperante</strong> e não poderá ser liberado até que retorne ao serviço.
+                <strong>{t("Atenção:")}</strong> {t("Ao confirmar, o veículo será marcado como inoperante e não poderá ser liberado até que retorne ao serviço.")}
               </p>
             </div>
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button
                 onClick={handleReportar}
@@ -229,7 +232,7 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
                 className="flex-[2] bg-amber-600 hover:bg-amber-700 text-white"
               >
                 <AlertTriangle className="h-4 w-4 mr-2" />
-                {saving ? "Salvando..." : "🔧 Reportar Avaria"}
+                {saving ? t("Salvando...") : `🔧 ${t("Reportar Avaria")}`}
               </Button>
             </div>
           </div>

@@ -29,8 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { enUS, es, ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useTrafficFines } from "@/hooks/useTrafficFines";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -38,6 +37,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import { useI18n } from "@/i18n";
 
 const formSchema = z.object({
   vehicle_id: z.string().min(1, "Selecione um veículo"),
@@ -70,6 +70,8 @@ export const TrafficFineFormModal = ({
   fine,
   vehicleId
 }: TrafficFineFormModalProps) => {
+  const { t, date, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   const { createTrafficFine, updateTrafficFine } = useTrafficFines();
   const { vehicles } = useVehicles();
   const { employees } = useEmployees();
@@ -147,7 +149,7 @@ export const TrafficFineFormModal = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {fine ? "Editar Multa" : "Nova Multa de Trânsito"}
+            {fine ? t("Editar Multa") : t("Nova Multa de Trânsito")}
           </DialogTitle>
         </DialogHeader>
 
@@ -158,11 +160,11 @@ export const TrafficFineFormModal = ({
               name="vehicle_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Placa do Veículo</FormLabel>
+                  <FormLabel>{t("Placa do Veículo")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o veículo" />
+                        <SelectValue placeholder={t("Selecione o veículo")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -183,11 +185,11 @@ export const TrafficFineFormModal = ({
               name="employee_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Funcionário (Opcional)</FormLabel>
+                  <FormLabel>{t("Funcionário (Opcional)")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value || undefined}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o funcionário (opcional)" />
+                        <SelectValue placeholder={t("Selecione o funcionário (opcional)")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -208,7 +210,7 @@ export const TrafficFineFormModal = ({
               name="data_multa"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Data da Multa</FormLabel>
+                  <FormLabel>{t("Data da Multa")}</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -220,9 +222,9 @@ export const TrafficFineFormModal = ({
                           )}
                         >
                           {field.value ? (
-                            format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                            date(field.value)
                           ) : (
-                            <span>Selecione a data</span>
+                            <span>{t("Selecione a data")}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -234,7 +236,7 @@ export const TrafficFineFormModal = ({
                         selected={field.value}
                         onSelect={field.onChange}
                         initialFocus
-                        locale={ptBR}
+                        locale={calendarLocale}
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
@@ -249,9 +251,9 @@ export const TrafficFineFormModal = ({
               name="local_infracao"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Local da Infração</FormLabel>
+                  <FormLabel>{t("Local da Infração")}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Endereço ou local da infração" {...field} />
+                    <Input placeholder={t("Endereço ou local da infração")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -263,9 +265,9 @@ export const TrafficFineFormModal = ({
               name="tipo_infracao"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Infração</FormLabel>
+                  <FormLabel>{t("Tipo de Infração")}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Excesso de velocidade, Estacionamento irregular" {...field} />
+                    <Input placeholder={t("Ex: Excesso de velocidade, Estacionamento irregular")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -277,7 +279,7 @@ export const TrafficFineFormModal = ({
               name="valor"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Valor (R$)</FormLabel>
+                  <FormLabel>{t("Valor (R$)")}</FormLabel>
                   <FormControl>
                     <Input 
                       type="number" 
@@ -298,16 +300,16 @@ export const TrafficFineFormModal = ({
               name="situacao"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Situação</FormLabel>
+                  <FormLabel>{t("Situação")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione a situação" />
+                        <SelectValue placeholder={t("Selecione a situação")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="paga">Paga</SelectItem>
+                      <SelectItem value="pendente">{t("Pendente")}</SelectItem>
+                      <SelectItem value="paga">{t("Paga")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -320,7 +322,7 @@ export const TrafficFineFormModal = ({
               name="comprovante_url"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Comprovante</FormLabel>
+                  <FormLabel>{t("Comprovante")}</FormLabel>
                   <FormControl>
                     <PhotoUpload
                       label=""
@@ -341,10 +343,10 @@ export const TrafficFineFormModal = ({
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Histórico ou Observações</FormLabel>
+                  <FormLabel>{t("Histórico ou Observações")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observações sobre a multa..."
+                      placeholder={t("Observações sobre a multa...")}
                       className="resize-none"
                       {...field}
                     />
@@ -361,7 +363,7 @@ export const TrafficFineFormModal = ({
                 onClick={onClose}
                 className="flex-1"
               >
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button
                 type="submit"
@@ -369,10 +371,10 @@ export const TrafficFineFormModal = ({
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting
-                  ? "Salvando..."
+                  ? t("Salvando...")
                   : fine
-                  ? "Atualizar"
-                  : "Salvar"}
+                  ? t("Atualizar")
+                  : t("Salvar")}
               </Button>
             </div>
           </form>

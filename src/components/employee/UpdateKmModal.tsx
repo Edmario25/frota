@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/i18n";
 
 interface UpdateKmModalProps {
   open: boolean;
@@ -21,6 +22,7 @@ interface UpdateKmModalProps {
 }
 
 export const UpdateKmModal = ({ open, onOpenChange, vehicle, onKmUpdated }: UpdateKmModalProps) => {
+  const { t, number } = useI18n();
   const { toast } = useToast();
   const [newKm, setNewKm] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -46,15 +48,15 @@ export const UpdateKmModal = ({ open, onOpenChange, vehicle, onKmUpdated }: Upda
       if (error) throw error;
 
       toast({
-        title: "Quilometragem atualizada",
-        description: `Novo km: ${newKm.toLocaleString()} km`,
+        title: t("Quilometragem atualizada"),
+        description: `Novo km: ${number(newKm)} km`,
       });
 
       onOpenChange(false);
       onKmUpdated?.();
     } catch (error: any) {
       toast({
-        title: "Erro ao atualizar",
+        title: t("Erro ao atualizar"),
         description: error.message,
         variant: "destructive",
       });
@@ -70,17 +72,17 @@ export const UpdateKmModal = ({ open, onOpenChange, vehicle, onKmUpdated }: Upda
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Atualizar Quilometragem</DialogTitle>
+          <DialogTitle>{t("Atualizar Quilometragem")}</DialogTitle>
           <DialogDescription>
             {vehicle
               ? `${vehicle.marca} ${vehicle.modelo} — ${vehicle.placa}`
-              : "Veículo"}
+              : t("Veículo")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label>Quilometragem Atual</Label>
+            <Label>{t("Quilometragem Atual")}</Label>
             <Input
               type="number"
               value={kmAtual}
@@ -90,7 +92,7 @@ export const UpdateKmModal = ({ open, onOpenChange, vehicle, onKmUpdated }: Upda
           </div>
 
           <div>
-            <Label htmlFor="new-km">Nova Quilometragem</Label>
+            <Label htmlFor="new-km">{t("Nova Quilometragem")}</Label>
             <Input
               id="new-km"
               type="number"
@@ -98,11 +100,11 @@ export const UpdateKmModal = ({ open, onOpenChange, vehicle, onKmUpdated }: Upda
               onChange={(e) => setNewKm(Number(e.target.value))}
               min={kmAtual}
               className="mt-1"
-              placeholder="Informe a nova quilometragem"
+              placeholder={t("Informe a nova quilometragem")}
             />
             {invalido && (
               <p className="text-sm text-destructive mt-1">
-                O novo km não pode ser menor que o atual ({kmAtual.toLocaleString()} km)
+                {t("O novo km não pode ser menor que o atual ({km} km)", { km: number(kmAtual) })}
               </p>
             )}
           </div>
@@ -110,10 +112,10 @@ export const UpdateKmModal = ({ open, onOpenChange, vehicle, onKmUpdated }: Upda
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancelar
+            {t("Cancelar")}
           </Button>
           <Button onClick={handleSubmit} disabled={loading || invalido || !vehicle}>
-            {loading ? "Atualizando..." : "Atualizar"}
+            {loading ? t("Atualizando...") : t("Atualizar")}
           </Button>
         </DialogFooter>
       </DialogContent>

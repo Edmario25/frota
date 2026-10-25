@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FornecedorSelect } from "@/components/ui/FornecedorSelect";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import { useI18n } from "@/i18n";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -37,6 +38,7 @@ interface WashRecordFormModalProps {
 export const WashRecordFormModal = ({
   open, onOpenChange, vehicleId, washRecord, onSubmit,
 }: WashRecordFormModalProps) => {
+  const { t } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
@@ -105,14 +107,14 @@ export const WashRecordFormModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{washRecord ? "Editar Lavagem" : "Registrar Lavagem"}</DialogTitle>
+          <DialogTitle>{washRecord ? t("Editar Lavagem") : t("Registrar Lavagem")}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="data_lavagem" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Data</FormLabel>
+                  <FormLabel>{t("Data")}</FormLabel>
                   <FormControl><Input type="date" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -120,16 +122,16 @@ export const WashRecordFormModal = ({
 
               <FormField control={form.control} name="tipo_lavagem" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo</FormLabel>
+                  <FormLabel>{t("Tipo")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={t("Tipo")} /></SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="simples">Simples</SelectItem>
-                      <SelectItem value="completa">Completa</SelectItem>
-                      <SelectItem value="polimento">Polimento</SelectItem>
-                      <SelectItem value="higienizacao">Higienização Interna</SelectItem>
+                      <SelectItem value="simples">{t("Simples")}</SelectItem>
+                      <SelectItem value="completa">{t("Completa")}</SelectItem>
+                      <SelectItem value="polimento">{t("Polimento")}</SelectItem>
+                      <SelectItem value="higienizacao">{t("Higienização Interna")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -140,13 +142,13 @@ export const WashRecordFormModal = ({
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="fornecedor" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fornecedor / Lava-jato</FormLabel>
+                  <FormLabel>{t("Fornecedor / Lava-jato")}</FormLabel>
                   <FormControl>
                     <FornecedorSelect
                       value={field.value ?? ""}
                       onChange={field.onChange}
                       tipos={["servicos", "geral"]}
-                      placeholder="Selecione o lava-jato"
+                      placeholder={t("Selecione o lava-jato")}
                     />
                   </FormControl>
                   <FormMessage />
@@ -155,7 +157,7 @@ export const WashRecordFormModal = ({
 
               <FormField control={form.control} name="valor" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Valor (R$)</FormLabel>
+                  <FormLabel>{t("Valor (R$)")}</FormLabel>
                   <FormControl>
                     <Input
                       type="number" step="0.01" placeholder="0,00"
@@ -170,8 +172,8 @@ export const WashRecordFormModal = ({
 
             <FormField control={form.control} name="responsavel_lavagem" render={({ field }) => (
               <FormItem>
-                <FormLabel>Responsável pela solicitação</FormLabel>
-                <FormControl><Input placeholder="Nome do responsável" {...field} /></FormControl>
+                <FormLabel>{t("Responsável pela solicitação")}</FormLabel>
+                <FormControl><Input placeholder={t("Nome do responsável")} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -180,7 +182,7 @@ export const WashRecordFormModal = ({
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="foto_antes_url" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Foto Antes</FormLabel>
+                  <FormLabel>{t("Foto Antes")}</FormLabel>
                   <FormControl>
                     <PhotoUpload
                       label=""
@@ -197,7 +199,7 @@ export const WashRecordFormModal = ({
 
               <FormField control={form.control} name="foto_depois_url" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Foto Depois</FormLabel>
+                  <FormLabel>{t("Foto Depois")}</FormLabel>
                   <FormControl>
                     <PhotoUpload
                       label=""
@@ -215,9 +217,9 @@ export const WashRecordFormModal = ({
 
             <FormField control={form.control} name="observacoes" render={({ field }) => (
               <FormItem>
-                <FormLabel>Observações</FormLabel>
+                <FormLabel>{t("Observações")}</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Observações adicionais..." className="resize-none" {...field} />
+                  <Textarea placeholder={t("Observações adicionais...")} className="resize-none" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -225,10 +227,10 @@ export const WashRecordFormModal = ({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : washRecord ? "Salvar" : "Registrar"}
+                {isSubmitting ? t("Salvando...") : washRecord ? t("Salvar") : t("Registrar")}
               </Button>
             </DialogFooter>
           </form>

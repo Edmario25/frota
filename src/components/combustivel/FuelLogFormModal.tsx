@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FornecedorSelect } from "@/components/ui/FornecedorSelect";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import { useI18n } from "@/i18n";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -39,6 +40,7 @@ interface FuelLogFormModalProps {
 export const FuelLogFormModal = ({
   open, onOpenChange, vehicleId, tipoMedicao = 'km', fuelLog, onSubmit,
 }: FuelLogFormModalProps) => {
+  const { t, money } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fotoUrl, setFotoUrl] = useState<string>("");
 
@@ -88,7 +90,7 @@ export const FuelLogFormModal = ({
 
   const litros = form.watch("litros") || 0;
   const valorLitro = form.watch("valor_litro") || 0;
-  const valorTotal = (litros * valorLitro).toFixed(2);
+  const valorTotal = money(litros * valorLitro);
 
   const handleSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
@@ -116,14 +118,14 @@ export const FuelLogFormModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{fuelLog ? "Editar Abastecimento" : "Registrar Abastecimento"}</DialogTitle>
+          <DialogTitle>{fuelLog ? t("Editar Abastecimento") : t("Registrar Abastecimento")}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="data_abastecimento" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Data</FormLabel>
+                  <FormLabel>{t("Data")}</FormLabel>
                   <FormControl><Input type="date" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -131,17 +133,17 @@ export const FuelLogFormModal = ({
 
               <FormField control={form.control} name="tipo_combustivel" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Combustível</FormLabel>
+                  <FormLabel>{t("Combustível")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="diesel">Diesel</SelectItem>
-                      <SelectItem value="diesel_s10">Diesel S10</SelectItem>
-                      <SelectItem value="gasolina">Gasolina</SelectItem>
-                      <SelectItem value="etanol">Etanol</SelectItem>
-                      <SelectItem value="gnv">GNV</SelectItem>
+                      <SelectItem value="diesel">{t("Diesel")}</SelectItem>
+                      <SelectItem value="diesel_s10">{t("Diesel S10")}</SelectItem>
+                      <SelectItem value="gasolina">{t("Gasolina")}</SelectItem>
+                      <SelectItem value="etanol">{t("Etanol")}</SelectItem>
+                      <SelectItem value="gnv">{t("GNV")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -152,7 +154,7 @@ export const FuelLogFormModal = ({
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="litros" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Litros abastecidos</FormLabel>
+                  <FormLabel>{t("Litros abastecidos")}</FormLabel>
                   <FormControl>
                     <Input type="number" step="0.01" placeholder="0,00" {...field}
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
@@ -163,7 +165,7 @@ export const FuelLogFormModal = ({
 
               <FormField control={form.control} name="valor_litro" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Valor por litro (R$)</FormLabel>
+                  <FormLabel>{t("Valor por litro (R$)")}</FormLabel>
                   <FormControl>
                     <Input type="number" step="0.001" placeholder="0,000" {...field}
                       onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} />
@@ -175,7 +177,7 @@ export const FuelLogFormModal = ({
 
             {/* Valor total calculado */}
             <div className="rounded-md bg-muted/50 px-4 py-2 flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Valor Total</span>
+              <span className="text-sm text-muted-foreground">{t("Valor Total")}</span>
               <span className="text-lg font-bold">R$ {valorTotal}</span>
             </div>
 
@@ -183,9 +185,9 @@ export const FuelLogFormModal = ({
             {tipoMedicao === 'km' ? (
               <FormField control={form.control} name="km_no_abastecimento" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>KM no abastecimento</FormLabel>
+                  <FormLabel>{t("KM no abastecimento")}</FormLabel>
                   <FormControl>
-                    <Input type="number" step="0.1" placeholder="Ex: 45000"
+                    <Input type="number" step="0.1" placeholder={t("Ex: 45000")}
                       value={field.value ?? ""}
                       onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
                   </FormControl>
@@ -195,9 +197,9 @@ export const FuelLogFormModal = ({
             ) : (
               <FormField control={form.control} name="horimetro_no_abastecimento" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Horímetro no abastecimento (h)</FormLabel>
+                  <FormLabel>{t("Horímetro no abastecimento (h)")}</FormLabel>
                   <FormControl>
-                    <Input type="number" step="0.1" placeholder="Ex: 1250.5"
+                    <Input type="number" step="0.1" placeholder={t("Ex: 1250.5")}
                       value={field.value ?? ""}
                       onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)} />
                   </FormControl>
@@ -208,13 +210,13 @@ export const FuelLogFormModal = ({
 
             <FormField control={form.control} name="posto_nome" render={({ field }) => (
               <FormItem>
-                <FormLabel>Posto / Fornecedor</FormLabel>
+                <FormLabel>{t("Posto / Fornecedor")}</FormLabel>
                 <FormControl>
                   <FornecedorSelect
                     value={field.value ?? ""}
                     onChange={field.onChange}
                     tipos={["combustivel", "geral"]}
-                    placeholder="Selecione o posto"
+                    placeholder={t("Selecione o posto")}
                   />
                 </FormControl>
                 <FormMessage />
@@ -223,16 +225,16 @@ export const FuelLogFormModal = ({
 
             <FormField control={form.control} name="observacoes" render={({ field }) => (
               <FormItem>
-                <FormLabel>Observações</FormLabel>
+                <FormLabel>{t("Observações")}</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Observações adicionais..." className="resize-none" {...field} />
+                  <Textarea placeholder={t("Observações adicionais...")} className="resize-none" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )} />
 
             <PhotoUpload
-              label="Foto do comprovante de abastecimento"
+              label={t("Foto do comprovante de abastecimento")}
               value={fotoUrl}
               onChange={(url) => setFotoUrl(url || "")}
               bucketName="fuel-photos"
@@ -242,10 +244,10 @@ export const FuelLogFormModal = ({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : fuelLog ? "Salvar" : "Registrar"}
+                {isSubmitting ? t("Salvando...") : fuelLog ? t("Salvar") : t("Registrar")}
               </Button>
             </DialogFooter>
           </form>

@@ -10,8 +10,7 @@ import { Plus, Trash2, Users, AlertTriangle, CheckCircle2, Clock, HelpCircle } f
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useEmployees } from "@/hooks/useEmployees";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useI18n } from "@/i18n";
 import { EquipesObraModal } from "./EquipesObraModal";
 
 interface VinculacaoFuncionarioModalProps {
@@ -21,6 +20,7 @@ interface VinculacaoFuncionarioModalProps {
 }
 
 export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: VinculacaoFuncionarioModalProps) {
+  const { t, date } = useI18n();
   const { employees, refetchEmployees } = useEmployees();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -106,8 +106,8 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
     } catch (error) {
       console.error('Erro ao buscar vinculações:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao carregar funcionários vinculados",
+        title: t("Erro"),
+        description: t("Erro ao carregar funcionários vinculados"),
         variant: "destructive",
       });
     }
@@ -129,8 +129,8 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
       if (error) throw error;
 
       toast({
-        title: "Sucesso",
-        description: "Funcionário vinculado com sucesso",
+        title: t("Sucesso"),
+        description: t("Funcionário vinculado com sucesso"),
       });
 
       setFormData({
@@ -145,8 +145,8 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
     } catch (error) {
       console.error('Erro ao vincular funcionário:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao vincular funcionário",
+        title: t("Erro"),
+        description: t("Erro ao vincular funcionário"),
         variant: "destructive",
       });
     } finally {
@@ -165,15 +165,15 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
       if (error) throw error;
 
       toast({
-        title: "Sucesso",
-        description: "Vínculo encerrado e histórico preservado",
+        title: t("Sucesso"),
+        description: t("Vínculo encerrado e histórico preservado"),
       });
       fetchVinculacoes();
     } catch (error) {
       console.error('Erro ao remover vinculação:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao remover vinculação",
+        title: t("Erro"),
+        description: t("Erro ao remover vinculação"),
         variant: "destructive",
       });
     }
@@ -191,20 +191,20 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Funcionários - {obra.nome}</DialogTitle>
+          <DialogTitle>{t("Funcionários — {site}", { site: obra.nome })}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-2">
-            <h3 className="text-lg font-semibold">Funcionários Vinculados</h3>
+            <h3 className="text-lg font-semibold">{t("Funcionários Vinculados")}</h3>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowEquipes(true)}>
                 <Users className="h-4 w-4 mr-2 text-violet-500" />
-                Equipes
+                {t("Equipes")}
               </Button>
               <Button onClick={() => setShowForm(true)} disabled={showForm}>
                 <Plus className="h-4 w-4 mr-2" />
-                Adicionar
+                {t("Adicionar")}
               </Button>
             </div>
           </div>
@@ -213,21 +213,21 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
             <form onSubmit={handleSubmit} className="border p-4 rounded-lg space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="employee_id">Funcionário *</Label>
+                  <Label htmlFor="employee_id">{t("Funcionário")} *</Label>
                   <Select 
                     value={formData.employee_id} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um funcionário" />
+                      <SelectValue placeholder={t("Selecione um funcionário")} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableEmployees.length === 0 ? (
-                        <SelectItem value="no-employees" disabled>Nenhum funcionário disponível</SelectItem>
+                        <SelectItem value="no-employees" disabled>{t("Nenhum funcionário disponível")}</SelectItem>
                       ) : (
                         availableEmployees.map((employee) => (
                           <SelectItem key={employee.id} value={employee.id}>
-                            {employee.nome} - {employee.cargos?.nome || "Sem cargo"}
+                            {employee.nome} - {employee.cargos?.nome || t("Sem cargo")}
                           </SelectItem>
                         ))
                       )}
@@ -235,12 +235,12 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="funcao_obra">Função na Obra *</Label>
+                  <Label htmlFor="funcao_obra">{t("Função na Obra")} *</Label>
                   <Input
                     id="funcao_obra"
                     value={formData.funcao_obra}
                     onChange={(e) => setFormData(prev => ({ ...prev, funcao_obra: e.target.value }))}
-                    placeholder="Ex: Operador, Motorista, Supervisor"
+                    placeholder={t("Ex: Operador, Motorista, Supervisor")}
                     required
                   />
                 </div>
@@ -248,7 +248,7 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="data_entrada">Data de Entrada *</Label>
+                  <Label htmlFor="data_entrada">{t("Data de Entrada")} *</Label>
                   <Input
                     id="data_entrada"
                     type="date"
@@ -258,7 +258,7 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
                   />
                 </div>
                 <div>
-                  <Label htmlFor="data_saida">Data de Saída (opcional)</Label>
+                  <Label htmlFor="data_saida">{t("Data de Saída (opcional)")}</Label>
                   <Input
                     id="data_saida"
                     type="date"
@@ -270,10 +270,10 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
 
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                  Cancelar
+                  {t("Cancelar")}
                 </Button>
                 <Button type="submit" disabled={loading}>
-                  {loading ? "Vinculando..." : "Vincular"}
+                  {loading ? t("Vinculando...") : t("Vincular")}
                 </Button>
               </div>
             </form>
@@ -282,19 +282,19 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Funcionário</TableHead>
-                <TableHead>Função na Obra</TableHead>
-                <TableHead>Treinamentos</TableHead>
-                <TableHead>Data Entrada</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead>{t("Funcionário")}</TableHead>
+                <TableHead>{t("Função na Obra")}</TableHead>
+                <TableHead>{t("Treinamentos")}</TableHead>
+                <TableHead>{t("Data Entrada")}</TableHead>
+                <TableHead>{t("Status")}</TableHead>
+                <TableHead>{t("Ações")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {vinculacoes.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-4">
-                    Nenhum funcionário vinculado
+                    {t("Nenhum funcionário vinculado")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -314,32 +314,32 @@ export function VinculacaoFuncionarioModal({ isOpen, onClose, obra }: Vinculacao
                         const st = treinStatusMap[vinculacao.employee_id];
                         if (!st || st === "sem_dados") return (
                           <span className="flex items-center gap-1 text-xs text-slate-400">
-                            <HelpCircle className="h-3.5 w-3.5" /> Sem dados
+                            <HelpCircle className="h-3.5 w-3.5" /> {t("Sem dados")}
                           </span>
                         );
                         if (st === "vencido") return (
                           <span className="flex items-center gap-1 text-xs font-semibold text-red-600">
-                            <AlertTriangle className="h-3.5 w-3.5" /> Vencido
+                            <AlertTriangle className="h-3.5 w-3.5" /> {t("Vencido")}
                           </span>
                         );
                         if (st === "a_vencer") return (
                           <span className="flex items-center gap-1 text-xs font-semibold text-amber-600">
-                            <Clock className="h-3.5 w-3.5" /> A vencer
+                            <Clock className="h-3.5 w-3.5" /> {t("A vencer")}
                           </span>
                         );
                         return (
                           <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Em dia
+                            <CheckCircle2 className="h-3.5 w-3.5" /> {t("Em dia")}
                           </span>
                         );
                       })()}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(vinculacao.data_entrada), "dd/MM/yyyy", { locale: ptBR })}
+                      {date(vinculacao.data_entrada)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={vinculacao.status ? "default" : "secondary"}>
-                        {vinculacao.status ? "Ativo" : "Inativo"}
+                        {vinculacao.status ? t("Ativo") : t("Inativo")}
                       </Badge>
                     </TableCell>
                     <TableCell>

@@ -1,6 +1,4 @@
 import React from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Calendar, Car, User, MapPin, FileText, Camera, CircleDot } from "lucide-react";
 import {
   Dialog,
@@ -12,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
+import { useI18n } from "@/i18n";
 
 interface TireService {
   id: string;
@@ -39,6 +38,7 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
   onClose,
   tireService,
 }) => {
+  const { t, date } = useI18n();
   const { vehicles } = useVehicles();
   const { employees } = useEmployees();
 
@@ -51,7 +51,7 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes do Serviço de Borracharia</DialogTitle>
+          <DialogTitle>{t("Detalhes do Serviço de Borracharia")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -63,7 +63,7 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
                 {vehicle?.placa} - {vehicle?.marca} {vehicle?.modelo}
               </p>
               <p className="text-sm text-muted-foreground">
-                Ano: {vehicle?.ano} | Cor: {vehicle?.cor}
+                {t("Ano:")} {vehicle?.ano} {t("| Cor:")} {vehicle?.cor}
               </p>
             </div>
           </div>
@@ -72,7 +72,7 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
 
           {/* Service Type */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Tipo de Serviço</label>
+            <label className="text-sm font-medium">{t("Tipo de Serviço")}</label>
             <Badge variant="outline" className="text-sm">
               {tireService.tipo_servico}
             </Badge>
@@ -82,10 +82,10 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Data do Serviço
+              {t("Data do Serviço")}
             </label>
             <p className="text-sm">
-              {format(new Date(tireService.data_servico), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              {date(tireService.data_servico, { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
 
@@ -94,9 +94,9 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <CircleDot className="h-4 w-4" />
-                Quantidade de Pneus
+                {t("Quantidade de Pneus")}
               </label>
-              <p className="text-sm">{tireService.quantidade_pneus} pneus</p>
+              <p className="text-sm">{tireService.quantidade_pneus} {t("pneus")}</p>
             </div>
           )}
 
@@ -105,7 +105,7 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <User className="h-4 w-4" />
-                Responsável pelo Serviço
+                {t("Responsável pelo Serviço")}
               </label>
               <p className="text-sm">{tireService.responsavel}</p>
             </div>
@@ -116,7 +116,7 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                Local do Serviço
+                {t("Local do Serviço")}
               </label>
               <p className="text-sm">{tireService.local_servico}</p>
             </div>
@@ -125,7 +125,7 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
           {/* Employee Info */}
           {employee && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Funcionário Responsável</label>
+              <label className="text-sm font-medium">{t("Funcionário Responsável")}</label>
               <p className="text-sm">{employee.nome}</p>
             </div>
           )}
@@ -135,12 +135,12 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Camera className="h-4 w-4" />
-                Fotos dos Pneus
+                {t("Fotos dos Pneus")}
               </label>
               <div className="mt-2">
                 <img
                   src={tireService.foto_pneus_url}
-                  alt="Fotos dos pneus"
+                  alt={t("Fotos dos pneus")}
                   className="max-w-full h-auto rounded-lg border"
                 />
               </div>
@@ -152,7 +152,7 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Observações
+                {t("Observações")}
               </label>
               <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
                 {tireService.observacoes}
@@ -164,11 +164,11 @@ export const TireServiceDetailModal: React.FC<TireServiceDetailModalProps> = ({
           <Separator />
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>
-              Registrado em: {format(new Date(tireService.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {t("Registrado em:")} {date(tireService.created_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
             {tireService.updated_at !== tireService.created_at && (
               <p>
-                Última atualização: {format(new Date(tireService.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {t("Última atualização:")} {date(tireService.updated_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
           </div>

@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import React from "react";
 import {
   AlertDialog,
@@ -23,24 +24,25 @@ export const ConfirmDeleteFornecedorModal: React.FC<ConfirmDeleteFornecedorModal
   onConfirm,
   fornecedorName,
 }) => {
+  const { t } = useI18n();
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Inativar fornecedor</AlertDialogTitle>
+          <AlertDialogTitle>{t("Inativar fornecedor")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Tem certeza que deseja inativar o fornecedor <strong>"{fornecedorName}"</strong>?
+            {t("Tem certeza que deseja inativar o fornecedor “{name}”?", { name: fornecedorName })}
             <br /><br />
-            O histórico e os vínculos com obras serão preservados. O fornecedor deixará de aparecer nas seleções operacionais de fornecedores ativos.
+            {t("O histórico e os vínculos com obras serão preservados. O fornecedor deixará de aparecer nas seleções operacionais de fornecedores ativos.")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel onClick={onClose}>{t("Cancelar")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Inativar
+            {t("Inativar")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

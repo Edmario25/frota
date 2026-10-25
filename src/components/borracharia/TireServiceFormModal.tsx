@@ -29,8 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { enUS, es, ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useTireServices } from "@/hooks/useTireServices";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -39,6 +38,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useFornecedores } from "@/hooks/useFornecedores";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import { useI18n } from "@/i18n";
 
 const serviceTypes = [
   { value: "calibragem", label: "Calibragem" },
@@ -79,6 +79,8 @@ export const TireServiceFormModal = ({
   vehicleType,
   vehicleId
 }: TireServiceFormModalProps) => {
+  const { t, date, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   const { createTireService, updateTireService } = useTireServices();
   const { vehicles } = useVehicles();
   const { employees } = useEmployees();
@@ -175,7 +177,7 @@ export const TireServiceFormModal = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {service ? "Editar Serviço" : "Novo Serviço de Pneu"}
+            {service ? t("Editar Serviço") : t("Novo Serviço de Pneu")}
           </DialogTitle>
         </DialogHeader>
 
@@ -186,11 +188,11 @@ export const TireServiceFormModal = ({
               name="employee_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Funcionário</FormLabel>
+                  <FormLabel>{t("Funcionário")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o funcionário" />
+                        <SelectValue placeholder={t("Selecione o funcionário")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -211,11 +213,11 @@ export const TireServiceFormModal = ({
               name="vehicle_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Placa do Veículo</FormLabel>
+                  <FormLabel>{t("Placa do Veículo")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o veículo" />
+                        <SelectValue placeholder={t("Selecione o veículo")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -236,7 +238,7 @@ export const TireServiceFormModal = ({
               name="data_servico"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Data do Serviço</FormLabel>
+                  <FormLabel>{t("Data do Serviço")}</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -248,9 +250,9 @@ export const TireServiceFormModal = ({
                           )}
                         >
                           {field.value ? (
-                            format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                            date(field.value)
                           ) : (
-                            <span>Selecione a data</span>
+                            <span>{t("Selecione a data")}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -262,7 +264,7 @@ export const TireServiceFormModal = ({
                         selected={field.value}
                         onSelect={field.onChange}
                         initialFocus
-                        locale={ptBR}
+                        locale={calendarLocale}
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
@@ -277,11 +279,11 @@ export const TireServiceFormModal = ({
               name="tipo_servico"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Serviço</FormLabel>
+                  <FormLabel>{t("Tipo de Serviço")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo de serviço" />
+                        <SelectValue placeholder={t("Selecione o tipo de serviço")} />
                       </SelectTrigger>
                     </FormControl>
                      <SelectContent>
@@ -302,7 +304,7 @@ export const TireServiceFormModal = ({
               name="quantidade_pneus"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Quantidade de Pneus</FormLabel>
+                  <FormLabel>{t("Quantidade de Pneus")}</FormLabel>
                   <FormControl>
                     <Input 
                       type="number" 
@@ -321,7 +323,7 @@ export const TireServiceFormModal = ({
               name="valor_servico"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Valor do Serviço <span className="text-muted-foreground font-normal">(opcional)</span></FormLabel>
+                  <FormLabel>{t("Valor do Serviço")} <span className="text-muted-foreground font-normal">{t("(opcional)")}</span></FormLabel>
                   <FormControl>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
@@ -347,11 +349,11 @@ export const TireServiceFormModal = ({
               name="local_servico"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Local do Serviço</FormLabel>
+                  <FormLabel>{t("Local do Serviço")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value || ""}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o fornecedor" />
+                        <SelectValue placeholder={t("Selecione o fornecedor")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -373,7 +375,7 @@ export const TireServiceFormModal = ({
               name="foto_pneus_url"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fotos dos Pneus</FormLabel>
+                  <FormLabel>{t("Fotos dos Pneus")}</FormLabel>
                   <FormControl>
                     <PhotoUpload
                       label=""
@@ -394,10 +396,10 @@ export const TireServiceFormModal = ({
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
+                  <FormLabel>{t("Observações")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observações sobre o serviço..."
+                      placeholder={t("Observações sobre o serviço...")}
                       className="resize-none"
                       {...field}
                     />
@@ -414,7 +416,7 @@ export const TireServiceFormModal = ({
                 onClick={onClose}
                 className="flex-1"
               >
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button
                 type="submit"
@@ -422,10 +424,10 @@ export const TireServiceFormModal = ({
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting
-                  ? "Salvando..."
+                  ? t("Salvando...")
                   : service
-                  ? "Atualizar"
-                  : "Salvar"}
+                  ? t("Atualizar")
+                  : t("Salvar")}
               </Button>
             </div>
           </form>

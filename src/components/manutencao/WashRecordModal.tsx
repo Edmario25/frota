@@ -18,6 +18,7 @@ import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import { useI18n } from "@/i18n";
 
 interface WashRecordModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ interface WashRecordModalProps {
 }
 
 export function WashRecordModal({ isOpen, onClose, washRecord }: WashRecordModalProps) {
+  const { t, date } = useI18n();
   const [formData, setFormData] = useState({
     vehicle_id: "",
     employee_id: "",
@@ -134,24 +136,24 @@ export function WashRecordModal({ isOpen, onClose, washRecord }: WashRecordModal
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {washRecord ? "Editar Registro de Lavagem" : "Novo Registro de Lavagem"}
+            {washRecord ? t("Editar Registro de Lavagem") : t("Novo Registro de Lavagem")}
           </DialogTitle>
           <DialogDescription>
-            {washRecord ? "Edite as informações da lavagem" : "Preencha os dados da lavagem realizada"}
+            {washRecord ? t("Edite as informações da lavagem") : t("Preencha os dados da lavagem realizada")}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="vehicle_id">Veículo</Label>
+              <Label htmlFor="vehicle_id">{t("Veículo")}</Label>
               <Select
                 value={formData.vehicle_id}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, vehicle_id: value }))}
                 disabled={isFuncionario}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecionar Veículo" />
+                  <SelectValue placeholder={t("Selecionar Veículo")} />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border border-border">
                   {availableVehicles.map((vehicle) => (
@@ -163,13 +165,13 @@ export function WashRecordModal({ isOpen, onClose, washRecord }: WashRecordModal
               </Select>
               {isFuncionario && (
                 <p className="text-xs text-muted-foreground">
-                  Você pode registrar lavagens apenas do seu veículo atribuído
+                  {t("Você pode registrar lavagens apenas do seu veículo atribuído")}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label>Data da Lavagem</Label>
+              <Label>{t("Data da Lavagem")}</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -180,7 +182,7 @@ export function WashRecordModal({ isOpen, onClose, washRecord }: WashRecordModal
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.data_lavagem ? format(formData.data_lavagem, "PPP", { locale: ptBR }) : "Selecionar data"}
+                    {formData.data_lavagem ? date(formData.data_lavagem, { day: 'numeric', month: 'long', year: 'numeric' }) : t("Selecionar data")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -197,47 +199,47 @@ export function WashRecordModal({ isOpen, onClose, washRecord }: WashRecordModal
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="tipo_lavagem">Tipo de Lavagem</Label>
+              <Label htmlFor="tipo_lavagem">{t("Tipo de Lavagem")}</Label>
               <Select
                 value={formData.tipo_lavagem}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, tipo_lavagem: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecionar Tipo" />
+                  <SelectValue placeholder={t("Selecionar Tipo")} />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border border-border">
-                  <SelectItem value="completa">Lavagem Completa</SelectItem>
-                  <SelectItem value="interna">Lavagem Interna</SelectItem>
-                  <SelectItem value="externa">Lavagem Externa</SelectItem>
+                  <SelectItem value="completa">{t("Lavagem Completa")}</SelectItem>
+                  <SelectItem value="interna">{t("Lavagem Interna")}</SelectItem>
+                  <SelectItem value="externa">{t("Lavagem Externa")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="responsavel_lavagem">Responsável pela Lavagem</Label>
+              <Label htmlFor="responsavel_lavagem">{t("Responsável pela Lavagem")}</Label>
               <Input
                 id="responsavel_lavagem"
                 value={formData.responsavel_lavagem}
                 onChange={(e) => setFormData(prev => ({ ...prev, responsavel_lavagem: e.target.value }))}
-                placeholder="Nome do responsável"
+                placeholder={t("Nome do responsável")}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="observacoes">Observações</Label>
+            <Label htmlFor="observacoes">{t("Observações")}</Label>
             <Textarea
               id="observacoes"
               value={formData.observacoes}
               onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
-              placeholder="Observações sobre a lavagem realizada"
+              placeholder={t("Observações sobre a lavagem realizada")}
               rows={3}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <PhotoUpload
-              label="Foto Antes da Lavagem"
+              label={t("Foto Antes da Lavagem")}
               value={formData.foto_antes_url}
               onChange={(url) => setFormData(prev => ({ ...prev, foto_antes_url: url || "" }))}
               bucketName="wash-photos"
@@ -246,7 +248,7 @@ export function WashRecordModal({ isOpen, onClose, washRecord }: WashRecordModal
             />
 
             <PhotoUpload
-              label="Foto Depois da Lavagem"
+              label={t("Foto Depois da Lavagem")}
               value={formData.foto_depois_url}
               onChange={(url) => setFormData(prev => ({ ...prev, foto_depois_url: url || "" }))}
               bucketName="wash-photos"
@@ -257,13 +259,13 @@ export function WashRecordModal({ isOpen, onClose, washRecord }: WashRecordModal
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {t("Cancelar")}
             </Button>
             <Button 
               type="submit" 
               disabled={loading || !formData.vehicle_id || !formData.tipo_lavagem || !formData.responsavel_lavagem}
             >
-              {loading ? "Salvando..." : washRecord ? "Atualizar" : "Salvar"}
+              {loading ? t("Salvando...") : washRecord ? t("Atualizar") : t("Salvar")}
             </Button>
           </DialogFooter>
         </form>

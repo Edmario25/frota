@@ -1,6 +1,4 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Building2, Phone, Mail, MapPin, Calendar, FileText, Pencil, LinkIcon, Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -14,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Fornecedor, useFornecedores, ObraFornecedor } from "@/hooks/useFornecedores";
 import { VinculacaoObraModal } from "./VinculacaoObraModal";
 import { formatCnpj, formatCpf } from "@/utils/documentValidation";
+import { useI18n } from "@/i18n";
 
 interface FornecedorDetailModalProps {
   isOpen: boolean;
@@ -22,6 +21,7 @@ interface FornecedorDetailModalProps {
   onEdit: () => void;
 }
 
+// Labels are the Portuguese catalog keys; they are translated when rendered.
 const TIPO_LABELS: Record<string, string> = {
   materiais: "Materiais",
   servicos: "Serviços",
@@ -37,6 +37,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
   fornecedor,
   onEdit,
 }) => {
+  const { t, money, date } = useI18n();
   const { getObrasByFornecedor, unlinkFornecedorFromObra } = useFornecedores();
   const [obrasVinculadas, setObrasVinculadas] = useState<ObraFornecedor[]>([]);
   const [loadingObras, setLoadingObras] = useState(false);
@@ -62,7 +63,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
   }, [isOpen, fornecedor?.id, loadObrasVinculadas]);
 
   const handleRemoveVinculo = async (linkId: string) => {
-    if (!window.confirm("Encerrar este vínculo com a obra? O histórico será preservado.")) return;
+    if (!window.confirm(t("Encerrar este vínculo com a obra? O histórico será preservado."))) return;
     try {
       await unlinkFornecedorFromObra(linkId);
       await loadObrasVinculadas();
@@ -76,11 +77,11 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "ativo":
-        return <Badge className="bg-green-100 text-green-800">Ativo</Badge>;
+        return <Badge className="bg-green-100 text-green-800">{t("Ativo")}</Badge>;
       case "inativo":
-        return <Badge className="bg-gray-100 text-gray-800">Inativo</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800">{t("Inativo")}</Badge>;
       case "bloqueado":
-        return <Badge className="bg-red-100 text-red-800">Bloqueado</Badge>;
+        return <Badge className="bg-red-100 text-red-800">{t("Bloqueado")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -94,11 +95,11 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Detalhes do Fornecedor
+                {t("Detalhes do Fornecedor")}
               </DialogTitle>
               <Button variant="outline" size="sm" onClick={onEdit}>
                 <Pencil className="h-4 w-4 mr-2" />
-                Editar
+                {t("Editar")}
               </Button>
             </div>
           </DialogHeader>
@@ -110,7 +111,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                 <h3 className="text-lg font-semibold">{fornecedor.nome}</h3>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="outline">
-                    {TIPO_LABELS[fornecedor.tipo_fornecedor] || fornecedor.tipo_fornecedor}
+                    {t(TIPO_LABELS[fornecedor.tipo_fornecedor] || fornecedor.tipo_fornecedor)}
                   </Badge>
                   {getStatusBadge(fornecedor.status)}
                 </div>
@@ -124,7 +125,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
               {(fornecedor.cnpj || fornecedor.cpf) && (
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground">
-                    {fornecedor.cnpj ? "CNPJ" : "CPF"}
+                    {fornecedor.cnpj ? t("CNPJ") : t("CPF")}
                   </label>
                   <p className="text-sm">{fornecedor.cnpj ? formatCnpj(fornecedor.cnpj) : formatCpf(fornecedor.cpf ?? "")}</p>
                 </div>
@@ -134,7 +135,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                     <Phone className="h-3 w-3" />
-                    Telefone
+                    {t("Telefone")}
                   </label>
                   <p className="text-sm">{fornecedor.telefone}</p>
                 </div>
@@ -144,7 +145,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                     <Mail className="h-3 w-3" />
-                    Email
+                    {t("Email")}
                   </label>
                   <p className="text-sm">{fornecedor.email}</p>
                 </div>
@@ -152,7 +153,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
 
               {fornecedor.categoria && (
                 <div className="space-y-1">
-                  <label className="text-sm font-medium text-muted-foreground">Categoria</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Categoria")}</label>
                   <p className="text-sm">{fornecedor.categoria}</p>
                 </div>
               )}
@@ -165,7 +166,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    Endereço
+                    {t("Endereço")}
                   </label>
                   <p className="text-sm">
                     {[fornecedor.endereco, fornecedor.cidade, fornecedor.estado]
@@ -182,7 +183,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium flex items-center gap-1">
                   <LinkIcon className="h-4 w-4" />
-                  Obras Vinculadas
+                  {t("Obras Vinculadas")}
                 </label>
                 <Button 
                   size="sm" 
@@ -190,14 +191,14 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                   onClick={() => setIsVinculacaoModalOpen(true)}
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Vincular Obra
+                  {t("Vincular Obra")}
                 </Button>
               </div>
               
               {loadingObras ? (
-                <p className="text-sm text-muted-foreground">Carregando obras...</p>
+                <p className="text-sm text-muted-foreground">{t("Carregando obras...")}</p>
               ) : obrasVinculadas.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma obra vinculada.</p>
+                <p className="text-sm text-muted-foreground">{t("Nenhuma obra vinculada.")}</p>
               ) : (
                 <div className="space-y-2">
                   {obrasVinculadas.map((link) => (
@@ -209,18 +210,18 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                         <div className="flex-1">
                           <p className="font-medium text-sm">{link.obra?.nome}</p>
                           <p className="text-xs text-muted-foreground">
-                            Cliente: {link.obra?.cliente_nome}
+                            {t("Cliente:")} {link.obra?.cliente_nome}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant={link.status ? "default" : "secondary"}>
-                            {link.status ? "Ativo" : "Inativo"}
+                            {link.status ? t("Ativo") : t("Inativo")}
                           </Badge>
                           {link.status && (
                             <Button
                               size="icon"
                               variant="ghost"
-                              title="Encerrar vínculo"
+                              title={t("Encerrar vínculo")}
                               aria-label={`Encerrar vínculo com ${link.obra?.nome ?? "a obra"}`}
                               className="h-7 w-7 text-destructive hover:text-destructive"
                               onClick={() => handleRemoveVinculo(link.id)}
@@ -231,15 +232,15 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                         </div>
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        <span>Início: {format(new Date(`${link.data_inicio}T12:00:00`), "dd/MM/yyyy", { locale: ptBR })}</span>
+                        <span>{t("Início:")} {date(`${link.data_inicio}T12:00:00`)}</span>
                         {link.data_fim && (
-                          <span> | Fim: {format(new Date(`${link.data_fim}T12:00:00`), "dd/MM/yyyy", { locale: ptBR })}</span>
+                          <span> | {t("Fim:")} {date(`${link.data_fim}T12:00:00`)}</span>
                         )}
                         {link.valor_contrato && (
-                          <span> | Valor: {link.valor_contrato.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                          <span> | {t("Valor:")} {money(link.valor_contrato)}</span>
                         )}
                         {link.tipo_contrato && (
-                          <span> | Tipo: {link.tipo_contrato}</span>
+                          <span> | {t("Tipo:")} {link.tipo_contrato}</span>
                         )}
                       </div>
                     </div>
@@ -255,7 +256,7 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-1">
                     <FileText className="h-4 w-4" />
-                    Observações
+                    {t("Observações")}
                   </label>
                   <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
                     {fornecedor.observacoes}
@@ -269,11 +270,11 @@ export const FornecedorDetailModal: React.FC<FornecedorDetailModalProps> = ({
             <div className="space-y-1 text-xs text-muted-foreground">
               <p className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                Cadastrado em: {format(new Date(fornecedor.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {t("Cadastrado em:")} {date(fornecedor.created_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
               {fornecedor.updated_at !== fornecedor.created_at && (
                 <p>
-                  Última atualização: {format(new Date(fornecedor.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  {t("Última atualização:")} {date(fornecedor.updated_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
               )}
             </div>

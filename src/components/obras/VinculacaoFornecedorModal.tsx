@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { enUS, es, ptBR } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -37,6 +36,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useFornecedores } from "@/hooks/useFornecedores";
+import { useI18n } from "@/i18n";
 
 const formSchema = z.object({
   fornecedor_id: z.string().min(1, "Selecione um fornecedor"),
@@ -55,6 +55,7 @@ interface VinculacaoFornecedorModalProps {
   obraNome: string;
 }
 
+// Only the stored value travels to the database; the label is translated when rendered.
 const TIPO_CONTRATO_OPTIONS = [
   { value: "fornecimento", label: "Fornecimento" },
   { value: "servico", label: "Serviço" },
@@ -70,6 +71,8 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
   obraId,
   obraNome,
 }) => {
+  const { t, date, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   const { fornecedores, linkFornecedorToObra } = useFornecedores();
 
   const form = useForm<FormData>({
@@ -115,9 +118,9 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Vincular Fornecedor à Obra</DialogTitle>
+          <DialogTitle>{t("Vincular Fornecedor à Obra")}</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Obra: <strong>{obraNome}</strong>
+            {t("Obra:")} <strong>{obraNome}</strong>
           </p>
         </DialogHeader>
 
@@ -128,11 +131,11 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
               name="fornecedor_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fornecedor *</FormLabel>
+                  <FormLabel>{t("Fornecedor")} *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o fornecedor" />
+                        <SelectValue placeholder={t("Selecione o fornecedor")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -155,7 +158,7 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
               name="data_inicio"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Data de Início *</FormLabel>
+                  <FormLabel>{t("Data de Início")} *</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -167,9 +170,9 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
                           )}
                         >
                           {field.value ? (
-                            format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                            date(field.value)
                           ) : (
-                            <span>Selecione a data</span>
+                            <span>{t("Selecione a data")}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -181,7 +184,7 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
                         selected={field.value}
                         onSelect={field.onChange}
                         initialFocus
-                        locale={ptBR}
+                        locale={calendarLocale}
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
@@ -197,17 +200,17 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
                 name="tipo_contrato"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Contrato</FormLabel>
+                    <FormLabel>{t("Tipo de Contrato")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
+                          <SelectValue placeholder={t("Selecione")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {TIPO_CONTRATO_OPTIONS.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                            {t(option.label)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -222,7 +225,7 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
                 name="valor_contrato"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor do Contrato (R$)</FormLabel>
+                    <FormLabel>{t("Valor do Contrato (R$)")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -243,10 +246,10 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
+                  <FormLabel>{t("Observações")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observações sobre o vínculo..."
+                      placeholder={t("Observações sobre o vínculo...")}
                       className="resize-none"
                       rows={3}
                       {...field}
@@ -259,9 +262,9 @@ export const VinculacaoFornecedorModal: React.FC<VinculacaoFornecedorModalProps>
 
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
-              <Button type="submit">Vincular</Button>
+              <Button type="submit">{t("Vincular")}</Button>
             </div>
           </form>
         </Form>

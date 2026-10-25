@@ -1,6 +1,4 @@
 import React from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Calendar, Car, User, MapPin, FileText, Camera, DollarSign, AlertTriangle } from "lucide-react";
 import {
   Dialog,
@@ -12,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
+import { useI18n } from "@/i18n";
 
 interface TrafficFine {
   id: string;
@@ -39,6 +38,7 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
   onClose,
   trafficFine,
 }) => {
+  const { t, money, date } = useI18n();
   const { vehicles } = useVehicles();
   const { employees } = useEmployees();
 
@@ -52,7 +52,7 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes da Multa</DialogTitle>
+          <DialogTitle>{t("Detalhes da Multa")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -64,7 +64,7 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
                 {vehicle?.placa} - {vehicle?.marca} {vehicle?.modelo}
               </p>
               <p className="text-sm text-muted-foreground">
-                Ano: {vehicle?.ano} | Cor: {vehicle?.cor}
+                {t("Ano:")} {vehicle?.ano} {t("| Cor:")} {vehicle?.cor}
               </p>
             </div>
           </div>
@@ -73,7 +73,7 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
 
           {/* Fine Status */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Situação da Multa</label>
+            <label className="text-sm font-medium">{t("Situação da Multa")}</label>
             <div className="flex items-center gap-2">
               {isPending ? (
                 <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -90,16 +90,16 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Data da Multa
+              {t("Data da Multa")}
             </label>
             <p className="text-sm">
-              {format(new Date(trafficFine.data_multa), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              {date(trafficFine.data_multa, { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
 
           {/* Infraction Type */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Tipo de Infração</label>
+            <label className="text-sm font-medium">{t("Tipo de Infração")}</label>
             <Badge variant="outline" className="text-sm">
               {trafficFine.tipo_infracao}
             </Badge>
@@ -109,7 +109,7 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
               <MapPin className="h-4 w-4" />
-              Local da Infração
+              {t("Local da Infração")}
             </label>
             <p className="text-sm">{trafficFine.local_infracao}</p>
           </div>
@@ -118,13 +118,10 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Valor da Multa
+              {t("Valor da Multa")}
             </label>
             <p className="text-lg font-bold text-destructive">
-              {Number(trafficFine.valor).toLocaleString('pt-BR', { 
-                style: 'currency', 
-                currency: 'BRL' 
-              })}
+              {money(Number(trafficFine.valor))}
             </p>
           </div>
 
@@ -133,7 +130,7 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <User className="h-4 w-4" />
-                Funcionário Responsável
+                {t("Funcionário Responsável")}
               </label>
               <p className="text-sm">{employee.nome}</p>
             </div>
@@ -144,12 +141,12 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Camera className="h-4 w-4" />
-                Comprovante
+                {t("Comprovante")}
               </label>
               <div className="mt-2">
                 <img
                   src={trafficFine.comprovante_url}
-                  alt="Comprovante da multa"
+                  alt={t("Comprovante da multa")}
                   className="max-w-full h-auto rounded-lg border"
                 />
               </div>
@@ -161,7 +158,7 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Observações
+                {t("Observações")}
               </label>
               <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
                 {trafficFine.observacoes}
@@ -173,11 +170,11 @@ export const TrafficFineDetailModal: React.FC<TrafficFineDetailModalProps> = ({
           <Separator />
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>
-              Registrado em: {format(new Date(trafficFine.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {t("Registrado em:")} {date(trafficFine.created_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
             {trafficFine.updated_at !== trafficFine.created_at && (
               <p>
-                Última atualização: {format(new Date(trafficFine.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {t("Última atualização:")} {date(trafficFine.updated_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
           </div>

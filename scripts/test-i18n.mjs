@@ -48,13 +48,102 @@ assert.equal(translate('en', '+{distance} km rodados', { distance: '1,234' }), '
 assert.equal(translate('es', '{percent}% do limite', { percent: '75' }), '75% del límite');
 assert.equal(translate('en', 'Selecione o fornecedor responsável pela locação'), 'Select the rental supplier');
 assert.equal(translate('es', 'Placa é obrigatória'), 'La matrícula es obligatoria');
-for (const file of ['components/frota/VehicleFormModal.tsx', 'components/veiculos-pesados/HeavyVehicleFormModal.tsx', 'components/frota/TraccarSyncPanel.tsx']) {
+const fleetFiles = [
+  'components/frota/VehicleFormModal.tsx',
+  'components/veiculos-pesados/HeavyVehicleFormModal.tsx',
+  'components/frota/TraccarSyncPanel.tsx',
+  'components/frota/ConfirmDeleteModal.tsx',
+  'components/frota/VehicleKmCell.tsx',
+  'components/frota/DevolverVeiculoModal.tsx',
+  'components/frota/QrCodeVeiculoDialog.tsx',
+  'components/frota/TransferirVeiculoModal.tsx',
+  'components/frota/RentalCompanyFormModal.tsx',
+  'components/frota/AvariaRapidaDialog.tsx',
+  'components/frota/ViewVehicleModal.tsx',
+  'components/frota/VehicleDetailModal.tsx',
+  'components/veiculos-pesados/ConfirmDeleteModal.tsx',
+  'components/veiculos-pesados/ViewVehicleModal.tsx',
+  'components/veiculos-pesados/HeavyVehicleDetailModal.tsx',
+  'components/veiculos-pesados/HeavyVehicleInspectionDetailModal.tsx',
+  'components/veiculos-pesados/HeavyVehicleInspectionFormModal.tsx',
+  'components/acessorios/VehicleAccessoryDetailModal.tsx',
+  'components/acessorios/VehicleAccessoryFormModal.tsx',
+  'components/borracharia/TireServiceDetailModal.tsx',
+  'components/borracharia/TireServiceFormModal.tsx',
+  'components/checklist/InspectionChecklistDetailModal.tsx',
+  'components/checklist/InspectionChecklistFormModal.tsx',
+  'components/combustivel/FuelLogFormModal.tsx',
+  'components/fumaca/SmokeTestDetailModal.tsx',
+  'components/fumaca/SmokeTestFormModal.tsx',
+  'components/lavagem/WashRecordFormModal.tsx',
+  'components/manutencao/DamageReportModal.tsx',
+  'components/manutencao/DetailModal.tsx',
+  'components/manutencao/HistoryModal.tsx',
+  'components/manutencao/MaintenanceDetailModal.tsx',
+  'components/manutencao/MaintenanceFormModal.tsx',
+  'components/manutencao/WashRecordModal.tsx',
+  'components/multas/TrafficFineDetailModal.tsx',
+  'components/multas/TrafficFineFormModal.tsx',
+  'components/obras/ConfirmDeleteObraModal.tsx',
+  'components/obras/EquipesObraModal.tsx',
+  'components/obras/ObraDetailModal.tsx',
+  'components/obras/ObraFormModal.tsx',
+  'components/obras/VinculacaoFornecedorModal.tsx',
+  'components/obras/VinculacaoFuncionarioModal.tsx',
+  'components/obras/VinculacaoVeiculoModal.tsx',
+  'components/funcionarios/EmployeeFormModal.tsx',
+  'components/funcionarios/ConfirmDeleteEmployeeModal.tsx',
+  'components/funcionarios/ViewEmployeeModal.tsx',
+  'components/funcionarios/CrachaFuncionarioDialog.tsx',
+  'components/funcionarios/PerfilRhSheet.tsx',
+  'components/visitantes/AutenticacaoEntradaVisitanteDialog.tsx',
+  'components/visitantes/CredencialVisitanteDialog.tsx',
+  'components/alojamentos/AlojadosAba.tsx',
+  'components/alojamentos/ChamadosAba.tsx',
+  'components/alojamentos/CustosAba.tsx',
+  'components/alojamentos/LeitoPainel.tsx',
+  'components/alojamentos/MapaHotel.tsx',
+  'components/alojamentos/MovimentarBemDialog.tsx',
+  'components/alojamentos/PainelGestao.tsx',
+  'components/alojamentos/PatrimonioAba.tsx',
+  'components/alojamentos/RelatoriosAlojamento.tsx',
+  'components/fornecedores/ConfirmDeleteFornecedorModal.tsx',
+  'components/fornecedores/FornecedorDetailModal.tsx',
+  'components/fornecedores/FornecedorFormModal.tsx',
+  'components/fornecedores/VinculacaoObraModal.tsx',
+  'components/access/AcessoNegado.tsx',
+  'components/access/Pode.tsx',
+  'components/app/MobilePhotoCapture.tsx',
+  'components/configuracoes/FleetParametersTab.tsx',
+  'components/configuracoes/GeneralSettingsTab.tsx',
+  'components/configuracoes/TraccarSettingsTab.tsx',
+  'components/controle-acesso/ComparacaoAba.tsx',
+  'components/controle-acesso/GovernancaAba.tsx',
+  'components/controle-acesso/UsuariosAba.tsx',
+  'components/employee/MinhasInfracoesCard.tsx',
+  'components/employee/MyMaintenanceCard.tsx',
+  'components/employee/MyScheduleCard.tsx',
+  'components/employee/MyVehicleCard.tsx',
+  'components/employee/UpdateKmModal.tsx',
+  'components/fundo-fixo/FundoFixoLancamentoModal.tsx',
+];
+for (const file of fleetFiles) {
   const source = readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   function check(node) {
     if (ts.isJsxText(node) && node.text.trim()) {
-      const neutralText = new Set(['SUV', 'Sedan', '-', '•', '—', 'km', 'L', 'km/L']);
-      assert.ok(neutralText.has(node.text.trim()), `Untranslated fleet text in ${file}: ${node.text.trim()}`);
+      const text = node.text.trim();
+      // Punctuation, units and values stay as they are; <T>...</T> carries its own catalog key.
+      const neutralText = new Set(['SUV', 'Sedan', '-', '•', '—', '·', 'km', 'L', 'km/L', '(', ')', ')?', '?', '/', '0', ':', '*', '%', '→', '‹', '›', 'R$', 'R$/L', 'ÁPICE', 'GESTÃO', 'x', 'h', 'd']);
+      // An emoji or a symbol on its own is not text to translate.
+      const symbolOnly = !/[A-Za-zÀ-ÿ0-9]/.test(text);
+      const parent = node.parent;
+      const insideT = parent && ts.isJsxElement(parent) && parent.openingElement.tagName.getText(ast) === 'T';
+      if (insideT) {
+        assert.ok(Object.hasOwn(catalog, text), `Missing fleet translation: ${text}`);
+      } else {
+        assert.ok(neutralText.has(text) || symbolOnly, `Untranslated fleet text in ${file}: ${text}`);
+      }
     }
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 't'
       && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {

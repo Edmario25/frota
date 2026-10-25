@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { downloadCsv } from "@/lib/exportCsv";
+import { useI18n } from "@/i18n";
 import { Dados, dataCurta } from "./shared";
 import { brl, CATEGORIA, dataParaMes, rotuloMes } from "./custos";
 
@@ -23,6 +24,7 @@ const STATUS: Record<string, string> = {
 
 /** Relatórios executivos do alojamento: dados atuais + custos por competência. */
 export function RelatoriosAlojamento({ dados, unidades, leitos, leitoIds, nome }: Props) {
+  const { t, number, money, date } = useI18n();
   const [mes, setMes] = useState(() => dataParaMes(new Date()));
   const [custos, setCustos] = useState<any[]>([]);
   const [despesas, setDespesas] = useState<any[]>([]);
@@ -109,45 +111,45 @@ export function RelatoriosAlojamento({ dados, unidades, leitos, leitoIds, nome }
     downloadCsv(["Unidade", "Leitos em operação", "Ocupados", "Livres", "Reservados", "Bloqueados", "Ocupação (%)"], porUnidade.map(x => [x.unidade.nome, x.operando, x.ocupados, x.livres, x.reservados, x.bloqueados, x.taxa.toFixed(1)]), `ocupacao_alojamento_${mes}`);
   }
   function exportarCustos() {
-    downloadCsv(["Competência", "Complexo", "Unidade", "Categoria", "Descrição", "Fornecedor", "Documento", "Origem", "Valor"], detalhesCusto.map(x => [rotuloMes(mes), x.complexo, x.unidade, x.categoria, x.descricao, x.fornecedor, x.documento, x.origem, x.valor.toFixed(2)]), `custos_alojamento_${mes}`);
+    downloadCsv(["Competência", "Complexo", "Unidade", "Categoria", "Descrição", "Fornecedor", "Documento", "Origem", "Valor"], detalhesCusto.map(x => [rotuloMes(mes, date), x.complexo, x.unidade, x.categoria, x.descricao, x.fornecedor, x.documento, x.origem, x.valor.toFixed(2)]), `custos_alojamento_${mes}`);
   }
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border bg-muted/20 p-3">
-      <div><h2 className="font-semibold">Relatórios gerenciais</h2><p className="text-sm text-muted-foreground">Visão pronta para acompanhar pessoas, capacidade e custos.</p></div>
+      <div><h2 className="font-semibold">{t("Relatórios gerenciais")}</h2><p className="text-sm text-muted-foreground">{t("Visão pronta para acompanhar pessoas, capacidade e custos.")}</p></div>
       <div className="flex flex-wrap items-center gap-2">
         <Input aria-label="Competência" type="month" value={mes} onChange={e => setMes(e.target.value)} className="h-9 w-40" />
         {carregando && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-        <Button size="sm" variant="outline" onClick={exportarAlojados}><Download className="mr-1.5 h-4 w-4" />Alojados</Button>
-        <Button size="sm" variant="outline" onClick={exportarDisponibilidade}><Download className="mr-1.5 h-4 w-4" />Ocupação</Button>
-        <Button size="sm" variant="outline" onClick={exportarCustos}><Download className="mr-1.5 h-4 w-4" />Custos</Button>
+        <Button size="sm" variant="outline" onClick={exportarAlojados}><Download className="mr-1.5 h-4 w-4" />{t("Alojados")}</Button>
+        <Button size="sm" variant="outline" onClick={exportarDisponibilidade}><Download className="mr-1.5 h-4 w-4" />{t("Ocupação")}</Button>
+        <Button size="sm" variant="outline" onClick={exportarCustos}><Download className="mr-1.5 h-4 w-4" />{t("Custos")}</Button>
       </div>
     </div>
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Numero label="Ocupação atual" valor={`${ocupacao.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`} detalhe={`${totalOcupados} de ${totalOperando} leitos em operação`} />
+      <Numero label="Ocupação atual" valor={`${number(ocupacao, { maximumFractionDigits: 1 })}%`} detalhe={`${totalOcupados} de ${totalOperando} leitos em operação`} />
       <Numero label="Leitos disponíveis" valor={String(totalLivres)} detalhe="prontos para entrada" cor="text-emerald-600" />
       <Numero label="Alojados agora" valor={String(totalOcupados)} detalhe="relação disponível abaixo" cor="text-violet-600" />
-      <Numero label={`Custo · ${rotuloMes(mes)}`} valor={brl(totalCustos, 0)} detalhe={`${detalhesCusto.length} itens de custo`} />
+      <Numero label={`Custo · ${rotuloMes(mes, date)}`} valor={brl(totalCustos, money)} detalhe={`${detalhesCusto.length} itens de custo`} />
     </div>
 
     <section className="rounded-lg border"><Cabecalho titulo="Ocupação x disponibilidade" sub="Capacidade operacional por unidade." />
-      <div className="overflow-x-auto"><table className="w-full min-w-[680px] text-sm"><thead className="border-y bg-muted/40 text-left text-xs text-muted-foreground"><tr><th className="p-3 font-medium">Unidade</th><th className="p-3 text-right font-medium">Operação</th><th className="p-3 text-right font-medium">Ocupados</th><th className="p-3 text-right font-medium">Livres</th><th className="p-3 text-right font-medium">Reservados</th><th className="p-3 text-right font-medium">Bloqueados</th><th className="p-3 text-right font-medium">Ocupação</th></tr></thead><tbody>
+      <div className="overflow-x-auto"><table className="w-full min-w-[680px] text-sm"><thead className="border-y bg-muted/40 text-left text-xs text-muted-foreground"><tr><th className="p-3 font-medium">{t("Unidade")}</th><th className="p-3 text-right font-medium">{t("Operação")}</th><th className="p-3 text-right font-medium">{t("Ocupados")}</th><th className="p-3 text-right font-medium">{t("Livres")}</th><th className="p-3 text-right font-medium">{t("Reservados")}</th><th className="p-3 text-right font-medium">{t("Bloqueados")}</th><th className="p-3 text-right font-medium">{t("Ocupação")}</th></tr></thead><tbody>
         {porUnidade.length ? porUnidade.map(x => <tr key={x.unidade.id} className="border-b last:border-0"><td className="p-3 font-medium">{x.unidade.nome}</td><td className="p-3 text-right tabular-nums">{x.operando}</td><td className="p-3 text-right tabular-nums">{x.ocupados}</td><td className="p-3 text-right tabular-nums text-emerald-700">{x.livres}</td><td className="p-3 text-right tabular-nums">{x.reservados}</td><td className="p-3 text-right tabular-nums text-amber-700">{x.bloqueados}</td><td className="p-3 text-right tabular-nums font-medium">{x.taxa.toFixed(1)}%</td></tr>) : <Vazio colunas={7} texto="Nenhuma unidade no filtro selecionado." />}
       </tbody></table></div>
       <div className="flex flex-wrap gap-2 border-t p-3 text-xs text-muted-foreground">{disponibilidade.map(x => <span key={x.status} className="rounded-full bg-muted px-2 py-1">{STATUS[x.status]}: <strong className="text-foreground">{x.quantidade}</strong></span>)}</div>
     </section>
 
     <section className="rounded-lg border"><Cabecalho titulo="Relação de alojados" sub="Posição atual; inclui a situação de presença." />
-      <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm"><thead className="border-y bg-muted/40 text-left text-xs text-muted-foreground"><tr><th className="p-3 font-medium">Colaborador</th><th className="p-3 font-medium">Local</th><th className="p-3 font-medium">Entrada</th><th className="p-3 font-medium">Situação</th></tr></thead><tbody>
-        {alojados.length ? alojados.map(o => <tr key={o.id} className="border-b last:border-0"><td className="p-3 font-medium">{nome(o.employee_id)}</td><td className="p-3">{local(o.leito_id).texto}</td><td className="p-3">{dataCurta(o.data_entrada)}</td><td className="p-3"><span className={o.presenca_status === "ausente_temporariamente" ? "text-amber-700" : "text-emerald-700"}>{o.presenca_status === "ausente_temporariamente" ? "Ausente temporariamente" : "Alojado"}</span></td></tr>) : <Vazio colunas={4} texto="Não há pessoas alojadas neste filtro." />}
+      <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm"><thead className="border-y bg-muted/40 text-left text-xs text-muted-foreground"><tr><th className="p-3 font-medium">{t("Colaborador")}</th><th className="p-3 font-medium">{t("Local")}</th><th className="p-3 font-medium">{t("Entrada")}</th><th className="p-3 font-medium">{t("Situação")}</th></tr></thead><tbody>
+        {alojados.length ? alojados.map(o => <tr key={o.id} className="border-b last:border-0"><td className="p-3 font-medium">{nome(o.employee_id)}</td><td className="p-3">{local(o.leito_id).texto}</td><td className="p-3">{dataCurta(o.data_entrada)}</td><td className="p-3"><span className={o.presenca_status === "ausente_temporariamente" ? "text-amber-700" : "text-emerald-700"}>{o.presenca_status === "ausente_temporariamente" ? t("Ausente temporariamente") : t("Alojado")}</span></td></tr>) : <Vazio colunas={4} texto="Não há pessoas alojadas neste filtro." />}
       </tbody></table></div>
     </section>
 
-    <section className="rounded-lg border"><Cabecalho titulo={`Custos detalhados · ${rotuloMes(mes)}`} sub="Lançamentos informados, contratos e manutenções concluídas." />
-      <div className="overflow-x-auto"><table className="w-full min-w-[860px] text-sm"><thead className="border-y bg-muted/40 text-left text-xs text-muted-foreground"><tr><th className="p-3 font-medium">Categoria</th><th className="p-3 font-medium">Unidade</th><th className="p-3 font-medium">Detalhe</th><th className="p-3 font-medium">Fornecedor / documento</th><th className="p-3 font-medium">Origem</th><th className="p-3 text-right font-medium">Valor</th></tr></thead><tbody>
-        {detalhesCusto.length ? detalhesCusto.map((x, i) => <tr key={`${x.categoria}-${x.unidade}-${i}`} className="border-b last:border-0"><td className="p-3 font-medium">{x.categoria}</td><td className="p-3">{x.unidade}</td><td className="p-3">{x.descricao}</td><td className="p-3">{x.fornecedor === "—" ? "—" : `${x.fornecedor} · ${x.documento}`}</td><td className="p-3 text-muted-foreground">{x.origem}</td><td className="p-3 text-right font-medium tabular-nums">{brl(x.valor)}</td></tr>) : <Vazio colunas={6} texto="Nenhum custo registrado para esta competência." />}
-      </tbody><tfoot className="border-t bg-muted/30"><tr><td className="p-3 font-semibold" colSpan={5}>Total do período</td><td className="p-3 text-right font-bold tabular-nums">{brl(totalCustos)}</td></tr></tfoot></table></div>
+    <section className="rounded-lg border"><Cabecalho titulo={`Custos detalhados · ${rotuloMes(mes, date)}`} sub="Lançamentos informados, contratos e manutenções concluídas." />
+      <div className="overflow-x-auto"><table className="w-full min-w-[860px] text-sm"><thead className="border-y bg-muted/40 text-left text-xs text-muted-foreground"><tr><th className="p-3 font-medium">{t("Categoria")}</th><th className="p-3 font-medium">{t("Unidade")}</th><th className="p-3 font-medium">{t("Detalhe")}</th><th className="p-3 font-medium">{t("Fornecedor / documento")}</th><th className="p-3 font-medium">{t("Origem")}</th><th className="p-3 text-right font-medium">{t("Valor")}</th></tr></thead><tbody>
+        {detalhesCusto.length ? detalhesCusto.map((x, i) => <tr key={`${x.categoria}-${x.unidade}-${i}`} className="border-b last:border-0"><td className="p-3 font-medium">{x.categoria}</td><td className="p-3">{x.unidade}</td><td className="p-3">{x.descricao}</td><td className="p-3">{x.fornecedor === "—" ? "—" : `${x.fornecedor} · ${x.documento}`}</td><td className="p-3 text-muted-foreground">{x.origem}</td><td className="p-3 text-right font-medium tabular-nums">{brl(x.valor, money)}</td></tr>) : <Vazio colunas={6} texto="Nenhum custo registrado para esta competência." />}
+      </tbody><tfoot className="border-t bg-muted/30"><tr><td className="p-3 font-semibold" colSpan={5}>{t("Total do período")}</td><td className="p-3 text-right font-bold tabular-nums">{brl(totalCustos, money)}</td></tr></tfoot></table></div>
     </section>
   </div>;
 }

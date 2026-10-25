@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useI18n } from "@/i18n";
 import { toast } from "sonner";
 import {
   Satellite, Save, Plug, CheckCircle2, XCircle, Loader2,
@@ -20,6 +21,7 @@ import {
 } from "@/hooks/useTraccar";
 
 export function TraccarSettingsTab() {
+  const { t, number, date } = useI18n();
   const { testConnection, getDevices } = useTraccar();
 
   const [url, setUrl]           = useState("");
@@ -52,18 +54,18 @@ export function TraccarSettingsTab() {
   }
 
   async function handleTest() {
-    if (!url) { toast.error("Informe a URL do servidor Traccar."); return; }
+    if (!url) { toast.error(t("Informe a URL do servidor Traccar.")); return; }
     setTesting(true);
     setStatus("idle");
     try {
       const name = await testConnection(buildConfig());
       setStatus("ok");
       setStatusMsg(`Conectado como: ${name}`);
-      toast.success("Conexão com Traccar estabelecida!");
+      toast.success(t("Conexão com Traccar estabelecida!"));
     } catch (e: any) {
       setStatus("error");
       setStatusMsg(e.message ?? "Falha na conexão");
-      toast.error("Falha ao conectar no Traccar", { description: e.message });
+      toast.error(t("Falha ao conectar no Traccar"), { description: e.message });
     } finally {
       setTesting(false);
     }
@@ -77,19 +79,19 @@ export function TraccarSettingsTab() {
       setDevices(list);
       toast.success(`${list.length} dispositivo(s) carregado(s).`);
     } catch (e: any) {
-      toast.error("Erro ao listar dispositivos", { description: e.message });
+      toast.error(t("Erro ao listar dispositivos"), { description: e.message });
     } finally {
       setLoading(false);
     }
   }
 
   async function handleSave() {
-    if (!url) { toast.error("Informe a URL do servidor."); return; }
+    if (!url) { toast.error(t("Informe a URL do servidor.")); return; }
     setSaving(true);
     const ok = await saveTraccarConfig(buildConfig());
     setSaving(false);
-    if (ok) toast.success("Configurações do Traccar salvas!");
-    else toast.error("Erro ao salvar. Verifique se a tabela system_settings existe.");
+    if (ok) toast.success(t("Configurações do Traccar salvas!"));
+    else toast.error(t("Erro ao salvar. Verifique se a tabela system_settings existe."));
   }
 
   const statusIcon = status === "ok"
@@ -109,8 +111,8 @@ export function TraccarSettingsTab() {
               <Satellite className="h-5 w-5 text-sky-600" />
             </div>
             <div>
-              <CardTitle className="text-lg">Servidor Traccar</CardTitle>
-              <CardDescription>Configure a URL e as credenciais de acesso à API</CardDescription>
+              <CardTitle className="text-lg">{t("Servidor Traccar")}</CardTitle>
+              <CardDescription>{t("Configure a URL e as credenciais de acesso à API")}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -118,15 +120,15 @@ export function TraccarSettingsTab() {
 
           {/* URL */}
           <div className="space-y-2">
-            <Label>URL do Servidor</Label>
+            <Label>{t("URL do Servidor")}</Label>
             <Input
               value={url}
               onChange={e => setUrl(e.target.value)}
-              placeholder="https://traccar.suaempresa.com"
+              placeholder={t("https://traccar.suaempresa.com")}
               className="rounded-xl font-mono text-sm"
             />
             <p className="text-xs text-muted-foreground">
-              Sem barra no final. Ex.: <code>https://gps.empresa.com.br</code>
+              {t("Sem barra no final. Ex.:")} <code>{t("https://gps.empresa.com.br")}</code>
             </p>
           </div>
 
@@ -134,7 +136,7 @@ export function TraccarSettingsTab() {
 
           {/* Modo de autenticação */}
           <div className="space-y-3">
-            <Label>Autenticação</Label>
+            <Label>{t("Autenticação")}</Label>
             <RadioGroup
               value={authMode}
               onValueChange={v => setAuthMode(v as "token" | "basic")}
@@ -142,43 +144,43 @@ export function TraccarSettingsTab() {
             >
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="token" id="auth-token" />
-                <Label htmlFor="auth-token" className="cursor-pointer">Token de API</Label>
+                <Label htmlFor="auth-token" className="cursor-pointer">{t("Token de API")}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="basic" id="auth-basic" />
-                <Label htmlFor="auth-basic" className="cursor-pointer">Email + Senha</Label>
+                <Label htmlFor="auth-basic" className="cursor-pointer">{t("Email + Senha")}</Label>
               </div>
             </RadioGroup>
           </div>
 
           {authMode === "token" ? (
             <div className="space-y-2">
-              <Label>Token de API</Label>
+              <Label>{t("Token de API")}</Label>
               <Input
                 type="password"
                 value={token}
                 onChange={e => setToken(e.target.value)}
-                placeholder="Cole seu token aqui"
+                placeholder={t("Cole seu token aqui")}
                 className="rounded-xl font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                No Traccar: <strong>Menu → Preferências → Token de API</strong>
+                {t("No Traccar:")} <strong>{t("Menu → Preferências → Token de API")}</strong>
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>{t("Email")}</Label>
                 <Input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="admin@empresa.com"
+                  placeholder={t("admin@empresa.com")}
                   className="rounded-xl"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Senha</Label>
+                <Label>{t("Senha")}</Label>
                 <Input
                   type="password"
                   value={password}
@@ -199,7 +201,7 @@ export function TraccarSettingsTab() {
               className="gap-2 rounded-xl"
             >
               {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
-              Testar Conexão
+              {t("Testar Conexão")}
             </Button>
 
             {status !== "idle" && (
@@ -216,16 +218,16 @@ export function TraccarSettingsTab() {
           <div className="rounded-lg bg-sky-50 border border-sky-200 px-4 py-3 text-xs text-sky-700 flex gap-2">
             <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
             <div className="space-y-1.5">
-              <p><strong>Configuração necessária no Traccar</strong> (traccar.xml):</p>
-              <p>Adicione a origem exata do seu sistema (não use <code>*</code> — cookies não funcionam com wildcard):</p>
+              <p><strong>{t("Configuração necessária no Traccar")}</strong> {t("(traccar.xml):")}</p>
+              <p>{t("Adicione a origem exata do seu sistema (não use")} <code>*</code> {t("— cookies não funcionam com wildcard):")}</p>
               <code className="block bg-sky-100 px-2 py-1 rounded font-mono">
                 {"<entry key='web.origin'>https://seuapp.com</entry>"}
               </code>
-              <p>Para desenvolvimento local:</p>
+              <p>{t("Para desenvolvimento local:")}</p>
               <code className="block bg-sky-100 px-2 py-1 rounded font-mono">
                 {"<entry key='web.origin'>http://localhost:8080</entry>"}
               </code>
-              <p className="text-sky-600">Reinicie o serviço Traccar após alterar o arquivo.</p>
+              <p className="text-sky-600">{t("Reinicie o serviço Traccar após alterar o arquivo.")}</p>
             </div>
           </div>
         </CardContent>
@@ -239,9 +241,9 @@ export function TraccarSettingsTab() {
               <MonitorDot className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <CardTitle className="text-lg">Dispositivos Cadastrados</CardTitle>
+              <CardTitle className="text-lg">{t("Dispositivos Cadastrados")}</CardTitle>
               <CardDescription>
-                Visualize os rastreadores disponíveis para vincular aos veículos
+                {t("Visualize os rastreadores disponíveis para vincular aos veículos")}
               </CardDescription>
             </div>
           </div>
@@ -256,7 +258,7 @@ export function TraccarSettingsTab() {
             {loading
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <RefreshCw className="h-4 w-4" />}
-            Carregar Dispositivos
+            {t("Carregar Dispositivos")}
           </Button>
 
           {devices.length > 0 && (
@@ -264,11 +266,11 @@ export function TraccarSettingsTab() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">ID</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Nome</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Identificador</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Status</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Última Atualização</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">{t("ID")}</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">{t("Nome")}</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">{t("Identificador")}</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">{t("Status")}</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">{t("Última Atualização")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -286,14 +288,14 @@ export function TraccarSettingsTab() {
                           }
                         >
                           {d.status === "online"
-                            ? <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1" />Online</>
-                            : <><WifiOff className="h-3 w-3 mr-1 inline" />Offline</>
+                            ? <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block mr-1" />{t("Online")}</>
+                            : <><WifiOff className="h-3 w-3 mr-1 inline" />{t("Offline")}</>
                           }
                         </Badge>
                       </td>
                       <td className="px-4 py-2.5 text-xs text-muted-foreground">
                         {d.lastUpdate
-                          ? new Date(d.lastUpdate).toLocaleString("pt-BR")
+                          ? date(d.lastUpdate, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                           : "—"}
                       </td>
                     </tr>
@@ -305,8 +307,7 @@ export function TraccarSettingsTab() {
 
           {devices.length === 0 && !loading && (
             <p className="text-sm text-muted-foreground italic">
-              Clique em "Carregar Dispositivos" para ver os rastreadores cadastrados no Traccar.
-              O <strong>ID</strong> de cada dispositivo é usado para vincular ao veículo.
+              {t("Clique em “Carregar Dispositivos” para ver os rastreadores cadastrados no Traccar. O ID de cada dispositivo é usado para vincular ao veículo.")}
             </p>
           )}
         </CardContent>
@@ -316,7 +317,7 @@ export function TraccarSettingsTab() {
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-2 rounded-xl px-6">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Salvar Configurações
+          {t("Salvar Configurações")}
         </Button>
       </div>
     </div>

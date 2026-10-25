@@ -13,9 +13,8 @@ import { Button } from "@/components/ui/button";
 import { useWashRecords } from "@/hooks/useWashRecords";
 import { useDamageReports } from "@/hooks/useDamageReports";
 import { useVehicles } from "@/hooks/useVehicles";
+import { useI18n } from "@/i18n";
 import { DetailModal } from "./DetailModal";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Droplets, AlertTriangle, Calendar, User, FileText, Eye } from "lucide-react";
 
 interface HistoryModalProps {
@@ -24,6 +23,7 @@ interface HistoryModalProps {
 }
 
 export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
+  const { t, date } = useI18n();
   const { washRecords, loading: washLoading, refetchWashRecords } = useWashRecords();
   const { damageReports, loading: damageLoading, refetchDamageReports } = useDamageReports();
   const { vehicles } = useVehicles();
@@ -53,10 +53,10 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
   const renderWashHistory = () => (
     <div className="space-y-4">
       {washLoading ? (
-        <p>Carregando registros de lavagem...</p>
+        <p>{t("Carregando registros de lavagem...")}</p>
       ) : washRecords.length === 0 ? (
         <p className="text-center text-muted-foreground py-8">
-          Nenhum registro de lavagem encontrado.
+          {t("Nenhum registro de lavagem encontrado.")}
         </p>
       ) : (
         washRecords.map((record) => (
@@ -73,8 +73,8 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                   </div>
                 </div>
                 <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                  {record.tipo_lavagem === 'completa' ? 'Completa' :
-                   record.tipo_lavagem === 'interna' ? 'Interna' : 'Externa'}
+                  {record.tipo_lavagem === 'completa' ? t("Completa") :
+                   record.tipo_lavagem === 'interna' ? t("Interna") : t("Externa")}
                 </Badge>
               </div>
             </CardHeader>
@@ -83,13 +83,13 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span>
-                    Data: {format(new Date(record.data_lavagem), 'dd/MM/yyyy', { locale: ptBR })}
+                    {t("Data:")} {date(record.data_lavagem)}
                   </span>
                 </div>
                 {record.responsavel_lavagem && (
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <span>Responsável: {record.responsavel_lavagem}</span>
+                    <span>{t("Responsável:")} {record.responsavel_lavagem}</span>
                   </div>
                 )}
               </div>
@@ -98,7 +98,7 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                   <div className="flex items-start gap-2">
                     <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium">Observações:</p>
+                      <p className="text-sm font-medium">{t("Observações:")}</p>
                       <p className="text-sm text-muted-foreground">{record.observacoes}</p>
                     </div>
                   </div>
@@ -106,10 +106,10 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
               )}
               <div className="flex gap-2 pt-2">
                 {record.foto_antes_url && (
-                  <Badge variant="secondary">Foto Antes</Badge>
+                  <Badge variant="secondary">{t("Foto Antes")}</Badge>
                 )}
                 {record.foto_depois_url && (
-                  <Badge variant="secondary">Foto Depois</Badge>
+                  <Badge variant="secondary">{t("Foto Depois")}</Badge>
                 )}
                 <Button 
                   variant="outline" 
@@ -118,7 +118,7 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                   className="ml-auto"
                 >
                   <Eye className="h-4 w-4 mr-1" />
-                  Detalhes
+                  {t("Detalhes")}
                 </Button>
               </div>
             </CardContent>
@@ -131,10 +131,10 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
   const renderDamageHistory = () => (
     <div className="space-y-4">
       {damageLoading ? (
-        <p>Carregando relatórios de avaria...</p>
+        <p>{t("Carregando relatórios de avaria...")}</p>
       ) : damageReports.length === 0 ? (
         <p className="text-center text-muted-foreground py-8">
-          Nenhum relatório de avaria encontrado.
+          {t("Nenhum relatório de avaria encontrado.")}
         </p>
       ) : (
         damageReports.map((report) => (
@@ -151,7 +151,7 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                   </div>
                 </div>
                 <Badge variant="destructive">
-                  Avaria
+                  {t("Avaria")}
                 </Badge>
               </div>
             </CardHeader>
@@ -160,19 +160,19 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span>
-                    Data da Avaria: {format(new Date(report.data_avaria), 'dd/MM/yyyy', { locale: ptBR })}
+                    {t("Data da Avaria:")} {date(report.data_avaria)}
                   </span>
                 </div>
                 {report.local_ocorrencia && (
                   <div className="flex items-start gap-2">
-                    <span className="text-muted-foreground min-w-fit">Local:</span>
+                    <span className="text-muted-foreground min-w-fit">{t("Local:")}</span>
                     <span>{report.local_ocorrencia}</span>
                   </div>
                 )}
                 {report.responsavel_registro && (
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <span>Registrado por: {report.responsavel_registro}</span>
+                    <span>{t("Registrado por:")} {report.responsavel_registro}</span>
                   </div>
                 )}
               </div>
@@ -180,14 +180,14 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                 <div className="flex items-start gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium">Descrição da Avaria:</p>
+                    <p className="text-sm font-medium">{t("Descrição da Avaria:")}</p>
                     <p className="text-sm text-muted-foreground">{report.descricao_avaria}</p>
                   </div>
                 </div>
               </div>
               {report.foto_url && (
                 <div className="pt-2">
-                  <Badge variant="secondary">Foto da Avaria</Badge>
+                  <Badge variant="secondary">{t("Foto da Avaria")}</Badge>
                 </div>
               )}
               <div className="flex justify-end pt-2">
@@ -197,7 +197,7 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                   onClick={() => openDetailModal(report, 'damage')}
                 >
                   <Eye className="h-4 w-4 mr-1" />
-                  Detalhes
+                  {t("Detalhes")}
                 </Button>
               </div>
             </CardContent>
@@ -225,10 +225,10 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
   const renderCombinedHistory = () => (
     <div className="space-y-4">
       {washLoading || damageLoading ? (
-        <p>Carregando histórico...</p>
+        <p>{t("Carregando histórico...")}</p>
       ) : combinedHistory.length === 0 ? (
         <p className="text-center text-muted-foreground py-8">
-          Nenhum registro encontrado.
+          {t("Nenhum registro encontrado.")}
         </p>
       ) : (
         combinedHistory.map((record) => (
@@ -254,10 +254,10 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={record.type === 'wash' ? 'outline' : 'destructive'}>
-                    {record.type === 'wash' ? 'Lavagem' : 'Avaria'}
+                    {record.type === 'wash' ? t("Lavagem") : t("Avaria")}
                   </Badge>
                   <span className="text-sm text-muted-foreground">
-                    {format(new Date(record.date), 'dd/MM/yyyy', { locale: ptBR })}
+                    {date(record.date)}
                   </span>
                 </div>
               </div>
@@ -266,9 +266,9 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                   {record.type === 'wash' ? (
                     <div className="space-y-2">
                       <p className="text-sm">
-                        <span className="font-medium">Tipo:</span> {
-                          (record as any).tipo_lavagem === 'completa' ? 'Completa' :
-                          (record as any).tipo_lavagem === 'interna' ? 'Interna' : 'Externa'
+                        <span className="font-medium">{t("Tipo:")}</span> {
+                          (record as any).tipo_lavagem === 'completa' ? t("Completa") :
+                          (record as any).tipo_lavagem === 'interna' ? t("Interna") : t("Externa")
                         }
                       </p>
                       {(record as any).observacoes && (
@@ -278,11 +278,11 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                   ) : (
                     <div className="space-y-2">
                       <p className="text-sm">
-                        <span className="font-medium">Descrição:</span> {(record as any).descricao_avaria}
+                        <span className="font-medium">{t("Descrição:")}</span> {(record as any).descricao_avaria}
                       </p>
                       {(record as any).local_ocorrencia && (
                         <p className="text-sm">
-                          <span className="font-medium">Local:</span> {(record as any).local_ocorrencia}
+                          <span className="font-medium">{t("Local:")}</span> {(record as any).local_ocorrencia}
                         </p>
                       )}
                     </div>
@@ -294,7 +294,7 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
                       onClick={() => openDetailModal(record, record.type)}
                     >
                       <Eye className="h-4 w-4 mr-1" />
-                      Detalhes
+                      {t("Detalhes")}
                     </Button>
                   </div>
             </CardContent>
@@ -308,17 +308,17 @@ export const HistoryModal = ({ isOpen, onClose }: HistoryModalProps) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Histórico de Manutenção</DialogTitle>
+          <DialogTitle>{t("Histórico de Manutenção")}</DialogTitle>
           <DialogDescription>
-            Visualize o histórico completo de lavagens e avarias dos veículos
+            {t("Visualize o histórico completo de lavagens e avarias dos veículos")}
           </DialogDescription>
         </DialogHeader>
         
         <Tabs defaultValue="all" className="flex-1 overflow-hidden">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="all">Histórico Completo</TabsTrigger>
-            <TabsTrigger value="wash">Lavagens</TabsTrigger>
-            <TabsTrigger value="damage">Avarias</TabsTrigger>
+            <TabsTrigger value="all">{t("Histórico Completo")}</TabsTrigger>
+            <TabsTrigger value="wash">{t("Lavagens")}</TabsTrigger>
+            <TabsTrigger value="damage">{t("Avarias")}</TabsTrigger>
           </TabsList>
           
           <div className="mt-4 overflow-auto max-h-[60vh]">

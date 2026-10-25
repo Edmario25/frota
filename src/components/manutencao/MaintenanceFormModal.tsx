@@ -9,7 +9,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useMaintenance } from "@/hooks/useMaintenance";
@@ -20,6 +19,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { FornecedorSelect } from "@/components/ui/FornecedorSelect";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import { useI18n } from "@/i18n";
 
 interface MaintenanceFormModalProps {
   isOpen: boolean;
@@ -30,6 +30,7 @@ interface MaintenanceFormModalProps {
 }
 
 export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType, vehicleId }: MaintenanceFormModalProps) {
+  const { t, date } = useI18n();
   const [formData, setFormData] = useState({
     vehicle_id: "",
     tipo: "",
@@ -194,24 +195,24 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {maintenance ? "Editar Manutenção" : "Nova Manutenção"}
+            {maintenance ? t("Editar Manutenção") : t("Nova Manutenção")}
           </DialogTitle>
           <DialogDescription>
-            {maintenance ? "Edite as informações da manutenção" : "Preencha os dados da nova manutenção"}
+            {maintenance ? t("Edite as informações da manutenção") : t("Preencha os dados da nova manutenção")}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="vehicle_id">Veículo</Label>
+              <Label htmlFor="vehicle_id">{t("Veículo")}</Label>
               <Select
                 value={formData.vehicle_id}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, vehicle_id: value }))}
                 disabled={isFuncionario} // Funcionários não podem alterar o veículo
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecionar Veículo" />
+                  <SelectValue placeholder={t("Selecionar Veículo")} />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border border-border">
                   {availableVehicles.map((vehicle) => (
@@ -223,42 +224,42 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
               </Select>
               {isFuncionario && (
                 <p className="text-xs text-muted-foreground">
-                  Você pode gerenciar manutenções apenas do seu veículo atribuído
+                  {t("Você pode gerenciar manutenções apenas do seu veículo atribuído")}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tipo">Tipo de Serviço</Label>
+              <Label htmlFor="tipo">{t("Tipo de Serviço")}</Label>
               <Select
                 value={formData.tipo}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, tipo: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecionar Tipo" />
+                  <SelectValue placeholder={t("Selecionar Tipo")} />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border border-border">
-                  <SelectItem value="preventiva">Preventiva</SelectItem>
-                  <SelectItem value="corretiva">Corretiva</SelectItem>
+                  <SelectItem value="preventiva">{t("Preventiva")}</SelectItem>
+                  <SelectItem value="corretiva">{t("Corretiva")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="descricao">Descrição</Label>
+            <Label htmlFor="descricao">{t("Descrição")}</Label>
             <Textarea
               id="descricao"
               value={formData.descricao}
               onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-              placeholder="Descreva o serviço a ser realizado"
+              placeholder={t("Descreva o serviço a ser realizado")}
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Data Agendada</Label>
+              <Label>{t("Data Agendada")}</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -269,7 +270,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.data_agendada ? format(formData.data_agendada, "PPP", { locale: ptBR }) : "Selecionar data"}
+                    {formData.data_agendada ? date(formData.data_agendada, { day: 'numeric', month: 'long', year: 'numeric' }) : t("Selecionar data")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -285,19 +286,19 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
+              <Label htmlFor="status">{t("Status")}</Label>
               <Select
                 value={formData.status}
                 onValueChange={(value: 'agendada' | 'em_andamento' | 'concluida' | 'cancelada') => setFormData(prev => ({ ...prev, status: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecionar Status" />
+                  <SelectValue placeholder={t("Selecionar Status")} />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border border-border">
-                  <SelectItem value="agendada">Agendada</SelectItem>
-                  <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                  <SelectItem value="concluida">Concluída</SelectItem>
-                  <SelectItem value="cancelada">Cancelada</SelectItem>
+                  <SelectItem value="agendada">{t("Agendada")}</SelectItem>
+                  <SelectItem value="em_andamento">{t("Em Andamento")}</SelectItem>
+                  <SelectItem value="concluida">{t("Concluída")}</SelectItem>
+                  <SelectItem value="cancelada">{t("Cancelada")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -305,7 +306,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
 
           {formData.status === 'concluida' && (
             <div className="space-y-2">
-              <Label>Data Realizada</Label>
+              <Label>{t("Data Realizada")}</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -316,7 +317,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.data_realizada ? format(formData.data_realizada, "PPP", { locale: ptBR }) : "Selecionar data"}
+                    {formData.data_realizada ? date(formData.data_realizada, { day: 'numeric', month: 'long', year: 'numeric' }) : t("Selecionar data")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -334,20 +335,20 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="quilometragem">Quilometragem Atual</Label>
+              <Label htmlFor="quilometragem">{t("Quilometragem Atual")}</Label>
               <Input
                 id="quilometragem"
                 type="number"
                 value={formData.quilometragem}
                 readOnly
                 className="bg-muted cursor-not-allowed"
-                placeholder="Preenchido automaticamente"
+                placeholder={t("Preenchido automaticamente")}
               />
-              <p className="text-xs text-muted-foreground">Preenchido automaticamente pelo sistema</p>
+              <p className="text-xs text-muted-foreground">{t("Preenchido automaticamente pelo sistema")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="custo">Valor do Serviço (R$)</Label>
+              <Label htmlFor="custo">{t("Valor do Serviço (R$)")}</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
                 <Input
@@ -366,39 +367,39 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
 
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="responsavel">Responsável</Label>
+              <Label htmlFor="responsavel">{t("Responsável")}</Label>
               <Input
                 id="responsavel"
                 value={formData.responsavel}
                 onChange={(e) => setFormData(prev => ({ ...prev, responsavel: e.target.value }))}
-                placeholder="Nome do responsável"
+                placeholder={t("Nome do responsável")}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="oficina">Oficina / Fornecedor</Label>
+            <Label htmlFor="oficina">{t("Oficina / Fornecedor")}</Label>
             <FornecedorSelect
               value={formData.oficina}
               onChange={(value) => setFormData(prev => ({ ...prev, oficina: value }))}
               tipos={["servicos", "pecas", "geral"]}
-              placeholder="Selecione a oficina"
+              placeholder={t("Selecione a oficina")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="observacoes">Observações</Label>
+            <Label htmlFor="observacoes">{t("Observações")}</Label>
             <Textarea
               id="observacoes"
               value={formData.observacoes}
               onChange={(e) => setFormData(prev => ({ ...prev, observacoes: e.target.value }))}
-              placeholder="Observações adicionais"
+              placeholder={t("Observações adicionais")}
               rows={3}
             />
           </div>
 
           <PhotoUpload
-            label="Foto da manutenção (comprovante / serviço)"
+            label={t("Foto da manutenção (comprovante / serviço)")}
             value={formData.foto_url}
             onChange={(url) => setFormData(prev => ({ ...prev, foto_url: url || "" }))}
             bucketName="maintenance-photos"
@@ -408,10 +409,10 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {t("Cancelar")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Salvando..." : maintenance ? "Atualizar" : "Salvar"}
+              {loading ? t("Salvando...") : maintenance ? t("Atualizar") : t("Salvar")}
             </Button>
           </DialogFooter>
         </form>

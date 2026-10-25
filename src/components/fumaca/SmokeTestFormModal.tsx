@@ -30,7 +30,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { enUS, es, ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useSmokeTests } from "@/hooks/useSmokeTests";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -38,6 +38,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import { useI18n } from "@/i18n";
 
 const step1Schema = z.object({
   vehicle_id: z.string().min(1, "Selecione um veículo"),
@@ -82,6 +83,8 @@ export const SmokeTestFormModal = ({
   vehicleType,
   vehicleId
 }: SmokeTestFormModalProps) => {
+  const { t, date, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   const [currentStep, setCurrentStep] = useState(1);
   const { createSmokeTest, updateSmokeTest } = useSmokeTests();
   const { vehicles } = useVehicles();
@@ -229,7 +232,7 @@ export const SmokeTestFormModal = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {test ? "Editar Teste" : "Novo Teste de Fumaça"} - Etapa {currentStep}/2
+            {test ? t("Editar Teste") : t("Novo Teste de Fumaça")} {t("- Etapa {step} de 2", { step: currentStep })}
           </DialogTitle>
         </DialogHeader>
 
@@ -242,11 +245,11 @@ export const SmokeTestFormModal = ({
                   name="employee_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Funcionário</FormLabel>
+                      <FormLabel>{t("Funcionário")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione o funcionário" />
+                            <SelectValue placeholder={t("Selecione o funcionário")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -267,11 +270,11 @@ export const SmokeTestFormModal = ({
                   name="vehicle_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Placa do Veículo</FormLabel>
+                      <FormLabel>{t("Placa do Veículo")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione o veículo" />
+                            <SelectValue placeholder={t("Selecione o veículo")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -292,9 +295,9 @@ export const SmokeTestFormModal = ({
                   name="condutor"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Condutor</FormLabel>
+                      <FormLabel>{t("Condutor")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nome do condutor" {...field} />
+                        <Input placeholder={t("Nome do condutor")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -306,9 +309,9 @@ export const SmokeTestFormModal = ({
                   name="obra"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Obra</FormLabel>
+                      <FormLabel>{t("Obra")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nome da obra" {...field} />
+                        <Input placeholder={t("Nome da obra")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -320,9 +323,9 @@ export const SmokeTestFormModal = ({
                   name="responsavel_elaboracao"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Responsável pela Elaboração</FormLabel>
+                      <FormLabel>{t("Responsável pela Elaboração")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nome do responsável" {...field} />
+                        <Input placeholder={t("Nome do responsável")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -334,9 +337,9 @@ export const SmokeTestFormModal = ({
                   name="cargo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Cargo</FormLabel>
+                      <FormLabel>{t("Cargo")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Cargo do responsável" {...field} />
+                        <Input placeholder={t("Cargo do responsável")} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -349,18 +352,18 @@ export const SmokeTestFormModal = ({
                     name="motor_tipo"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tipo de Motor</FormLabel>
+                        <FormLabel>{t("Tipo de Motor")}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Selecione o tipo" />
+                              <SelectValue placeholder={t("Selecione o tipo")} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="diesel">Diesel</SelectItem>
-                            <SelectItem value="gasolina">Gasolina</SelectItem>
-                            <SelectItem value="flex">Flex</SelectItem>
-                            <SelectItem value="etanol">Etanol</SelectItem>
+                            <SelectItem value="diesel">{t("Diesel")}</SelectItem>
+                            <SelectItem value="gasolina">{t("Gasolina")}</SelectItem>
+                            <SelectItem value="flex">{t("Flex")}</SelectItem>
+                            <SelectItem value="etanol">{t("Etanol")}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -373,12 +376,12 @@ export const SmokeTestFormModal = ({
                     name="quilometragem_atual"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Quilometragem Atual</FormLabel>
+                        <FormLabel>{t("Quilometragem Atual")}</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             min="0"
-                            placeholder="Quilometragem"
+                            placeholder={t("Quilometragem")}
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           />
@@ -398,7 +401,7 @@ export const SmokeTestFormModal = ({
                   name="ano_fabricacao"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Ano de Fabricação</FormLabel>
+                      <FormLabel>{t("Ano de Fabricação")}</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
@@ -418,7 +421,7 @@ export const SmokeTestFormModal = ({
                   name="data_hora_teste"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Data e Hora do Teste</FormLabel>
+                      <FormLabel>{t("Data e Hora do Teste")}</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -430,9 +433,9 @@ export const SmokeTestFormModal = ({
                               )}
                             >
                               {field.value ? (
-                                format(field.value, "dd/MM/yyyy HH:mm", { locale: ptBR })
+                                date(field.value, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                               ) : (
-                                <span>Selecione data e hora</span>
+                                <span>{t("Selecione data e hora")}</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -451,13 +454,13 @@ export const SmokeTestFormModal = ({
                               }
                             }}
                             initialFocus
-                            locale={ptBR}
+                            locale={calendarLocale}
                             className="pointer-events-auto"
                           />
                           <div className="p-3 border-t">
                             <Input
                               type="time"
-                              value={field.value ? format(field.value, "HH:mm") : ""}
+                              value={field.value ? date(field.value, { hour: '2-digit', minute: '2-digit' }) : ""}
                               onChange={(e) => {
                                 const [hours, minutes] = e.target.value.split(':');
                                 const newDate = field.value || new Date();
@@ -478,21 +481,21 @@ export const SmokeTestFormModal = ({
                   name="distancia_observador"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Distância do Observador (metros)</FormLabel>
+                      <FormLabel>{t("Distância do Observador (metros)")}</FormLabel>
                       <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione a distância" />
+                            <SelectValue placeholder={t("Selecione a distância")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="20">20m - Veículos leves</SelectItem>
-                          <SelectItem value="25">25m - Veículos leves</SelectItem>
-                          <SelectItem value="30">30m - Veículos pesados</SelectItem>
-                          <SelectItem value="40">40m - Veículos pesados</SelectItem>
-                          <SelectItem value="50">50m - Veículos pesados</SelectItem>
-                          <SelectItem value="100">100m - Geradores/Chaminés</SelectItem>
-                          <SelectItem value="150">150m - Geradores/Chaminés</SelectItem>
+                          <SelectItem value="20">{t("20m - Veículos leves")}</SelectItem>
+                          <SelectItem value="25">{t("25m - Veículos leves")}</SelectItem>
+                          <SelectItem value="30">{t("30m - Veículos pesados")}</SelectItem>
+                          <SelectItem value="40">{t("40m - Veículos pesados")}</SelectItem>
+                          <SelectItem value="50">{t("50m - Veículos pesados")}</SelectItem>
+                          <SelectItem value="100">{t("100m - Geradores/Chaminés")}</SelectItem>
+                          <SelectItem value="150">{t("150m - Geradores/Chaminés")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -505,7 +508,7 @@ export const SmokeTestFormModal = ({
                   name="indice_ringelmann"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Escala Ringelmann (Índice de Fumaça)</FormLabel>
+                      <FormLabel>{t("Escala Ringelmann (Índice de Fumaça)")}</FormLabel>
                       <Select 
                         onValueChange={(value) => {
                           const index = parseInt(value);
@@ -520,15 +523,15 @@ export const SmokeTestFormModal = ({
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione o índice" />
+                            <SelectValue placeholder={t("Selecione o índice")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="1">Nº 1 - Densidade 20% (Fumaça clara)</SelectItem>
-                          <SelectItem value="2">Nº 2 - Densidade 40%</SelectItem>
-                          <SelectItem value="3">Nº 3 - Densidade 60%</SelectItem>
-                          <SelectItem value="4">Nº 4 - Densidade 80%</SelectItem>
-                          <SelectItem value="5">Nº 5 - Densidade 100% (Fumaça escura)</SelectItem>
+                          <SelectItem value="1">{t("Nº 1 - Densidade 20% (Fumaça clara)")}</SelectItem>
+                          <SelectItem value="2">{t("Nº 2 - Densidade 40%")}</SelectItem>
+                          <SelectItem value="3">{t("Nº 3 - Densidade 60%")}</SelectItem>
+                          <SelectItem value="4">{t("Nº 4 - Densidade 80%")}</SelectItem>
+                          <SelectItem value="5">{t("Nº 5 - Densidade 100% (Fumaça escura)")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -541,7 +544,7 @@ export const SmokeTestFormModal = ({
                   name="densidade_percentual"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Densidade Percentual</FormLabel>
+                      <FormLabel>{t("Densidade Percentual")}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -566,7 +569,7 @@ export const SmokeTestFormModal = ({
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                       <div className="space-y-0.5">
                         <FormLabel className="text-base">
-                          Fumaça dentro do limite permitido?
+                          {t("Fumaça dentro do limite permitido?")}
                         </FormLabel>
                         <div className="text-sm text-muted-foreground">
                           {field.value ? "✅ Aprovado" : "❌ Reprovado"}
@@ -589,10 +592,10 @@ export const SmokeTestFormModal = ({
                   name="observacoes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Observações Adicionais</FormLabel>
+                      <FormLabel>{t("Observações Adicionais")}</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Condições do teste: veículo em movimento com carga no motor, fumaça contínua por no mínimo 5 segundos..."
+                          placeholder={t("Condições do teste: veículo em movimento com carga no motor, fumaça contínua por no mínimo 5 segundos...")}
                           className="resize-none"
                           {...field}
                         />
@@ -607,7 +610,7 @@ export const SmokeTestFormModal = ({
                   name="evidencias_url"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Foto da Fumaça / Evidências (Opcional)</FormLabel>
+                      <FormLabel>{t("Foto da Fumaça / Evidências (Opcional)")}</FormLabel>
                       <FormControl>
                         <PhotoUpload
                           label=""
@@ -634,14 +637,14 @@ export const SmokeTestFormModal = ({
                     onClick={handleClose}
                     className="flex-1"
                   >
-                    Cancelar
+                    {t("Cancelar")}
                   </Button>
                   <Button
                     type="button"
                     onClick={nextStep}
                     className="flex-1"
                   >
-                    Próximo
+                    {t("Próximo")}
                     <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 </>
@@ -654,7 +657,7 @@ export const SmokeTestFormModal = ({
                     className="flex-1"
                   >
                     <ChevronLeft className="mr-2 h-4 w-4" />
-                    Voltar
+                    {t("Voltar")}
                   </Button>
                   <Button
                     type="submit"
@@ -662,10 +665,10 @@ export const SmokeTestFormModal = ({
                     disabled={form.formState.isSubmitting}
                   >
                     {form.formState.isSubmitting
-                      ? "Salvando..."
+                      ? t("Salvando...")
                       : test
-                      ? "Atualizar"
-                      : "Salvar"}
+                      ? t("Atualizar")
+                      : t("Salvar")}
                   </Button>
                 </>
               )}

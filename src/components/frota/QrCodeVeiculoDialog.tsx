@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Printer, Download, X } from "lucide-react"
+import { useI18n } from "@/i18n"
 
 interface Vehicle {
   id: string
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function QrCodeVeiculoDialog({ vehicle, open, onOpenChange }: Props) {
+  const { t } = useI18n()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [dataUrl, setDataUrl] = useState<string>("")
 
@@ -67,7 +69,7 @@ export function QrCodeVeiculoDialog({ vehicle, open, onOpenChange }: Props) {
           <h2>${vehicle.placa}</h2>
           <p>${vehicle.marca} ${vehicle.modelo}${vehicle.ano ? ` · ${vehicle.ano}` : ""}</p>
           <img src="${dataUrl}" alt="QR Code" />
-          <p class="footer">Escaneie com o App SMS Campo para ver o histórico de segurança deste veículo</p>
+          <p class="footer">${t("Escaneie com o App SMS Campo para ver o histórico de segurança deste veículo")}</p>
           <script>window.onload = () => { window.print(); window.close() }</script>
         </body>
       </html>
@@ -87,7 +89,7 @@ export function QrCodeVeiculoDialog({ vehicle, open, onOpenChange }: Props) {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span>QR Code do Veículo</span>
+            <span>{t("QR Code do Veículo")}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -113,7 +115,7 @@ export function QrCodeVeiculoDialog({ vehicle, open, onOpenChange }: Props) {
 
           {/* Instruction */}
           <p className="text-xs text-center text-muted-foreground max-w-[220px]">
-            Cole este QR no veículo. O técnico escaneia no App SMS Campo para ver o histórico.
+            {t("Cole este QR no veículo. O técnico escaneia no App SMS Campo para ver o histórico.")}
           </p>
 
           {/* Actions */}
@@ -125,7 +127,7 @@ export function QrCodeVeiculoDialog({ vehicle, open, onOpenChange }: Props) {
               disabled={!dataUrl}
             >
               <Download className="w-4 h-4 mr-1.5" />
-              Baixar
+              {t("Baixar")}
             </Button>
             <Button
               className="flex-1 bg-green-700 hover:bg-green-800"
@@ -133,7 +135,7 @@ export function QrCodeVeiculoDialog({ vehicle, open, onOpenChange }: Props) {
               disabled={!dataUrl}
             >
               <Printer className="w-4 h-4 mr-1.5" />
-              Imprimir
+              {t("Imprimir")}
             </Button>
           </div>
         </div>

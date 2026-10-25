@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { enUS, es, ptBR } from "date-fns/locale";
 import { CalendarIcon, Plus, Trash2, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -46,6 +45,7 @@ import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { getChecklistItemColor } from "@/lib/statusHelpers";
 import { useInspectionChecklist } from "@/hooks/useInspectionChecklist";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/i18n";
 
 const formSchema = z.object({
   vehicle_id: z.string().min(1, "Selecione um veículo"),
@@ -74,6 +74,7 @@ interface InspectionItem {
   observacoes?: string;
 }
 
+// Item names are stored with each checklist (item_nome), so they stay in Portuguese.
 const INSPECTION_ITEMS = [
   "Estado geral da carroceria",
   "Pneus e pressão",
@@ -97,6 +98,7 @@ const INSPECTION_ITEMS = [
   "Buzina",
 ];
 
+// Only the stored value travels to the database; the label is translated when rendered.
 const SERVICE_TYPES = [
   { value: "entrada", label: "Entrada" },
   { value: "saida", label: "Saída" },
@@ -111,6 +113,8 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
   checklist,
   vehicleId,
 }) => {
+  const { t, date, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   const { vehicles } = useVehicles();
   const { employees } = useEmployees();
   const { role: userRole } = useUserRole();
@@ -219,8 +223,8 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
       if (!data.vehicle_id) {
         console.log("❌ Erro: vehicle_id está vazio");
         toast({
-          title: "Erro de validação",
-          description: "Selecione um veículo",
+          title: t("Erro de validação"),
+          description: t("Selecione um veículo"),
           variant: "destructive",
         });
         return;
@@ -229,8 +233,8 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
       if (!data.tipo_servico) {
         console.log("❌ Erro: tipo_servico está vazio");
         toast({
-          title: "Erro de validação",
-          description: "Selecione o tipo de serviço",
+          title: t("Erro de validação"),
+          description: t("Selecione o tipo de serviço"),
           variant: "destructive",
         });
         return;
@@ -255,8 +259,8 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
       if (!employeeId) {
         console.log("❌ Erro: Não foi possível identificar o funcionário");
         toast({
-          title: "Erro de validação", 
-          description: "Não foi possível identificar o funcionário responsável",
+          title: t("Erro de validação"), 
+          description: t("Não foi possível identificar o funcionário responsável"),
           variant: "destructive",
         });
         return;
@@ -300,8 +304,8 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
       
       console.log("✅ CHECKLIST SALVO COM SUCESSO!");
       toast({
-        title: "Sucesso",
-        description: "Checklist salvo com sucesso!",
+        title: t("Sucesso"),
+        description: t("Checklist salvo com sucesso!"),
       });
       
       onClose();
@@ -316,8 +320,8 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
         hint: error.hint
       });
       toast({
-        title: "Erro ao salvar checklist",
-        description: error.message || "Ocorreu um erro inesperado",
+        title: t("Erro ao salvar checklist"),
+        description: error.message || t("Ocorreu um erro inesperado"),
         variant: "destructive",
       });
     }
@@ -336,7 +340,7 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {checklist ? "Editar Checklist" : "Nova Inspeção"}
+            {checklist ? t("Editar Checklist") : t("Nova Inspeção")}
           </DialogTitle>
         </DialogHeader>
 
@@ -349,11 +353,11 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                 name="vehicle_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Veículo</FormLabel>
+                    <FormLabel>{t("Veículo")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o veículo" />
+                          <SelectValue placeholder={t("Selecione o veículo")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -375,17 +379,17 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                 name="tipo_servico"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Serviço</FormLabel>
+                    <FormLabel>{t("Tipo de Serviço")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo" />
+                          <SelectValue placeholder={t("Selecione o tipo")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {SERVICE_TYPES.map((type) => (
                           <SelectItem key={type.value} value={type.value}>
-                            {type.label}
+                            {t(type.label)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -401,7 +405,7 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                 name="data_inspecao"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Data da Inspeção</FormLabel>
+                    <FormLabel>{t("Data da Inspeção")}</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -413,9 +417,9 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                             )}
                           >
                             {field.value ? (
-                              format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                              date(field.value)
                             ) : (
-                              <span>Selecione a data</span>
+                              <span>{t("Selecione a data")}</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -427,7 +431,7 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                           selected={field.value}
                           onSelect={field.onChange}
                           initialFocus
-                          locale={ptBR}
+                          locale={calendarLocale}
                           className="pointer-events-auto"
                         />
                       </PopoverContent>
@@ -443,11 +447,11 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                 name="km_atual"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quilometragem Atual</FormLabel>
+                    <FormLabel>{t("Quilometragem Atual")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="Ex: 15000"
+                        placeholder={t("Ex: 15000")}
                         {...field}
                         onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : 0)}
                       />
@@ -463,9 +467,9 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                 name="responsavel_checklist"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Responsável pelo Checklist</FormLabel>
+                    <FormLabel>{t("Responsável pelo Checklist")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nome do responsável" {...field} />
+                      <Input placeholder={t("Nome do responsável")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -478,9 +482,9 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                 name="funcao" 
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Função</FormLabel>
+                    <FormLabel>{t("Função")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: Motorista, Operador" {...field} />
+                      <Input placeholder={t("Ex: Motorista, Operador")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -492,7 +496,7 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
 
             {/* Inspection Items */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Itens de Inspeção</h3>
+              <h3 className="text-lg font-medium">{t("Itens de Inspeção")}</h3>
               <div className="space-y-3">
                 {inspectionItems.map((item, index) => (
                   <div key={index} className="border rounded-lg p-4 space-y-3">
@@ -524,9 +528,9 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                     {item.status !== 'na' && (
                       <div className="space-y-3">
                         <div>
-                          <label className="text-xs text-muted-foreground">Observações</label>
+                          <label className="text-xs text-muted-foreground">{t("Observações")}</label>
                           <Input
-                            placeholder="Observações sobre este item"
+                            placeholder={t("Observações sobre este item")}
                             value={item.observacoes || ''}
                             onChange={(e) => updateInspectionItem(index, 'observacoes', e.target.value)}
                           />
@@ -542,7 +546,7 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
 
             {/* General Photos */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Fotos do Checklist</h3>
+              <h3 className="text-lg font-medium">{t("Fotos do Checklist")}</h3>
               <div className="grid grid-cols-1 gap-3">
                 {[
                   { key: 'frente', label: 'Foto 1: Frente', icon: '🚗' },
@@ -554,7 +558,7 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                   <div key={categoria.key} className="border-2 border-dashed border-muted rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span>{categoria.icon}</span>
-                      <span className="text-sm font-medium">{categoria.label}</span>
+                      <span className="text-sm font-medium">{t(categoria.label)}</span>
                     </div>
                     <PhotoUpload
                       label=""
@@ -578,10 +582,10 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações Gerais</FormLabel>
+                  <FormLabel>{t("Observações Gerais")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observações gerais sobre a inspeção..."
+                      placeholder={t("Observações gerais sobre a inspeção...")}
                       className="resize-none"
                       {...field}
                     />
@@ -593,7 +597,7 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button 
                 type="submit"
@@ -604,7 +608,7 @@ export const InspectionChecklistFormModal: React.FC<InspectionChecklistFormModal
                   console.log("Form values:", form.getValues());
                 }}
               >
-                {checklist ? "Atualizar" : "Salvar"} Checklist
+                {checklist ? t("Atualizar") : t("Salvar")} {t("Checklist")}
               </Button>
             </div>
           </form>

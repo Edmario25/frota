@@ -7,6 +7,7 @@ import { format, isWithinInterval, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/i18n";
 
 interface Periodo {
   id: string;
@@ -18,6 +19,7 @@ interface Periodo {
 }
 
 export const MyScheduleCard = () => {
+  const { t, date } = useI18n();
   const { user } = useAuth();
   const [periodo, setPeriodo] = useState<Periodo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ export const MyScheduleCard = () => {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Calendar className="h-4 w-4" />
-          Minha Escala
+          {t("Minha Escala")}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -80,7 +82,7 @@ export const MyScheduleCard = () => {
         ) : !periodo ? (
           <div className="text-center py-6">
             <Calendar className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Nenhum período de escala ativo</p>
+            <p className="text-sm text-muted-foreground">{t("Nenhum período de escala ativo")}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -88,11 +90,11 @@ export const MyScheduleCard = () => {
             <div className="flex items-center gap-2">
               {emFolga ? (
                 <Badge className="bg-blue-100 text-blue-700 border-0 gap-1">
-                  <Coffee className="h-3 w-3" /> Em Folga
+                  <Coffee className="h-3 w-3" /> {t("Em Folga")}
                 </Badge>
               ) : (
                 <Badge className="bg-emerald-100 text-emerald-700 border-0 gap-1">
-                  <Briefcase className="h-3 w-3" /> Trabalhando
+                  <Briefcase className="h-3 w-3" /> {t("Trabalhando")}
                 </Badge>
               )}
               {periodo.escala_tipo && (
@@ -108,20 +110,20 @@ export const MyScheduleCard = () => {
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1">
-                  <Briefcase className="h-3 w-3" /> Trabalho
+                  <Briefcase className="h-3 w-3" /> {t("Trabalho")}
                 </p>
                 <p className="font-medium">
-                  {format(parseISO(periodo.data_inicio_trabalho), "dd/MM", { locale: ptBR })} →{" "}
-                  {format(parseISO(periodo.data_fim_trabalho), "dd/MM", { locale: ptBR })}
+                  {date(periodo.data_inicio_trabalho, { day: '2-digit', month: '2-digit' })} →{" "}
+                  {date(periodo.data_fim_trabalho, { day: '2-digit', month: '2-digit' })}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1">
-                  <Coffee className="h-3 w-3" /> Folga
+                  <Coffee className="h-3 w-3" /> {t("Folga")}
                 </p>
                 <p className="font-medium">
-                  {format(parseISO(periodo.data_inicio_folga), "dd/MM", { locale: ptBR })} →{" "}
-                  {format(parseISO(periodo.data_fim_folga), "dd/MM", { locale: ptBR })}
+                  {date(periodo.data_inicio_folga, { day: '2-digit', month: '2-digit' })} →{" "}
+                  {date(periodo.data_fim_folga, { day: '2-digit', month: '2-digit' })}
                 </p>
               </div>
             </div>
@@ -130,17 +132,17 @@ export const MyScheduleCard = () => {
             {diasRestantes !== null && diasRestantes > 0 && (
               <div className={`rounded-lg p-3 text-center ${emFolga ? "bg-blue-50" : "bg-emerald-50"}`}>
                 <p className="text-xs text-muted-foreground">
-                  {emFolga ? "Retorno ao trabalho em" : "Folga começa em"}
+                  {emFolga ? t("Retorno ao trabalho em") : t("Folga começa em")}
                 </p>
                 <p className={`text-xl font-extrabold ${emFolga ? "text-blue-700" : "text-emerald-700"}`}>
-                  {diasRestantes === 1 ? "Amanhã" : `${diasRestantes} dias`}
+                  {diasRestantes === 1 ? t("Amanhã") : `${diasRestantes} dias`}
                 </p>
               </div>
             )}
             {diasRestantes !== null && diasRestantes <= 0 && emFolga && (
               <div className="rounded-lg bg-blue-50 p-3 text-center">
-                <p className="text-xs text-muted-foreground">Retorno</p>
-                <p className="text-xl font-extrabold text-blue-700">Hoje</p>
+                <p className="text-xs text-muted-foreground">{t("Retorno")}</p>
+                <p className="text-xl font-extrabold text-blue-700">{t("Hoje")}</p>
               </div>
             )}
           </div>

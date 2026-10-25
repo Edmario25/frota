@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getVehicleStatusBadge, getVehicleStatusText } from "@/lib/statusHelpers";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
+import { useI18n } from "@/i18n";
 
 // ─── Push notification helper ─────────────────────────────────────────────────
 // Mostra uma notificação de sistema (apenas uma vez por sessão por tag)
@@ -38,6 +39,7 @@ async function sendPushNotification(title: string, body: string, tag: string) {
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export const MyVehicleCard = () => {
+  const { t, number, date } = useI18n();
   const { vehicle, kmCycle, fleetConfig, lastMaintenance, loading, refetch } =
     useEmployeeVehicle();
   const [showUpdateKm, setShowUpdateKm] = useState(false);
@@ -98,34 +100,38 @@ export const MyVehicleCard = () => {
 
     if (isOverLimit) {
       sendPushNotification(
-        "⚠️ Limite de KM Excedido",
-        `${vehicle.placa} — ${(
-          (kmCycle?.km_rodados ?? 0) - (kmCycle?.limite_km_mensal ?? 0)
-        ).toLocaleString("pt-BR")} km acima do limite mensal`,
+        t("⚠️ Limite de KM Excedido"),
+        t("{plate} — {km} km acima do limite mensal", {
+          plate: vehicle.placa,
+          km: number((kmCycle?.km_rodados ?? 0) - (kmCycle?.limite_km_mensal ?? 0)),
+        }),
         `km_over_${vehicle.id}`
       );
     } else if (isNearLimit) {
       sendPushNotification(
-        "🔶 Atenção: KM Mensal",
-        `${vehicle.placa} — ${Math.round(kmPercentage)}% do limite mensal utilizado`,
+        t("🔶 Atenção: KM Mensal"),
+        t("{plate} — {percent}% do limite mensal utilizado", {
+          plate: vehicle.placa,
+          percent: Math.round(kmPercentage),
+        }),
         `km_near_${vehicle.id}`
       );
     }
 
     if (maintOverdueKm || maintOverdueDays) {
       sendPushNotification(
-        "🔧 Manutenção Preventiva Vencida",
-        `${vehicle.placa} — agende a manutenção preventiva imediatamente`,
+        t("🔧 Manutenção Preventiva Vencida"),
+        t("{plate} — agende a manutenção preventiva imediatamente", { plate: vehicle.placa }),
         `maint_overdue_${vehicle.id}`
       );
     } else if (isNearMaintKm || isNearMaintDays) {
       const hint =
         kmUntilMaint !== null && !maintOverdueKm
-          ? `${kmUntilMaint.toLocaleString("pt-BR")} km`
-          : `${daysUntilMaint} dias`;
+          ? t("{km} km", { km: number(kmUntilMaint) })
+          : t("{days} dias", { days: daysUntilMaint });
       sendPushNotification(
-        "🔧 Manutenção Preventiva Próxima",
-        `${vehicle.placa} — faltam ${hint} para a próxima manutenção`,
+        t("🔧 Manutenção Preventiva Próxima"),
+        t("{plate} — faltam {hint} para a próxima manutenção", { plate: vehicle.placa, hint }),
         `maint_near_${vehicle.id}`
       );
     }
@@ -144,13 +150,13 @@ export const MyVehicleCard = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
-            Meu Veículo
+            {t("Meu Veículo")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
-            <p className="text-muted-foreground">Carregando informações...</p>
+            <p className="text-muted-foreground">{t("Carregando informações...")}</p>
           </div>
         </CardContent>
       </Card>
@@ -164,15 +170,15 @@ export const MyVehicleCard = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
-            Meu Veículo
+            {t("Meu Veículo")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <Car className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Nenhum veículo atribuído</p>
+            <p className="text-muted-foreground">{t("Nenhum veículo atribuído")}</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Entre em contato com o gestor para atribuição de veículo
+              {t("Entre em contato com o gestor para atribuição de veículo")}
             </p>
           </div>
         </CardContent>
@@ -187,7 +193,7 @@ export const MyVehicleCard = () => {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Car className="h-5 w-5" />
-            Meu Veículo
+            {t("Meu Veículo")}
           </div>
           <div className="flex items-center gap-2">
             {hasAnyAlert && (
@@ -207,20 +213,20 @@ export const MyVehicleCard = () => {
         {/* ── Informações básicas ─────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-xs text-muted-foreground">Veículo</p>
+            <p className="text-xs text-muted-foreground">{t("Veículo")}</p>
             <p className="font-medium text-sm">{vehicle.marca} {vehicle.modelo}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Placa</p>
+            <p className="text-xs text-muted-foreground">{t("Placa")}</p>
             <p className="font-medium text-sm">{vehicle.placa}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Ano</p>
+            <p className="text-xs text-muted-foreground">{t("Ano")}</p>
             <p className="font-medium text-sm">{vehicle.ano}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">KM Atual</p>
-            <p className="font-medium text-sm">{vehicle.quilometragem_atual?.toLocaleString("pt-BR")} km</p>
+            <p className="text-xs text-muted-foreground">{t("KM Atual")}</p>
+            <p className="font-medium text-sm">{number(vehicle.quilometragem_atual ?? 0)} km</p>
           </div>
         </div>
 
@@ -243,10 +249,10 @@ export const MyVehicleCard = () => {
                     isOverLimit ? "text-red-600" : isNearLimit ? "text-amber-600" : "text-muted-foreground"
                   }`}
                 />
-                <span className="text-sm font-semibold">KM Mensal</span>
+                <span className="text-sm font-semibold">{t("KM Mensal")}</span>
               </div>
               <span className="text-xs text-muted-foreground">
-                {kmCycle.days_remaining} dias restantes no ciclo
+                {kmCycle.days_remaining} {t("dias restantes no ciclo")}
               </span>
             </div>
 
@@ -254,14 +260,14 @@ export const MyVehicleCard = () => {
             <div className="flex justify-between text-sm mb-2">
               <div>
                 <span className="font-bold text-base">
-                  {kmCycle.km_rodados.toLocaleString("pt-BR")}
+                  {number(kmCycle.km_rodados)}
                 </span>
-                <span className="text-muted-foreground text-xs"> km rodados</span>
+                <span className="text-muted-foreground text-xs"> {t("km rodados")}</span>
               </div>
               <div className="text-right">
-                <span className="text-muted-foreground text-xs">Contratado: </span>
+                <span className="text-muted-foreground text-xs">{t("Contratado:")} </span>
                 <span className="font-semibold">
-                  {kmCycle.limite_km_mensal.toLocaleString("pt-BR")} km
+                  {number(kmCycle.limite_km_mensal)} km
                 </span>
               </div>
             </div>
@@ -288,24 +294,24 @@ export const MyVehicleCard = () => {
                 {isOverLimit ? (
                   <>
                     <AlertTriangle className="h-3 w-3" />
-                    Excedeu{" "}
-                    {(kmCycle.km_rodados - kmCycle.limite_km_mensal).toLocaleString("pt-BR")} km acima do limite
+                    {t("Excedeu")}{" "}
+                    {number(kmCycle.km_rodados - kmCycle.limite_km_mensal)} {t("km acima do limite")}
                   </>
                 ) : isNearLimit ? (
                   <>
                     <Clock className="h-3 w-3" />
-                    {Math.round(kmPercentage)}% utilizado — próximo do limite
+                    {Math.round(kmPercentage)}{t("% utilizado — próximo do limite")}
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="h-3 w-3" />
-                    {Math.round(kmPercentage)}% utilizado — dentro do limite
+                    {Math.round(kmPercentage)}{t("% utilizado — dentro do limite")}
                   </>
                 )}
               </div>
               {!isOverLimit && (
                 <span className="text-xs text-muted-foreground">
-                  {(kmCycle.limite_km_mensal - kmCycle.km_rodados).toLocaleString("pt-BR")} km disponíveis
+                  {number(kmCycle.limite_km_mensal - kmCycle.km_rodados)} {t("km disponíveis")}
                 </span>
               )}
             </div>
@@ -313,7 +319,7 @@ export const MyVehicleCard = () => {
         ) : (
           <div className="rounded-xl p-4 border bg-muted/20 border-border text-center">
             <Gauge className="h-6 w-6 mx-auto mb-1 opacity-40" />
-            <p className="text-xs text-muted-foreground">Sem ciclo de km ativo</p>
+            <p className="text-xs text-muted-foreground">{t("Sem ciclo de km ativo")}</p>
           </div>
         )}
 
@@ -339,11 +345,11 @@ export const MyVehicleCard = () => {
                     : "text-muted-foreground"
                 }`}
               />
-              <span className="text-sm font-semibold">Manutenção Preventiva</span>
+              <span className="text-sm font-semibold">{t("Manutenção Preventiva")}</span>
             </div>
             {lastMaintenance && (
               <span className="text-xs text-muted-foreground">
-                Intervalo: {maintIntervalKm.toLocaleString("pt-BR")} km / {maintIntervalDays} dias
+                {t("Intervalo: {km} km / {days} dias", { km: number(maintIntervalKm), days: maintIntervalDays })}
               </span>
             )}
           </div>
@@ -353,7 +359,7 @@ export const MyVehicleCard = () => {
               {/* Por quilometragem */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">Por quilometragem</span>
+                  <span className="text-xs text-muted-foreground">{t("Por quilometragem")}</span>
                   <span
                     className={`text-xs font-semibold ${
                       maintOverdueKm
@@ -364,8 +370,8 @@ export const MyVehicleCard = () => {
                     }`}
                   >
                     {maintOverdueKm
-                      ? `Vencida (${Math.abs(kmUntilMaint!).toLocaleString("pt-BR")} km atrás)`
-                      : `${kmUntilMaint!.toLocaleString("pt-BR")} km restantes`}
+                      ? t("Vencida ({km} km atrás)", { km: number(Math.abs(kmUntilMaint!)) })
+                      : t("{km} km restantes", { km: number(kmUntilMaint!) })}
                   </span>
                 </div>
                 <Progress
@@ -383,7 +389,7 @@ export const MyVehicleCard = () => {
               {/* Por tempo */}
               {daysUntilMaint !== null && (
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Por tempo</span>
+                  <span className="text-muted-foreground">{t("Por tempo")}</span>
                   <span
                     className={`font-semibold ${
                       maintOverdueDays
@@ -403,16 +409,16 @@ export const MyVehicleCard = () => {
               {/* Última manutenção */}
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground border-t border-border/60 pt-2">
                 <Calendar className="h-3 w-3 flex-shrink-0" />
-                Última:{" "}
-                {new Date(lastMaintenance.data_realizada).toLocaleDateString("pt-BR")}
+                {t("Última:")}{" "}
+                {date(lastMaintenance.data_realizada)}
                 {lastMaintenance.quilometragem
-                  ? ` — ${lastMaintenance.quilometragem.toLocaleString("pt-BR")} km`
+                  ? ` — ${number(lastMaintenance.quilometragem)} km`
                   : ""}
               </div>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground text-center py-2">
-              Nenhuma manutenção preventiva concluída registrada
+              {t("Nenhuma manutenção preventiva concluída registrada")}
             </p>
           )}
         </div>
@@ -426,7 +432,7 @@ export const MyVehicleCard = () => {
             onClick={() => setShowUpdateKm(true)}
           >
             <Gauge className="h-4 w-4" />
-            Atualizar KM
+            {t("Atualizar KM")}
           </Button>
           <Button
             variant="default"
@@ -435,7 +441,7 @@ export const MyVehicleCard = () => {
             onClick={() => setShowDetailModal(true)}
           >
             <LayoutDashboard className="h-4 w-4" />
-            Controle do Veículo
+            {t("Controle do Veículo")}
           </Button>
         </div>
 

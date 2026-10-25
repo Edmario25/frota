@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import type { Database } from "@/integrations/supabase/types";
+import { useI18n } from "@/i18n";
 
 type MaintenanceRecord = Database['public']['Tables']['maintenance_records']['Row'];
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -26,18 +27,19 @@ export function MaintenanceDetailModal({
   vehicle,
   employees
 }: MaintenanceDetailModalProps) {
+  const { t, number, money, date } = useI18n();
   if (!maintenance) return null;
 
   const getMaintenanceStatusBadge = (status: string) => {
     switch (status) {
       case 'agendada':
-        return <Badge className="bg-blue-100 text-blue-800">Agendada</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800">{t("Agendada")}</Badge>;
       case 'em_andamento':
-        return <Badge className="bg-yellow-100 text-yellow-800">Em Andamento</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800">{t("Em Andamento")}</Badge>;
       case 'concluida':
-        return <Badge className="bg-green-100 text-green-800">Concluída</Badge>;
+        return <Badge className="bg-green-100 text-green-800">{t("Concluída")}</Badge>;
       case 'cancelada':
-        return <Badge className="bg-red-100 text-red-800">Cancelada</Badge>;
+        return <Badge className="bg-red-100 text-red-800">{t("Cancelada")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -46,9 +48,9 @@ export function MaintenanceDetailModal({
   const getMaintenanceTypeBadge = (tipo: string) => {
     switch (tipo) {
       case 'preventiva':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Preventiva</Badge>;
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{t("Preventiva")}</Badge>;
       case 'corretiva':
-        return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Corretiva</Badge>;
+        return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">{t("Corretiva")}</Badge>;
       default:
         return <Badge variant="outline">{tipo}</Badge>;
     }
@@ -62,7 +64,7 @@ export function MaintenanceDetailModal({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">
-            Detalhes da Manutenção
+            {t("Detalhes da Manutenção")}
           </DialogTitle>
         </DialogHeader>
 
@@ -71,10 +73,10 @@ export function MaintenanceDetailModal({
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                Veículo
+                {t("Veículo")}
                 {vehicle && (
                   <Badge variant="outline">
-                    {vehicle.tipo === 'pesado' ? 'Veículo Pesado' : 'Veículo Leve'}
+                    {vehicle.tipo === 'pesado' ? t("Veículo Pesado") : t("Veículo Leve")}
                   </Badge>
                 )}
               </CardTitle>
@@ -83,24 +85,24 @@ export function MaintenanceDetailModal({
               {vehicle ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Placa</p>
+                    <p className="text-sm text-muted-foreground">{t("Placa")}</p>
                     <p className="font-semibold">{vehicle.placa}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Marca/Modelo</p>
+                    <p className="text-sm text-muted-foreground">{t("Marca/Modelo")}</p>
                     <p className="font-semibold">{vehicle.marca} {vehicle.modelo}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Ano</p>
+                    <p className="text-sm text-muted-foreground">{t("Ano")}</p>
                     <p className="font-semibold">{vehicle.ano}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Quilometragem Atual</p>
-                    <p className="font-semibold">{vehicle.quilometragem_atual?.toLocaleString() || 0} km</p>
+                    <p className="text-sm text-muted-foreground">{t("Quilometragem Atual")}</p>
+                    <p className="font-semibold">{number(vehicle.quilometragem_atual ?? 0)} km</p>
                   </div>
                 </div>
               ) : (
-                <p className="text-muted-foreground">Informações do veículo não disponíveis</p>
+                <p className="text-muted-foreground">{t("Informações do veículo não disponíveis")}</p>
               )}
             </CardContent>
           </Card>
@@ -108,30 +110,30 @@ export function MaintenanceDetailModal({
           {/* Informações Gerais da Manutenção */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Informações da Manutenção</CardTitle>
+              <CardTitle className="text-lg">{t("Informações da Manutenção")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Tipo</p>
+                    <p className="text-sm text-muted-foreground">{t("Tipo")}</p>
                     {getMaintenanceTypeBadge(maintenance.tipo)}
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
+                    <p className="text-sm text-muted-foreground">{t("Status")}</p>
                     {getMaintenanceStatusBadge(maintenance.status)}
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Data Agendada</p>
+                    <p className="text-sm text-muted-foreground">{t("Data Agendada")}</p>
                     <p className="font-semibold">
-                      {format(new Date(maintenance.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}
+                      {date(maintenance.data_agendada)}
                     </p>
                   </div>
                   {maintenance.data_realizada && (
                     <div>
-                      <p className="text-sm text-muted-foreground">Data Realizada</p>
+                      <p className="text-sm text-muted-foreground">{t("Data Realizada")}</p>
                       <p className="font-semibold">
-                        {format(new Date(maintenance.data_realizada), 'dd/MM/yyyy', { locale: ptBR })}
+                        {date(maintenance.data_realizada)}
                       </p>
                     </div>
                   )}
@@ -140,27 +142,27 @@ export function MaintenanceDetailModal({
                 <div className="space-y-4">
                   {maintenance.quilometragem && (
                     <div>
-                      <p className="text-sm text-muted-foreground">Quilometragem na Manutenção</p>
-                      <p className="font-semibold">{maintenance.quilometragem.toLocaleString()} km</p>
+                      <p className="text-sm text-muted-foreground">{t("Quilometragem na Manutenção")}</p>
+                      <p className="font-semibold">{number(maintenance.quilometragem)} km</p>
                     </div>
                   )}
                   {maintenance.custo && (
                     <div>
-                      <p className="text-sm text-muted-foreground">Custo</p>
+                      <p className="text-sm text-muted-foreground">{t("Custo")}</p>
                       <p className="font-semibold text-green-600">
-                        R$ {maintenance.custo.toFixed(2).replace('.', ',')}
+                        {money(maintenance.custo)}
                       </p>
                     </div>
                   )}
                   {maintenance.responsavel && (
                     <div>
-                      <p className="text-sm text-muted-foreground">Responsável</p>
+                      <p className="text-sm text-muted-foreground">{t("Responsável")}</p>
                       <p className="font-semibold">{maintenance.responsavel}</p>
                     </div>
                   )}
                   {maintenance.oficina && (
                     <div>
-                      <p className="text-sm text-muted-foreground">Oficina</p>
+                      <p className="text-sm text-muted-foreground">{t("Oficina")}</p>
                       <p className="font-semibold">{maintenance.oficina}</p>
                     </div>
                   )}
@@ -172,7 +174,7 @@ export function MaintenanceDetailModal({
           {/* Descrição */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Descrição do Serviço</CardTitle>
+              <CardTitle className="text-lg">{t("Descrição do Serviço")}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-foreground leading-relaxed">
@@ -185,7 +187,7 @@ export function MaintenanceDetailModal({
           {maintenance.observacoes && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Observações</CardTitle>
+                <CardTitle className="text-lg">{t("Observações")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-foreground leading-relaxed">
@@ -198,26 +200,26 @@ export function MaintenanceDetailModal({
           {/* Informações de Registro */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Informações de Registro</CardTitle>
+              <CardTitle className="text-lg">{t("Informações de Registro")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Criado por</p>
+                  <p className="text-muted-foreground">{t("Criado por")}</p>
                   <p className="font-medium">
-                    {createdByEmployee ? createdByEmployee.nome : 'Usuário não identificado'}
+                    {createdByEmployee ? createdByEmployee.nome : t("Usuário não identificado")}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Data de Criação</p>
+                  <p className="text-muted-foreground">{t("Data de Criação")}</p>
                   <p className="font-medium">
-                    {format(new Date(maintenance.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                    {date(maintenance.created_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Última Atualização</p>
+                  <p className="text-muted-foreground">{t("Última Atualização")}</p>
                   <p className="font-medium">
-                    {format(new Date(maintenance.updated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                    {date(maintenance.updated_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
               </div>

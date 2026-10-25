@@ -30,8 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { enUS, es, ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useVehicleAccessories } from "@/hooks/useVehicleAccessories";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -39,7 +38,9 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 import { FornecedorSelect } from "@/components/ui/FornecedorSelect";
+import { useI18n } from "@/i18n";
 
+// Accessory names are the Portuguese catalog keys; they are translated when rendered.
 const accessoryTypes = [
   "Película (Insulfilm)",
   "Substituição de Vidros", 
@@ -74,6 +75,8 @@ export const VehicleAccessoryFormModal = ({
   vehicleType,
   vehicleId
 }: VehicleAccessoryFormModalProps) => {
+  const { t, date, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   const { createAccessory, updateAccessory } = useVehicleAccessories();
   const { vehicles } = useVehicles();
   const { isFuncionario } = useUserRole();
@@ -132,7 +135,7 @@ export const VehicleAccessoryFormModal = ({
   const onSubmit = async (data: FormData) => {
     try {
       if (!data.vehicle_id) {
-        throw new Error("Veículo é obrigatório");
+        throw new Error(t("Veículo é obrigatório"));
       }
 
       const accessoryData = {
@@ -175,7 +178,7 @@ export const VehicleAccessoryFormModal = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {accessory ? "Editar Acessório" : "Novo Acessório"}
+            {accessory ? t("Editar Acessório") : t("Novo Acessório")}
           </DialogTitle>
         </DialogHeader>
 
@@ -186,11 +189,11 @@ export const VehicleAccessoryFormModal = ({
               name="vehicle_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Placa do Veículo</FormLabel>
+                  <FormLabel>{t("Placa do Veículo")}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione o veículo" />
+                        <SelectValue placeholder={t("Selecione o veículo")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -211,7 +214,7 @@ export const VehicleAccessoryFormModal = ({
               name="data_instalacao"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Data da Instalação</FormLabel>
+                  <FormLabel>{t("Data da Instalação")}</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -223,9 +226,9 @@ export const VehicleAccessoryFormModal = ({
                           )}
                         >
                           {field.value ? (
-                            format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                            date(field.value)
                           ) : (
-                            <span>Selecione a data</span>
+                            <span>{t("Selecione a data")}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -237,7 +240,7 @@ export const VehicleAccessoryFormModal = ({
                         selected={field.value}
                         onSelect={field.onChange}
                         initialFocus
-                        locale={ptBR}
+                        locale={calendarLocale}
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
@@ -252,7 +255,7 @@ export const VehicleAccessoryFormModal = ({
               name="tipo_acessorio"
               render={() => (
                 <FormItem>
-                  <FormLabel>Tipo de Acessório</FormLabel>
+                  <FormLabel>{t("Tipo de Acessório")}</FormLabel>
                   <div className="space-y-2">
                     {accessoryTypes.map((type) => (
                       <div key={type} className="flex items-center space-x-2">
@@ -265,7 +268,7 @@ export const VehicleAccessoryFormModal = ({
                           htmlFor={type}
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          {type}
+                          {t(type)}
                         </label>
                       </div>
                     ))}
@@ -280,7 +283,7 @@ export const VehicleAccessoryFormModal = ({
               name="valor"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Valor do Serviço <span className="text-muted-foreground font-normal">(opcional)</span></FormLabel>
+                  <FormLabel>{t("Valor do Serviço")} <span className="text-muted-foreground font-normal">{t("(opcional)")}</span></FormLabel>
                   <FormControl>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
@@ -306,13 +309,13 @@ export const VehicleAccessoryFormModal = ({
               name="fornecedor_empresa"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fornecedor / Empresa Responsável</FormLabel>
+                  <FormLabel>{t("Fornecedor / Empresa Responsável")}</FormLabel>
                   <FormControl>
                     <FornecedorSelect
                       value={field.value ?? ""}
                       onChange={field.onChange}
                       tipos={["equipamentos", "materiais", "servicos", "geral"]}
-                      placeholder="Selecione o fornecedor"
+                      placeholder={t("Selecione o fornecedor")}
                     />
                   </FormControl>
                   <FormMessage />
@@ -325,7 +328,7 @@ export const VehicleAccessoryFormModal = ({
               name="foto_comprovante_url"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Comprovante de Instalação</FormLabel>
+                  <FormLabel>{t("Comprovante de Instalação")}</FormLabel>
                   <FormControl>
                     <PhotoUpload
                       label=""
@@ -346,10 +349,10 @@ export const VehicleAccessoryFormModal = ({
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
+                  <FormLabel>{t("Observações")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observações adicionais..."
+                      placeholder={t("Observações adicionais...")}
                       className="resize-none"
                       {...field}
                     />
@@ -366,7 +369,7 @@ export const VehicleAccessoryFormModal = ({
                 onClick={onClose}
                 className="flex-1"
               >
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button
                 type="submit"
@@ -374,10 +377,10 @@ export const VehicleAccessoryFormModal = ({
                 disabled={form.formState.isSubmitting}
               >
                 {form.formState.isSubmitting
-                  ? "Salvando..."
+                  ? t("Salvando...")
                   : accessory
-                  ? "Atualizar"
-                  : "Salvar"}
+                  ? t("Atualizar")
+                  : t("Salvar")}
               </Button>
             </div>
           </form>

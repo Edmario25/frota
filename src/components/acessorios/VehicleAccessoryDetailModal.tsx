@@ -1,6 +1,4 @@
 import React from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Calendar, Building, FileText, Camera, Car } from "lucide-react";
 import {
   Dialog,
@@ -11,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useVehicles } from "@/hooks/useVehicles";
+import { useI18n } from "@/i18n";
 
 interface VehicleAccessory {
   id: string;
@@ -35,6 +34,7 @@ export const VehicleAccessoryDetailModal: React.FC<VehicleAccessoryDetailModalPr
   onClose,
   accessory,
 }) => {
+  const { t, date } = useI18n();
   const { vehicles } = useVehicles();
 
   if (!accessory) return null;
@@ -45,7 +45,7 @@ export const VehicleAccessoryDetailModal: React.FC<VehicleAccessoryDetailModalPr
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes do Acessório</DialogTitle>
+          <DialogTitle>{t("Detalhes do Acessório")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -57,7 +57,7 @@ export const VehicleAccessoryDetailModal: React.FC<VehicleAccessoryDetailModalPr
                 {vehicle?.placa} - {vehicle?.marca} {vehicle?.modelo}
               </p>
               <p className="text-sm text-muted-foreground">
-                Ano: {vehicle?.ano} | Cor: {vehicle?.cor}
+                {t("Ano:")} {vehicle?.ano} {t("| Cor:")} {vehicle?.cor}
               </p>
             </div>
           </div>
@@ -66,7 +66,7 @@ export const VehicleAccessoryDetailModal: React.FC<VehicleAccessoryDetailModalPr
 
           {/* Accessory Type */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Tipo de Acessório</label>
+            <label className="text-sm font-medium">{t("Tipo de Acessório")}</label>
             <div>
               <Badge variant="outline" className="text-sm">
                 {accessory.tipo_acessorio}
@@ -79,10 +79,10 @@ export const VehicleAccessoryDetailModal: React.FC<VehicleAccessoryDetailModalPr
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                Data de Instalação
+                {t("Data de Instalação")}
               </label>
               <p className="text-sm">
-                {format(new Date(accessory.data_instalacao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                {date(accessory.data_instalacao, { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
           )}
@@ -92,7 +92,7 @@ export const VehicleAccessoryDetailModal: React.FC<VehicleAccessoryDetailModalPr
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Building className="h-4 w-4" />
-                Fornecedor / Empresa
+                {t("Fornecedor / Empresa")}
               </label>
               <p className="text-sm">{accessory.fornecedor_empresa}</p>
             </div>
@@ -103,12 +103,12 @@ export const VehicleAccessoryDetailModal: React.FC<VehicleAccessoryDetailModalPr
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Camera className="h-4 w-4" />
-                Comprovante de Instalação
+                {t("Comprovante de Instalação")}
               </label>
               <div className="mt-2">
                 <img
                   src={accessory.foto_comprovante_url}
-                  alt="Comprovante de instalação"
+                  alt={t("Comprovante de instalação")}
                   className="max-w-full h-auto rounded-lg border"
                 />
               </div>
@@ -120,7 +120,7 @@ export const VehicleAccessoryDetailModal: React.FC<VehicleAccessoryDetailModalPr
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Observações
+                {t("Observações")}
               </label>
               <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
                 {accessory.observacoes}
@@ -132,11 +132,11 @@ export const VehicleAccessoryDetailModal: React.FC<VehicleAccessoryDetailModalPr
           <Separator />
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>
-              Registrado em: {format(new Date(accessory.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {t("Registrado em:")} {date(accessory.created_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
             {accessory.updated_at !== accessory.created_at && (
               <p>
-                Última atualização: {format(new Date(accessory.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {t("Última atualização:")} {date(accessory.updated_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
           </div>

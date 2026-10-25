@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { useState, useEffect } from "react"
 import { supabase } from "@/integrations/supabase/client"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -39,6 +40,7 @@ interface Props {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
+  const { t } = useI18n();
   const { toast } = useToast()
   const [equipes, setEquipes]           = useState<Equipe[]>([])
   const [funcionarios, setFuncionarios] = useState<FuncRef[]>([])
@@ -124,17 +126,17 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
       encarregado_id: novoEncarregado || null,
     })
     setSalvandoEq(false)
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return }
+    if (error) { toast({ title: t("Erro"), description: error.message, variant: "destructive" }); return }
     setNovoNome(""); setNovoDesc(""); setNovoEnc("")
     setShowNovaEquipe(false)
-    toast({ title: "Equipe criada!" })
+    toast({ title: t("Equipe criada!") })
     fetchEquipes()
   }
 
   const excluirEquipe = async (id: string) => {
     const { error } = await (supabase as any).from("obra_equipes").update({ ativo: false }).eq("id", id)
-    if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return }
-    toast({ title: "Equipe removida" })
+    if (error) { toast({ title: t("Erro"), description: error.message, variant: "destructive" }); return }
+    toast({ title: t("Equipe removida") })
     fetchEquipes()
   }
 
@@ -148,11 +150,11 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
       : (supabase as any).from("obra_equipe_membros").insert({ equipe_id: equipeId, employee_id: membroSel, funcao: funcaoSel.trim() || null })
     const { error } = await operacao
     if (error) {
-      toast({ title: "Erro", description: error.message.includes("unique") ? "Funcionário já está nessa equipe." : error.message, variant: "destructive" })
+      toast({ title: t("Erro"), description: error.message.includes("unique") ? t("Funcionário já está nessa equipe.") : error.message, variant: "destructive" })
       return
     }
     setMembroSel(""); setFuncaoSel(""); setAddingTo(null)
-    toast({ title: "Membro adicionado!" })
+    toast({ title: t("Membro adicionado!") })
     fetchEquipes()
   }
 
@@ -171,7 +173,7 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-violet-500" />
-            Equipes — {obra.nome}
+            {t("Equipes — {site}", { site: obra.nome })}
           </DialogTitle>
         </DialogHeader>
 
@@ -181,25 +183,25 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowNovaEquipe(v => !v)}>
               <Plus className="h-4 w-4 mr-1.5" />
-              Nova Equipe
+              {t("Nova Equipe")}
             </Button>
           </div>
 
           {/* Formulário nova equipe */}
           {showNovaEquipe && (
             <div className="border border-border/60 rounded-xl p-4 space-y-3 bg-muted/30">
-              <p className="text-sm font-semibold">Nova Equipe</p>
+              <p className="text-sm font-semibold">{t("Nova Equipe")}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">Nome da equipe *</Label>
+                  <Label className="text-xs">{t("Nome da equipe")} *</Label>
                   <Input value={novoNome} onChange={e => setNovoNome(e.target.value)}
-                    placeholder="Ex: Equipe Estrutura" className="mt-1 h-8 text-sm" />
+                    placeholder={t("Ex: Equipe Estrutura")} className="mt-1 h-8 text-sm" />
                 </div>
                 <div>
-                  <Label className="text-xs">Encarregado</Label>
+                  <Label className="text-xs">{t("Encarregado")}</Label>
                   <Select value={novoEncarregado} onValueChange={setNovoEnc}>
                     <SelectTrigger className="mt-1 h-8 text-sm">
-                      <SelectValue placeholder="Selecione (opcional)" />
+                      <SelectValue placeholder={t("Selecione (opcional)")} />
                     </SelectTrigger>
                     <SelectContent>
                       {funcionarios.map(f => (
@@ -210,14 +212,14 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
                 </div>
               </div>
               <div>
-                <Label className="text-xs">Descrição</Label>
+                <Label className="text-xs">{t("Descrição")}</Label>
                 <Input value={novoDesc} onChange={e => setNovoDesc(e.target.value)}
-                  placeholder="Responsabilidade da equipe..." className="mt-1 h-8 text-sm" />
+                  placeholder={t("Responsabilidade da equipe...")} className="mt-1 h-8 text-sm" />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => setShowNovaEquipe(false)}>Cancelar</Button>
+                <Button variant="outline" size="sm" onClick={() => setShowNovaEquipe(false)}>{t("Cancelar")}</Button>
                 <Button size="sm" onClick={criarEquipe} disabled={salvandoEq || !novoNome.trim()}>
-                  {salvandoEq ? "Salvando..." : "Criar Equipe"}
+                  {salvandoEq ? t("Salvando...") : t("Criar Equipe")}
                 </Button>
               </div>
             </div>
@@ -225,12 +227,12 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
 
           {/* Lista de equipes */}
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">Carregando...</div>
+            <div className="text-center py-8 text-muted-foreground text-sm">{t("Carregando...")}</div>
           ) : equipes.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Nenhuma equipe cadastrada para esta obra</p>
-              <p className="text-xs mt-1 opacity-70">Clique em "Nova Equipe" para começar</p>
+              <p className="text-sm">{t("Nenhuma equipe cadastrada para esta obra")}</p>
+              <p className="text-xs mt-1 opacity-70">{t("Clique em “Nova Equipe” para começar")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -249,11 +251,11 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold">{eq.nome}</p>
                       {eq.encarregado && (
-                        <p className="text-xs text-muted-foreground">Encarregado: {eq.encarregado.nome}</p>
+                        <p className="text-xs text-muted-foreground">{t("Encarregado:")} {eq.encarregado.nome}</p>
                       )}
                     </div>
                     <Badge variant="outline" className="text-xs">
-                      {eq.membros.filter(m => m.ativo).length} membros
+                      {eq.membros.filter(m => m.ativo).length} {t("membros")}
                     </Badge>
                     <Button
                       variant="ghost" size="icon"
@@ -268,7 +270,7 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
                   {expandido === eq.id && (
                     <div className="px-4 pb-4 pt-2 space-y-2">
                       {eq.membros.filter(m => m.ativo).length === 0 ? (
-                        <p className="text-xs text-muted-foreground py-2 text-center">Nenhum membro ainda</p>
+                        <p className="text-xs text-muted-foreground py-2 text-center">{t("Nenhum membro ainda")}</p>
                       ) : (
                         eq.membros.filter(m => m.ativo).map(m => (
                           <div key={m.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-muted/30">
@@ -299,10 +301,10 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
                         <div className="border border-dashed border-border rounded-lg p-3 space-y-2 mt-2">
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-xs">Funcionário</Label>
+                              <Label className="text-xs">{t("Funcionário")}</Label>
                               <Select value={membroSel} onValueChange={setMembroSel}>
                                 <SelectTrigger className="mt-1 h-8 text-sm">
-                                  <SelectValue placeholder="Selecione" />
+                                  <SelectValue placeholder={t("Selecione")} />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {funcionarios
@@ -317,19 +319,19 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
                               </Select>
                             </div>
                             <div>
-                              <Label className="text-xs">Função na equipe</Label>
+                              <Label className="text-xs">{t("Função na equipe")}</Label>
                               <Input value={funcaoSel} onChange={e => setFuncaoSel(e.target.value)}
-                                placeholder="Ex: Pedreiro, Armador" className="mt-1 h-8 text-sm" />
+                                placeholder={t("Ex: Pedreiro, Armador")} className="mt-1 h-8 text-sm" />
                             </div>
                           </div>
                           <div className="flex gap-2 justify-end">
                             <Button variant="outline" size="sm" className="h-7 text-xs"
                               onClick={() => { setAddingTo(null); setMembroSel(""); setFuncaoSel("") }}>
-                              Cancelar
+                              {t("Cancelar")}
                             </Button>
                             <Button size="sm" className="h-7 text-xs"
                               onClick={() => adicionarMembro(eq.id)} disabled={!membroSel}>
-                              Adicionar
+                              {t("Adicionar")}
                             </Button>
                           </div>
                         </div>
@@ -340,7 +342,7 @@ export function EquipesObraModal({ isOpen, onClose, obra }: Props) {
                           onClick={() => { setAddingTo(eq.id); setMembroSel(""); setFuncaoSel("") }}
                         >
                           <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-                          Adicionar Membro
+                          {t("Adicionar Membro")}
                         </Button>
                       )}
                     </div>

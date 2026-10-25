@@ -44,8 +44,11 @@ export const GRUPOS: Grupo[] = [
 export const grupoDe = (categoria: string) =>
   GRUPOS.find(g => g.cats.includes(categoria)) ?? GRUPOS[GRUPOS.length - 1];
 
-export const brl = (v: number, casas = 2) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: casas, maximumFractionDigits: casas });
+/** Receives `money` from useI18n so the presentation follows the chosen language. */
+export const brl = (
+  v: number,
+  money: (value: number, currency?: string) => string,
+) => money(v);
 
 /** "2026-09" -> Date do dia 1 (meio-dia, para não escorregar de fuso). */
 export const mesParaData = (mes: string) => new Date(`${mes}-01T12:00:00`);
@@ -55,9 +58,12 @@ export const somarMeses = (mes: string, n: number) => {
   d.setMonth(d.getMonth() + n);
   return dataParaMes(d);
 };
-export const rotuloMes = (mes: string, curto = false) =>
-  mesParaData(mes).toLocaleDateString("pt-BR", curto ? { month: "short" } : { month: "long", year: "numeric" })
-    .replace(".", "");
+/** Receives `date` from useI18n so the month name follows the chosen language. */
+export const rotuloMes = (
+  mes: string,
+  date: (value: Date | string, options?: Intl.DateTimeFormatOptions) => string,
+  curto = false,
+) => date(mesParaData(mes), curto ? { month: "short" } : { month: "long", year: "numeric" }).replace(".", "");
 
 /** Dias do mês que contam: o mês corrente só até hoje, para a média não cair. */
 export function diasDoMes(mes: string) {

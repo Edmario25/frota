@@ -3,6 +3,7 @@ import { ArrowLeft, BedDouble, Building2, Plus, Search, UserRound } from "lucide
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import { CLASSIFICACAO, Dados, LEITO, TIPO_UNIDADE } from "./shared";
 
 interface Props {
@@ -31,6 +32,7 @@ function contar(leitos: any[]) {
 }
 
 export function MapaHotel({ dados, unidades, ocupacaoPorLeito, reservaPorLeito, nome, onLeito, onNovoQuarto }: Props) {
+  const { t } = useI18n();
   const [aberta, setAberta] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [busca, setBusca] = useState("");
@@ -88,7 +90,7 @@ export function MapaHotel({ dados, unidades, ocupacaoPorLeito, reservaPorLeito, 
         <BarraBusca busca={busca} setBusca={setBusca} encontrados={encontrados} nome={nome} onLeito={onLeito} />
         {!unidades.length && (
           <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-            Nenhuma unidade no filtro selecionado.
+            {t("Nenhuma unidade no filtro selecionado.")}
           </div>
         )}
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -107,26 +109,26 @@ export function MapaHotel({ dados, unidades, ocupacaoPorLeito, reservaPorLeito, 
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{u.nome}</p>
                     <p className="text-xs text-muted-foreground">
-                      {TIPO_UNIDADE[u.tipo_unidade] ?? "Unidade"} · {quartos.length} quartos
+                      {t(TIPO_UNIDADE[u.tipo_unidade] ?? "Unidade")} · {t("{count} quartos", { count: quartos.length })}
                     </p>
                   </div>
                   <Building2 className="h-5 w-5 flex-shrink-0 text-muted-foreground group-hover:text-primary" />
                 </div>
                 <div className="mt-4 flex items-baseline gap-1">
                   <span className="text-2xl font-bold text-emerald-600">{c.livres}</span>
-                  <span className="text-sm text-muted-foreground">vagas livres</span>
+                  <span className="text-sm text-muted-foreground">{t("vagas livres")}</span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-violet-600" style={{ width: `${pct}%` }} />
                 </div>
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                  <span>{c.ocupados}/{c.total} ocupados</span>
-                  {c.reservados > 0 && <span>{c.reservados} reservados</span>}
-                  {c.bloqueados > 0 && <span className="text-amber-700">{c.bloqueados} bloqueados</span>}
+                  <span>{c.ocupados}/{c.total} {t("ocupados")}</span>
+                  {c.reservados > 0 && <span>{c.reservados} {t("reservados")}</span>}
+                  {c.bloqueados > 0 && <span className="text-amber-700">{c.bloqueados} {t("bloqueados")}</span>}
                 </div>
                 {excede && (
                   <p className="mt-2 text-[11px] font-medium text-red-600">
-                    Acima da capacidade autorizada ({u.capacidade_autorizada})
+                    {t("Acima da capacidade autorizada ({limit})", { limit: u.capacidade_autorizada })}
                   </p>
                 )}
               </button>
@@ -156,27 +158,27 @@ export function MapaHotel({ dados, unidades, ocupacaoPorLeito, reservaPorLeito, 
         <div className="flex items-center gap-3">
           {unidades.length > 1 && (
             <Button variant="ghost" size="sm" onClick={() => setAberta(null)}>
-              <ArrowLeft className="mr-1 h-4 w-4" />Blocos
+              <ArrowLeft className="mr-1 h-4 w-4" />{t("Blocos")}
             </Button>
           )}
           <div>
             <p className="font-semibold leading-tight">{unidadeAberta.nome}</p>
             <p className="text-xs text-muted-foreground">
-              <span className="font-medium text-emerald-600">{cBloco.livres} livres</span>
-              {" · "}{cBloco.ocupados}/{cBloco.total} ocupados · {todosQuartos.length} quartos
+              <span className="font-medium text-emerald-600">{cBloco.livres} {t("livres")}</span>
+              {" · "}{t("{busy}/{total} ocupados · {rooms} quartos", { busy: cBloco.ocupados, total: cBloco.total, rooms: todosQuartos.length })}
             </p>
           </div>
         </div>
         <Button size="sm" variant="outline" onClick={() => onNovoQuarto(unidadeAberta.id)}>
-          <Plus className="mr-1.5 h-4 w-4" />Quartos
+          <Plus className="mr-1.5 h-4 w-4" />{t("Quartos")}
         </Button>
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-1.5">
           {([
-            ["todos", "Todos"], ["vagas", "Com vaga"], ["masculino", "Masculino"],
-            ["feminino", "Feminino"], ["bloqueados", "Bloqueados"],
+            ["todos", t("Todos")], ["vagas", t("Com vaga")], ["masculino", t("Masculino")],
+            ["feminino", t("Feminino")], ["bloqueados", t("Bloqueados")],
           ] as [Filtro, string][]).map(([id, label]) => (
             <button
               key={id}
@@ -190,7 +192,7 @@ export function MapaHotel({ dados, unidades, ocupacaoPorLeito, reservaPorLeito, 
         </div>
         <div className="relative w-full lg:w-72">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Quarto ou colaborador" className="h-9 pl-8" />
+          <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder={t("Quarto ou colaborador")} className="h-9 pl-8" />
         </div>
       </div>
 
@@ -198,7 +200,7 @@ export function MapaHotel({ dados, unidades, ocupacaoPorLeito, reservaPorLeito, 
 
       {!quartos.length ? (
         <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-          {todosQuartos.length ? "Nenhum quarto atende a este filtro." : "Este bloco ainda não tem quartos cadastrados."}
+          {todosQuartos.length ? t("Nenhum quarto atende a este filtro.") : t("Este bloco ainda não tem quartos cadastrados.")}
         </div>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-2.5">
@@ -238,7 +240,7 @@ export function MapaHotel({ dados, unidades, ocupacaoPorLeito, reservaPorLeito, 
                   })}
                 </div>
                 <p className={cn("mt-2 text-[11px]", livres ? "font-medium text-emerald-600" : "text-muted-foreground")}>
-                  {livres ? `${livres} ${livres === 1 ? "vaga" : "vagas"}` : "Sem vagas"}
+                  {livres ? `${livres} ${livres === 1 ? "vaga" : "vagas"}` : t("Sem vagas")}
                 </p>
               </div>
             );
@@ -250,6 +252,7 @@ export function MapaHotel({ dados, unidades, ocupacaoPorLeito, reservaPorLeito, 
 }
 
 function Legenda() {
+  const { t } = useI18n()
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
       {["disponivel", "reservado", "ocupado", "higienizacao", "manutencao", "interditado"].map(s => (
@@ -258,10 +261,10 @@ function Legenda() {
         </span>
       ))}
       <span className="flex items-center gap-1.5">
-        <span className="h-3 w-3 rounded-sm bg-emerald-50 ring-2 ring-sky-400 ring-offset-1" />Reserva futura
+        <span className="h-3 w-3 rounded-sm bg-emerald-50 ring-2 ring-sky-400 ring-offset-1" />{t("Reserva futura")}
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="h-3 w-3 rounded-sm bg-violet-600 ring-2 ring-dashed ring-violet-300 ring-offset-1" />Ausente temporariamente
+        <span className="h-3 w-3 rounded-sm bg-violet-600 ring-2 ring-dashed ring-violet-300 ring-offset-1" />{t("Ausente temporariamente")}
       </span>
     </div>
   );
@@ -271,21 +274,22 @@ function BarraBusca({ busca, setBusca, encontrados, nome, onLeito }: {
   busca: string; setBusca: (v: string) => void; encontrados: any[];
   nome: (id: string) => string; onLeito: (l: any) => void;
 }) {
+  const { t } = useI18n()
   return (
     <div className="space-y-2">
       <div className="relative max-w-md">
         <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Onde está o colaborador? Digite o nome" className="h-9 pl-8" />
+        <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder={t("Onde está o colaborador? Digite o nome")} className="h-9 pl-8" />
       </div>
       {busca.trim().length >= 2 && (
         <div className="max-w-md divide-y rounded-lg border bg-card">
-          {!encontrados.length && <p className="p-3 text-sm text-muted-foreground">Ninguém alojado com esse nome.</p>}
+          {!encontrados.length && <p className="p-3 text-sm text-muted-foreground">{t("Ninguém alojado com esse nome.")}</p>}
           {encontrados.map(({ o, leito, quarto, unidade }) => (
             <button key={o.id} onClick={() => onLeito(leito)} className="flex w-full items-center gap-3 p-3 text-left hover:bg-muted">
               <UserRound className="h-4 w-4 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{nome(o.employee_id)}</p>
-                <p className="text-xs text-muted-foreground">{unidade.nome} · Quarto {quarto?.identificacao} · Leito {leito.identificacao}</p>
+                <p className="text-xs text-muted-foreground">{t("{unit} · Quarto {room} · Leito {bed}", { unit: unidade.nome, room: quarto?.identificacao ?? "", bed: leito.identificacao })}</p>
               </div>
               <BedDouble className="h-4 w-4 text-muted-foreground" />
             </button>

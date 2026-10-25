@@ -15,6 +15,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import type { FundoFixoLancamento } from "@/hooks/useFundoFixo";
+import { useI18n } from "@/i18n";
 
 const categorias = [
   { value: "alimentacao",  label: "Alimentação" },
@@ -60,6 +61,7 @@ interface Props {
 export const FundoFixoLancamentoModal = ({
   open, onOpenChange, fundoId, apenasGestores = false, lancamento, onSubmit, comprovanteObrigatorioAcima = 0,
 }: Props) => {
+  const { t, date } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
@@ -154,9 +156,9 @@ export const FundoFixoLancamentoModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{lancamento ? "Editar Lançamento" : "Novo Lançamento"}</DialogTitle>
+          <DialogTitle>{lancamento ? t("Editar Lançamento") : t("Novo Lançamento")}</DialogTitle>
           <DialogDescription>
-            Registre uma entrada ou saída no fundo fixo. Anexe o recibo ou NF quando disponível.
+            {t("Registre uma entrada ou saída no fundo fixo. Anexe o recibo ou NF quando disponível.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -166,7 +168,7 @@ export const FundoFixoLancamentoModal = ({
             {/* Tipo: Entrada ou Saída */}
             <FormField control={form.control} name="tipo" render={({ field }) => (
               <FormItem>
-                <FormLabel>Tipo de Lançamento</FormLabel>
+                <FormLabel>{t("Tipo de Lançamento")}</FormLabel>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { value: "saida",   label: "Saída",   icon: ArrowDownCircle, color: "border-red-400 bg-red-50 text-red-700" },
@@ -197,8 +199,8 @@ export const FundoFixoLancamentoModal = ({
             <div className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium
               ${tipoAtual === "saida" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
               {tipoAtual === "saida"
-                ? <><ArrowDownCircle className="h-4 w-4" />Despesa / Retirada do caixa</>
-                : <><ArrowUpCircle className="h-4 w-4" />Reposição / Entrada no caixa</>
+                ? <><ArrowDownCircle className="h-4 w-4" />{t("Despesa / Retirada do caixa")}</>
+                : <><ArrowUpCircle className="h-4 w-4" />{t("Reposição / Entrada no caixa")}</>
               }
             </div>
 
@@ -206,7 +208,7 @@ export const FundoFixoLancamentoModal = ({
               {/* Data */}
               <FormField control={form.control} name="data_lancamento" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Data</FormLabel>
+                  <FormLabel>{t("Data")}</FormLabel>
                   <FormControl><Input type="date" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -215,7 +217,7 @@ export const FundoFixoLancamentoModal = ({
               {/* Valor */}
               <FormField control={form.control} name="valor" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Valor (R$)</FormLabel>
+                  <FormLabel>{t("Valor (R$)")}</FormLabel>
                   <FormControl>
                     <Input type="number" step="0.01" placeholder="0,00"
                       value={field.value ?? ""}
@@ -229,8 +231,8 @@ export const FundoFixoLancamentoModal = ({
             {/* Descrição */}
             <FormField control={form.control} name="descricao" render={({ field }) => (
               <FormItem>
-                <FormLabel>Descrição</FormLabel>
-                <FormControl><Input placeholder="Ex: Almoço equipe, Combustível gerador, Material..." {...field} /></FormControl>
+                <FormLabel>{t("Descrição")}</FormLabel>
+                <FormControl><Input placeholder={t("Ex: Almoço equipe, Combustível gerador, Material...")} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -238,10 +240,10 @@ export const FundoFixoLancamentoModal = ({
             {/* Categoria */}
             <FormField control={form.control} name="categoria" render={({ field }) => (
               <FormItem>
-                <FormLabel>Categoria</FormLabel>
+                <FormLabel>{t("Categoria")}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {categorias.map(c => (
@@ -257,9 +259,9 @@ export const FundoFixoLancamentoModal = ({
               <FormField control={form.control} name="integrar_custo_obra" render={({ field }) => (
                 <FormItem className="flex items-center justify-between gap-4 rounded-lg border p-3">
                   <div>
-                    <FormLabel className="text-sm">Enviar para o custo da obra</FormLabel>
+                    <FormLabel className="text-sm">{t("Enviar para o custo da obra")}</FormLabel>
                     <p className="text-xs text-muted-foreground">
-                      Desative se esta saída apenas pagar uma despesa já registrada em outro módulo.
+                      {t("Desative se esta saída apenas pagar uma despesa já registrada em outro módulo.")}
                     </p>
                   </div>
                   <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
@@ -269,22 +271,22 @@ export const FundoFixoLancamentoModal = ({
 
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="fornecedor" render={({ field }) => (
-                <FormItem><FormLabel>Fornecedor</FormLabel><FormControl><Input placeholder="Nome ou razão social" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>{t("Fornecedor")}</FormLabel><FormControl><Input placeholder={t("Nome ou razão social")} {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="fornecedor_documento" render={({ field }) => (
-                <FormItem><FormLabel>CPF/CNPJ</FormLabel><FormControl><Input placeholder="Documento" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>{t("CPF/CNPJ")}</FormLabel><FormControl><Input placeholder={t("Documento")} {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="numero_documento" render={({ field }) => (
-                <FormItem><FormLabel>Nº nota/recibo</FormLabel><FormControl><Input placeholder="Número" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>{t("Nº nota/recibo")}</FormLabel><FormControl><Input placeholder={t("Número")} {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="forma_pagamento" render={({ field }) => (
-                <FormItem><FormLabel>Forma de pagamento</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["dinheiro","pix","cartao","transferencia"].map(v => <SelectItem key={v} value={v}>{v.toUpperCase()}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                <FormItem><FormLabel>{t("Forma de pagamento")}</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["dinheiro","pix","cartao","transferencia"].map(v => <SelectItem key={v} value={v}>{v.toUpperCase()}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="frente_servico" render={({ field }) => (
-                <FormItem><FormLabel>Frente de serviço</FormLabel><FormControl><Input placeholder="Local de aplicação" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>{t("Frente de serviço")}</FormLabel><FormControl><Input placeholder={t("Local de aplicação")} {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="favorecido" render={({ field }) => (
-                <FormItem><FormLabel>Favorecido</FormLabel><FormControl><Input placeholder="Quem recebeu" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>{t("Favorecido")}</FormLabel><FormControl><Input placeholder={t("Quem recebeu")} {...field} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
 
@@ -292,8 +294,8 @@ export const FundoFixoLancamentoModal = ({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Recibo / Comprovante</span>
-                <Badge variant="outline" className="text-xs">obrigatório conforme limite</Badge>
+                <span className="text-sm font-medium">{t("Recibo / Comprovante")}</span>
+                <Badge variant="outline" className="text-xs">{t("obrigatório conforme limite")}</Badge>
               </div>
               <FormField control={form.control} name="recibo_url" render={({ field }) => (
                 <FormItem>
@@ -315,8 +317,8 @@ export const FundoFixoLancamentoModal = ({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Nota Fiscal (NF)</span>
-                <Badge variant="outline" className="text-xs">opcional</Badge>
+                <span className="text-sm font-medium">{t("Nota Fiscal (NF)")}</span>
+                <Badge variant="outline" className="text-xs">{t("opcional")}</Badge>
               </div>
               <FormField control={form.control} name="nf_url" render={({ field }) => (
                 <FormItem>
@@ -337,9 +339,9 @@ export const FundoFixoLancamentoModal = ({
             {/* Observações */}
             <FormField control={form.control} name="observacoes" render={({ field }) => (
               <FormItem>
-                <FormLabel>Observações <span className="text-muted-foreground font-normal">(opcional)</span></FormLabel>
+                <FormLabel>{t("Observações")} <span className="text-muted-foreground font-normal">{t("(opcional)")}</span></FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Detalhes adicionais..." className="resize-none" rows={2} {...field} />
+                  <Textarea placeholder={t("Detalhes adicionais...")} className="resize-none" rows={2} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -347,10 +349,10 @@ export const FundoFixoLancamentoModal = ({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : lancamento ? "Salvar" : "Registrar"}
+                {isSubmitting ? t("Salvando...") : lancamento ? t("Salvar") : t("Registrar")}
               </Button>
             </DialogFooter>
           </form>

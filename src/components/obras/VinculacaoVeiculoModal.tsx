@@ -11,8 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useI18n } from "@/i18n";
 
 interface VinculacaoVeiculoModalProps {
   isOpen: boolean;
@@ -21,6 +20,7 @@ interface VinculacaoVeiculoModalProps {
 }
 
 export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeiculoModalProps) {
+  const { t, date } = useI18n();
   const { vehicles } = useVehicles();
   const { employees } = useEmployees();
   const { toast } = useToast();
@@ -85,8 +85,8 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
     } catch (error) {
       console.error('Erro ao buscar vinculações:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao carregar veículos vinculados",
+        title: t("Erro"),
+        description: t("Erro ao carregar veículos vinculados"),
         variant: "destructive",
       });
     }
@@ -118,8 +118,8 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
       if (detalhesError) throw detalhesError;
 
       toast({
-        title: "Sucesso",
-        description: "Veículo alocado com sucesso; vínculos anteriores foram encerrados",
+        title: t("Sucesso"),
+        description: t("Veículo alocado com sucesso; vínculos anteriores foram encerrados"),
       });
 
       setFormData({
@@ -135,8 +135,8 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
     } catch (error) {
       console.error('Erro ao vincular veículo:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao vincular veículo",
+        title: t("Erro"),
+        description: t("Erro ao vincular veículo"),
         variant: "destructive",
       });
     } finally {
@@ -155,15 +155,15 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
       if (error) throw error;
 
       toast({
-        title: "Sucesso",
-        description: "Alocação encerrada e histórico preservado",
+        title: t("Sucesso"),
+        description: t("Alocação encerrada e histórico preservado"),
       });
       fetchVinculacoes();
     } catch (error) {
       console.error('Erro ao remover vinculação:', error);
       toast({
-        title: "Erro",
-        description: "Erro ao remover vinculação",
+        title: t("Erro"),
+        description: t("Erro ao remover vinculação"),
         variant: "destructive",
       });
     }
@@ -175,15 +175,15 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Veículos - {obra.nome}</DialogTitle>
+          <DialogTitle>{t("Veículos — {site}", { site: obra.nome })}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Veículos Vinculados</h3>
+            <h3 className="text-lg font-semibold">{t("Veículos Vinculados")}</h3>
             <Button onClick={() => setShowForm(true)} disabled={showForm}>
               <Plus className="h-4 w-4 mr-2" />
-              Adicionar Veículo
+              {t("Adicionar Veículo")}
             </Button>
           </div>
 
@@ -191,13 +191,13 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
             <form onSubmit={handleSubmit} className="border p-4 rounded-lg space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="vehicle_id">Veículo *</Label>
+                  <Label htmlFor="vehicle_id">{t("Veículo")} *</Label>
                   <Select 
                     value={formData.vehicle_id} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, vehicle_id: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um veículo" />
+                      <SelectValue placeholder={t("Selecione um veículo")} />
                     </SelectTrigger>
                     <SelectContent>
                       {vehicles.map((vehicle) => (
@@ -209,7 +209,7 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="tipo_vinculo">Tipo de Vínculo *</Label>
+                  <Label htmlFor="tipo_vinculo">{t("Tipo de Vínculo")} *</Label>
                   <Select 
                     value={formData.tipo_vinculo} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, tipo_vinculo: value }))}
@@ -218,8 +218,8 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="exclusivo">Uso Exclusivo</SelectItem>
-                      <SelectItem value="compartilhado">Compartilhado</SelectItem>
+                      <SelectItem value="exclusivo">{t("Uso Exclusivo")}</SelectItem>
+                      <SelectItem value="compartilhado">{t("Compartilhado")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -227,13 +227,13 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="responsavel_id">Responsável (opcional)</Label>
+                  <Label htmlFor="responsavel_id">{t("Responsável (opcional)")}</Label>
                   <Select 
                     value={formData.responsavel_id} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, responsavel_id: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um responsável" />
+                      <SelectValue placeholder={t("Selecione um responsável")} />
                     </SelectTrigger>
                     <SelectContent>
                       {employees.map((employee) => (
@@ -245,7 +245,7 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="data_entrada">Data de Entrada *</Label>
+                  <Label htmlFor="data_entrada">{t("Data de Entrada")} *</Label>
                   <Input
                     id="data_entrada"
                     type="date"
@@ -255,7 +255,7 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
                   />
                 </div>
                 <div>
-                  <Label htmlFor="data_saida">Data de Saída (opcional)</Label>
+                  <Label htmlFor="data_saida">{t("Data de Saída (opcional)")}</Label>
                   <Input
                     id="data_saida"
                     type="date"
@@ -267,10 +267,10 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
 
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-                  Cancelar
+                  {t("Cancelar")}
                 </Button>
                 <Button type="submit" disabled={loading}>
-                  {loading ? "Vinculando..." : "Vincular"}
+                  {loading ? t("Vinculando...") : t("Vincular")}
                 </Button>
               </div>
             </form>
@@ -279,20 +279,20 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Veículo</TableHead>
-                <TableHead>Tipo de Vínculo</TableHead>
-                <TableHead>Responsável</TableHead>
-                <TableHead>Data Entrada</TableHead>
-                <TableHead>Data Saída</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead>{t("Veículo")}</TableHead>
+                <TableHead>{t("Tipo de Vínculo")}</TableHead>
+                <TableHead>{t("Responsável")}</TableHead>
+                <TableHead>{t("Data Entrada")}</TableHead>
+                <TableHead>{t("Data Saída")}</TableHead>
+                <TableHead>{t("Status")}</TableHead>
+                <TableHead>{t("Ações")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {vinculacoes.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-4">
-                    Nenhum veículo vinculado
+                    {t("Nenhum veículo vinculado")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -308,24 +308,24 @@ export function VinculacaoVeiculoModal({ isOpen, onClose, obra }: VinculacaoVeic
                     </TableCell>
                     <TableCell>
                       <Badge variant={vinculacao.tipo_vinculo === 'exclusivo' ? 'default' : 'secondary'}>
-                        {vinculacao.tipo_vinculo === 'exclusivo' ? 'Exclusivo' : 'Compartilhado'}
+                        {vinculacao.tipo_vinculo === 'exclusivo' ? t("Exclusivo") : t("Compartilhado")}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       {vinculacao.employees?.nome || "-"}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(vinculacao.data_entrada), "dd/MM/yyyy", { locale: ptBR })}
+                      {date(vinculacao.data_entrada)}
                     </TableCell>
                     <TableCell>
                       {vinculacao.data_saida 
-                        ? format(new Date(vinculacao.data_saida), "dd/MM/yyyy", { locale: ptBR })
+                        ? date(vinculacao.data_saida)
                         : "-"
                       }
                     </TableCell>
                     <TableCell>
                       <Badge variant={vinculacao.status ? "default" : "secondary"}>
-                        {vinculacao.status ? "Ativo" : "Retirado"}
+                        {vinculacao.status ? t("Ativo") : t("Retirado")}
                       </Badge>
                     </TableCell>
                     <TableCell>

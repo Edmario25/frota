@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useI18n } from "@/i18n";
 import { Eye, EyeOff, KeyRound, Search, Trash2, UserPlus, AlertCircle, RefreshCw, Smartphone, HardHat, ClipboardList, Package, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,6 +25,7 @@ type Atribuicao = {
 };
 type Opcao = { id: string; nome: string };
 
+// Labels and hints are the Portuguese catalog keys; they are translated when rendered.
 const ESCOPOS: Array<{ valor: string; rotulo: string; ajuda: string }> = [
   { valor: "obra", rotulo: "Obras selecionadas", ajuda: "Vale só nas obras marcadas." },
   { valor: "empresa", rotulo: "Empresa toda", ajuda: "Vale em todas as obras e departamentos." },
@@ -35,6 +37,7 @@ const ESCOPOS: Array<{ valor: string; rotulo: string; ajuda: string }> = [
 
 type NovaAtribuicao = { perfil: string; escopo: string; alvos: string[]; validade: string; motivo: string };
 const atribuicaoVazia = (): NovaAtribuicao => ({ perfil: "", escopo: "obra", alvos: [], validade: "", motivo: "" });
+// Names and hints are the Portuguese catalog keys; they are translated when rendered.
 const APLICATIVOS = [
   { chave: "motorista", campo: "acesso_app_motorista", nome: "App Motorista", ajuda: "Jornadas, veículos, abastecimentos e checklists.", icone: Smartphone },
   { chave: "sms", campo: "acesso_app_sms", nome: "App SMS Campo", ajuda: "DDS, APR, inspeções, desvios, PT, RDO e ocorrências.", icone: HardHat },
@@ -70,6 +73,7 @@ function CamposAtribuicao({ valor, onChange, perfis, obras, departamentos, setor
   valor: NovaAtribuicao; onChange: (v: NovaAtribuicao) => void;
   perfis: Perfil[]; obras: Opcao[]; departamentos: Opcao[]; setores: Opcao[];
 }) {
+  const { t, date } = useI18n()
   const set = (p: Partial<NovaAtribuicao>) => onChange({ ...valor, ...p });
   const listaAlvo = valor.escopo === "obra" ? obras : valor.escopo === "departamento" ? departamentos : valor.escopo === "setor" ? setores : [];
   const perfilSel = perfis.find(p => p.id === valor.perfil);
@@ -77,26 +81,26 @@ function CamposAtribuicao({ valor, onChange, perfis, obras, departamentos, setor
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label>Perfil de acesso</Label>
+          <Label>{t("Perfil de acesso")}</Label>
           <Select value={valor.perfil} onValueChange={v => set({ perfil: v })}>
-            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
             <SelectContent>{perfis.filter(p => p.ativo).map(p => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>Onde vale</Label>
+          <Label>{t("Onde vale")}</Label>
           <Select value={valor.escopo} onValueChange={v => set({ escopo: v, alvos: [] })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{ESCOPOS.map(e => <SelectItem key={e.valor} value={e.valor}>{e.rotulo}</SelectItem>)}</SelectContent>
+            <SelectContent>{ESCOPOS.map(e => <SelectItem key={e.valor} value={e.valor}>{t(e.rotulo)}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       </div>
       {perfilSel?.descricao && <p className="text-xs text-muted-foreground">{perfilSel.descricao}</p>}
-      <p className="text-xs text-muted-foreground">{ESCOPOS.find(e => e.valor === valor.escopo)?.ajuda}</p>
+      <p className="text-xs text-muted-foreground">{t(ESCOPOS.find(e => e.valor === valor.escopo)?.ajuda ?? "")}</p>
 
       {valor.escopo === "obra" && (
         <div className="max-h-44 overflow-y-auto rounded-lg border">
-          {obras.length === 0 && <p className="p-3 text-sm text-muted-foreground">Nenhuma obra cadastrada.</p>}
+          {obras.length === 0 && <p className="p-3 text-sm text-muted-foreground">{t("Nenhuma obra cadastrada.")}</p>}
           {obras.map(o => (
             <label key={o.id} className="flex cursor-pointer items-center gap-3 border-b px-3 py-2 last:border-b-0 hover:bg-muted/40">
               <Checkbox checked={valor.alvos.includes(o.id)}
@@ -108,18 +112,18 @@ function CamposAtribuicao({ valor, onChange, perfis, obras, departamentos, setor
       )}
       {(valor.escopo === "departamento" || valor.escopo === "setor") && (
         <Select value={valor.alvos[0] ?? ""} onValueChange={v => set({ alvos: [v] })}>
-          <SelectTrigger><SelectValue placeholder={valor.escopo === "setor" ? "Selecione o setor" : "Selecione o departamento"} /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder={valor.escopo === "setor" ? t("Selecione o setor") : t("Selecione o departamento")} /></SelectTrigger>
           <SelectContent>{listaAlvo.map(x => <SelectItem key={x.id} value={x.id}>{x.nome}</SelectItem>)}</SelectContent>
         </Select>
       )}
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
         <div className="space-y-1.5">
-          <Label>Motivo</Label>
-          <Input value={valor.motivo} onChange={e => set({ motivo: e.target.value })} placeholder="Ex.: gestor responsável pela obra" />
+          <Label>{t("Motivo")}</Label>
+          <Input value={valor.motivo} onChange={e => set({ motivo: e.target.value })} placeholder={t("Ex.: gestor responsável pela obra")} />
         </div>
         <div className="space-y-1.5">
-          <Label>Expira em <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+          <Label>{t("Expira em")} <span className="font-normal text-muted-foreground">{t("(opcional)")}</span></Label>
           <Input type="date" value={valor.validade} onChange={e => set({ validade: e.target.value })} />
         </div>
       </div>
@@ -132,6 +136,7 @@ function CamposAtribuicao({ valor, onChange, perfis, obras, departamentos, setor
  * Substitui a antiga aba de usuários em Configurações, que dava acesso pelo cargo.
  */
 export function UsuariosAba() {
+  const { t, date } = useI18n();
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const [criando, setCriando] = useState(false);
@@ -177,9 +182,9 @@ export function UsuariosAba() {
   });
 
   const nomeAlvo = (a: Atribuicao) => {
-    if (a.scope_type === "empresa") return "Empresa toda";
-    if (a.scope_type === "proprio") return "Próprios registros";
-    if (a.scope_type === "equipe") return "Equipe dele";
+    if (a.scope_type === "empresa") return t("Empresa toda");
+    if (a.scope_type === "proprio") return t("Próprios registros");
+    if (a.scope_type === "equipe") return t("Equipe dele");
     const lista = a.scope_type === "obra" ? data?.obras : a.scope_type === "setor" ? data?.setores : data?.departamentos;
     return lista?.find(x => x.id === a.scope_id)?.nome ?? "—";
   };
@@ -202,16 +207,16 @@ export function UsuariosAba() {
   };
 
   const criar = async () => {
-    if (!nome.trim() || !email.trim() || senha.length < 6) { toast.error("Informe nome, e-mail e senha com pelo menos 6 caracteres"); return; }
-    if (modo === "perfil") { const e = validar(nova); if (e) { toast.error(e); return; } }
-    if (modo === "copiar" && !copiarDe) { toast.error("Escolha de quem copiar os acessos"); return; }
+    if (!nome.trim() || !email.trim() || senha.length < 6) { toast.error(t("Informe nome, e-mail e senha com pelo menos 6 caracteres")); return; }
+    if (modo === "perfil") { const e = validar(nova); if (e) { toast.error(t(e)); return; } }
+    if (modo === "copiar" && !copiarDe) { toast.error(t("Escolha de quem copiar os acessos")); return; }
     setSalvando(true);
     try {
       const { data: r, error } = await (supabase as any).rpc("create_auth_user", {
         p_email: email.trim(), p_password: senha, p_nome: nome.trim(), p_tipo_acesso: "funcionario",
       });
       if (error) throw error;
-      if (!r?.success) throw new Error(r?.error ?? "Não foi possível criar o usuário");
+      if (!r?.success) throw new Error(r?.error ?? t("Não foi possível criar o usuário"));
       const userId = r.user_id as string;
 
       if (funcionarioId) {
@@ -224,13 +229,13 @@ export function UsuariosAba() {
         ? montarLinhas(userId, nova)
         : acessosDe(copiarDe).filter(a => !vencido(a)).map(a => ({
             user_id: userId, profile_id: a.profile_id, scope_type: a.scope_type, scope_id: a.scope_id,
-            valido_ate: a.valido_ate, justificativa: `Copiado de ${origem ? rotulo(origem) : "outro usuário"}`,
+            valido_ate: a.valido_ate, justificativa: t("Copiado de {source}", { source: origem ? rotulo(origem) : t("outro usuário") }),
           }));
       await gravar(linhas);
-      toast.success("Usuário criado com os acessos definidos");
+      toast.success(t("Usuário criado com os acessos definidos"));
       setCriando(false); limparCriacao(); recarregar();
     } catch (e: any) {
-      toast.error(e.message ?? "Não foi possível criar o usuário");
+      toast.error(e.message ?? t("Não foi possível criar o usuário"));
     } finally {
       setSalvando(false);
     }
@@ -242,7 +247,7 @@ export function UsuariosAba() {
     setSalvando(true);
     try {
       await gravar(montarLinhas(gerindo.user_id, inclusao));
-      toast.success("Acesso incluído"); setInclusao(atribuicaoVazia()); recarregar();
+      toast.success(t("Acesso incluído")); setInclusao(atribuicaoVazia()); recarregar();
     } catch (err: any) {
       toast.error(err.message ?? "Não foi possível incluir o acesso");
     } finally {
@@ -251,12 +256,12 @@ export function UsuariosAba() {
   };
 
   const revogar = async (a: Atribuicao) => {
-    if (!confirm(`Revogar "${a.access_profiles?.nome}" (${nomeAlvo(a)})? Fica registrado no histórico.`)) return;
+    if (!confirm(t("Revogar “{profile}” ({scope})? Fica registrado no histórico.", { profile: a.access_profiles?.nome ?? "", scope: nomeAlvo(a) }))) return;
     const { data: auth } = await supabase.auth.getUser();
     const { error } = await (supabase as any).from("employee_access_profiles")
       .update({ revogado_em: new Date().toISOString(), revogado_por: auth.user?.id ?? null }).eq("id", a.id);
     if (error) { toast.error(error.message); return; }
-    toast.success("Acesso revogado"); recarregar();
+    toast.success(t("Acesso revogado")); recarregar();
   };
 
   const vincularFuncionario = async (userId: string, novoId: string) => {
@@ -269,7 +274,7 @@ export function UsuariosAba() {
       const { error } = await (supabase as any).from("employees").update({ user_id: userId }).eq("id", novoId);
       if (error) { toast.error(error.message); return; }
     }
-    toast.success("Funcionário vinculado"); recarregar();
+    toast.success(t("Funcionário vinculado")); recarregar();
   };
 
   const alterarAplicativo = async (funcionarioId: string, aplicativo: string, permitir: boolean) => {
@@ -296,42 +301,42 @@ export function UsuariosAba() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar por nome, e-mail ou perfil..." value={busca} onChange={e => setBusca(e.target.value)} />
+          <Input className="pl-9" placeholder={t("Buscar por nome, e-mail ou perfil...")} value={busca} onChange={e => setBusca(e.target.value)} />
         </div>
-        <Button onClick={() => setCriando(true)}><UserPlus className="mr-2 h-4 w-4" />Novo usuário</Button>
+        <Button onClick={() => setCriando(true)}><UserPlus className="mr-2 h-4 w-4" />{t("Novo usuário")}</Button>
       </div>
 
       <Card><CardContent className="p-0"><div className="divide-y">
-        {isLoading && <p className="p-6 text-sm text-muted-foreground">Carregando...</p>}
-        {isError && <div className="flex items-center justify-between gap-3 p-5 text-sm text-destructive"><span><b>Não foi possível carregar os usuários.</b><br/>{error instanceof Error?error.message:"Verifique as permissões e atualizações do banco."}</span><Button variant="outline" size="sm" onClick={()=>refetch()}><RefreshCw className="mr-2 h-4 w-4"/>Tentar novamente</Button></div>}
-        {!isError&&(data?.avisos?.length??0)>0&&<div className="flex items-center gap-2 bg-amber-50 p-3 text-xs text-amber-800"><AlertCircle className="h-4 w-4"/>Usuários carregados, mas alguns cadastros auxiliares estão indisponíveis. Atualize o banco para liberar todos os vínculos.</div>}
-        {!isLoading && !isError && lista.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</p>}
+        {isLoading && <p className="p-6 text-sm text-muted-foreground">{t("Carregando...")}</p>}
+        {isError && <div className="flex items-center justify-between gap-3 p-5 text-sm text-destructive"><span><b>{t("Não foi possível carregar os usuários.")}</b><br/>{error instanceof Error?error.message:t("Verifique as permissões e atualizações do banco.")}</span><Button variant="outline" size="sm" onClick={()=>refetch()}><RefreshCw className="mr-2 h-4 w-4"/>{t("Tentar novamente")}</Button></div>}
+        {!isError&&(data?.avisos?.length??0)>0&&<div className="flex items-center gap-2 bg-amber-50 p-3 text-xs text-amber-800"><AlertCircle className="h-4 w-4"/>{t("Usuários carregados, mas alguns cadastros auxiliares estão indisponíveis. Atualize o banco para liberar todos os vínculos.")}</div>}
+        {!isLoading && !isError && lista.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">{t("Nenhum usuário encontrado.")}</p>}
         {lista.map(u => {
           const func = funcionarioDe(u.user_id);
           const acessos = acessosDe(u.user_id);
           return (
             <div key={u.user_id} className="grid items-center gap-3 p-4 md:grid-cols-[1.2fr_1fr_2fr_auto]">
               <div className="min-w-0">
-                <p className="truncate font-medium">{u.nome || "Sem nome"}</p>
+                <p className="truncate font-medium">{u.nome || t("Sem nome")}</p>
                 <p className="truncate text-xs text-muted-foreground">{u.email}</p>
               </div>
               <div className="text-sm">
                 {func ? <>{func.nome}{func.cargos?.nome && <span className="block text-xs text-muted-foreground">{func.cargos.nome}</span>}</>
-                  : <span className="flex items-center gap-1 text-xs text-amber-600"><AlertCircle className="h-3 w-3" />Sem funcionário</span>}
+                  : <span className="flex items-center gap-1 text-xs text-amber-600"><AlertCircle className="h-3 w-3" />{t("Sem funcionário")}</span>}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {acessos.length === 0 && <span className="text-xs text-destructive">Sem acesso</span>}
+                {acessos.length === 0 && <span className="text-xs text-destructive">{t("Sem acesso")}</span>}
                 {acessos.map(a => (
                   <Badge key={a.id} variant={vencido(a) ? "destructive" : "secondary"} className="font-normal">
-                    {a.access_profiles?.nome} · {nomeAlvo(a)}{vencido(a) && " (vencido)"}
+                    {a.access_profiles?.nome} · {nomeAlvo(a)}{vencido(a) && ` ${t("(vencido)")}`}
                   </Badge>
                 ))}
                 {func && APLICATIVOS.filter(app => func[app.campo]).map(app => (
-                  <Badge key={app.chave} variant="outline" className="border-blue-200 bg-blue-50 font-normal text-blue-700">{app.nome}</Badge>
+                  <Badge key={app.chave} variant="outline" className="border-blue-200 bg-blue-50 font-normal text-blue-700">{t(app.nome)}</Badge>
                 ))}
               </div>
               <Button variant="outline" size="sm" onClick={() => { setGerindo(u); setInclusao(atribuicaoVazia()); }}>
-                <KeyRound className="mr-1.5 h-3.5 w-3.5" />Acessos
+                <KeyRound className="mr-1.5 h-3.5 w-3.5" />{t("Acessos")}
               </Button>
             </div>
           );
@@ -342,30 +347,30 @@ export function UsuariosAba() {
       <Dialog open={criando} onOpenChange={o => { setCriando(o); if (!o) limparCriacao(); }}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-primary" />Novo usuário</DialogTitle>
-            <DialogDescription>Crie o login e defina, no mesmo passo, o que a pessoa pode fazer e onde.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-primary" />{t("Novo usuário")}</DialogTitle>
+            <DialogDescription>{t("Crie o login e defina, no mesmo passo, o que a pessoa pode fazer e onde.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-5">
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold">1. Login</h3>
+              <h3 className="text-sm font-semibold">{t("1. Login")}</h3>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5"><Label>Nome completo</Label><Input value={nome} onChange={e => setNome(e.target.value)} /></div>
-                <div className="space-y-1.5"><Label>E-mail</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
+                <div className="space-y-1.5"><Label>{t("Nome completo")}</Label><Input value={nome} onChange={e => setNome(e.target.value)} /></div>
+                <div className="space-y-1.5"><Label>{t("E-mail")}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
                 <div className="space-y-1.5">
-                  <Label>Senha</Label>
+                  <Label>{t("Senha")}</Label>
                   <div className="relative">
-                    <Input type={verSenha ? "text" : "password"} value={senha} onChange={e => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" className="pr-10" />
+                    <Input type={verSenha ? "text" : "password"} value={senha} onChange={e => setSenha(e.target.value)} placeholder={t("Mínimo 6 caracteres")} className="pr-10" />
                     <Button type="button" variant="ghost" size="sm" className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0" onClick={() => setVerSenha(v => !v)}>
                       {verSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Funcionário <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+                  <Label>{t("Funcionário")} <span className="font-normal text-muted-foreground">{t("(opcional)")}</span></Label>
                   <Select value={funcionarioId || "__none__"} onValueChange={v => setFuncionarioId(v === "__none__" ? "" : v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent className="max-h-56">
-                      <SelectItem value="__none__">— Não vincular agora —</SelectItem>
+                      <SelectItem value="__none__">{t("— Não vincular agora —")}</SelectItem>
                       {semVinculo.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}{f.cargos?.nome ? ` · ${f.cargos.nome}` : ""}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -375,10 +380,10 @@ export function UsuariosAba() {
 
             <section className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">2. Acesso</h3>
+                <h3 className="text-sm font-semibold">{t("2. Acesso")}</h3>
                 <div className="flex rounded-lg border p-0.5 text-xs">
-                  <button type="button" onClick={() => setModo("perfil")} className={`rounded-md px-3 py-1 ${modo === "perfil" ? "bg-primary text-primary-foreground" : ""}`}>Escolher perfil</button>
-                  <button type="button" onClick={() => setModo("copiar")} className={`rounded-md px-3 py-1 ${modo === "copiar" ? "bg-primary text-primary-foreground" : ""}`}>Copiar de outro usuário</button>
+                  <button type="button" onClick={() => setModo("perfil")} className={`rounded-md px-3 py-1 ${modo === "perfil" ? "bg-primary text-primary-foreground" : ""}`}>{t("Escolher perfil")}</button>
+                  <button type="button" onClick={() => setModo("copiar")} className={`rounded-md px-3 py-1 ${modo === "copiar" ? "bg-primary text-primary-foreground" : ""}`}>{t("Copiar de outro usuário")}</button>
                 </div>
               </div>
               {modo === "perfil" && data && (
@@ -387,23 +392,23 @@ export function UsuariosAba() {
               {modo === "copiar" && (
                 <div className="space-y-2">
                   <Select value={copiarDe} onValueChange={setCopiarDe}>
-                    <SelectTrigger><SelectValue placeholder="Copiar os acessos de..." /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={t("Copiar os acessos de...")} /></SelectTrigger>
                     <SelectContent className="max-h-56">{(data?.usuarios ?? []).map(u => <SelectItem key={u.user_id} value={u.user_id}>{rotulo(u)}</SelectItem>)}</SelectContent>
                   </Select>
                   {copiarDe && (
                     <div className="flex flex-wrap gap-1.5">
                       {acessosDe(copiarDe).filter(a => !vencido(a)).map(a => <Badge key={a.id} variant="secondary" className="font-normal">{a.access_profiles?.nome} · {nomeAlvo(a)}</Badge>)}
-                      {acessosDe(copiarDe).length === 0 && <span className="text-xs text-muted-foreground">Esse usuário não tem acessos para copiar.</span>}
+                      {acessosDe(copiarDe).length === 0 && <span className="text-xs text-muted-foreground">{t("Esse usuário não tem acessos para copiar.")}</span>}
                     </div>
                   )}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Todo usuário também recebe acesso aos próprios registros (perfil Funcionario).</p>
+              <p className="text-xs text-muted-foreground">{t("Todo usuário também recebe acesso aos próprios registros (perfil Funcionario).")}</p>
             </section>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCriando(false)} disabled={salvando}>Cancelar</Button>
-            <Button onClick={criar} disabled={salvando}>{salvando ? "Criando..." : "Criar usuário"}</Button>
+            <Button variant="outline" onClick={() => setCriando(false)} disabled={salvando}>{t("Cancelar")}</Button>
+            <Button onClick={criar} disabled={salvando}>{salvando ? t("Criando...") : t("Criar usuário")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -412,17 +417,17 @@ export function UsuariosAba() {
       <Dialog open={!!gerindo} onOpenChange={o => { if (!o) setGerindo(null); }}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Acessos de {gerindo ? rotulo(gerindo) : ""}</DialogTitle>
+            <DialogTitle>{t("Acessos de")} {gerindo ? rotulo(gerindo) : ""}</DialogTitle>
             <DialogDescription>{gerindo?.email}</DialogDescription>
           </DialogHeader>
           {gerindo && data && (
             <div className="space-y-5">
               <div className="space-y-1.5">
-                <Label>Funcionário vinculado</Label>
+                <Label>{t("Funcionário vinculado")}</Label>
                 <Select value={funcionarioDe(gerindo.user_id)?.id ?? "__none__"} onValueChange={v => vincularFuncionario(gerindo.user_id, v === "__none__" ? "" : v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-56">
-                    <SelectItem value="__none__">— Sem vínculo —</SelectItem>
+                    <SelectItem value="__none__">{t("— Sem vínculo —")}</SelectItem>
                     {data.funcionarios.filter(f => !f.user_id || f.user_id === gerindo.user_id)
                       .map(f => <SelectItem key={f.id} value={f.id}>{f.nome}{f.cargos?.nome ? ` · ${f.cargos.nome}` : ""}</SelectItem>)}
                   </SelectContent>
@@ -432,10 +437,10 @@ export function UsuariosAba() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-semibold">Aplicativos liberados</h3>
+                  <h3 className="text-sm font-semibold">{t("Aplicativos liberados")}</h3>
                 </div>
                 {!funcionarioDe(gerindo.user_id) && (
-                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">Vincule este usuário a um colaborador para liberar aplicativos operacionais.</p>
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">{t("Vincule este usuário a um colaborador para liberar aplicativos operacionais.")}</p>
                 )}
                 {funcionarioDe(gerindo.user_id) && (
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -445,37 +450,37 @@ export function UsuariosAba() {
                       const Icone = app.icone;
                       return <label key={app.chave} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${ativo ? "border-primary/40 bg-primary/5" : "hover:bg-muted/40"}`}>
                         <Checkbox checked={ativo} disabled={salvando} onCheckedChange={v => alterarAplicativo(funcionario.id, app.chave, v === true)} />
-                        <span className="min-w-0"><span className="flex items-center gap-1.5 text-sm font-medium"><Icone className="h-4 w-4 text-primary" />{app.nome}</span><span className="mt-1 block text-xs text-muted-foreground">{app.ajuda}</span></span>
+                        <span className="min-w-0"><span className="flex items-center gap-1.5 text-sm font-medium"><Icone className="h-4 w-4 text-primary" />{t(app.nome)}</span><span className="mt-1 block text-xs text-muted-foreground">{t(app.ajuda)}</span></span>
                       </label>;
                     })}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">Essas autorizações controlam a entrada nos aplicativos e ficam registradas na auditoria.</p>
+                <p className="text-xs text-muted-foreground">{t("Essas autorizações controlam a entrada nos aplicativos e ficam registradas na auditoria.")}</p>
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Acessos atuais</h3>
+                <h3 className="text-sm font-semibold">{t("Acessos atuais")}</h3>
                 <div className="divide-y rounded-lg border">
-                  {acessosDe(gerindo.user_id).length === 0 && <p className="p-3 text-sm text-muted-foreground">Nenhum acesso.</p>}
+                  {acessosDe(gerindo.user_id).length === 0 && <p className="p-3 text-sm text-muted-foreground">{t("Nenhum acesso.")}</p>}
                   {acessosDe(gerindo.user_id).map(a => (
                     <div key={a.id} className="flex items-center justify-between gap-3 p-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium">{a.access_profiles?.nome} <span className="font-normal text-muted-foreground">· {nomeAlvo(a)}</span></p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {a.valido_ate ? `${vencido(a) ? "Venceu" : "Até"} ${new Date(a.valido_ate).toLocaleDateString("pt-BR")}` : "Sem expiração"}
+                          {a.valido_ate ? `${vencido(a) ? t("Venceu") : t("Até")} ${date(a.valido_ate)}` : t("Sem expiração")}
                           {a.justificativa && ` · ${a.justificativa}`}
                         </p>
                       </div>
-                      <Button variant="ghost" size="icon" className="text-destructive" title="Revogar" onClick={() => revogar(a)}><Trash2 className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="text-destructive" title={t("Revogar")} onClick={() => revogar(a)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-3 rounded-lg border p-3">
-                <h3 className="text-sm font-semibold">Incluir acesso</h3>
+                <h3 className="text-sm font-semibold">{t("Incluir acesso")}</h3>
                 <CamposAtribuicao valor={inclusao} onChange={setInclusao} perfis={data.perfis} obras={data.obras} departamentos={data.departamentos} setores={data.setores} />
-                <div className="flex justify-end"><Button size="sm" onClick={incluir} disabled={salvando}>Incluir</Button></div>
+                <div className="flex justify-end"><Button size="sm" onClick={incluir} disabled={salvando}>{t("Incluir")}</Button></div>
               </div>
             </div>
           )}

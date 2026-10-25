@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { downloadCsv } from "@/lib/exportCsv";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import { Dados } from "./shared";
 import {
   CATEGORIA, GRUPOS, brl, dataParaMes, diasDoMes, grupoDe, rotuloMes, somarMeses,
@@ -25,6 +26,7 @@ interface Props {
 const MESES_GRAFICO = 6;
 
 export function PainelGestao({ dados, unidades, complexoIds, versao, onLancar }: Props) {
+  const { t, number, money, date } = useI18n();
   const [mes, setMes] = useState(() => dataParaMes(new Date()));
   const [custos, setCustos] = useState<any[]>([]);
   const [diarias, setDiarias] = useState<any[]>([]);
@@ -65,7 +67,7 @@ export function PainelGestao({ dados, unidades, complexoIds, versao, onLancar }:
   // ── Série de 6 meses por grupo ───────────────────────────────────────
   const serie = useMemo(() => Array.from({ length: MESES_GRAFICO }, (_, i) => {
     const m = somarMeses(inicio, i);
-    const linha: any = { mes: m, rotulo: rotuloMes(m, true) };
+    const linha: any = { mes: m, rotulo: rotuloMes(m, date, true) };
     for (const g of GRUPOS) linha[g.id] = 0;
     for (const c of custos) if (mesDe(c) === m && noEscopo(c)) linha[grupoDe(c.categoria).id] += Number(c.valor ?? 0);
     const d = diarias.filter(x => mesDe(x) === m && unidadeIds.has(x.alojamento_id)).reduce((s, x) => s + Number(x.diarias), 0);
@@ -98,7 +100,7 @@ export function PainelGestao({ dados, unidades, complexoIds, versao, onLancar }:
 
   function exportar() {
     downloadCsv(
-      ["Unidade", "Diárias", "Média de alojados", "Custo direto", "Rateio do complexo", "Custo total", "Custo por alojado", "Custo por diária"],
+      [t("Unidade"), t("Diárias"), t("Média de alojados"), t("Custo direto"), t("Rateio do complexo"), t("Custo total"), t("Custo por alojado"), t("Custo por diária")],
       r.porUnidade.map(u => [
         u.nome, u.diarias.toFixed(1), u.media.toFixed(1), u.direto.toFixed(2), u.rateio.toFixed(2),
         u.total.toFixed(2), u.porAlojado != null ? u.porAlojado.toFixed(2) : "", u.porDiaria != null ? u.porDiaria.toFixed(2) : "",
@@ -115,41 +117,41 @@ export function PainelGestao({ dados, unidades, complexoIds, versao, onLancar }:
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setMes(somarMeses(mes, -1))} aria-label="Mês anterior"><ChevronLeft className="h-4 w-4" /></Button>
-          <p className="min-w-40 text-center font-semibold capitalize">{rotuloMes(mes)}</p>
+          <p className="min-w-40 text-center font-semibold capitalize">{rotuloMes(mes, date)}</p>
           <Button size="icon" variant="ghost" className="h-8 w-8" disabled={mes >= dataParaMes(new Date())}
             onClick={() => setMes(somarMeses(mes, 1))} aria-label="Próximo mês"><ChevronRight className="h-4 w-4" /></Button>
           {carregando && <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={exportar} disabled={!r.porUnidade.length}><Download className="mr-1.5 h-4 w-4" />Exportar</Button>
-          <Button size="sm" onClick={onLancar}>Lançar despesa</Button>
+          <Button size="sm" variant="outline" onClick={exportar} disabled={!r.porUnidade.length}><Download className="mr-1.5 h-4 w-4" />{t("Exportar")}</Button>
+          <Button size="sm" onClick={onLancar}>{t("Lançar despesa")}</Button>
         </div>
       </div>
 
       {semLancamentos && !carregando && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-          <span>Nenhuma despesa lançada em {rotuloMes(mes)}. O custo abaixo considera só aluguel e manutenção — água, energia e limpeza entram quando forem lançadas.</span>
+          <span>{t("Nenhuma despesa lançada em {month}. O custo abaixo considera só aluguel e manutenção — água, energia e limpeza entram quando forem lançadas.", { month: rotuloMes(mes, date) })}</span>
         </div>
       )}
 
       {/* Números principais */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Numero rotulo="Custo do mês" valor={brl(r.total, 0)} variacao={variacao} detalhe={`${brl(anterior.total, 0)} no mês anterior`} />
-        <Numero rotulo="Custo por alojado" valor={r.porAlojado != null ? brl(r.porAlojado, 0) : "—"} variacao={variacaoPorAlojado}
-          detalhe={r.porAlojado != null ? "por mês, pela média de alojados" : "sem ocupação no mês"} />
-        <Numero rotulo="Custo por diária" valor={r.porDiaria != null ? brl(r.porDiaria) : "—"} detalhe={`${r.diarias.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} diárias no mês`} />
-        <Numero rotulo="Média de alojados" valor={r.media.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
-          detalhe={`${r.alojados} pessoas no mês · ${ocupacaoMedia.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% dos leitos`} />
+        <Numero rotulo="Custo do mês" valor={brl(r.total, money)} variacao={variacao} detalhe={`${brl(anterior.total, money)} no mês anterior`} />
+        <Numero rotulo="Custo por alojado" valor={r.porAlojado != null ? brl(r.porAlojado, money) : "—"} variacao={variacaoPorAlojado}
+          detalhe={r.porAlojado != null ? t("por mês, pela média de alojados") : t("sem ocupação no mês")} />
+        <Numero rotulo="Custo por diária" valor={r.porDiaria != null ? brl(r.porDiaria, money) : "—"} detalhe={`${number(r.diarias, { maximumFractionDigits: 0 })} diárias no mês`} />
+        <Numero rotulo="Média de alojados" valor={number(r.media, { maximumFractionDigits: 1 })}
+          detalhe={`${r.alojados} pessoas no mês · ${number(ocupacaoMedia, { maximumFractionDigits: 0 })}% dos leitos`} />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-5">
         {/* Evolução */}
         <section className="rounded-lg border p-4 xl:col-span-3">
-          <h3 className="text-sm font-semibold">Custo por categoria · últimos {MESES_GRAFICO} meses</h3>
-          <p className="mb-3 text-xs text-muted-foreground">Passe o mouse sobre uma barra para ver o detalhe do mês.</p>
+          <h3 className="text-sm font-semibold">{t("Custo por categoria · últimos {count} meses", { count: MESES_GRAFICO })}</h3>
+          <p className="mb-3 text-xs text-muted-foreground">{t("Passe o mouse sobre uma barra para ver o detalhe do mês.")}</p>
           {!gruposComDados.length ? (
-            <p className="py-16 text-center text-sm text-muted-foreground">Sem custos no período.</p>
+            <p className="py-16 text-center text-sm text-muted-foreground">{t("Sem custos no período.")}</p>
           ) : (
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
@@ -172,13 +174,13 @@ export function PainelGestao({ dados, unidades, complexoIds, versao, onLancar }:
 
         {/* Composição do mês */}
         <section className="rounded-lg border p-4 xl:col-span-2">
-          <h3 className="mb-3 text-sm font-semibold">Composição de {rotuloMes(mes, true)}</h3>
+          <h3 className="mb-3 text-sm font-semibold">{t("Composição de {month}", { month: rotuloMes(mes, date, true) })}</h3>
           {!r.porCategoria.length ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">Sem custos no mês.</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{t("Sem custos no mês.")}</p>
           ) : (
             <table className="w-full text-sm">
               <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                <tr><th className="pb-2 font-medium">Categoria</th><th className="pb-2 text-right font-medium">Valor</th><th className="pb-2 text-right font-medium">Por alojado</th></tr>
+                <tr><th className="pb-2 font-medium">{t("Categoria")}</th><th className="pb-2 text-right font-medium">{t("Valor")}</th><th className="pb-2 text-right font-medium">{t("Por alojado")}</th></tr>
               </thead>
               <tbody>
                 {r.porCategoria.map(c => (
@@ -190,23 +192,23 @@ export function PainelGestao({ dados, unidades, complexoIds, versao, onLancar }:
                           {CATEGORIA[c.categoria]?.label ?? c.categoria}
                           {c.quantidade > 0 && c.medida && r.media > 0 && (
                             <span className="block text-[11px] text-muted-foreground">
-                              {c.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} {c.medida} · {(c.quantidade / r.media).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} {c.medida}/alojado
+                              {number(c.quantidade, { maximumFractionDigits: 1 })} {c.medida} · {(c.quantidade / r.media).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} {c.medida}{t("/alojado")}
                             </span>
                           )}
                         </span>
                       </span>
                     </td>
                     <td className="py-2 text-right tabular-nums">
-                      {brl(c.valor, 0)}
+                      {brl(c.valor, money)}
                       <span className="block text-[11px] text-muted-foreground">{r.total ? ((c.valor / r.total) * 100).toFixed(0) : 0}%</span>
                     </td>
-                    <td className="py-2 text-right tabular-nums text-muted-foreground">{r.media ? brl(c.valor / r.media, 0) : "—"}</td>
+                    <td className="py-2 text-right tabular-nums text-muted-foreground">{r.media ? brl(c.valor / r.media, money) : "—"}</td>
                   </tr>
                 ))}
                 <tr className="border-t font-semibold">
-                  <td className="py-2">Total</td>
-                  <td className="py-2 text-right tabular-nums">{brl(r.total, 0)}</td>
-                  <td className="py-2 text-right tabular-nums">{r.porAlojado != null ? brl(r.porAlojado, 0) : "—"}</td>
+                  <td className="py-2">{t("Total")}</td>
+                  <td className="py-2 text-right tabular-nums">{brl(r.total, money)}</td>
+                  <td className="py-2 text-right tabular-nums">{r.porAlojado != null ? brl(r.porAlojado, money) : "—"}</td>
                 </tr>
               </tbody>
             </table>
@@ -217,59 +219,59 @@ export function PainelGestao({ dados, unidades, complexoIds, versao, onLancar }:
       {/* Por unidade */}
       <section className="rounded-lg border">
         <div className="flex items-baseline justify-between p-4 pb-2">
-          <h3 className="text-sm font-semibold">Por unidade</h3>
-          <p className="text-[11px] text-muted-foreground">Despesas do complexo inteiro são rateadas pelas diárias de cada unidade.</p>
+          <h3 className="text-sm font-semibold">{t("Por unidade")}</h3>
+          <p className="text-[11px] text-muted-foreground">{t("Despesas do complexo inteiro são rateadas pelas diárias de cada unidade.")}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
               <tr>
-                <th className="p-3 font-medium">Unidade</th>
-                <th className="p-3 text-right font-medium">Média de alojados</th>
-                <th className="p-3 text-right font-medium">Custo direto</th>
-                <th className="p-3 text-right font-medium">Rateio</th>
-                <th className="p-3 text-right font-medium">Total</th>
-                <th className="p-3 text-right font-medium">Por alojado</th>
+                <th className="p-3 font-medium">{t("Unidade")}</th>
+                <th className="p-3 text-right font-medium">{t("Média de alojados")}</th>
+                <th className="p-3 text-right font-medium">{t("Custo direto")}</th>
+                <th className="p-3 text-right font-medium">{t("Rateio")}</th>
+                <th className="p-3 text-right font-medium">{t("Total")}</th>
+                <th className="p-3 text-right font-medium">{t("Por alojado")}</th>
               </tr>
             </thead>
             <tbody>
               {r.porUnidade.map(u => (
                 <tr key={u.id} className="border-t">
                   <td className="p-3 font-medium">{u.nome}</td>
-                  <td className="p-3 text-right tabular-nums">{u.media.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}</td>
-                  <td className="p-3 text-right tabular-nums">{brl(u.direto, 0)}</td>
-                  <td className="p-3 text-right tabular-nums text-muted-foreground">{u.rateio ? brl(u.rateio, 0) : "—"}</td>
-                  <td className="p-3 text-right font-medium tabular-nums">{brl(u.total, 0)}</td>
+                  <td className="p-3 text-right tabular-nums">{number(u.media, { maximumFractionDigits: 1 })}</td>
+                  <td className="p-3 text-right tabular-nums">{brl(u.direto, money)}</td>
+                  <td className="p-3 text-right tabular-nums text-muted-foreground">{u.rateio ? brl(u.rateio, money) : "—"}</td>
+                  <td className="p-3 text-right font-medium tabular-nums">{brl(u.total, money)}</td>
                   <td className={cn("p-3 text-right tabular-nums", u.acimaDaMedia && "font-semibold text-red-600")}>
-                    {u.porAlojado != null ? brl(u.porAlojado, 0) : "—"}
+                    {u.porAlojado != null ? brl(u.porAlojado, money) : "—"}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {!r.porUnidade.length && <p className="p-8 text-center text-sm text-muted-foreground">Sem unidades no filtro.</p>}
+          {!r.porUnidade.length && <p className="p-8 text-center text-sm text-muted-foreground">{t("Sem unidades no filtro.")}</p>}
         </div>
         {r.porUnidade.some(u => u.acimaDaMedia) && (
-          <p className="border-t p-3 text-[11px] text-muted-foreground">Em vermelho: custo por alojado mais de 30% acima da média das unidades.</p>
+          <p className="border-t p-3 text-[11px] text-muted-foreground">{t("Em vermelho: custo por alojado mais de 30% acima da média das unidades.")}</p>
         )}
       </section>
 
       {/* Pessoas, patrimônio e manutenção */}
       <div className="grid gap-3 md:grid-cols-3">
         <Resumo titulo="Movimento de pessoas" linhas={[
-          [UserPlus, "Entradas no mês", r.entradas],
-          [UserMinus, "Saídas no mês", r.saidas],
-          [null, "Alojados agora", dados.ocupacoes.filter(o => !o.data_saida && unidadeIds.has(unidadeDoLeito(o.leito_id, dados))).length],
+          [UserPlus, t("Entradas no mês"), r.entradas],
+          [UserMinus, t("Saídas no mês"), r.saidas],
+          [null, t("Alojados agora"), dados.ocupacoes.filter(o => !o.data_saida && unidadeIds.has(unidadeDoLeito(o.leito_id, dados))).length],
         ]} />
         <Resumo titulo="Patrimônio" linhas={[
-          [Package, "Valor ativo", brl(valorPatrimonio, 0)],
-          [AlertTriangle, "Danificados ou inservíveis", avariados.length, avariados.length > 0],
-          [null, "Baixados no mês", baixadosNoMes.length],
+          [Package, t("Valor ativo"), brl(valorPatrimonio, money)],
+          [AlertTriangle, t("Danificados ou inservíveis"), avariados.length, avariados.length > 0],
+          [null, t("Baixados no mês"), baixadosNoMes.length],
         ]} />
         <Resumo titulo="Manutenção" linhas={[
-          [Wrench, "Chamados em aberto", chamadosAbertos.length],
-          [AlertTriangle, "Com prazo vencido", vencidos.length, vencidos.length > 0],
-          [null, "Custo no mês", brl(r.porCategoria.find(c => c.categoria === "manutencao")?.valor ?? 0, 0)],
+          [Wrench, t("Chamados em aberto"), chamadosAbertos.length],
+          [AlertTriangle, t("Com prazo vencido"), vencidos.length, vencidos.length > 0],
+          [null, t("Custo no mês"), brl(r.porCategoria.find(c => c.categoria === "manutencao")?.valor ?? 0, money)],
         ]} />
       </div>
     </div>
@@ -380,6 +382,7 @@ function Resumo({ titulo, linhas }: { titulo: string; linhas: [any, string, any,
 }
 
 function Dica({ active, payload, label }: any) {
+  const { t, money } = useI18n()
   if (!active || !payload?.length) return null;
   const linha = payload[0].payload;
   const itens = payload.filter((p: any) => p.value > 0).reverse();
@@ -389,15 +392,15 @@ function Dica({ active, payload, label }: any) {
       {itens.map((p: any) => (
         <p key={p.dataKey} className="flex items-center justify-between gap-6">
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: p.color }} />{p.name}</span>
-          <span className="tabular-nums">{brl(p.value, 0)}</span>
+          <span className="tabular-nums">{brl(p.value, money)}</span>
         </p>
       ))}
       <p className="mt-1.5 flex justify-between gap-6 border-t pt-1.5 font-semibold">
-        <span>Total</span><span className="tabular-nums">{brl(linha.total, 0)}</span>
+        <span>{t("Total")}</span><span className="tabular-nums">{brl(linha.total, money)}</span>
       </p>
       {linha.porAlojado != null && (
         <p className="flex justify-between gap-6 text-muted-foreground">
-          <span>Por alojado</span><span className="tabular-nums">{brl(linha.porAlojado, 0)}</span>
+          <span>{t("Por alojado")}</span><span className="tabular-nums">{brl(linha.porAlojado, money)}</span>
         </p>
       )}
     </div>

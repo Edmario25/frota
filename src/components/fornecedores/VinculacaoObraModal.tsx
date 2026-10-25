@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { enUS, es, ptBR } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/popover";
 import { useFornecedores } from "@/hooks/useFornecedores";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/i18n";
 
 const formSchema = z.object({
   obra_id: z.string().min(1, "Selecione uma obra"),
@@ -64,6 +65,7 @@ interface VinculacaoObraModalProps {
   onSuccess?: () => void;
 }
 
+// Only the stored value travels to the database; the label is translated when rendered.
 const TIPO_CONTRATO_OPTIONS = [
   { value: "fornecimento", label: "Fornecimento" },
   { value: "servico", label: "Serviço" },
@@ -80,6 +82,8 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
   fornecedorNome,
   onSuccess,
 }) => {
+  const { t, date, language } = useI18n();
+  const calendarLocale = language === "en" ? enUS : language === "es" ? es : ptBR;
   const { linkFornecedorToObra } = useFornecedores();
   const [obras, setObras] = useState<Obra[]>([]);
   const [loadingObras, setLoadingObras] = useState(false);
@@ -154,9 +158,9 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Vincular Fornecedor à Obra</DialogTitle>
+          <DialogTitle>{t("Vincular Fornecedor à Obra")}</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Fornecedor: <strong>{fornecedorNome}</strong>
+            {t("Fornecedor:")} <strong>{fornecedorNome}</strong>
           </p>
         </DialogHeader>
 
@@ -167,11 +171,11 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
               name="obra_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Obra *</FormLabel>
+                  <FormLabel>{t("Obra")} *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={loadingObras}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={loadingObras ? "Carregando..." : "Selecione a obra"} />
+                        <SelectValue placeholder={loadingObras ? t("Carregando...") : t("Selecione a obra")} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -192,7 +196,7 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
               name="data_inicio"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Data de Início *</FormLabel>
+                  <FormLabel>{t("Data de Início")} *</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -204,9 +208,9 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
                           )}
                         >
                           {field.value ? (
-                            format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                            date(field.value)
                           ) : (
-                            <span>Selecione a data</span>
+                            <span>{t("Selecione a data")}</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -218,7 +222,7 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
                         selected={field.value}
                         onSelect={field.onChange}
                         initialFocus
-                        locale={ptBR}
+                        locale={calendarLocale}
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
@@ -234,17 +238,17 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
                 name="tipo_contrato"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Contrato</FormLabel>
+                    <FormLabel>{t("Tipo de Contrato")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
+                          <SelectValue placeholder={t("Selecione")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {TIPO_CONTRATO_OPTIONS.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                            {t(option.label)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -259,7 +263,7 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
                 name="valor_contrato"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Valor do Contrato (R$)</FormLabel>
+                    <FormLabel>{t("Valor do Contrato (R$)")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -280,10 +284,10 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
+                  <FormLabel>{t("Observações")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observações sobre o vínculo..."
+                      placeholder={t("Observações sobre o vínculo...")}
                       className="resize-none"
                       rows={3}
                       {...field}
@@ -296,10 +300,10 @@ export const VinculacaoObraModal: React.FC<VinculacaoObraModalProps> = ({
 
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button type="submit" disabled={isSubmitting || loadingObras}>
-                {isSubmitting ? "Vinculando..." : "Vincular"}
+                {isSubmitting ? t("Vinculando...") : t("Vincular")}
               </Button>
             </div>
           </form>

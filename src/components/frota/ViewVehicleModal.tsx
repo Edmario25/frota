@@ -2,12 +2,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Car, MapPin, Wrench, User, Building, AlertTriangle } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { useVehicleKmCycles, KmCycleInfo } from "@/hooks/useVehicleKmCycles";
 import { getVehicleStatusSoftClass, getVehicleStatusText, getPropertyTypeText } from "@/lib/statusHelpers";
 import type { Database } from "@/integrations/supabase/types";
+import { useI18n } from "@/i18n";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
@@ -19,6 +18,7 @@ interface ViewVehicleModalProps {
   rentalCompanies?: any[];
 }
 
+// Returns the Portuguese label, which is the catalog key; unknown values stay as they are.
 const getTypeText = (tipo: string) => {
   switch (tipo) {
     case "leve":
@@ -37,9 +37,17 @@ export function ViewVehicleModal({
   employees = [], 
   rentalCompanies = [] 
 }: ViewVehicleModalProps) {
+  const { t, number, date } = useI18n();
   const [cycleInfo, setCycleInfo] = useState<KmCycleInfo | null>(null);
   const [loading, setLoading] = useState(false);
-  const { getCurrentCycle, getKmProgressColor, formatCycleDate, getDaysText } = useVehicleKmCycles();
+  const { getCurrentCycle, getKmProgressColor } = useVehicleKmCycles();
+
+  const daysText = (days: number) => {
+    if (days < 0) return t("Ciclo expirado");
+    if (days === 0) return t("Último dia");
+    if (days === 1) return t("1 dia restante");
+    return t("{count} dias restantes", { count: number(days) });
+  };
 
   useEffect(() => {
     const fetchCycleInfo = async () => {
@@ -72,10 +80,10 @@ export function ViewVehicleModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Car className="h-5 w-5" />
-            Detalhes do Veículo
+            {t("Detalhes do Veículo")}
           </DialogTitle>
           <DialogDescription>
-            Informações completas do veículo {vehicle.placa}
+            {t("Informações completas do veículo {plate}", { plate: vehicle.placa })}
           </DialogDescription>
         </DialogHeader>
 
@@ -85,54 +93,54 @@ export function ViewVehicleModal({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Car className="h-4 w-4" />
-                Informações do Veículo
+                {t("Informações do Veículo")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Placa</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Placa")}</label>
                   <p className="text-lg font-semibold">{vehicle.placa}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Marca</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Marca")}</label>
                   <p className="text-base">{vehicle.marca}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Modelo</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Modelo")}</label>
                   <p className="text-base">{vehicle.modelo}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Ano</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Ano")}</label>
                   <p className="text-base">{vehicle.ano}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Cor</label>
-                  <p className="text-base">{vehicle.cor || 'Não informado'}</p>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Cor")}</label>
+                  <p className="text-base">{vehicle.cor || t("Não informado")}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Tipo</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Tipo")}</label>
                   <Badge variant="outline">
-                    {getTypeText(vehicle.tipo)}
+                    {t(getTypeText(vehicle.tipo))}
                   </Badge>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Status</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Status")}</label>
                   <div className="mt-1">
                     <Badge className={getVehicleStatusSoftClass(vehicle.status || 'disponivel')}>
-                      {getVehicleStatusText(vehicle.status || 'disponivel')}
+                      {t(getVehicleStatusText(vehicle.status || 'disponivel'))}
                     </Badge>
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Tipo de Propriedade</label>
-                  <p className="text-base">{getPropertyTypeText(vehicle.tipo_propriedade || 'proprio')}</p>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Tipo de Propriedade")}</label>
+                  <p className="text-base">{t(getPropertyTypeText(vehicle.tipo_propriedade || 'proprio'))}</p>
                 </div>
               </div>
             </CardContent>
@@ -143,7 +151,7 @@ export function ViewVehicleModal({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                Controle de Quilometragem
+                {t("Controle de Quilometragem")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -158,33 +166,33 @@ export function ViewVehicleModal({
                   {/* Quilometragem Total e Atual */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Quilometragem Total</label>
-                      <p className="text-2xl font-bold">{(cycleInfo.km_inicial + cycleInfo.km_rodados).toLocaleString()} km</p>
+                      <label className="text-sm font-medium text-muted-foreground">{t("Quilometragem Total")}</label>
+                      <p className="text-2xl font-bold">{number(cycleInfo.km_inicial + cycleInfo.km_rodados)} km</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">KM Inicial do Ciclo</label>
-                      <p className="text-xl">{cycleInfo.km_inicial.toLocaleString()} km</p>
+                      <label className="text-sm font-medium text-muted-foreground">{t("KM Inicial do Ciclo")}</label>
+                      <p className="text-xl">{number(cycleInfo.km_inicial)} km</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Limite Mensal</label>
-                      <p className="text-xl">{cycleInfo.limite_km_mensal.toLocaleString()} km</p>
+                      <label className="text-sm font-medium text-muted-foreground">{t("Limite Mensal")}</label>
+                      <p className="text-xl">{number(cycleInfo.limite_km_mensal)} km</p>
                     </div>
                   </div>
 
                   {/* Progresso do Ciclo Mensal */}
                   <div className="space-y-3">
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Ciclo Atual</label>
+                      <label className="text-sm font-medium text-muted-foreground">{t("Ciclo Atual")}</label>
                       <p className="text-base">
-                        {formatCycleDate(cycleInfo.cycle_start_date)} até {formatCycleDate(cycleInfo.cycle_end_date)}
+                        {t("{start} até {end}", { start: date(cycleInfo.cycle_start_date), end: date(cycleInfo.cycle_end_date) })}
                       </p>
                     </div>
 
                     <div>
                       <div className="flex justify-between items-center text-sm mb-2">
-                        <span className="font-medium">KM Rodados no Ciclo: {cycleInfo.km_rodados.toLocaleString()} km</span>
+                        <span className="font-medium">{t("KM Rodados no Ciclo: {km} km", { km: number(cycleInfo.km_rodados) })}</span>
                         <div className="flex items-center gap-2">
-                          <span>{cycleInfo.percentage_used.toFixed(1)}%</span>
+                          <span>{number(cycleInfo.percentage_used, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
                           {cycleInfo.percentage_used >= 80 && (
                             <AlertTriangle className="h-4 w-4 text-warning" />
                           )}
@@ -198,14 +206,14 @@ export function ViewVehicleModal({
                       </div>
                       <div className="flex justify-between items-center mt-2 text-sm">
                         <span className="text-muted-foreground">
-                          {getDaysText(cycleInfo.days_remaining)}
+                          {daysText(cycleInfo.days_remaining)}
                         </span>
                         <span className={`font-medium ${
                           cycleInfo.percentage_used >= 100 ? 'text-destructive' : 
                           cycleInfo.percentage_used >= 80 ? 'text-warning' : 'text-success'
                         }`}>
-                          {cycleInfo.percentage_used >= 100 ? 'Limite excedido!' : 
-                           cycleInfo.percentage_used >= 80 ? 'Próximo do limite' : 'Dentro do limite'}
+                          {cycleInfo.percentage_used >= 100 ? t("Limite excedido!") :
+                           cycleInfo.percentage_used >= 80 ? t("Próximo do limite") : t("Dentro do limite")}
                         </span>
                       </div>
                     </div>
@@ -213,7 +221,7 @@ export function ViewVehicleModal({
                 </>
               ) : (
                 <div className="text-center py-4">
-                  <p className="text-muted-foreground">Não foi possível carregar os dados do ciclo de quilometragem</p>
+                  <p className="text-muted-foreground">{t("Não foi possível carregar os dados do ciclo de quilometragem")}</p>
                 </div>
               )}
             </CardContent>
@@ -225,7 +233,7 @@ export function ViewVehicleModal({
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Responsável
+                  {t("Responsável")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -238,7 +246,7 @@ export function ViewVehicleModal({
                     )}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">Nenhum responsável atribuído</p>
+                  <p className="text-muted-foreground">{t("Nenhum responsável atribuído")}</p>
                 )}
               </CardContent>
             </Card>
@@ -248,7 +256,7 @@ export function ViewVehicleModal({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Building className="h-4 w-4" />
-                    Locadora
+                    {t("Locadora")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -263,7 +271,7 @@ export function ViewVehicleModal({
                       )}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground">Nenhuma locadora vinculada</p>
+                    <p className="text-muted-foreground">{t("Nenhuma locadora vinculada")}</p>
                   )}
                 </CardContent>
               </Card>
@@ -277,13 +285,13 @@ export function ViewVehicleModal({
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Wrench className="h-4 w-4" />
-                    Última Revisão
+                    {t("Última Revisão")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{format(new Date(vehicle.data_ultima_revisao), 'dd/MM/yyyy', { locale: ptBR })}</span>
+                    <span>{date(vehicle.data_ultima_revisao)}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -292,7 +300,7 @@ export function ViewVehicleModal({
             {vehicle.observacoes && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Observações</CardTitle>
+                  <CardTitle>{t("Observações")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm">{vehicle.observacoes}</p>
@@ -304,17 +312,17 @@ export function ViewVehicleModal({
           {/* Datas de Criação e Atualização */}
           <Card>
             <CardHeader>
-              <CardTitle>Informações do Sistema</CardTitle>
+              <CardTitle>{t("Informações do Sistema")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
                 <div>
-                  <label className="font-medium">Cadastrado em:</label>
-                  <p>{format(new Date(vehicle.created_at), 'dd/MM/yyyy \'às\' HH:mm', { locale: ptBR })}</p>
+                  <label className="font-medium">{t("Cadastrado em:")}</label>
+                  <p>{date(vehicle.created_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
                 <div>
-                  <label className="font-medium">Última atualização:</label>
-                  <p>{format(new Date(vehicle.updated_at), 'dd/MM/yyyy \'às\' HH:mm', { locale: ptBR })}</p>
+                  <label className="font-medium">{t("Última atualização:")}</label>
+                  <p>{date(vehicle.updated_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             </CardContent>

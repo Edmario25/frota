@@ -9,7 +9,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useDamageReports } from "@/hooks/useDamageReports";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -18,6 +17,7 @@ import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import { useI18n } from "@/i18n";
 
 interface DamageReportModalProps {
   isOpen: boolean;
@@ -27,6 +27,7 @@ interface DamageReportModalProps {
 }
 
 export function DamageReportModal({ isOpen, onClose, damageReport, vehicleId }: DamageReportModalProps) {
+  const { t, date } = useI18n();
   const [formData, setFormData] = useState({
     vehicle_id: "",
     employee_id: "",
@@ -112,24 +113,24 @@ export function DamageReportModal({ isOpen, onClose, damageReport, vehicleId }: 
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {damageReport ? "Editar Relatório de Avaria" : "Novo Relatório de Avaria"}
+            {damageReport ? t("Editar Relatório de Avaria") : t("Novo Relatório de Avaria")}
           </DialogTitle>
           <DialogDescription>
-            {damageReport ? "Edite as informações da avaria" : "Preencha os dados da avaria ocorrida"}
+            {damageReport ? t("Edite as informações da avaria") : t("Preencha os dados da avaria ocorrida")}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="vehicle_id">Veículo</Label>
+              <Label htmlFor="vehicle_id">{t("Veículo")}</Label>
               <Select
                 value={formData.vehicle_id}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, vehicle_id: value }))}
                 disabled={isFuncionario}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecionar Veículo" />
+                  <SelectValue placeholder={t("Selecionar Veículo")} />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border border-border">
                   {availableVehicles.map((vehicle) => (
@@ -141,13 +142,13 @@ export function DamageReportModal({ isOpen, onClose, damageReport, vehicleId }: 
               </Select>
               {isFuncionario && (
                 <p className="text-xs text-muted-foreground">
-                  Você pode registrar avarias apenas do seu veículo atribuído
+                  {t("Você pode registrar avarias apenas do seu veículo atribuído")}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label>Data da Avaria</Label>
+              <Label>{t("Data da Avaria")}</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -158,7 +159,7 @@ export function DamageReportModal({ isOpen, onClose, damageReport, vehicleId }: 
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.data_avaria ? format(formData.data_avaria, "PPP", { locale: ptBR }) : "Selecionar data"}
+                    {formData.data_avaria ? date(formData.data_avaria, { day: 'numeric', month: 'long', year: 'numeric' }) : t("Selecionar data")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -174,12 +175,12 @@ export function DamageReportModal({ isOpen, onClose, damageReport, vehicleId }: 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="descricao_avaria">Descrição da Avaria</Label>
+            <Label htmlFor="descricao_avaria">{t("Descrição da Avaria")}</Label>
             <Textarea
               id="descricao_avaria"
               value={formData.descricao_avaria}
               onChange={(e) => setFormData(prev => ({ ...prev, descricao_avaria: e.target.value }))}
-              placeholder="Descreva a avaria ocorrida"
+              placeholder={t("Descreva a avaria ocorrida")}
               required
               rows={3}
             />
@@ -187,28 +188,28 @@ export function DamageReportModal({ isOpen, onClose, damageReport, vehicleId }: 
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="local_ocorrencia">Local da Ocorrência</Label>
+              <Label htmlFor="local_ocorrencia">{t("Local da Ocorrência")}</Label>
               <Input
                 id="local_ocorrencia"
                 value={formData.local_ocorrencia}
                 onChange={(e) => setFormData(prev => ({ ...prev, local_ocorrencia: e.target.value }))}
-                placeholder="Onde ocorreu a avaria"
+                placeholder={t("Onde ocorreu a avaria")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="responsavel_registro">Responsável pelo Registro</Label>
+              <Label htmlFor="responsavel_registro">{t("Responsável pelo Registro")}</Label>
               <Input
                 id="responsavel_registro"
                 value={formData.responsavel_registro}
                 onChange={(e) => setFormData(prev => ({ ...prev, responsavel_registro: e.target.value }))}
-                placeholder="Nome do responsável"
+                placeholder={t("Nome do responsável")}
               />
             </div>
           </div>
 
           <PhotoUpload
-            label="Foto da Avaria"
+            label={t("Foto da Avaria")}
             value={formData.foto_url}
             onChange={(url) => setFormData(prev => ({ ...prev, foto_url: url || "" }))}
             bucketName="damage-photos"
@@ -218,10 +219,10 @@ export function DamageReportModal({ isOpen, onClose, damageReport, vehicleId }: 
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
+              {t("Cancelar")}
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Salvando..." : damageReport ? "Atualizar" : "Salvar"}
+              {loading ? t("Salvando...") : damageReport ? t("Atualizar") : t("Salvar")}
             </Button>
           </DialogFooter>
         </form>

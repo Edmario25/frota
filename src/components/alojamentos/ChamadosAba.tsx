@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import { Dados, PRIORIDADE, STATUS_CHAMADO, TIPO_CHAMADO, dataHora } from "./shared";
 
 interface Props {
@@ -22,6 +23,7 @@ interface Props {
 const ABERTOS = ["aberto", "triagem", "em_andamento", "aguardando"];
 
 export function ChamadosAba({ dados, unidadeIds, employees, onNovo, onRecarregar }: Props) {
+  const { t, number, money } = useI18n();
   const [visao, setVisao] = useState<"abertos" | "encerrados">("abertos");
   const [concluindo, setConcluindo] = useState<any>(null);
   const [conclusao, setConclusao] = useState("");
@@ -53,12 +55,12 @@ export function ChamadosAba({ dados, unidadeIds, employees, onNovo, onRecarregar
   }
 
   async function concluir() {
-    if (conclusao.trim().length < 3) return toast.error("Descreva o que foi feito.");
+    if (conclusao.trim().length < 3) return toast.error(t("Descreva o que foi feito."));
     setSalvando(true);
     await atualizar(concluindo, {
       status: "concluido", concluido_em: new Date().toISOString(),
       conclusao: conclusao.trim(), custo: custo ? Number(custo) : null,
-    }, "Chamado concluído.");
+    }, t("Chamado concluído."));
     setSalvando(false);
     setConcluindo(null);
   }
@@ -77,20 +79,20 @@ export function ChamadosAba({ dados, unidadeIds, employees, onNovo, onRecarregar
             <button key={v} onClick={() => setVisao(v)}
               className={cn("rounded-full border px-3 py-1 text-xs font-medium",
                 visao === v ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>
-              {v === "abertos" ? "Em aberto" : "Encerrados"}
+              {v === "abertos" ? t("Em aberto") : t("Encerrados")}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          {vencidos > 0 && <span className="flex items-center gap-1 font-medium text-red-600"><AlertTriangle className="h-3.5 w-3.5" />{vencidos} vencidos</span>}
-          {tempoMedioH != null && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />Tempo médio {tempoMedioH < 48 ? `${tempoMedioH.toFixed(1)} h` : `${(tempoMedioH / 24).toFixed(1)} dias`}</span>}
-          <Button size="sm" onClick={onNovo}><Plus className="mr-1.5 h-4 w-4" />Abrir chamado</Button>
+          {vencidos > 0 && <span className="flex items-center gap-1 font-medium text-red-600"><AlertTriangle className="h-3.5 w-3.5" />{t("{count} vencidos", { count: vencidos })}</span>}
+          {tempoMedioH != null && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{t("Tempo médio")} {tempoMedioH < 48 ? `${tempoMedioH.toFixed(1)} h` : `${(tempoMedioH / 24).toFixed(1)} dias`}</span>}
+          <Button size="sm" onClick={onNovo}><Plus className="mr-1.5 h-4 w-4" />{t("Abrir chamado")}</Button>
         </div>
       </div>
 
       <div className="divide-y rounded-lg border">
         {!lista.length && <p className="p-10 text-center text-sm text-muted-foreground">
-          {visao === "abertos" ? "Nenhum chamado em aberto." : "Nenhum chamado encerrado."}
+          {visao === "abertos" ? t("Nenhum chamado em aberto.") : t("Nenhum chamado encerrado.")}
         </p>}
         {lista.map(c => {
           const vencido = ABERTOS.includes(c.status) && c.prazo && new Date(c.prazo).getTime() < agora;
@@ -106,24 +108,24 @@ export function ChamadosAba({ dados, unidadeIds, employees, onNovo, onRecarregar
                 <p className="mt-1 font-medium">{c.titulo}</p>
                 <p className="line-clamp-2 text-xs text-muted-foreground">{c.conclusao ?? c.descricao}</p>
                 <p className={cn("mt-1 text-[11px]", vencido ? "font-medium text-red-600" : "text-muted-foreground")}>
-                  Aberto {dataHora(c.created_at)}
+                  {t("Aberto")} {dataHora(c.created_at)}
                   {c.prazo && ` · prazo ${dataHora(c.prazo)}`}
                   {c.concluido_em && ` · concluído ${dataHora(c.concluido_em)}`}
-                  {c.custo != null && ` · ${Number(c.custo).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`}
+                  {c.custo != null && ` · ${money(Number(c.custo))}`}
                 </p>
               </div>
               {ABERTOS.includes(c.status) ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <Select value={c.responsavel_id ?? "__"} onValueChange={v => atualizar(c, { responsavel_id: v === "__" ? null : v }, "Responsável definido.")}>
-                    <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder="Responsável" /></SelectTrigger>
+                  <Select value={c.responsavel_id ?? "__"} onValueChange={v => atualizar(c, { responsavel_id: v === "__" ? null : v }, t("Responsável definido."))}>
+                    <SelectTrigger className="h-8 w-44 text-xs"><SelectValue placeholder={t("Responsável")} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__">Sem responsável</SelectItem>
+                      <SelectItem value="__">{t("Sem responsável")}</SelectItem>
                       {employees.filter(e => e.status === "ativo").map(e => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Select value={c.status} onValueChange={v => v === "concluido"
                     ? (setConcluindo(c), setConclusao(""), setCusto(""))
-                    : atualizar(c, { status: v }, "Situação atualizada.")}>
+                    : atualizar(c, { status: v }, t("Situação atualizada."))}>
                     <SelectTrigger className={cn("h-8 w-36 border-0 text-xs font-medium", STATUS_CHAMADO[c.status]?.cls)}><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Object.entries(STATUS_CHAMADO).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
@@ -142,21 +144,21 @@ export function ChamadosAba({ dados, unidadeIds, employees, onNovo, onRecarregar
 
       <Dialog open={!!concluindo} onOpenChange={o => !o && setConcluindo(null)}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Concluir chamado</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("Concluir chamado")}</DialogTitle></DialogHeader>
           <p className="text-sm font-medium">{concluindo?.titulo}</p>
           <div className="space-y-1.5">
-            <Label>O que foi feito</Label>
-            <Textarea value={conclusao} onChange={e => setConclusao(e.target.value)} placeholder="Ex.: filtro do ar limpo e gás recarregado" />
+            <Label>{t("O que foi feito")}</Label>
+            <Textarea value={conclusao} onChange={e => setConclusao(e.target.value)} placeholder={t("Ex.: filtro do ar limpo e gás recarregado")} />
           </div>
           <div className="space-y-1.5">
-            <Label>Custo (opcional)</Label>
+            <Label>{t("Custo (opcional)")}</Label>
             <Input type="number" min="0" step="0.01" value={custo} onChange={e => setCusto(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConcluindo(null)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setConcluindo(null)}>{t("Cancelar")}</Button>
             <Button onClick={concluir} disabled={salvando}>
               {salvando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-              Concluir
+              {t("Concluir")}
             </Button>
           </DialogFooter>
         </DialogContent>

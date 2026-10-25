@@ -6,6 +6,7 @@ import { Wrench, Calendar, Clock, CheckCircle, XCircle, AlertTriangle, Play, Che
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/i18n";
 
 type MaintenanceRecord = {
   id: string;
@@ -19,6 +20,7 @@ type MaintenanceRecord = {
   observacoes: string | null;
 };
 
+// Labels are the Portuguese catalog keys; they are translated when rendered.
 const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   agendada:     { label: "Agendada",     color: "bg-blue-100 text-blue-700",   icon: Calendar },
   em_andamento: { label: "Em andamento", color: "bg-amber-100 text-amber-700", icon: Clock },
@@ -35,6 +37,7 @@ const tipoLabel: Record<string, string> = {
 };
 
 export const MyMaintenanceCard = () => {
+  const { t, date } = useI18n();
   const { user } = useAuth();
   const { toast } = useToast();
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
@@ -59,9 +62,9 @@ export const MyMaintenanceCard = () => {
       if (error) throw error;
 
       setRecords(prev => prev.map(r => r.id === id ? { ...r, ...updateData } : r));
-      toast({ title: "Status atualizado", description: "Manutenção atualizada com sucesso." });
+      toast({ title: t("Status atualizado"), description: t("Manutenção atualizada com sucesso.") });
     } catch (error: any) {
-      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+      toast({ title: t("Erro ao atualizar"), description: error.message, variant: "destructive" });
     } finally {
       setUpdating(null);
     }
@@ -117,7 +120,7 @@ export const MyMaintenanceCard = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Wrench className="h-4 w-4" />
-            Manutenções do Meu Veículo
+            {t("Manutenções do Meu Veículo")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -135,12 +138,12 @@ export const MyMaintenanceCard = () => {
         <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center gap-2">
             <Wrench className="h-4 w-4" />
-            Manutenções do Meu Veículo
+            {t("Manutenções do Meu Veículo")}
           </div>
           {pending.length > 0 && (
             <Badge className="bg-amber-100 text-amber-700 border-0 text-xs rounded-full">
               <AlertTriangle className="h-3 w-3 mr-1" />
-              {pending.length} pendente{pending.length > 1 ? "s" : ""}
+              {pending.length} {t("pendente")}{pending.length > 1 ? "s" : ""}
             </Badge>
           )}
         </CardTitle>
@@ -149,7 +152,7 @@ export const MyMaintenanceCard = () => {
         {records.length === 0 ? (
           <div className="text-center py-8">
             <Wrench className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-            <p className="text-sm text-muted-foreground">Nenhuma manutenção registrada</p>
+            <p className="text-sm text-muted-foreground">{t("Nenhuma manutenção registrada")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -168,16 +171,16 @@ export const MyMaintenanceCard = () => {
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <p className="text-sm font-medium truncate">{record.descricao}</p>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${cfg.color}`}>
-                        {cfg.label}
+                        {t(cfg.label)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                      <span>{tipoLabel[record.tipo] ?? record.tipo}</span>
+                      <span>{t(tipoLabel[record.tipo] ?? record.tipo)}</span>
                       <span>·</span>
                       <span>
                         {record.status === "concluida" && record.data_realizada
-                          ? `Concluída em ${new Date(record.data_realizada).toLocaleDateString("pt-BR")}`
-                          : `Agendada para ${new Date(record.data_agendada).toLocaleDateString("pt-BR")}`}
+                          ? `Concluída em ${date(record.data_realizada)}`
+                          : `Agendada para ${date(record.data_agendada)}`}
                       </span>
                       {record.oficina && (
                         <>
@@ -198,7 +201,7 @@ export const MyMaintenanceCard = () => {
                             className="h-7 text-xs gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50"
                             disabled={updating === record.id}
                             onClick={() => handleStatusChange(record.id, "em_andamento")}>
-                            <Play className="h-3 w-3" />Iniciar
+                            <Play className="h-3 w-3" />{t("Iniciar")}
                           </Button>
                         )}
                         {record.status === "em_andamento" && (
@@ -206,14 +209,14 @@ export const MyMaintenanceCard = () => {
                             className="h-7 text-xs gap-1.5 text-green-700 border-green-300 hover:bg-green-50"
                             disabled={updating === record.id}
                             onClick={() => handleStatusChange(record.id, "concluida")}>
-                            <Check className="h-3 w-3" />Concluir
+                            <Check className="h-3 w-3" />{t("Concluir")}
                           </Button>
                         )}
                         <Button size="sm" variant="outline"
                           className="h-7 text-xs gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
                           disabled={updating === record.id}
                           onClick={() => handleStatusChange(record.id, "cancelada")}>
-                          <X className="h-3 w-3" />Cancelar
+                          <X className="h-3 w-3" />{t("Cancelar")}
                         </Button>
                       </div>
                     )}

@@ -8,8 +8,10 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Car, Gauge, Wrench, AlertTriangle, Save, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/i18n";
 
 export function FleetParametersTab() {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -81,7 +83,7 @@ export function FleetParametersTab() {
 
       // Remove dados antigos do localStorage (migração completa)
       localStorage.removeItem("fleet_parameters");
-      toast.success("Parâmetros de frota salvos com sucesso!");
+      toast.success(t("Parâmetros de frota salvos com sucesso!"));
     } catch (err: any) {
       toast.error("Erro ao salvar: " + (err.message ?? "Tente novamente"));
     } finally {
@@ -107,15 +109,15 @@ export function FleetParametersTab() {
               <Gauge className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <CardTitle className="text-lg">Controle de Quilometragem</CardTitle>
-              <CardDescription>Defina limites e alertas de km para os veículos</CardDescription>
+              <CardTitle className="text-lg">{t("Controle de Quilometragem")}</CardTitle>
+              <CardDescription>{t("Defina limites e alertas de km para os veículos")}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="default-km">Limite Km Mensal Padrão</Label>
+              <Label htmlFor="default-km">{t("Limite Km Mensal Padrão")}</Label>
               <div className="relative">
                 <Input
                   id="default-km"
@@ -126,10 +128,10 @@ export function FleetParametersTab() {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">km</span>
               </div>
-              <p className="text-xs text-muted-foreground">Aplicado a novos veículos cadastrados</p>
+              <p className="text-xs text-muted-foreground">{t("Aplicado a novos veículos cadastrados")}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="km-alert">Alerta de Km (%)</Label>
+              <Label htmlFor="km-alert">{t("Alerta de Km (%)")}</Label>
               <div className="relative">
                 <Input
                   id="km-alert"
@@ -142,7 +144,7 @@ export function FleetParametersTab() {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
               </div>
-              <p className="text-xs text-muted-foreground">Percentual do limite para gerar alerta no app do motorista</p>
+              <p className="text-xs text-muted-foreground">{t("Percentual do limite para gerar alerta no app do motorista")}</p>
             </div>
           </div>
 
@@ -151,15 +153,15 @@ export function FleetParametersTab() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-foreground">Criação Automática de Ciclos</p>
-                <p className="text-xs text-muted-foreground">Criar ciclos mensais de km automaticamente</p>
+                <p className="text-sm font-medium text-foreground">{t("Criação Automática de Ciclos")}</p>
+                <p className="text-xs text-muted-foreground">{t("Criar ciclos mensais de km automaticamente")}</p>
               </div>
               <Switch checked={autoCreateCycles} onCheckedChange={setAutoCreateCycles} />
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-foreground">Fechar Ciclos Expirados</p>
-                <p className="text-xs text-muted-foreground">Fechar ciclos de km automaticamente ao expirar</p>
+                <p className="text-sm font-medium text-foreground">{t("Fechar Ciclos Expirados")}</p>
+                <p className="text-xs text-muted-foreground">{t("Fechar ciclos de km automaticamente ao expirar")}</p>
               </div>
               <Switch checked={autoCloseExpiredCycles} onCheckedChange={setAutoCloseExpiredCycles} />
             </div>
@@ -175,15 +177,15 @@ export function FleetParametersTab() {
               <Wrench className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <CardTitle className="text-lg">Manutenção Preventiva</CardTitle>
-              <CardDescription>Configure intervalos para manutenções programadas</CardDescription>
+              <CardTitle className="text-lg">{t("Manutenção Preventiva")}</CardTitle>
+              <CardDescription>{t("Configure intervalos para manutenções programadas")}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="maint-km">Intervalo por Km</Label>
+              <Label htmlFor="maint-km">{t("Intervalo por Km")}</Label>
               <div className="relative">
                 <Input
                   id="maint-km"
@@ -194,10 +196,10 @@ export function FleetParametersTab() {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">km</span>
               </div>
-              <p className="text-xs text-muted-foreground">Km entre manutenções preventivas</p>
+              <p className="text-xs text-muted-foreground">{t("Km entre manutenções preventivas")}</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="maint-days">Intervalo por Tempo</Label>
+              <Label htmlFor="maint-days">{t("Intervalo por Tempo")}</Label>
               <div className="relative">
                 <Input
                   id="maint-days"
@@ -206,9 +208,9 @@ export function FleetParametersTab() {
                   onChange={(e) => setMaintenanceIntervalDays(e.target.value)}
                   className="rounded-xl pr-14"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">dias</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{t("dias")}</span>
               </div>
-              <p className="text-xs text-muted-foreground">Dias entre manutenções preventivas</p>
+              <p className="text-xs text-muted-foreground">{t("Dias entre manutenções preventivas")}</p>
             </div>
           </div>
         </CardContent>
@@ -222,14 +224,14 @@ export function FleetParametersTab() {
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <CardTitle className="text-lg">Alertas de Documentação</CardTitle>
-              <CardDescription>Configure antecedência dos alertas de vencimento</CardDescription>
+              <CardTitle className="text-lg">{t("Alertas de Documentação")}</CardTitle>
+              <CardDescription>{t("Configure antecedência dos alertas de vencimento")}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="max-w-sm space-y-2">
-            <Label htmlFor="doc-alert">Antecedência do Alerta</Label>
+            <Label htmlFor="doc-alert">{t("Antecedência do Alerta")}</Label>
             <div className="relative">
               <Input
                 id="doc-alert"
@@ -238,9 +240,9 @@ export function FleetParametersTab() {
                 onChange={(e) => setDocAlertDays(e.target.value)}
                 className="rounded-xl pr-14"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">dias</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{t("dias")}</span>
             </div>
-            <p className="text-xs text-muted-foreground">Dias antes do vencimento para exibir alerta</p>
+            <p className="text-xs text-muted-foreground">{t("Dias antes do vencimento para exibir alerta")}</p>
           </div>
         </CardContent>
       </Card>
@@ -249,7 +251,7 @@ export function FleetParametersTab() {
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving} className="gap-2 rounded-xl px-6">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saving ? "Salvando..." : "Salvar Parâmetros"}
+          {saving ? t("Salvando...") : t("Salvar Parâmetros")}
         </Button>
       </div>
     </div>

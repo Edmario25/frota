@@ -1,6 +1,4 @@
 import React from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Calendar, Truck, User, FileText, Gauge, Briefcase, CheckCircle, XCircle, MinusCircle } from "lucide-react";
 import {
   Dialog,
@@ -14,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useHeavyVehicleInspections } from "@/hooks/useHeavyVehicleInspections";
+import { useI18n } from "@/i18n";
 
 interface HeavyVehicleInspection {
   id: string;
@@ -46,6 +45,7 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
   const { vehicles } = useVehicles();
   const { employees } = useEmployees();
   const { getInspectionItems } = useHeavyVehicleInspections();
+  const { t, number, date } = useI18n();
   const [inspectionItems, setInspectionItems] = React.useState<any[]>([]);
   const [loadingItems, setLoadingItems] = React.useState(false);
 
@@ -91,11 +91,11 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'C':
-        return <Badge className="bg-green-100 text-green-800">Conforme</Badge>;
+        return <Badge className="bg-green-100 text-green-800">{t("Conforme")}</Badge>;
       case 'NC':
-        return <Badge className="bg-red-100 text-red-800">Não Conforme</Badge>;
+        return <Badge className="bg-red-100 text-red-800">{t("Não Conforme")}</Badge>;
       case 'NA':
-        return <Badge className="bg-gray-100 text-gray-800">Não Aplicável</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800">{t("Não Aplicável")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -104,11 +104,11 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
   const getGeneralStatusBadge = (status: string) => {
     switch (status) {
       case 'aprovado':
-        return <Badge className="bg-green-100 text-green-800">Aprovado</Badge>;
+        return <Badge className="bg-green-100 text-green-800">{t("Aprovado")}</Badge>;
       case 'reprovado':
-        return <Badge className="bg-red-100 text-red-800">Reprovado</Badge>;
+        return <Badge className="bg-red-100 text-red-800">{t("Reprovado")}</Badge>;
       case 'pendente':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800">{t("Pendente")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -118,7 +118,7 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Detalhes da Inspeção de Veículo Pesado</DialogTitle>
+          <DialogTitle>{t("Detalhes da Inspeção de Veículo Pesado")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -130,7 +130,7 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
                 {vehicle?.placa} - {vehicle?.marca} {vehicle?.modelo}
               </p>
               <p className="text-sm text-muted-foreground">
-                Ano: {vehicle?.ano} | Cor: {vehicle?.cor}
+                {t("Ano:")} {vehicle?.ano} {t("| Cor:")} {vehicle?.cor}
               </p>
             </div>
           </div>
@@ -143,17 +143,17 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
-                  Data da Inspeção
+                  {t("Data da Inspeção")}
                 </label>
                 <p className="text-sm">
-                  {format(new Date(inspection.data_inspecao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  {date(inspection.data_inspecao, { day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Inspetor
+                  {t("Inspetor")}
                 </label>
                 <div className="text-sm">
                   <p className="font-medium">{inspection.inspetor_nome}</p>
@@ -165,22 +165,22 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <Gauge className="h-4 w-4" />
-                    Quilometragem
+                    {t("Quilometragem")}
                   </label>
-                  <p className="text-sm">{inspection.km_atual.toLocaleString()} km</p>
+                  <p className="text-sm">{number(inspection.km_atual)} km</p>
                 </div>
               )}
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Status Geral</label>
+                <label className="text-sm font-medium">{t("Status Geral")}</label>
                 {getGeneralStatusBadge(inspection.status_geral)}
               </div>
 
               {employee && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Funcionário Responsável</label>
+                  <label className="text-sm font-medium">{t("Funcionário Responsável")}</label>
                   <p className="text-sm">{employee.nome}</p>
                 </div>
               )}
@@ -192,7 +192,7 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
           {/* Inspection Items by Category */}
           {Object.keys(itemsByCategory).length > 0 && (
             <div className="space-y-4">
-              <h4 className="text-lg font-medium">Itens Inspecionados</h4>
+              <h4 className="text-lg font-medium">{t("Itens Inspecionados")}</h4>
               
               <Tabs defaultValue={Object.keys(itemsByCategory)[0]} className="w-full">
                 <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
@@ -218,7 +218,7 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
                           </div>
                           {item.observacoes && (
                             <p className="text-xs text-muted-foreground">
-                              <strong>Observações:</strong> {item.observacoes}
+                              <strong>{t("Observações:")}</strong> {item.observacoes}
                             </p>
                           )}
                         </div>
@@ -232,7 +232,7 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
 
           {loadingItems && (
             <div className="text-center py-4">
-              <p className="text-sm text-muted-foreground">Carregando itens da inspeção...</p>
+              <p className="text-sm text-muted-foreground">{t("Carregando itens da inspeção...")}</p>
             </div>
           )}
 
@@ -241,7 +241,7 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
           {/* General Photos */}
           {inspection.fotos_checklist && (
             <div className="space-y-3">
-              <label className="text-sm font-medium">Fotos do Checklist</label>
+              <label className="text-sm font-medium">{t("Fotos do Checklist")}</label>
               <div className="grid grid-cols-1 gap-3">
                 {Object.entries(JSON.parse(inspection.fotos_checklist)).map(([categoria, url]) => 
                   url ? (
@@ -280,7 +280,7 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  Observações Gerais
+                  {t("Observações Gerais")}
                 </label>
                 <p className="text-sm whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
                   {inspection.observacoes_gerais}
@@ -293,11 +293,11 @@ export const HeavyVehicleInspectionDetailModal: React.FC<HeavyVehicleInspectionD
           <Separator />
           <div className="space-y-1 text-xs text-muted-foreground">
             <p>
-              Registrado em: {format(new Date(inspection.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              {t("Registrado em:")} {date(inspection.created_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
             {inspection.updated_at !== inspection.created_at && (
               <p>
-                Última atualização: {format(new Date(inspection.updated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                {t("Última atualização:")} {date(inspection.updated_at, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
           </div>

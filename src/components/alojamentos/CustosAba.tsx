@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CATEGORIA, CATEGORIAS_LANCAVEIS, brl, dataParaMes, grupoDe, rotuloMes, somarMeses } from "./custos";
 import { useFornecedores } from "@/hooks/useFornecedores";
+import { useI18n } from "@/i18n";
 
 interface Props {
   complexos: any[];
@@ -21,6 +22,7 @@ interface Props {
 const COMPLEXO_TODO = "__complexo";
 
 export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
+  const { t, number, money, date } = useI18n();
   const { fornecedores } = useFornecedores();
   const [mes, setMes] = useState(() => dataParaMes(new Date()));
   const [lista, setLista] = useState<any[]>([]);
@@ -59,8 +61,8 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
   const campo = (k: string) => (e: any) => setForm((f: any) => ({ ...f, [k]: e?.target ? e.target.value : e }));
 
   async function salvar() {
-    if (!form.complexo_id) return toast.error("Escolha o complexo.");
-    if (!form.valor || Number(form.valor) < 0) return toast.error("Informe o valor.");
+    if (!form.complexo_id) return toast.error(t("Escolha o complexo."));
+    if (!form.valor || Number(form.valor) < 0) return toast.error(t("Informe o valor."));
     const linha = {
       complexo_id: form.complexo_id,
       alojamento_id: form.alojamento_id === COMPLEXO_TODO ? null : form.alojamento_id,
@@ -80,7 +82,7 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
     const { error } = editando?.id ? await q.update(linha).eq("id", editando.id) : await q.insert(linha);
     setSalvando(false);
     if (error) return toast.error(error.message);
-    toast.success(editando?.id ? "Despesa atualizada." : "Despesa lançada.");
+    toast.success(editando?.id ? t("Despesa atualizada.") : t("Despesa lançada."));
     setEditando(null);
     if (linha.competencia.slice(0, 7) !== mes) setMes(linha.competencia.slice(0, 7));
     else carregar();
@@ -88,10 +90,10 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
   }
 
   async function excluir(d: any) {
-    if (!confirm(`Excluir ${CATEGORIA[d.categoria]?.label} de ${brl(Number(d.valor))}?`)) return;
+    if (!confirm(`Excluir ${CATEGORIA[d.categoria]?.label} de ${brl(Number(d.valor), money)}?`)) return;
     const { error } = await (supabase as any).from("alojamento_despesas").delete().eq("id", d.id);
     if (error) return toast.error(error.message);
-    toast.success("Despesa excluída.");
+    toast.success(t("Despesa excluída."));
     carregar();
     onMudou();
   }
@@ -105,7 +107,7 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
       .from("alojamento_despesas").select("*").eq("competencia", `${anterior}-01`);
     if (error) return toast.error(error.message);
     const origem = (data ?? []).filter((d: any) => complexoIds.has(d.complexo_id));
-    if (!origem.length) return toast.error(`Nenhuma despesa em ${rotuloMes(anterior)} para copiar.`);
+    if (!origem.length) return toast.error(`Nenhuma despesa em ${rotuloMes(anterior, date)} para copiar.`);
     const novas = origem.map((d: any) => ({
       complexo_id: d.complexo_id, alojamento_id: d.alojamento_id, competencia: `${mes}-01`,
       categoria: d.categoria, descricao: d.descricao, valor: d.valor, quantidade: null,
@@ -113,26 +115,26 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
     }));
     const { error: e2 } = await (supabase as any).from("alojamento_despesas").insert(novas);
     if (e2) return toast.error(e2.message);
-    toast.success(`${novas.length} lançamentos copiados de ${rotuloMes(anterior)}. Ajuste os valores das contas que mudaram.`);
+    toast.success(`${novas.length} lançamentos copiados de ${rotuloMes(anterior, date)}. Ajuste os valores das contas que mudaram.`);
     carregar();
     onMudou();
   }
 
   const total = lista.reduce((s, d) => s + Number(d.valor), 0);
   const nomeUnidade = (d: any) => d.alojamento_id
-    ? unidades.find(u => u.id === d.alojamento_id)?.nome ?? "Unidade"
-    : `${complexos.find(c => c.id === d.complexo_id)?.nome ?? "Complexo"} (rateado)`;
+    ? unidades.find(u => u.id === d.alojamento_id)?.nome ?? t("Unidade")
+    : `${complexos.find(c => c.id === d.complexo_id)?.nome ?? t("Complexo")} (rateado)`;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Input type="month" value={mes} onChange={e => e.target.value && setMes(e.target.value)} className="h-9 w-44" />
-          <p className="text-sm text-muted-foreground">{lista.length} lançamentos · <strong className="text-foreground">{brl(total)}</strong></p>
+          <p className="text-sm text-muted-foreground">{t("{count} lançamentos ·", { count: lista.length })} <strong className="text-foreground">{brl(total, money)}</strong></p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={copiarMesAnterior}><Copy className="mr-1.5 h-4 w-4" />Copiar mês anterior</Button>
-          <Button size="sm" onClick={novo}><Plus className="mr-1.5 h-4 w-4" />Lançar despesa</Button>
+          <Button size="sm" variant="outline" onClick={copiarMesAnterior}><Copy className="mr-1.5 h-4 w-4" />{t("Copiar mês anterior")}</Button>
+          <Button size="sm" onClick={novo}><Plus className="mr-1.5 h-4 w-4" />{t("Lançar despesa")}</Button>
         </div>
       </div>
 
@@ -140,11 +142,11 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
         <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
             <tr>
-              <th className="p-3 font-medium">Categoria</th>
-              <th className="p-3 font-medium">Onde</th>
-              <th className="p-3 font-medium">Fornecedor / documento</th>
-              <th className="p-3 text-right font-medium">Consumo</th>
-              <th className="p-3 text-right font-medium">Valor</th>
+              <th className="p-3 font-medium">{t("Categoria")}</th>
+              <th className="p-3 font-medium">{t("Onde")}</th>
+              <th className="p-3 font-medium">{t("Fornecedor / documento")}</th>
+              <th className="p-3 text-right font-medium">{t("Consumo")}</th>
+              <th className="p-3 text-right font-medium">{t("Valor")}</th>
               <th className="p-3" />
             </tr>
           </thead>
@@ -159,12 +161,12 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
                 </td>
                 <td className="p-3 text-xs">{nomeUnidade(d)}</td>
                 <td className="p-3 text-xs text-muted-foreground">{[d.fornecedor, d.documento].filter(Boolean).join(" · ") || "—"}</td>
-                <td className="p-3 text-right text-xs tabular-nums">{d.quantidade != null ? `${Number(d.quantidade).toLocaleString("pt-BR")} ${d.unidade_medida ?? ""}` : "—"}</td>
-                <td className="p-3 text-right font-medium tabular-nums">{brl(Number(d.valor))}</td>
+                <td className="p-3 text-right text-xs tabular-nums">{d.quantidade != null ? `${number(Number(d.quantidade))} ${d.unidade_medida ?? ""}` : "—"}</td>
+                <td className="p-3 text-right font-medium tabular-nums">{brl(Number(d.valor), money)}</td>
                 <td className="p-3">
                   <div className="flex justify-end gap-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Editar" onClick={() => editar(d)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Excluir" onClick={() => excluir(d)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title={t("Editar")} onClick={() => editar(d)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title={t("Excluir")} onClick={() => excluir(d)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 </td>
               </tr>
@@ -173,18 +175,18 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
         </table>
         {!carregando && !lista.length && (
           <p className="p-10 text-center text-sm text-muted-foreground">
-            Nenhuma despesa em {rotuloMes(mes)}. Lance as contas do mês ou copie as do mês anterior.
+            {t("Nenhuma despesa em {month}. Lance as contas do mês ou copie as do mês anterior.", { month: rotuloMes(mes, date) })}
           </p>
         )}
         {carregando && <div className="flex justify-center p-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
       </div>
       <p className="text-xs text-muted-foreground">
-        Aluguel e manutenção não precisam ser lançados: vêm do contrato da unidade e do custo dos chamados concluídos.
+        {t("Aluguel e manutenção não precisam ser lançados: vêm do contrato da unidade e do custo dos chamados concluídos.")}
       </p>
 
       <Dialog open={!!editando} onOpenChange={o => !o && setEditando(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader><DialogTitle>{editando?.id ? "Editar despesa" : "Lançar despesa"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editando?.id ? t("Editar despesa") : t("Lançar despesa")}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-1">
             <div className="grid grid-cols-2 gap-2">
               <Campo label="Categoria">
@@ -198,7 +200,7 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
             <div className="grid grid-cols-2 gap-2">
               <Campo label="Complexo">
                 <Select value={form.complexo_id || undefined} onValueChange={v => setForm((f: any) => ({ ...f, complexo_id: v, alojamento_id: COMPLEXO_TODO }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
                   <SelectContent>{complexos.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
                 </Select>
               </Campo>
@@ -206,24 +208,24 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
                 <Select value={form.alojamento_id} onValueChange={campo("alojamento_id")} disabled={!form.complexo_id}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={COMPLEXO_TODO}>Complexo inteiro (rateado)</SelectItem>
+                    <SelectItem value={COMPLEXO_TODO}>{t("Complexo inteiro (rateado)")}</SelectItem>
                     {unidades.filter(u => u.complexo_id === form.complexo_id).map(u => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </Campo>
             </div>
-            <Campo label="Descrição (opcional)"><Input value={form.descricao ?? ""} onChange={campo("descricao")} placeholder="Ex.: conta Compesa, 20 fardos de papel higiênico" /></Campo>
+            <Campo label="Descrição (opcional)"><Input value={form.descricao ?? ""} onChange={campo("descricao")} placeholder={t("Ex.: conta Compesa, 20 fardos de papel higiênico")} /></Campo>
             <div className="grid grid-cols-3 gap-2">
               <Campo label="Valor (R$)"><Input type="number" min="0" step="0.01" value={form.valor ?? ""} onChange={campo("valor")} /></Campo>
-              <Campo label="Consumo"><Input type="number" min="0" step="0.001" value={form.quantidade ?? ""} onChange={campo("quantidade")} placeholder="opcional" /></Campo>
+              <Campo label="Consumo"><Input type="number" min="0" step="0.001" value={form.quantidade ?? ""} onChange={campo("quantidade")} placeholder={t("opcional")} /></Campo>
               <Campo label="Medida"><Input value={form.unidade_medida ?? ""} onChange={campo("unidade_medida")} placeholder={CATEGORIA[form.categoria]?.medida ?? "un"} /></Campo>
             </div>
             <div className="grid grid-cols-3 gap-2">
               <Campo label="Fornecedor">
                 <Select value={form.fornecedor_id || "__sem_fornecedor"} onValueChange={v => setForm((f: any) => ({ ...f, fornecedor_id: v === "__sem_fornecedor" ? "" : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__sem_fornecedor">Não informado</SelectItem>
+                    <SelectItem value="__sem_fornecedor">{t("Não informado")}</SelectItem>
                     {fornecedores.filter(f => f.status === "ativo").map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -233,13 +235,13 @@ export function CustosAba({ complexos, unidades, abrirNovo, onMudou }: Props) {
             </div>
             {form.alojamento_id === COMPLEXO_TODO && (
               <p className="text-xs text-muted-foreground">
-                Conta única do complexo? Ela é dividida entre as unidades pelas diárias de cada uma no mês.
+                {t("Conta única do complexo? Ela é dividida entre as unidades pelas diárias de cada uma no mês.")}
               </p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditando(null)}>Cancelar</Button>
-            <Button onClick={salvar} disabled={salvando}>{salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar</Button>
+            <Button variant="outline" onClick={() => setEditando(null)}>{t("Cancelar")}</Button>
+            <Button onClick={salvar} disabled={salvando}>{salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("Salvar")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

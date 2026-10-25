@@ -15,6 +15,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import { useI18n } from "@/i18n";
 
 type RentalCompany = Database['public']['Tables']['rental_companies']['Row'];
 type RentalCompanyInsert = Database['public']['Tables']['rental_companies']['Insert'];
@@ -42,6 +43,7 @@ export const RentalCompanyFormModal = ({
   rentalCompany, 
   onSubmit 
 }: RentalCompanyFormModalProps) => {
+  const { t } = useI18n();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof rentalCompanyFormSchema>>({
@@ -108,9 +110,9 @@ export const RentalCompanyFormModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{rentalCompany ? "Editar Locadora" : "Nova Locadora"}</DialogTitle>
+          <DialogTitle>{rentalCompany ? t("Editar Locadora") : t("Nova Locadora")}</DialogTitle>
           <DialogDescription>
-            {rentalCompany ? "Edite as informações da locadora" : "Cadastre uma nova locadora"}
+            {rentalCompany ? t("Edite as informações da locadora") : t("Cadastre uma nova locadora")}
           </DialogDescription>
         </DialogHeader>
         
@@ -122,9 +124,9 @@ export const RentalCompanyFormModal = ({
                 name="nome"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome da Locadora</FormLabel>
+                    <FormLabel>{t("Nome da Locadora")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nome da empresa" {...field} />
+                      <Input placeholder={t("Nome da empresa")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -136,7 +138,7 @@ export const RentalCompanyFormModal = ({
                 name="cnpj"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CNPJ</FormLabel>
+                    <FormLabel>{t("CNPJ")}</FormLabel>
                     <FormControl>
                       <Input placeholder="00.000.000/0000-00" {...field} />
                     </FormControl>
@@ -150,7 +152,7 @@ export const RentalCompanyFormModal = ({
                 name="telefone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefone</FormLabel>
+                    <FormLabel>{t("Telefone")}</FormLabel>
                     <FormControl>
                       <Input placeholder="(11) 99999-9999" {...field} />
                     </FormControl>
@@ -164,7 +166,7 @@ export const RentalCompanyFormModal = ({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("Email")}</FormLabel>
                     <FormControl>
                       <Input placeholder="contato@locadora.com" {...field} />
                     </FormControl>
@@ -178,9 +180,9 @@ export const RentalCompanyFormModal = ({
                 name="contato_responsavel"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contato Responsável</FormLabel>
+                    <FormLabel>{t("Contato Responsável")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nome do responsável" {...field} />
+                      <Input placeholder={t("Nome do responsável")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -193,10 +195,10 @@ export const RentalCompanyFormModal = ({
               name="endereco"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Endereço</FormLabel>
+                  <FormLabel>{t("Endereço")}</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Endereço completo da locadora..."
+                      placeholder={t("Endereço completo da locadora...")}
                       className="resize-none"
                       {...field}
                     />
@@ -211,10 +213,10 @@ export const RentalCompanyFormModal = ({
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
+                  <FormLabel>{t("Observações")}</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Observações sobre a locadora..."
+                      placeholder={t("Observações sobre a locadora...")}
                       className="resize-none"
                       {...field}
                     />
@@ -226,10 +228,10 @@ export const RentalCompanyFormModal = ({
             
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : rentalCompany ? "Salvar" : "Cadastrar"}
+                {isSubmitting ? t("Salvando...") : rentalCompany ? t("Salvar") : t("Cadastrar")}
               </Button>
             </DialogFooter>
           </form>

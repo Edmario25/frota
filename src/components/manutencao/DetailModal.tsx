@@ -10,8 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useVehicles } from "@/hooks/useVehicles";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useI18n } from "@/i18n";
 import { 
   Calendar, 
   User, 
@@ -30,6 +29,7 @@ interface DetailModalProps {
 }
 
 export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) => {
+  const { t, date } = useI18n();
   const { vehicles } = useVehicles();
 
   if (!item) return null;
@@ -66,10 +66,10 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
           <Droplets className="h-6 w-6 text-blue-600 dark:text-blue-300" />
         </div>
         <div>
-          <h3 className="font-semibold text-lg">Registro de Lavagem</h3>
+          <h3 className="font-semibold text-lg">{t("Registro de Lavagem")}</h3>
           <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-            {item.tipo_lavagem === 'completa' ? 'Lavagem Completa' :
-             item.tipo_lavagem === 'interna' ? 'Lavagem Interna' : 'Lavagem Externa'}
+            {item.tipo_lavagem === 'completa' ? t("Lavagem Completa") :
+             item.tipo_lavagem === 'interna' ? t("Lavagem Interna") : t("Lavagem Externa")}
           </Badge>
         </div>
       </div>
@@ -78,19 +78,19 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
       {vehicleInfo && (
         <Card>
           <CardContent className="pt-6">
-            <h4 className="font-medium mb-3">Informações do Veículo</h4>
+            <h4 className="font-medium mb-3">{t("Informações do Veículo")}</h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium">Placa:</span> {vehicleInfo.placa}
+                <span className="font-medium">{t("Placa:")}</span> {vehicleInfo.placa}
               </div>
               <div>
-                <span className="font-medium">Modelo:</span> {vehicleInfo.modelo}
+                <span className="font-medium">{t("Modelo:")}</span> {vehicleInfo.modelo}
               </div>
               <div>
-                <span className="font-medium">Cor:</span> {vehicleInfo.cor || 'N/A'}
+                <span className="font-medium">{t("Cor:")}</span> {vehicleInfo.cor || t("N/A")}
               </div>
               <div>
-                <span className="font-medium">Ano:</span> {vehicleInfo.ano}
+                <span className="font-medium">{t("Ano:")}</span> {vehicleInfo.ano}
               </div>
             </div>
           </CardContent>
@@ -100,18 +100,18 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
       {/* Detalhes da Lavagem */}
       <Card>
         <CardContent className="pt-6">
-          <h4 className="font-medium mb-3">Detalhes da Lavagem</h4>
+          <h4 className="font-medium mb-3">{t("Detalhes da Lavagem")}</h4>
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Data da Lavagem:</span>
-              <span>{format(new Date(item.data_lavagem), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              <span className="font-medium">{t("Data da Lavagem:")}</span>
+              <span>{date(item.data_lavagem)}</span>
             </div>
             
             {item.responsavel_lavagem && (
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Responsável:</span>
+                <span className="font-medium">{t("Responsável:")}</span>
                 <span>{item.responsavel_lavagem}</span>
               </div>
             )}
@@ -120,7 +120,7 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
               <div className="space-y-2">
                 <div className="flex items-start gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <span className="font-medium">Observações:</span>
+                  <span className="font-medium">{t("Observações:")}</span>
                 </div>
                 <p className="text-muted-foreground pl-6">{item.observacoes}</p>
               </div>
@@ -135,25 +135,25 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
           <CardContent className="pt-6">
             <h4 className="font-medium mb-3 flex items-center gap-2">
               <Camera className="h-4 w-4" />
-              Fotos da Lavagem
+              {t("Fotos da Lavagem")}
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {item.foto_antes_url && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Antes da Lavagem</p>
+                  <p className="text-sm font-medium">{t("Antes da Lavagem")}</p>
                   <img 
                     src={getImageUrl(item.foto_antes_url) || item.foto_antes_url} 
-                    alt="Foto antes da lavagem"
+                    alt={t("Foto antes da lavagem")}
                     className="w-full h-48 object-cover rounded-lg border"
                   />
                 </div>
               )}
               {item.foto_depois_url && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Depois da Lavagem</p>
+                  <p className="text-sm font-medium">{t("Depois da Lavagem")}</p>
                   <img 
                     src={getImageUrl(item.foto_depois_url) || item.foto_depois_url}
-                    alt="Foto depois da lavagem"
+                    alt={t("Foto depois da lavagem")}
                     className="w-full h-48 object-cover rounded-lg border"
                   />
                 </div>
@@ -173,9 +173,9 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
           <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-300" />
         </div>
         <div>
-          <h3 className="font-semibold text-lg">Relatório de Avaria</h3>
+          <h3 className="font-semibold text-lg">{t("Relatório de Avaria")}</h3>
           <Badge variant="destructive">
-            Avaria Reportada
+            {t("Avaria Reportada")}
           </Badge>
         </div>
       </div>
@@ -184,19 +184,19 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
       {vehicleInfo && (
         <Card>
           <CardContent className="pt-6">
-            <h4 className="font-medium mb-3">Informações do Veículo</h4>
+            <h4 className="font-medium mb-3">{t("Informações do Veículo")}</h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="font-medium">Placa:</span> {vehicleInfo.placa}
+                <span className="font-medium">{t("Placa:")}</span> {vehicleInfo.placa}
               </div>
               <div>
-                <span className="font-medium">Modelo:</span> {vehicleInfo.modelo}
+                <span className="font-medium">{t("Modelo:")}</span> {vehicleInfo.modelo}
               </div>
               <div>
-                <span className="font-medium">Cor:</span> {vehicleInfo.cor || 'N/A'}
+                <span className="font-medium">{t("Cor:")}</span> {vehicleInfo.cor || t("N/A")}
               </div>
               <div>
-                <span className="font-medium">Ano:</span> {vehicleInfo.ano}
+                <span className="font-medium">{t("Ano:")}</span> {vehicleInfo.ano}
               </div>
             </div>
           </CardContent>
@@ -206,18 +206,18 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
       {/* Detalhes da Avaria */}
       <Card>
         <CardContent className="pt-6">
-          <h4 className="font-medium mb-3">Detalhes da Avaria</h4>
+          <h4 className="font-medium mb-3">{t("Detalhes da Avaria")}</h4>
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Data da Avaria:</span>
-              <span>{format(new Date(item.data_avaria), 'dd/MM/yyyy', { locale: ptBR })}</span>
+              <span className="font-medium">{t("Data da Avaria:")}</span>
+              <span>{date(item.data_avaria)}</span>
             </div>
             
             {item.local_ocorrencia && (
               <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <span className="font-medium">Local da Ocorrência:</span>
+                <span className="font-medium">{t("Local da Ocorrência:")}</span>
                 <span>{item.local_ocorrencia}</span>
               </div>
             )}
@@ -225,7 +225,7 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
             {item.responsavel_registro && (
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Registrado por:</span>
+                <span className="font-medium">{t("Registrado por:")}</span>
                 <span>{item.responsavel_registro}</span>
               </div>
             )}
@@ -233,7 +233,7 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
             <div className="space-y-2">
               <div className="flex items-start gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <span className="font-medium">Descrição da Avaria:</span>
+                <span className="font-medium">{t("Descrição da Avaria:")}</span>
               </div>
               <p className="text-muted-foreground pl-6">{item.descricao_avaria}</p>
             </div>
@@ -247,12 +247,12 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
           <CardContent className="pt-6">
             <h4 className="font-medium mb-3 flex items-center gap-2">
               <Camera className="h-4 w-4" />
-              Foto da Avaria
+              {t("Foto da Avaria")}
             </h4>
             <div className="max-w-md">
               <img 
                 src={getImageUrl(item.foto_url) || item.foto_url}
-                alt="Foto da avaria"
+                alt={t("Foto da avaria")}
                 className="w-full h-64 object-cover rounded-lg border"
               />
             </div>
@@ -267,10 +267,10 @@ export const DetailModal = ({ isOpen, onClose, item, type }: DetailModalProps) =
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {type === 'wash' ? 'Detalhes da Lavagem' : 'Detalhes da Avaria'}
+            {type === 'wash' ? t("Detalhes da Lavagem") : t("Detalhes da Avaria")}
           </DialogTitle>
           <DialogDescription>
-            Informações completas do registro {vehicleInfo ? `- ${vehicleInfo.placa}` : ''}
+            {t("Informações completas do registro")} {vehicleInfo ? `- ${vehicleInfo.placa}` : ''}
           </DialogDescription>
         </DialogHeader>
         

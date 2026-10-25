@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useFornecedores, Fornecedor } from "@/hooks/useFornecedores";
 import { formatCnpj, formatCpf, isValidCnpj, isValidCpf, onlyDigits } from "@/utils/documentValidation";
+import { useI18n } from "@/i18n";
 
 const formSchema = z.object({
   nome: z.string().trim().min(2, "Informe o nome do fornecedor"),
@@ -67,6 +68,7 @@ interface FornecedorFormModalProps {
   fornecedor?: Fornecedor | null;
 }
 
+// Only the stored value travels to the database; the label is translated when rendered.
 const TIPO_OPTIONS = [
   { value: "materiais", label: "Materiais" },
   { value: "servicos", label: "Serviços" },
@@ -93,6 +95,7 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
   onClose,
   fornecedor,
 }) => {
+  const { t } = useI18n();
   const { createFornecedor, updateFornecedor } = useFornecedores();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -185,7 +188,7 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {fornecedor ? "Editar Fornecedor" : "Novo Fornecedor"}
+            {fornecedor ? t("Editar Fornecedor") : t("Novo Fornecedor")}
           </DialogTitle>
         </DialogHeader>
 
@@ -196,9 +199,9 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
               name="nome"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome *</FormLabel>
+                  <FormLabel>{t("Nome")} *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nome do fornecedor" {...field} />
+                    <Input placeholder={t("Nome do fornecedor")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -211,7 +214,7 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                 name="cnpj"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CNPJ</FormLabel>
+                    <FormLabel>{t("CNPJ")}</FormLabel>
                     <FormControl>
                       <Input placeholder="00.000.000/0000-00" {...field} onChange={e => field.onChange(formatCnpj(e.target.value))} />
                     </FormControl>
@@ -225,7 +228,7 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                 name="cpf"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>CPF</FormLabel>
+                    <FormLabel>{t("CPF")}</FormLabel>
                     <FormControl>
                       <Input placeholder="000.000.000-00" {...field} onChange={e => field.onChange(formatCpf(e.target.value))} />
                     </FormControl>
@@ -241,17 +244,17 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                 name="tipo_fornecedor"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo *</FormLabel>
+                    <FormLabel>{t("Tipo")} *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo" />
+                          <SelectValue placeholder={t("Selecione o tipo")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {TIPO_OPTIONS.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                            {t(option.label)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -266,17 +269,17 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status *</FormLabel>
+                    <FormLabel>{t("Status")} *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o status" />
+                          <SelectValue placeholder={t("Selecione o status")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {STATUS_OPTIONS.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
-                            {option.label}
+                            {t(option.label)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -293,7 +296,7 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                 name="telefone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefone</FormLabel>
+                    <FormLabel>{t("Telefone")}</FormLabel>
                     <FormControl>
                       <Input placeholder="(00) 00000-0000" {...field} />
                     </FormControl>
@@ -307,9 +310,9 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("Email")}</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="email@exemplo.com" {...field} />
+                      <Input type="email" placeholder={t("email@exemplo.com")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -322,9 +325,9 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
               name="endereco"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Endereço</FormLabel>
+                  <FormLabel>{t("Endereço")}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Rua, número, bairro" {...field} />
+                    <Input placeholder={t("Rua, número, bairro")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -337,9 +340,9 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                 name="cidade"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cidade</FormLabel>
+                    <FormLabel>{t("Cidade")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nome da cidade" {...field} />
+                      <Input placeholder={t("Nome da cidade")} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -351,11 +354,11 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
                 name="estado"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Estado</FormLabel>
+                    <FormLabel>{t("Estado")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione" />
+                          <SelectValue placeholder={t("Selecione")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -377,9 +380,9 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
               name="categoria"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Categoria</FormLabel>
+                  <FormLabel>{t("Categoria")}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Categoria específica (opcional)" {...field} />
+                    <Input placeholder={t("Categoria específica (opcional)")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -391,10 +394,10 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
               name="observacoes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
+                  <FormLabel>{t("Observações")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Observações adicionais..."
+                      placeholder={t("Observações adicionais...")}
                       className="resize-none"
                       rows={3}
                       {...field}
@@ -407,10 +410,10 @@ export const FornecedorFormModal: React.FC<FornecedorFormModalProps> = ({
 
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Cancelar
+                {t("Cancelar")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : fornecedor ? "Salvar" : "Cadastrar"}
+                {isSubmitting ? t("Salvando...") : fornecedor ? t("Salvar") : t("Cadastrar")}
               </Button>
             </div>
           </form>

@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +31,7 @@ import { useTireServices } from "@/hooks/useTireServices";
 import { useDamageReports } from "@/hooks/useDamageReports";
 import { useTrafficFines } from "@/hooks/useTrafficFines";
 import { useHeavyVehicleInspections } from "@/hooks/useHeavyVehicleInspections";
+import { useI18n } from "@/i18n";
 import { useWashRecords } from "@/hooks/useWashRecords";
 import { useFuelLogs } from "@/hooks/useFuelLogs";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -90,6 +89,7 @@ export function HeavyVehicleDetailModal({
   const { washRecords, createWashRecord, updateWashRecord, deleteWashRecord } = useWashRecords();
   const { fuelLogs, createFuelLog, updateFuelLog, deleteFuelLog } = useFuelLogs();
   const { employees: hookEmployees } = useEmployees();
+  const { t, number, money, date } = useI18n();
   
   const employees = propEmployees.length > 0 ? propEmployees : hookEmployees;
 
@@ -194,31 +194,31 @@ export function HeavyVehicleDetailModal({
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Truck className="h-4 w-4" />
-            Informações do Veículo
+            {t("Informações do Veículo")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Placa</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("Placa")}</label>
               <p className="text-sm font-semibold">{vehicle.placa}</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Marca/Modelo</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("Marca/Modelo")}</label>
               <p className="text-sm">{vehicle.marca} {vehicle.modelo}</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Ano</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("Ano")}</label>
               <p className="text-sm">{vehicle.ano}</p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Cor</label>
-              <p className="text-sm">{vehicle.cor || 'Não informado'}</p>
+              <label className="text-xs font-medium text-muted-foreground">{t("Cor")}</label>
+              <p className="text-sm">{vehicle.cor || t("Não informado")}</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("Status")}</label>
               <div className="mt-1">
                 <Badge className={getVehicleStatusSoftClass(vehicle.status || 'disponivel')}>
                   {getVehicleStatusText(vehicle.status || 'disponivel')}
@@ -226,7 +226,7 @@ export function HeavyVehicleDetailModal({
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Propriedade</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("Propriedade")}</label>
               <p className="text-sm">{getPropertyTypeText(vehicle.tipo_propriedade || 'proprio')}</p>
             </div>
           </div>
@@ -235,24 +235,24 @@ export function HeavyVehicleDetailModal({
               <>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                    <Timer className="h-3 w-3" /> Horímetro Atual
+                    <Timer className="h-3 w-3" /> {t("Horímetro Atual")}
                   </label>
-                  <p className="text-2xl font-bold">{((vehicle as any).horimetro_atual ?? 0).toLocaleString()} h</p>
+                  <p className="text-2xl font-bold">{number((vehicle as any).horimetro_atual ?? 0)} {t("h")}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Limite / Mês</label>
-                  <p className="text-lg">{((vehicle as any).limite_horimetro_mensal ?? 250).toLocaleString()} h</p>
+                  <label className="text-xs font-medium text-muted-foreground">{t("Limite / Mês")}</label>
+                  <p className="text-lg">{number((vehicle as any).limite_horimetro_mensal ?? 250)} {t("h")}</p>
                 </div>
               </>
             ) : (
               <>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Quilometragem Atual</label>
-                  <p className="text-2xl font-bold">{(vehicle.quilometragem_atual ?? 0).toLocaleString()} km</p>
+                  <label className="text-xs font-medium text-muted-foreground">{t("Quilometragem Atual")}</label>
+                  <p className="text-2xl font-bold">{number(vehicle.quilometragem_atual ?? 0)} km</p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Limite KM / Mês</label>
-                  <p className="text-lg">{(vehicle.quilometragem_maxima_mensal ?? 0).toLocaleString()} km</p>
+                  <label className="text-xs font-medium text-muted-foreground">{t("Limite KM / Mês")}</label>
+                  <p className="text-lg">{number(vehicle.quilometragem_maxima_mensal ?? 0)} km</p>
                 </div>
               </>
             )}
@@ -266,7 +266,7 @@ export function HeavyVehicleDetailModal({
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <User className="h-4 w-4" />
-              Responsável
+              {t("Responsável")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -276,7 +276,7 @@ export function HeavyVehicleDetailModal({
                 <p className="text-xs text-muted-foreground">{responsibleEmployee.email}</p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Não atribuído</p>
+              <p className="text-sm text-muted-foreground">{t("Não atribuído")}</p>
             )}
           </CardContent>
         </Card>
@@ -286,7 +286,7 @@ export function HeavyVehicleDetailModal({
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Building className="h-4 w-4" />
-                Locadora
+                {t("Locadora")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -296,7 +296,7 @@ export function HeavyVehicleDetailModal({
                   <p className="text-xs text-muted-foreground">{rentalCompany.telefone}</p>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Não vinculada</p>
+                <p className="text-sm text-muted-foreground">{t("Não vinculada")}</p>
               )}
             </CardContent>
           </Card>
@@ -310,17 +310,17 @@ export function HeavyVehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedMaintenance(null); setIsMaintenanceModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Nova Manutenção
+          {t("Nova Manutenção")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Data</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Tipo")}</TableHead>
+            <TableHead>{t("Descrição")}</TableHead>
+            <TableHead>{t("Status")}</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -329,7 +329,7 @@ export function HeavyVehicleDetailModal({
               <TableCell><Badge variant="outline">{record.tipo}</Badge></TableCell>
               <TableCell className="max-w-[150px] truncate">{record.descricao}</TableCell>
               <TableCell>{getMaintenanceStatusBadge(record.status)}</TableCell>
-              <TableCell>{format(new Date(record.data_agendada), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(record.data_agendada, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -339,14 +339,14 @@ export function HeavyVehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedMaintenance(record); setIsMaintenanceDetailModalOpen(true); }}>
-                      <Eye className="h-4 w-4 mr-2" />Ver
+                      <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelectedMaintenance(record); setIsMaintenanceModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => deleteMaintenanceRecord(record.id)} className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />Excluir
+                      <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -356,7 +356,7 @@ export function HeavyVehicleDetailModal({
           {vehicleMaintenanceRecords.length === 0 && (
             <TableRow>
               <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                Nenhuma manutenção registrada
+                {t("Nenhuma manutenção registrada")}
               </TableCell>
             </TableRow>
           )}
@@ -370,16 +370,16 @@ export function HeavyVehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedAccessory(null); setIsAccessoryFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Novo Acessório
+          {t("Novo Acessório")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Fornecedor</TableHead>
-            <TableHead>Data Instalação</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Tipo")}</TableHead>
+            <TableHead>{t("Fornecedor")}</TableHead>
+            <TableHead>{t("Data Instalação")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -387,7 +387,7 @@ export function HeavyVehicleDetailModal({
             <TableRow key={accessory.id}>
               <TableCell>{accessory.tipo_acessorio}</TableCell>
               <TableCell>{accessory.fornecedor_empresa || '-'}</TableCell>
-              <TableCell>{accessory.data_instalacao ? format(new Date(accessory.data_instalacao), 'dd/MM/yy', { locale: ptBR }) : '-'}</TableCell>
+              <TableCell>{accessory.data_instalacao ? date(accessory.data_instalacao, { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'}</TableCell>
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -397,14 +397,14 @@ export function HeavyVehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedAccessory(accessory); setIsAccessoryDetailModalOpen(true); }}>
-                      <Eye className="h-4 w-4 mr-2" />Ver
+                      <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelectedAccessory(accessory); setIsAccessoryFormModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => deleteAccessory(accessory.id)} className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />Excluir
+                      <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -414,7 +414,7 @@ export function HeavyVehicleDetailModal({
           {vehicleAccessories.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhum acessório registrado
+                {t("Nenhum acessório registrado")}
               </TableCell>
             </TableRow>
           )}
@@ -428,22 +428,22 @@ export function HeavyVehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedSmokeTest(null); setIsSmokeTestFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Novo Teste
+          {t("Novo Teste")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Condutor</TableHead>
-            <TableHead>Resultado</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Condutor")}</TableHead>
+            <TableHead>{t("Resultado")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleSmokeTests.map((test) => (
             <TableRow key={test.id}>
-              <TableCell>{format(new Date(test.data_afericao), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(test.data_afericao, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell>{test.condutor}</TableCell>
               <TableCell>
                 <Badge variant={test.resultado === 'Aprovado' ? 'default' : 'destructive'}>
@@ -459,14 +459,14 @@ export function HeavyVehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedSmokeTest(test); setIsSmokeTestDetailModalOpen(true); }}>
-                      <Eye className="h-4 w-4 mr-2" />Ver
+                      <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelectedSmokeTest(test); setIsSmokeTestFormModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => deleteSmokeTest(test.id)} className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />Excluir
+                      <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -476,7 +476,7 @@ export function HeavyVehicleDetailModal({
           {vehicleSmokeTests.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhum teste registrado
+                {t("Nenhum teste registrado")}
               </TableCell>
             </TableRow>
           )}
@@ -490,22 +490,22 @@ export function HeavyVehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedChecklist(null); setIsChecklistFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Nova Inspeção
+          {t("Nova Inspeção")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Inspetor</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Inspetor")}</TableHead>
+            <TableHead>{t("Status")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleInspections.map((inspection) => (
             <TableRow key={inspection.id}>
-              <TableCell>{format(new Date(inspection.data_inspecao), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(inspection.data_inspecao, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell>{inspection.inspetor_nome}</TableCell>
               <TableCell>
                 <Badge variant={inspection.status_geral === 'aprovado' ? 'default' : inspection.status_geral === 'reprovado' ? 'destructive' : 'secondary'}>
@@ -521,14 +521,14 @@ export function HeavyVehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedChecklist(inspection); setIsChecklistDetailModalOpen(true); }}>
-                      <Eye className="h-4 w-4 mr-2" />Ver
+                      <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelectedChecklist(inspection); setIsChecklistFormModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => deleteInspection(inspection.id)} className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />Excluir
+                      <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -538,7 +538,7 @@ export function HeavyVehicleDetailModal({
           {vehicleInspections.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhuma inspeção registrada
+                {t("Nenhuma inspeção registrada")}
               </TableCell>
             </TableRow>
           )}
@@ -552,22 +552,22 @@ export function HeavyVehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedTireService(null); setIsTireServiceFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Novo Serviço
+          {t("Novo Serviço")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Qtd Pneus</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Tipo")}</TableHead>
+            <TableHead>{t("Qtd Pneus")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleTireServices.map((service) => (
             <TableRow key={service.id}>
-              <TableCell>{format(new Date(service.data_servico), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(service.data_servico, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell>{service.tipo_servico}</TableCell>
               <TableCell>{service.quantidade_pneus || '-'}</TableCell>
               <TableCell>
@@ -579,14 +579,14 @@ export function HeavyVehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedTireService(service); setIsTireServiceDetailModalOpen(true); }}>
-                      <Eye className="h-4 w-4 mr-2" />Ver
+                      <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelectedTireService(service); setIsTireServiceFormModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => deleteTireService(service.id)} className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />Excluir
+                      <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -596,7 +596,7 @@ export function HeavyVehicleDetailModal({
           {vehicleTireServices.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhum serviço registrado
+                {t("Nenhum serviço registrado")}
               </TableCell>
             </TableRow>
           )}
@@ -610,28 +610,28 @@ export function HeavyVehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedTrafficFine(null); setIsTrafficFineFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Nova Multa
+          {t("Nova Multa")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Valor</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Tipo")}</TableHead>
+            <TableHead>{t("Valor")}</TableHead>
+            <TableHead>{t("Status")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleTrafficFines.map((fine) => (
             <TableRow key={fine.id}>
-              <TableCell>{format(new Date(fine.data_multa), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(fine.data_multa, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell>{fine.tipo_infracao}</TableCell>
-              <TableCell>R$ {Number(fine.valor).toFixed(2)}</TableCell>
+              <TableCell>{money(Number(fine.valor))}</TableCell>
               <TableCell>
                 <Badge variant={fine.situacao === 'paga' ? 'default' : 'destructive'}>
-                  {fine.situacao === 'paga' ? 'Paga' : 'Pendente'}
+                  {fine.situacao === 'paga' ? t("Paga") : t("Pendente")}
                 </Badge>
               </TableCell>
               <TableCell>
@@ -643,14 +643,14 @@ export function HeavyVehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedTrafficFine(fine); setIsTrafficFineDetailModalOpen(true); }}>
-                      <Eye className="h-4 w-4 mr-2" />Ver
+                      <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelectedTrafficFine(fine); setIsTrafficFineFormModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => deleteTrafficFine(fine.id)} className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />Excluir
+                      <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -660,7 +660,7 @@ export function HeavyVehicleDetailModal({
           {vehicleTrafficFines.length === 0 && (
             <TableRow>
               <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                Nenhuma multa registrada
+                {t("Nenhuma multa registrada")}
               </TableCell>
             </TableRow>
           )}
@@ -674,22 +674,22 @@ export function HeavyVehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedDamageReport(null); setIsDamageReportModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Nova Avaria
+          {t("Nova Avaria")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Local</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Descrição")}</TableHead>
+            <TableHead>{t("Local")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleDamageReports.map((report) => (
             <TableRow key={report.id}>
-              <TableCell>{format(new Date(report.data_avaria), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(report.data_avaria, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell className="max-w-[150px] truncate">{report.descricao_avaria}</TableCell>
               <TableCell>{report.local_ocorrencia || '-'}</TableCell>
               <TableCell>
@@ -701,11 +701,11 @@ export function HeavyVehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedDamageReport(report); setIsDamageReportModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => deleteDamageReport(report.id)} className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />Excluir
+                      <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -715,7 +715,7 @@ export function HeavyVehicleDetailModal({
           {vehicleDamageReports.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhuma avaria registrada
+                {t("Nenhuma avaria registrada")}
               </TableCell>
             </TableRow>
           )}
@@ -735,30 +735,30 @@ export function HeavyVehicleDetailModal({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">
-            {lavagensMes} / {limite} lavagens este mês
-            {limiteAtingido && <span className="ml-2 text-destructive font-medium">⚠ Limite atingido</span>}
+            {lavagensMes} / {limite} {t("lavagens este mês")}
+            {limiteAtingido && <span className="ml-2 text-destructive font-medium">{t("⚠ Limite atingido")}</span>}
           </span>
           <Button size="sm" onClick={() => { setSelectedWash(null); setIsWashFormModalOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" />Registrar Lavagem
+            <Plus className="h-4 w-4 mr-1" />{t("Registrar Lavagem")}
           </Button>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Fornecedor</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead className="w-[80px]">Ações</TableHead>
+              <TableHead>{t("Data")}</TableHead>
+              <TableHead>{t("Tipo")}</TableHead>
+              <TableHead>{t("Fornecedor")}</TableHead>
+              <TableHead>{t("Valor")}</TableHead>
+              <TableHead className="w-[80px]">{t("Ações")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {vehicleWashRecords.map((record) => (
               <TableRow key={record.id}>
-                <TableCell>{format(new Date(record.data_lavagem), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+                <TableCell>{date(record.data_lavagem, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
                 <TableCell className="capitalize">{record.tipo_lavagem}</TableCell>
                 <TableCell>{(record as any).fornecedor || record.responsavel_lavagem || '-'}</TableCell>
-                <TableCell>{(record as any).valor ? `R$ ${Number((record as any).valor).toFixed(2)}` : '-'}</TableCell>
+                <TableCell>{(record as any).valor ? money(Number((record as any).valor)) : '-'}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-7 w-7"
@@ -776,7 +776,7 @@ export function HeavyVehicleDetailModal({
             {vehicleWashRecords.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                  Nenhuma lavagem registrada
+                  {t("Nenhuma lavagem registrada")}
                 </TableCell>
               </TableRow>
             )}
@@ -797,43 +797,43 @@ export function HeavyVehicleDetailModal({
         {vehicleFuelLogs.length > 0 && (
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md border px-3 py-2">
-              <p className="text-xs text-muted-foreground">Total Litros</p>
-              <p className="text-lg font-bold">{totalLitros.toFixed(1)} L</p>
+              <p className="text-xs text-muted-foreground">{t("Total Litros")}</p>
+              <p className="text-lg font-bold">{number(totalLitros, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L</p>
             </div>
             <div className="rounded-md border px-3 py-2">
-              <p className="text-xs text-muted-foreground">Total Gasto</p>
-              <p className="text-lg font-bold">R$ {totalGasto.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground">{t("Total Gasto")}</p>
+              <p className="text-lg font-bold">{money(totalGasto)}</p>
             </div>
           </div>
         )}
         <div className="flex justify-end">
           <Button size="sm" onClick={() => { setSelectedFuelLog(null); setIsFuelFormModalOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" />Registrar Abastecimento
+            <Plus className="h-4 w-4 mr-1" />{t("Registrar Abastecimento")}
           </Button>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Combustível</TableHead>
-              <TableHead>Litros</TableHead>
+              <TableHead>{t("Data")}</TableHead>
+              <TableHead>{t("Combustível")}</TableHead>
+              <TableHead>{t("Litros")}</TableHead>
               <TableHead>R$/L</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>{tipoMedicao === 'km' ? 'KM' : 'Horímetro'}</TableHead>
-              <TableHead className="w-[80px]">Ações</TableHead>
+              <TableHead>{t("Total")}</TableHead>
+              <TableHead>{tipoMedicao === 'km' ? t("KM") : t("Horímetro")}</TableHead>
+              <TableHead className="w-[80px]">{t("Ações")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {vehicleFuelLogs.map((log) => (
               <TableRow key={log.id}>
-                <TableCell>{format(new Date(log.data_abastecimento), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+                <TableCell>{date(log.data_abastecimento, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
                 <TableCell className="capitalize">{log.tipo_combustivel || '-'}</TableCell>
-                <TableCell>{log.litros?.toFixed(1)} L</TableCell>
-                <TableCell>R$ {log.valor_litro?.toFixed(3)}</TableCell>
-                <TableCell className="font-medium">R$ {(log.valor_total || 0).toFixed(2)}</TableCell>
+                <TableCell>{number(log.litros ?? 0, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L</TableCell>
+                <TableCell>R$ {number(log.valor_litro ?? 0, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
+                <TableCell className="font-medium">{money(log.valor_total || 0)}</TableCell>
                 <TableCell>
                   {tipoMedicao === 'km'
-                    ? (log.km_no_abastecimento ? `${log.km_no_abastecimento.toLocaleString()} km` : '-')
+                    ? (log.km_no_abastecimento ? `${number(log.km_no_abastecimento)} km` : '-')
                     : (log.horimetro_no_abastecimento ? `${log.horimetro_no_abastecimento} h` : '-')
                   }
                 </TableCell>
@@ -854,7 +854,7 @@ export function HeavyVehicleDetailModal({
             {vehicleFuelLogs.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                  Nenhum abastecimento registrado
+                  {t("Nenhum abastecimento registrado")}
                 </TableCell>
               </TableRow>
             )}
@@ -876,6 +876,7 @@ export function HeavyVehicleDetailModal({
       .reduce((sum, m) => sum + ((m.custo as number) || 0), 0);
     const aluguel = (vehicle as any).valor_aluguel_mensal || 0;
     const total = combustivelMes + lavagensMes + manutencaoMes + aluguel;
+    // Labels are the Portuguese catalog keys; they are translated when rendered.
     const itens = [
       { label: "Aluguel / Depreciação", valor: aluguel, Icon: Truck },
       { label: "Combustível (mês atual)", valor: combustivelMes, Icon: Fuel },
@@ -885,28 +886,28 @@ export function HeavyVehicleDetailModal({
     return (
       <div className="space-y-4">
         <p className="text-xs text-muted-foreground">
-          Custos do mês: <strong>{now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</strong>
+          {t("Custos do mês:")} <strong>{date(now, { month: 'long', year: 'numeric' })}</strong>
         </p>
         <div className="space-y-2">
           {itens.map((item) => (
             <div key={item.label} className="flex items-center justify-between rounded-md border px-4 py-3">
               <div className="flex items-center gap-3">
                 <item.Icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{item.label}</span>
+                <span className="text-sm">{t(item.label)}</span>
               </div>
-              <span className="font-semibold">R$ {item.valor.toFixed(2)}</span>
+              <span className="font-semibold">{money(item.valor)}</span>
             </div>
           ))}
         </div>
         <div className="flex items-center justify-between rounded-md bg-primary/5 border border-primary/20 px-4 py-3">
           <div className="flex items-center gap-3">
             <TrendingUp className="h-4 w-4 text-primary" />
-            <span className="font-semibold">Custo Total do Mês</span>
+            <span className="font-semibold">{t("Custo Total do Mês")}</span>
           </div>
-          <span className="text-lg font-bold text-primary">R$ {total.toFixed(2)}</span>
+          <span className="text-lg font-bold text-primary">{money(total)}</span>
         </div>
         <p className="text-xs text-muted-foreground italic">
-          * Para equipamentos próprios, inclua um valor de depreciação/custo operacional no cadastro.
+          * {t("Para equipamentos próprios, inclua um valor de depreciação/custo operacional no cadastro.")}
         </p>
       </div>
     );
@@ -925,17 +926,17 @@ export function HeavyVehicleDetailModal({
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="flex flex-wrap gap-0.5 h-auto w-full">
-              <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
-              <TabsTrigger value="maintenance" className="text-xs">Manutenção</TabsTrigger>
-              <TabsTrigger value="wash" className="text-xs">Lavagens</TabsTrigger>
-              <TabsTrigger value="fuel" className="text-xs">Combustível</TabsTrigger>
-              <TabsTrigger value="cost-center" className="text-xs">Custo/Mês</TabsTrigger>
-              <TabsTrigger value="accessories" className="text-xs">Acessórios</TabsTrigger>
-              <TabsTrigger value="damage" className="text-xs">Avarias</TabsTrigger>
-              <TabsTrigger value="smoke-test" className="text-xs">Fumaça</TabsTrigger>
-              <TabsTrigger value="checklist" className="text-xs">Inspeção</TabsTrigger>
-              <TabsTrigger value="tire-service" className="text-xs">Borracharia</TabsTrigger>
-              <TabsTrigger value="fines" className="text-xs">Multas</TabsTrigger>
+              <TabsTrigger value="info" className="text-xs">{t("Info")}</TabsTrigger>
+              <TabsTrigger value="maintenance" className="text-xs">{t("Manutenção")}</TabsTrigger>
+              <TabsTrigger value="wash" className="text-xs">{t("Lavagens")}</TabsTrigger>
+              <TabsTrigger value="fuel" className="text-xs">{t("Combustível")}</TabsTrigger>
+              <TabsTrigger value="cost-center" className="text-xs">{t("Custo/Mês")}</TabsTrigger>
+              <TabsTrigger value="accessories" className="text-xs">{t("Acessórios")}</TabsTrigger>
+              <TabsTrigger value="damage" className="text-xs">{t("Avarias")}</TabsTrigger>
+              <TabsTrigger value="smoke-test" className="text-xs">{t("Fumaça")}</TabsTrigger>
+              <TabsTrigger value="checklist" className="text-xs">{t("Inspeção")}</TabsTrigger>
+              <TabsTrigger value="tire-service" className="text-xs">{t("Borracharia")}</TabsTrigger>
+              <TabsTrigger value="fines" className="text-xs">{t("Multas")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="info" className="mt-4">{renderInfoTab()}</TabsContent>

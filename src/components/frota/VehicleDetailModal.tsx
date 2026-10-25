@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +58,7 @@ import {
   getMaintenanceStatusText,
 } from "@/lib/statusHelpers";
 import type { Database } from "@/integrations/supabase/types";
+import { useI18n } from "@/i18n";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
@@ -83,12 +82,13 @@ export function VehicleDetailModal({
   rentalCompanies = [],
   isEmployeeMode = false,
 }: VehicleDetailModalProps) {
+  const { t, number, money, date } = useI18n();
   const [cycleInfo, setCycleInfo] = useState<KmCycleInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
   
   // Data hooks
-  const { getCurrentCycle, getKmProgressColor, formatCycleDate, getDaysText } = useVehicleKmCycles();
+  const { getCurrentCycle, getKmProgressColor } = useVehicleKmCycles();
   const { maintenanceRecords, deleteMaintenanceRecord, updateMaintenanceRecord } = useMaintenance();
   const { accessories, deleteAccessory } = useVehicleAccessories();
   const { smokeTests, deleteSmokeTest } = useSmokeTests();
@@ -212,7 +212,14 @@ export function VehicleDetailModal({
   const rentalCompany = rentalCompanies.find(company => company.id === vehicle.rental_company_id);
 
   const getMaintenanceStatusBadge = (status: string) =>
-    <Badge className={getMaintenanceStatusColor(status)}>{getMaintenanceStatusText(status)}</Badge>;
+    <Badge className={getMaintenanceStatusColor(status)}>{t(getMaintenanceStatusText(status))}</Badge>;
+
+  const daysText = (days: number) => {
+    if (days < 0) return t("Ciclo expirado");
+    if (days === 0) return t("Último dia");
+    if (days === 1) return t("1 dia restante");
+    return t("{count} dias restantes", { count: number(days) });
+  };
 
   const renderInfoTab = () => (
     <div className="space-y-4">
@@ -221,40 +228,40 @@ export function VehicleDetailModal({
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Car className="h-4 w-4" />
-            Informações do Veículo
+            {t("Informações do Veículo")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Placa</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("Placa")}</label>
               <p className="text-sm font-semibold">{vehicle.placa}</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Marca/Modelo</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("Marca/Modelo")}</label>
               <p className="text-sm">{vehicle.marca} {vehicle.modelo}</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Ano</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("Ano")}</label>
               <p className="text-sm">{vehicle.ano}</p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Cor</label>
-              <p className="text-sm">{vehicle.cor || 'Não informado'}</p>
+              <label className="text-xs font-medium text-muted-foreground">{t("Cor")}</label>
+              <p className="text-sm">{vehicle.cor || t("Não informado")}</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <label className="text-xs font-medium text-muted-foreground">{t("Status")}</label>
               <div className="mt-1">
                 <Badge className={getVehicleStatusSoftClass(vehicle.status || 'disponivel')}>
-                  {getVehicleStatusText(vehicle.status || 'disponivel')}
+                  {t(getVehicleStatusText(vehicle.status || 'disponivel'))}
                 </Badge>
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">Propriedade</label>
-              <p className="text-sm">{getPropertyTypeText(vehicle.tipo_propriedade || 'proprio')}</p>
+              <label className="text-xs font-medium text-muted-foreground">{t("Propriedade")}</label>
+              <p className="text-sm">{t(getPropertyTypeText(vehicle.tipo_propriedade || 'proprio'))}</p>
             </div>
           </div>
         </CardContent>
@@ -265,7 +272,7 @@ export function VehicleDetailModal({
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <MapPin className="h-4 w-4" />
-            Quilometragem
+            {t("Quilometragem")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -276,34 +283,34 @@ export function VehicleDetailModal({
               {/* Quilometragem atual — sempre visível e sempre atualizada */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Quilometragem Atual</label>
-                  <p className="text-2xl font-bold">{(vehicle.quilometragem_atual ?? 0).toLocaleString()} km</p>
+                  <label className="text-xs font-medium text-muted-foreground">{t("Quilometragem Atual")}</label>
+                  <p className="text-2xl font-bold">{number(vehicle.quilometragem_atual ?? 0)} km</p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Limite Mensal</label>
-                  <p className="text-lg">{(vehicle.quilometragem_maxima_mensal ?? 0).toLocaleString()} km</p>
+                  <label className="text-xs font-medium text-muted-foreground">{t("Limite Mensal")}</label>
+                  <p className="text-lg">{number(vehicle.quilometragem_maxima_mensal ?? 0)} km</p>
                 </div>
               </div>
 
               {/* Ciclo mensal — exibido apenas quando existir */}
               {cycleInfo ? (
                 <div className="border rounded-md p-3 space-y-2 bg-muted/30">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ciclo Mensal Ativo</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("Ciclo Mensal Ativo")}</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-muted-foreground">KM Rodados no Ciclo</label>
-                      <p className="text-sm font-medium">{cycleInfo.km_rodados.toLocaleString()} km</p>
+                      <label className="text-xs text-muted-foreground">{t("KM Rodados no Ciclo")}</label>
+                      <p className="text-sm font-medium">{number(cycleInfo.km_rodados)} km</p>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground">Prazo</label>
-                      <p className="text-sm font-medium">{getDaysText(cycleInfo.days_remaining)}</p>
+                      <label className="text-xs text-muted-foreground">{t("Prazo")}</label>
+                      <p className="text-sm font-medium">{daysText(cycleInfo.days_remaining)}</p>
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between items-center text-xs mb-1">
-                      <span>Progresso: {cycleInfo.percentage_used.toFixed(1)}%</span>
+                      <span>{t("Progresso:")} {number(cycleInfo.percentage_used, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
                       <span className="text-muted-foreground">
-                        {formatCycleDate(cycleInfo.cycle_start_date)} → {formatCycleDate(cycleInfo.cycle_end_date)}
+                        {date(cycleInfo.cycle_start_date)} → {date(cycleInfo.cycle_end_date)}
                       </span>
                     </div>
                     <div className="w-full bg-secondary rounded-full h-2">
@@ -317,7 +324,7 @@ export function VehicleDetailModal({
               ) : (
                 <div className="rounded-md border border-dashed px-4 py-3 bg-muted/30 text-center">
                   <p className="text-xs text-muted-foreground">
-                    Nenhum ciclo ativo — o ciclo é criado automaticamente na data de cadastro do veículo.
+                    {t("Nenhum ciclo ativo — o ciclo é criado automaticamente na data de cadastro do veículo.")}
                   </p>
                 </div>
               )}
@@ -332,7 +339,7 @@ export function VehicleDetailModal({
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <User className="h-4 w-4" />
-              Responsável
+              {t("Responsável")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -342,7 +349,7 @@ export function VehicleDetailModal({
                 <p className="text-xs text-muted-foreground">{responsibleEmployee.email}</p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Não atribuído</p>
+              <p className="text-sm text-muted-foreground">{t("Não atribuído")}</p>
             )}
           </CardContent>
         </Card>
@@ -352,7 +359,7 @@ export function VehicleDetailModal({
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Building className="h-4 w-4" />
-                Locadora
+                {t("Locadora")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -362,7 +369,7 @@ export function VehicleDetailModal({
                   <p className="text-xs text-muted-foreground">{rentalCompany.telefone}</p>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Não vinculada</p>
+                <p className="text-sm text-muted-foreground">{t("Não vinculada")}</p>
               )}
             </CardContent>
           </Card>
@@ -379,18 +386,18 @@ export function VehicleDetailModal({
           <div className="flex justify-end">
             <Button size="sm" onClick={() => { setSelectedMaintenance(null); setIsMaintenanceModalOpen(true); }}>
               <Plus className="h-4 w-4 mr-1" />
-              Nova Manutenção
+              {t("Nova Manutenção")}
             </Button>
           </div>
         )}
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead className="w-[120px]">Ações</TableHead>
+              <TableHead>{t("Tipo")}</TableHead>
+              <TableHead>{t("Descrição")}</TableHead>
+              <TableHead>{t("Status")}</TableHead>
+              <TableHead>{t("Data")}</TableHead>
+              <TableHead className="w-[120px]">{t("Ações")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -399,7 +406,7 @@ export function VehicleDetailModal({
                 <TableCell><Badge variant="outline">{record.tipo}</Badge></TableCell>
                 <TableCell className="max-w-[150px] truncate">{record.descricao}</TableCell>
                 <TableCell>{getMaintenanceStatusBadge(record.status)}</TableCell>
-                <TableCell>{format(new Date(record.data_agendada), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+                <TableCell>{date(record.data_agendada, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
                 <TableCell>
                   {isEmployeeMode ? (
                     <div className="flex flex-wrap gap-1">
@@ -407,21 +414,21 @@ export function VehicleDetailModal({
                         <Button size="sm" variant="outline"
                           className="h-7 px-2 text-xs gap-1 text-amber-700 border-amber-300 hover:bg-amber-50"
                           onClick={() => updateMaintenanceRecord(record.id, { status: 'em_andamento' })}>
-                          <Play className="h-3 w-3" />Iniciar
+                          <Play className="h-3 w-3" />{t("Iniciar")}
                         </Button>
                       )}
                       {record.status === 'em_andamento' && (
                         <Button size="sm" variant="outline"
                           className="h-7 px-2 text-xs gap-1 text-green-700 border-green-300 hover:bg-green-50"
                           onClick={() => updateMaintenanceRecord(record.id, { status: 'concluida', data_realizada: today })}>
-                          <Check className="h-3 w-3" />Concluir
+                          <Check className="h-3 w-3" />{t("Concluir")}
                         </Button>
                       )}
                       {(record.status === 'agendada' || record.status === 'em_andamento') && (
                         <Button size="sm" variant="outline"
                           className="h-7 px-2 text-xs gap-1 text-red-600 border-red-200 hover:bg-red-50"
                           onClick={() => updateMaintenanceRecord(record.id, { status: 'cancelada' })}>
-                          <X className="h-3 w-3" />Cancelar
+                          <X className="h-3 w-3" />{t("Cancelar")}
                         </Button>
                       )}
                       <Button variant="ghost" size="icon" className="h-7 w-7"
@@ -438,14 +445,14 @@ export function VehicleDetailModal({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => { setSelectedMaintenance(record); setIsMaintenanceDetailModalOpen(true); }}>
-                          <Eye className="h-4 w-4 mr-2" />Ver
+                          <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { setSelectedMaintenance(record); setIsMaintenanceModalOpen(true); }}>
-                          <Edit className="h-4 w-4 mr-2" />Editar
+                          <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => deleteMaintenanceRecord(record.id)} className="text-destructive">
-                          <Trash2 className="h-4 w-4 mr-2" />Excluir
+                          <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -456,7 +463,7 @@ export function VehicleDetailModal({
             {vehicleMaintenanceRecords.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                  Nenhuma manutenção registrada
+                  {t("Nenhuma manutenção registrada")}
                 </TableCell>
               </TableRow>
             )}
@@ -471,16 +478,16 @@ export function VehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedAccessory(null); setIsAccessoryFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Novo Acessório
+          {t("Novo Acessório")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Fornecedor</TableHead>
-            <TableHead>Data Instalação</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Tipo")}</TableHead>
+            <TableHead>{t("Fornecedor")}</TableHead>
+            <TableHead>{t("Data Instalação")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -488,7 +495,7 @@ export function VehicleDetailModal({
             <TableRow key={accessory.id}>
               <TableCell>{accessory.tipo_acessorio}</TableCell>
               <TableCell>{accessory.fornecedor_empresa || '-'}</TableCell>
-              <TableCell>{accessory.data_instalacao ? format(new Date(accessory.data_instalacao), 'dd/MM/yy', { locale: ptBR }) : '-'}</TableCell>
+              <TableCell>{accessory.data_instalacao ? date(accessory.data_instalacao, { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'}</TableCell>
               <TableCell>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="icon" className="h-7 w-7"
@@ -514,7 +521,7 @@ export function VehicleDetailModal({
           {vehicleAccessories.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhum acessório registrado
+                {t("Nenhum acessório registrado")}
               </TableCell>
             </TableRow>
           )}
@@ -528,22 +535,22 @@ export function VehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedSmokeTest(null); setIsSmokeTestFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Novo Teste
+          {t("Novo Teste")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Condutor</TableHead>
-            <TableHead>Resultado</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Condutor")}</TableHead>
+            <TableHead>{t("Resultado")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleSmokeTests.map((test) => (
             <TableRow key={test.id}>
-              <TableCell>{format(new Date(test.data_afericao), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(test.data_afericao, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell>{test.condutor}</TableCell>
               <TableCell>
                 <Badge variant={test.resultado === 'Aprovado' ? 'default' : 'destructive'}>
@@ -573,7 +580,7 @@ export function VehicleDetailModal({
           {vehicleSmokeTests.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhum teste registrado
+                {t("Nenhum teste registrado")}
               </TableCell>
             </TableRow>
           )}
@@ -587,22 +594,22 @@ export function VehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedChecklist(null); setIsChecklistFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Novo Checklist
+          {t("Novo Checklist")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Tipo Serviço</TableHead>
-            <TableHead>Responsável</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Tipo Serviço")}</TableHead>
+            <TableHead>{t("Responsável")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleChecklists.map((checklist) => (
             <TableRow key={checklist.id}>
-              <TableCell>{format(new Date(checklist.data_inspecao), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(checklist.data_inspecao, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell>{checklist.tipo_servico}</TableCell>
               <TableCell>{checklist.responsavel_checklist || '-'}</TableCell>
               <TableCell>
@@ -614,10 +621,10 @@ export function VehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedChecklist(checklist); setIsChecklistDetailModalOpen(true); }}>
-                      <Eye className="h-4 w-4 mr-2" />Ver
+                      <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelectedChecklist(checklist); setIsChecklistFormModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                   {/* checklist kept as dropdown (no delete) — same for all roles */}
@@ -628,7 +635,7 @@ export function VehicleDetailModal({
           {vehicleChecklists.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhum checklist registrado
+                {t("Nenhum checklist registrado")}
               </TableCell>
             </TableRow>
           )}
@@ -642,22 +649,22 @@ export function VehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedTireService(null); setIsTireServiceFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Novo Serviço
+          {t("Novo Serviço")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Qtd Pneus</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Tipo")}</TableHead>
+            <TableHead>{t("Qtd Pneus")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleTireServices.map((service) => (
             <TableRow key={service.id}>
-              <TableCell>{format(new Date(service.data_servico), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(service.data_servico, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell>{service.tipo_servico}</TableCell>
               <TableCell>{service.quantidade_pneus || '-'}</TableCell>
               <TableCell>
@@ -669,15 +676,15 @@ export function VehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedTireService(service); setIsTireServiceDetailModalOpen(true); }}>
-                      <Eye className="h-4 w-4 mr-2" />Ver
+                      <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelectedTireService(service); setIsTireServiceFormModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     {!isEmployeeMode && <DropdownMenuSeparator />}
                     {!isEmployeeMode && (
                       <DropdownMenuItem onClick={() => deleteTireService(service.id)} className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />Excluir
+                        <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -688,7 +695,7 @@ export function VehicleDetailModal({
           {vehicleTireServices.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhum serviço registrado
+                {t("Nenhum serviço registrado")}
               </TableCell>
             </TableRow>
           )}
@@ -702,25 +709,25 @@ export function VehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedTrafficFine(null); setIsTrafficFineFormModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Nova Multa
+          {t("Nova Multa")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Valor</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Tipo")}</TableHead>
+            <TableHead>{t("Valor")}</TableHead>
+            <TableHead>{t("Status")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleTrafficFines.map((fine) => (
             <TableRow key={fine.id}>
-              <TableCell>{format(new Date(fine.data_multa), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(fine.data_multa, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell>{fine.tipo_infracao}</TableCell>
-              <TableCell>R$ {Number(fine.valor).toFixed(2)}</TableCell>
+              <TableCell>{money(Number(fine.valor))}</TableCell>
               <TableCell>
                 <Badge variant={fine.situacao === 'paga' ? 'default' : 'destructive'}>
                   {fine.situacao === 'paga' ? 'Paga' : 'Pendente'}
@@ -735,15 +742,15 @@ export function VehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedTrafficFine(fine); setIsTrafficFineDetailModalOpen(true); }}>
-                      <Eye className="h-4 w-4 mr-2" />Ver
+                      <Eye className="h-4 w-4 mr-2" />{t("Ver")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSelectedTrafficFine(fine); setIsTrafficFineFormModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     {!isEmployeeMode && <DropdownMenuSeparator />}
                     {!isEmployeeMode && (
                       <DropdownMenuItem onClick={() => deleteTrafficFine(fine.id)} className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />Excluir
+                        <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -754,7 +761,7 @@ export function VehicleDetailModal({
           {vehicleTrafficFines.length === 0 && (
             <TableRow>
               <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                Nenhuma multa registrada
+                {t("Nenhuma multa registrada")}
               </TableCell>
             </TableRow>
           )}
@@ -768,22 +775,22 @@ export function VehicleDetailModal({
       <div className="flex justify-end">
         <Button size="sm" onClick={() => { setSelectedDamageReport(null); setIsDamageReportModalOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" />
-          Nova Avaria
+          {t("Nova Avaria")}
         </Button>
       </div>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Descrição</TableHead>
-            <TableHead>Local</TableHead>
-            <TableHead className="w-[80px]">Ações</TableHead>
+            <TableHead>{t("Data")}</TableHead>
+            <TableHead>{t("Descrição")}</TableHead>
+            <TableHead>{t("Local")}</TableHead>
+            <TableHead className="w-[80px]">{t("Ações")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {vehicleDamageReports.map((report) => (
             <TableRow key={report.id}>
-              <TableCell>{format(new Date(report.data_avaria), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+              <TableCell>{date(report.data_avaria, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
               <TableCell className="max-w-[150px] truncate">{report.descricao_avaria}</TableCell>
               <TableCell>{report.local_ocorrencia || '-'}</TableCell>
               <TableCell>
@@ -795,12 +802,12 @@ export function VehicleDetailModal({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => { setSelectedDamageReport(report); setIsDamageReportModalOpen(true); }}>
-                      <Edit className="h-4 w-4 mr-2" />Editar
+                      <Edit className="h-4 w-4 mr-2" />{t("Editar")}
                     </DropdownMenuItem>
                     {!isEmployeeMode && <DropdownMenuSeparator />}
                     {!isEmployeeMode && (
                       <DropdownMenuItem onClick={() => deleteDamageReport(report.id)} className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />Excluir
+                        <Trash2 className="h-4 w-4 mr-2" />{t("Excluir")}
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -811,7 +818,7 @@ export function VehicleDetailModal({
           {vehicleDamageReports.length === 0 && (
             <TableRow>
               <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Nenhuma avaria registrada
+                {t("Nenhuma avaria registrada")}
               </TableCell>
             </TableRow>
           )}
@@ -831,36 +838,36 @@ export function VehicleDetailModal({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
-              {lavagensMes} / {limite} lavagens este mês
+              {lavagensMes} / {limite} {t("lavagens este mês")}
             </span>
             {limiteAtingido && (
               <span className="text-xs text-destructive font-medium flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> Limite atingido
+                <AlertTriangle className="h-3 w-3" /> {t("Limite atingido")}
               </span>
             )}
           </div>
           <Button size="sm" onClick={() => { setSelectedWash(null); setIsWashFormModalOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" />
-            Registrar Lavagem
+            {t("Registrar Lavagem")}
           </Button>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Fornecedor</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead className="w-[80px]">Ações</TableHead>
+              <TableHead>{t("Data")}</TableHead>
+              <TableHead>{t("Tipo")}</TableHead>
+              <TableHead>{t("Fornecedor")}</TableHead>
+              <TableHead>{t("Valor")}</TableHead>
+              <TableHead className="w-[80px]">{t("Ações")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {vehicleWashRecords.map((record) => (
               <TableRow key={record.id}>
-                <TableCell>{format(new Date(record.data_lavagem), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+                <TableCell>{date(record.data_lavagem, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
                 <TableCell className="capitalize">{record.tipo_lavagem}</TableCell>
                 <TableCell>{(record as any).fornecedor || record.responsavel_lavagem || '-'}</TableCell>
-                <TableCell>{(record as any).valor ? `R$ ${Number((record as any).valor).toFixed(2)}` : '-'}</TableCell>
+                <TableCell>{(record as any).valor ? money(Number((record as any).valor)) : '-'}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="icon" className="h-7 w-7"
@@ -878,7 +885,7 @@ export function VehicleDetailModal({
             {vehicleWashRecords.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                  Nenhuma lavagem registrada
+                  {t("Nenhuma lavagem registrada")}
                 </TableCell>
               </TableRow>
             )}
@@ -898,12 +905,12 @@ export function VehicleDetailModal({
         {vehicleFuelLogs.length > 0 && (
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md border px-3 py-2">
-              <p className="text-xs text-muted-foreground">Total Litros</p>
-              <p className="text-lg font-bold">{totalLitros.toFixed(1)} L</p>
+              <p className="text-xs text-muted-foreground">{t("Total Litros")}</p>
+              <p className="text-lg font-bold">{number(totalLitros, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L</p>
             </div>
             <div className="rounded-md border px-3 py-2">
-              <p className="text-xs text-muted-foreground">Total Gasto</p>
-              <p className="text-lg font-bold">R$ {totalGasto.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground">{t("Total Gasto")}</p>
+              <p className="text-lg font-bold">{money(totalGasto)}</p>
             </div>
           </div>
         )}
@@ -911,33 +918,33 @@ export function VehicleDetailModal({
         <div className="flex justify-end">
           <Button size="sm" onClick={() => { setSelectedFuelLog(null); setIsFuelFormModalOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" />
-            Registrar Abastecimento
+            {t("Registrar Abastecimento")}
           </Button>
         </div>
 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Combustível</TableHead>
-              <TableHead>Litros</TableHead>
+              <TableHead>{t("Data")}</TableHead>
+              <TableHead>{t("Combustível")}</TableHead>
+              <TableHead>{t("Litros")}</TableHead>
               <TableHead>R$/L</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>{tipoMedicao === 'km' ? 'KM' : 'Horímetro'}</TableHead>
-              <TableHead className="w-[80px]">Ações</TableHead>
+              <TableHead>{t("Total")}</TableHead>
+              <TableHead>{tipoMedicao === 'km' ? t("KM") : t("Horímetro")}</TableHead>
+              <TableHead className="w-[80px]">{t("Ações")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {vehicleFuelLogs.map((log) => (
               <TableRow key={log.id}>
-                <TableCell>{format(new Date(log.data_abastecimento), 'dd/MM/yy', { locale: ptBR })}</TableCell>
+                <TableCell>{date(log.data_abastecimento, { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
                 <TableCell className="capitalize">{log.tipo_combustivel || '-'}</TableCell>
-                <TableCell>{log.litros?.toFixed(1)} L</TableCell>
-                <TableCell>R$ {log.valor_litro?.toFixed(3)}</TableCell>
-                <TableCell className="font-medium">R$ {(log.valor_total || 0).toFixed(2)}</TableCell>
+                <TableCell>{number(log.litros ?? 0, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} L</TableCell>
+                <TableCell>R$ {number(log.valor_litro ?? 0, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</TableCell>
+                <TableCell className="font-medium">{money(log.valor_total || 0)}</TableCell>
                 <TableCell>
                   {tipoMedicao === 'km'
-                    ? (log.km_no_abastecimento ? `${log.km_no_abastecimento.toLocaleString()} km` : '-')
+                    ? (log.km_no_abastecimento ? `${number(log.km_no_abastecimento)} km` : '-')
                     : (log.horimetro_no_abastecimento ? `${log.horimetro_no_abastecimento} h` : '-')
                   }
                 </TableCell>
@@ -958,7 +965,7 @@ export function VehicleDetailModal({
             {vehicleFuelLogs.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                  Nenhum abastecimento registrado
+                  {t("Nenhum abastecimento registrado")}
                 </TableCell>
               </TableRow>
             )}
@@ -971,7 +978,7 @@ export function VehicleDetailModal({
   const renderCostCenterTab = () => {
     const mes = selectedCostMonth;
     const [year, month] = mes.split('-').map(Number);
-    const mesLabel = new Date(year, month - 1, 1).toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+    const mesLabel = date(new Date(year, month - 1, 1), { month: 'long', year: 'numeric' });
 
     const combustivelMes = vehicleFuelLogs
       .filter(f => f.data_abastecimento.slice(0, 7) === mes)
@@ -1000,6 +1007,7 @@ export function VehicleDetailModal({
     const aluguel = (vehicle as any).valor_aluguel_mensal || 0;
     const total = aluguel + combustivelMes + lavagensMes + manutencaoMes + borrachariaMes + acessoriosMes + multasMes;
 
+    // Labels are the Portuguese catalog keys; they are translated when rendered.
     const itens = [
       { label: "Aluguel / Depreciação", valor: aluguel, icon: Car },
       { label: "Combustível", valor: combustivelMes, icon: Fuel },
@@ -1025,13 +1033,13 @@ export function VehicleDetailModal({
         <div className="flex items-center justify-between">
           <button type="button" onClick={prevMonth}
             className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted transition-colors">
-            ‹ Anterior
+            ‹ {t("Anterior")}
           </button>
           <span className="text-sm font-semibold capitalize">{mesLabel}</span>
           <button type="button" onClick={nextMonth}
             disabled={new Date(year, month, 1) > new Date()}
             className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            Próximo ›
+            {t("Próximo")} ›
           </button>
         </div>
 
@@ -1040,10 +1048,10 @@ export function VehicleDetailModal({
             <div key={item.label} className="flex items-center justify-between rounded-md border px-4 py-3">
               <div className="flex items-center gap-3">
                 <item.icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{item.label}</span>
+                <span className="text-sm">{t(item.label)}</span>
               </div>
               <span className={`font-semibold ${item.valor === 0 ? 'text-muted-foreground' : ''}`}>
-                R$ {item.valor.toFixed(2)}
+                {money(item.valor)}
               </span>
             </div>
           ))}
@@ -1052,13 +1060,13 @@ export function VehicleDetailModal({
         <div className="flex items-center justify-between rounded-md bg-primary/5 border border-primary/20 px-4 py-3">
           <div className="flex items-center gap-3">
             <TrendingUp className="h-4 w-4 text-primary" />
-            <span className="font-semibold">Custo Total do Mês</span>
+            <span className="font-semibold">{t("Custo Total do Mês")}</span>
           </div>
-          <span className="text-lg font-bold text-primary">R$ {total.toFixed(2)}</span>
+          <span className="text-lg font-bold text-primary">{money(total)}</span>
         </div>
 
         <p className="text-xs text-muted-foreground italic">
-          * O valor de aluguel/depreciação é fixo (cadastro do veículo). Os demais valores são somados pelos registros do mês selecionado.
+          * {t("O valor de aluguel/depreciação é fixo (cadastro do veículo). Os demais valores são somados pelos registros do mês selecionado.")}
         </p>
       </div>
     );
@@ -1077,17 +1085,17 @@ export function VehicleDetailModal({
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="flex flex-wrap gap-0.5 h-auto w-full">
-              <TabsTrigger value="info" className="text-xs">Info</TabsTrigger>
-              <TabsTrigger value="maintenance" className="text-xs">Manutenção</TabsTrigger>
-              <TabsTrigger value="wash" className="text-xs">Lavagens</TabsTrigger>
-              <TabsTrigger value="fuel" className="text-xs">Combustível</TabsTrigger>
-              <TabsTrigger value="cost-center" className="text-xs">Custo/Mês</TabsTrigger>
-              <TabsTrigger value="accessories" className="text-xs">Acessórios</TabsTrigger>
-              <TabsTrigger value="damage" className="text-xs">Avarias</TabsTrigger>
-              <TabsTrigger value="smoke-test" className="text-xs">Fumaça</TabsTrigger>
-              <TabsTrigger value="checklist" className="text-xs">Checklist</TabsTrigger>
-              <TabsTrigger value="tire-service" className="text-xs">Borracharia</TabsTrigger>
-              <TabsTrigger value="fines" className="text-xs">Multas</TabsTrigger>
+              <TabsTrigger value="info" className="text-xs">{t("Info")}</TabsTrigger>
+              <TabsTrigger value="maintenance" className="text-xs">{t("Manutenção")}</TabsTrigger>
+              <TabsTrigger value="wash" className="text-xs">{t("Lavagens")}</TabsTrigger>
+              <TabsTrigger value="fuel" className="text-xs">{t("Combustível")}</TabsTrigger>
+              <TabsTrigger value="cost-center" className="text-xs">{t("Custo/Mês")}</TabsTrigger>
+              <TabsTrigger value="accessories" className="text-xs">{t("Acessórios")}</TabsTrigger>
+              <TabsTrigger value="damage" className="text-xs">{t("Avarias")}</TabsTrigger>
+              <TabsTrigger value="smoke-test" className="text-xs">{t("Fumaça")}</TabsTrigger>
+              <TabsTrigger value="checklist" className="text-xs">{t("Checklist")}</TabsTrigger>
+              <TabsTrigger value="tire-service" className="text-xs">{t("Borracharia")}</TabsTrigger>
+              <TabsTrigger value="fines" className="text-xs">{t("Multas")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="info" className="mt-4">{renderInfoTab()}</TabsContent>

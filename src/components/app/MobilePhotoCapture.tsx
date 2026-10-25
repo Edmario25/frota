@@ -3,6 +3,7 @@ import { Camera, X, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/i18n";
 
 /**
  * Componente de captura de foto para o app mobile do motorista.
@@ -15,6 +16,7 @@ export function MobilePhotoCapture({ label, bucket, vehicleId, value, onChange }
   value: string;
   onChange: (url: string) => void;
 }) {
+  const { t } = useI18n();
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview]     = useState<string>(value);
   const fileRef                   = useRef<HTMLInputElement>(null);
@@ -24,11 +26,11 @@ export function MobilePhotoCapture({ label, bucket, vehicleId, value, onChange }
     const file = e.target.files?.[0];
     if (!file) return;
     if (!navigator.onLine) {
-      toast({ title: "Foto exige conexão", description: "Salve o lançamento sem foto ou conecte-se para enviar a evidência.", variant: "destructive" });
+      toast({ title: t("Foto exige conexão"), description: t("Salve o lançamento sem foto ou conecte-se para enviar a evidência."), variant: "destructive" });
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
-      toast({ title: "Arquivo muito grande", description: "Máximo 8MB", variant: "destructive" });
+      toast({ title: t("Arquivo muito grande"), description: t("Máximo 8MB"), variant: "destructive" });
       return;
     }
 
@@ -49,9 +51,9 @@ export function MobilePhotoCapture({ label, bucket, vehicleId, value, onChange }
       reader.onload = ev => setPreview(ev.target?.result as string);
       reader.readAsDataURL(file);
 
-      toast({ title: "Foto carregada ✓" });
+      toast({ title: t("Foto carregada ✓") });
     } catch (err: any) {
-      toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
+      toast({ title: t("Erro no upload"), description: err.message, variant: "destructive" });
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -79,7 +81,7 @@ export function MobilePhotoCapture({ label, bucket, vehicleId, value, onChange }
         <div className="relative inline-block w-full">
           <img
             src={preview}
-            alt="Preview"
+            alt={t("Preview")}
             className="w-full max-h-48 object-cover rounded-xl border border-slate-200 dark:border-slate-600"
           />
           <div className="absolute top-2 right-2 flex gap-1">
@@ -114,12 +116,12 @@ export function MobilePhotoCapture({ label, bucket, vehicleId, value, onChange }
           {uploading ? (
             <>
               <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs">Enviando...</span>
+              <span className="text-xs">{t("Enviando...")}</span>
             </>
           ) : (
             <>
               <Camera className="h-6 w-6" />
-              <span className="text-xs font-medium">Tirar foto / Galeria</span>
+              <span className="text-xs font-medium">{t("Tirar foto / Galeria")}</span>
             </>
           )}
         </button>

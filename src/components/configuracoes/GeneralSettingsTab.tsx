@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Building, Bell, Save, ImageIcon, Aperture, Upload, X } from "lucide-react";
 import { saveBrandingToDB } from "@/hooks/useSystemSettings";
+import { useI18n } from "@/i18n";
 
 const STORAGE_KEY = "fleet_settings";
 
@@ -34,6 +35,7 @@ function LocalImageUpload({
   accept?: string;
   maxKB?: number;
 }) {
+  const { t } = useI18n()
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -53,7 +55,7 @@ function LocalImageUpload({
       setLoading(false);
     };
     reader.onerror = () => {
-      toast.error("Erro ao ler o arquivo.");
+      toast.error(t("Erro ao ler o arquivo."));
       setLoading(false);
     };
     reader.readAsDataURL(file);
@@ -73,7 +75,7 @@ function LocalImageUpload({
         className="gap-2"
       >
         <Upload className="h-4 w-4" />
-        {loading ? "Carregando..." : value ? "Trocar imagem" : label}
+        {loading ? t("Carregando...") : value ? t("Trocar imagem") : label}
       </Button>
 
       {value && (
@@ -85,7 +87,7 @@ function LocalImageUpload({
           className="gap-1 text-destructive hover:text-destructive"
         >
           <X className="h-4 w-4" />
-          Remover
+          {t("Remover")}
         </Button>
       )}
 
@@ -101,6 +103,7 @@ function LocalImageUpload({
 }
 
 export function GeneralSettingsTab() {
+  const { t } = useI18n();
   const saved = loadSettings();
 
   const [companyName, setCompanyName] = useState(saved.companyName ?? "Ápice Gestão");
@@ -163,9 +166,9 @@ export function GeneralSettingsTab() {
               <ImageIcon className="h-5 w-5 text-violet-600" />
             </div>
             <div>
-              <CardTitle className="text-lg">Identidade Visual</CardTitle>
+              <CardTitle className="text-lg">{t("Identidade Visual")}</CardTitle>
               <CardDescription>
-                Logo exibida na barra lateral e ícone (favicon) da aba do navegador
+                {t("Logo exibida na barra lateral e ícone (favicon) da aba do navegador")}
               </CardDescription>
             </div>
           </div>
@@ -177,11 +180,10 @@ export function GeneralSettingsTab() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-semibold">Logo da Empresa</Label>
+                <Label className="text-sm font-semibold">{t("Logo da Empresa")}</Label>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Imagem exibida na barra lateral do sistema (recomendado: PNG ou SVG
-                com fundo transparente, mín. 200×60 px).
+                {t("Imagem exibida na barra lateral do sistema (recomendado: PNG ou SVG com fundo transparente, mín. 200×60 px).")}
               </p>
 
               {/* Preview */}
@@ -189,7 +191,7 @@ export function GeneralSettingsTab() {
                 <div className="rounded-xl border border-border bg-sidebar p-3 flex items-center justify-center h-20">
                   <img
                     src={logoUrl}
-                    alt="Logo preview"
+                    alt={t("Logo preview")}
                     className="max-h-14 max-w-full object-contain"
                   />
                 </div>
@@ -202,18 +204,17 @@ export function GeneralSettingsTab() {
                 accept="image/png,image/svg+xml,image/jpeg,image/webp"
                 maxKB={2048}
               />
-              <p className="text-xs text-muted-foreground">PNG, SVG ou JPEG · máx. 2 MB · salva localmente</p>
+              <p className="text-xs text-muted-foreground">{t("PNG, SVG ou JPEG · máx. 2 MB · salva localmente")}</p>
             </div>
 
             {/* Icon / Favicon */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Aperture className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-semibold">Ícone do Sistema (Favicon)</Label>
+                <Label className="text-sm font-semibold">{t("Ícone do Sistema (Favicon)")}</Label>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Ícone exibido na aba do navegador. Recomendado: PNG quadrado
-                512×512 px com fundo transparente.
+                {t("Ícone exibido na aba do navegador. Recomendado: PNG quadrado 512×512 px com fundo transparente.")}
               </p>
 
               {/* Preview */}
@@ -221,7 +222,7 @@ export function GeneralSettingsTab() {
                 <div className="rounded-xl border border-border bg-muted/30 p-3 flex items-center justify-center h-20">
                   <img
                     src={iconUrl}
-                    alt="Icon preview"
+                    alt={t("Icon preview")}
                     className="h-12 w-12 object-contain rounded-lg"
                   />
                 </div>
@@ -234,13 +235,12 @@ export function GeneralSettingsTab() {
                 accept="image/png,image/x-icon,image/svg+xml,image/jpeg,image/webp"
                 maxKB={512}
               />
-              <p className="text-xs text-muted-foreground">PNG ou ICO quadrado · máx. 512 KB · salva localmente</p>
+              <p className="text-xs text-muted-foreground">{t("PNG ou ICO quadrado · máx. 512 KB · salva localmente")}</p>
             </div>
           </div>
 
           <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-700">
-            <strong>Dica:</strong> Após salvar, atualize a página para ver o ícone aplicado na aba do
-            navegador. O logo é atualizado na barra lateral imediatamente após salvar.
+            <strong>{t("Dica:")}</strong> {t("Após salvar, atualize a página para ver o ícone aplicado na aba do navegador. O logo é atualizado na barra lateral imediatamente após salvar.")}
           </div>
         </CardContent>
       </Card>
@@ -253,15 +253,15 @@ export function GeneralSettingsTab() {
               <Building className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-lg">Dados da Empresa</CardTitle>
-              <CardDescription>Informações gerais da organização</CardDescription>
+              <CardTitle className="text-lg">{t("Dados da Empresa")}</CardTitle>
+              <CardDescription>{t("Informações gerais da organização")}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="company-name">Nome da Empresa</Label>
+              <Label htmlFor="company-name">{t("Nome da Empresa")}</Label>
               <Input
                 id="company-name"
                 value={companyName}
@@ -270,18 +270,18 @@ export function GeneralSettingsTab() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company-email">Email de Contato</Label>
+              <Label htmlFor="company-email">{t("Email de Contato")}</Label>
               <Input
                 id="company-email"
                 type="email"
                 value={companyEmail}
                 onChange={(e) => setCompanyEmail(e.target.value)}
-                placeholder="contato@empresa.com"
+                placeholder={t("contato@empresa.com")}
                 className="rounded-xl"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company-phone">Telefone</Label>
+              <Label htmlFor="company-phone">{t("Telefone")}</Label>
               <Input
                 id="company-phone"
                 value={companyPhone}
@@ -302,8 +302,8 @@ export function GeneralSettingsTab() {
               <Bell className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <CardTitle className="text-lg">Notificações</CardTitle>
-              <CardDescription>Configure quais alertas o sistema deve exibir</CardDescription>
+              <CardTitle className="text-lg">{t("Notificações")}</CardTitle>
+              <CardDescription>{t("Configure quais alertas o sistema deve exibir")}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -331,9 +331,9 @@ export function GeneralSettingsTab() {
           {/* Aviso de folga próxima */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-foreground">Aviso antecipado de folgas</p>
+              <p className="text-sm font-medium text-foreground">{t("Aviso antecipado de folgas")}</p>
               <p className="text-xs text-muted-foreground">
-                Exibir alerta quando a folga de um funcionário estiver a X dias
+                {t("Exibir alerta quando a folga de um funcionário estiver a X dias")}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -345,7 +345,7 @@ export function GeneralSettingsTab() {
                 onChange={e => setDiasAvisoFolga(Math.max(1, Math.min(30, parseInt(e.target.value) || 5)))}
                 className="w-16 h-9 border border-input rounded-lg text-center text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               />
-              <span className="text-sm text-muted-foreground whitespace-nowrap">dias antes</span>
+              <span className="text-sm text-muted-foreground whitespace-nowrap">{t("dias antes")}</span>
             </div>
           </div>
         </CardContent>
@@ -355,7 +355,7 @@ export function GeneralSettingsTab() {
       <div className="flex justify-end">
         <Button onClick={handleSave} className="gap-2 rounded-xl px-6">
           <Save className="h-4 w-4" />
-          Salvar Configurações
+          {t("Salvar Configurações")}
         </Button>
       </div>
     </div>

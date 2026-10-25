@@ -1,3 +1,4 @@
+import { useI18n } from "@/i18n";
 import { useState, useEffect } from "react"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -22,8 +23,9 @@ import { useEmployeeRh, type DadosRh, type Documento, type FeriasAusencia } from
 import type { EmployeeWithRelations } from "@/hooks/useEmployees"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fmt = (d?: string | null) =>
-  d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "—"
+// Receives the formatter from useI18n so the date follows the chosen language.
+const fmt = (d: string | null | undefined, format: (value: string | Date) => string) =>
+  d ? format(d) : "—"
 
 const diasParaVencer = (d?: string | null) => {
   if (!d) return null
@@ -36,6 +38,7 @@ const docTipos = [
   "Certificado de treinamento", "Outros",
 ]
 
+// Labels are the Portuguese catalog keys; they are translated when rendered.
 const feriasTipos: Record<string, string> = {
   ferias:               "Férias",
   afastamento:          "Afastamento",
@@ -67,13 +70,14 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function TabPessoal({
   dados, saving, onSave,
 }: { dados: DadosRh; saving: boolean; onSave: (d: DadosRh) => void }) {
+  const { t, date } = useI18n()
   const [f, setF] = useState<DadosRh>(dados)
   useEffect(() => setF(dados), [dados])
   const set = (k: keyof DadosRh, v: any) => setF(p => ({ ...p, [k]: v }))
 
   return (
     <div className="space-y-2 pb-6">
-      <SectionTitle>Documentos pessoais</SectionTitle>
+      <SectionTitle>{t("Documentos pessoais")}</SectionTitle>
       <div className="grid grid-cols-2 gap-3">
         <Field label="RG">
           <Input value={f.rg ?? ""} onChange={e => set("rg", e.target.value)} placeholder="00.000.000-0" />
@@ -82,16 +86,16 @@ function TabPessoal({
           <Input value={f.pis ?? ""} onChange={e => set("pis", e.target.value)} placeholder="000.00000.00-0" />
         </Field>
         <Field label="CTPS">
-          <Input value={f.ctps ?? ""} onChange={e => set("ctps", e.target.value)} placeholder="Nº e série" />
+          <Input value={f.ctps ?? ""} onChange={e => set("ctps", e.target.value)} placeholder={t("Nº e série")} />
         </Field>
         <Field label="CNH (nº)">
           <Input value={f.cnh ?? ""} onChange={e => set("cnh", e.target.value)} placeholder="00000000000" />
         </Field>
         <Field label="Categoria CNH">
           <Select value={f.cnh_categoria ?? ""} onValueChange={v => set("cnh_categoria", v)}>
-            <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t("Categoria")} /></SelectTrigger>
             <SelectContent>
-              {["A","B","AB","C","D","E","ACC"].map(c => (
+              {["A","B","AB","C","D","E",t("ACC")].map(c => (
                 <SelectItem key={c} value={c}>{c}</SelectItem>
               ))}
             </SelectContent>
@@ -102,38 +106,38 @@ function TabPessoal({
         </Field>
       </div>
 
-      <SectionTitle>Dados pessoais</SectionTitle>
+      <SectionTitle>{t("Dados pessoais")}</SectionTitle>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Data de nascimento">
           <Input type="date" value={f.data_nascimento ?? ""} onChange={e => set("data_nascimento", e.target.value)} />
         </Field>
         <Field label="Estado civil">
           <Select value={f.estado_civil ?? ""} onValueChange={v => set("estado_civil", v)}>
-            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="solteiro">Solteiro(a)</SelectItem>
-              <SelectItem value="casado">Casado(a)</SelectItem>
-              <SelectItem value="divorciado">Divorciado(a)</SelectItem>
-              <SelectItem value="viuvo">Viúvo(a)</SelectItem>
-              <SelectItem value="uniao_estavel">União estável</SelectItem>
+              <SelectItem value="solteiro">{t("Solteiro(a)")}</SelectItem>
+              <SelectItem value="casado">{t("Casado(a)")}</SelectItem>
+              <SelectItem value="divorciado">{t("Divorciado(a)")}</SelectItem>
+              <SelectItem value="viuvo">{t("Viúvo(a)")}</SelectItem>
+              <SelectItem value="uniao_estavel">{t("União estável")}</SelectItem>
             </SelectContent>
           </Select>
         </Field>
         <Field label="Escolaridade">
           <Select value={f.escolaridade ?? ""} onValueChange={v => set("escolaridade", v)}>
-            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="fundamental">Fundamental</SelectItem>
-              <SelectItem value="medio">Médio</SelectItem>
-              <SelectItem value="tecnico">Técnico</SelectItem>
-              <SelectItem value="superior">Superior</SelectItem>
-              <SelectItem value="pos_graduacao">Pós-graduação</SelectItem>
+              <SelectItem value="fundamental">{t("Fundamental")}</SelectItem>
+              <SelectItem value="medio">{t("Médio")}</SelectItem>
+              <SelectItem value="tecnico">{t("Técnico")}</SelectItem>
+              <SelectItem value="superior">{t("Superior")}</SelectItem>
+              <SelectItem value="pos_graduacao">{t("Pós-graduação")}</SelectItem>
             </SelectContent>
           </Select>
         </Field>
       </div>
 
-      <SectionTitle>Endereço</SectionTitle>
+      <SectionTitle>{t("Endereço")}</SectionTitle>
       <div className="grid grid-cols-2 gap-3">
         <Field label="CEP">
           <Input value={f.cep ?? ""} onChange={e => set("cep", e.target.value)} placeholder="00000-000" />
@@ -142,10 +146,10 @@ function TabPessoal({
           <Input value={f.numero ?? ""} onChange={e => set("numero", e.target.value)} placeholder="123" />
         </Field>
         <Field label="Logradouro">
-          <Input value={f.logradouro ?? ""} onChange={e => set("logradouro", e.target.value)} placeholder="Rua, Av..." className="col-span-2" />
+          <Input value={f.logradouro ?? ""} onChange={e => set("logradouro", e.target.value)} placeholder={t("Rua, Av...")} className="col-span-2" />
         </Field>
         <Field label="Complemento">
-          <Input value={f.complemento ?? ""} onChange={e => set("complemento", e.target.value)} placeholder="Apto, Bloco..." />
+          <Input value={f.complemento ?? ""} onChange={e => set("complemento", e.target.value)} placeholder={t("Apto, Bloco...")} />
         </Field>
         <Field label="Bairro">
           <Input value={f.bairro ?? ""} onChange={e => set("bairro", e.target.value)} />
@@ -154,11 +158,11 @@ function TabPessoal({
           <Input value={f.cidade ?? ""} onChange={e => set("cidade", e.target.value)} />
         </Field>
         <Field label="Estado (UF)">
-          <Input value={f.estado ?? ""} onChange={e => set("estado", e.target.value)} maxLength={2} placeholder="SP" />
+          <Input value={f.estado ?? ""} onChange={e => set("estado", e.target.value)} maxLength={2} placeholder={t("SP")} />
         </Field>
       </div>
 
-      <SectionTitle>Contato de emergência</SectionTitle>
+      <SectionTitle>{t("Contato de emergência")}</SectionTitle>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Nome">
           <Input value={f.emergencia_nome ?? ""} onChange={e => set("emergencia_nome", e.target.value)} />
@@ -167,14 +171,14 @@ function TabPessoal({
           <Input value={f.emergencia_telefone ?? ""} onChange={e => set("emergencia_telefone", e.target.value)} placeholder="(11) 99999-9999" />
         </Field>
         <Field label="Parentesco">
-          <Input value={f.emergencia_parentesco ?? ""} onChange={e => set("emergencia_parentesco", e.target.value)} placeholder="Cônjuge, Pai, Filho..." />
+          <Input value={f.emergencia_parentesco ?? ""} onChange={e => set("emergencia_parentesco", e.target.value)} placeholder={t("Cônjuge, Pai, Filho...")} />
         </Field>
       </div>
 
       <div className="pt-4">
         <Button onClick={() => onSave(f)} disabled={saving} className="w-full">
           <Save className="h-4 w-4 mr-2" />
-          {saving ? "Salvando..." : "Salvar dados pessoais"}
+          {saving ? t("Salvando...") : t("Salvar dados pessoais")}
         </Button>
       </div>
     </div>
@@ -185,23 +189,24 @@ function TabPessoal({
 function TabContrato({
   dados, saving, onSave,
 }: { dados: DadosRh; saving: boolean; onSave: (d: DadosRh) => void }) {
+  const { t, date } = useI18n()
   const [f, setF] = useState<DadosRh>(dados)
   useEffect(() => setF(dados), [dados])
   const set = (k: keyof DadosRh, v: any) => setF(p => ({ ...p, [k]: v }))
 
   return (
     <div className="space-y-2 pb-6">
-      <SectionTitle>Tipo e carga horária</SectionTitle>
+      <SectionTitle>{t("Tipo e carga horária")}</SectionTitle>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Tipo de contrato">
           <Select value={f.tipo_contrato ?? ""} onValueChange={v => set("tipo_contrato", v)}>
-            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="clt">CLT</SelectItem>
-              <SelectItem value="pj">PJ</SelectItem>
-              <SelectItem value="temporario">Temporário</SelectItem>
-              <SelectItem value="estagio">Estágio</SelectItem>
-              <SelectItem value="terceiro">Terceirizado</SelectItem>
+              <SelectItem value="clt">{t("CLT")}</SelectItem>
+              <SelectItem value="pj">{t("PJ")}</SelectItem>
+              <SelectItem value="temporario">{t("Temporário")}</SelectItem>
+              <SelectItem value="estagio">{t("Estágio")}</SelectItem>
+              <SelectItem value="terceiro">{t("Terceirizado")}</SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -215,7 +220,7 @@ function TabContrato({
         </Field>
       </div>
 
-      <SectionTitle>Remuneração</SectionTitle>
+      <SectionTitle>{t("Remuneração")}</SectionTitle>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Salário base (R$)">
           <Input
@@ -227,41 +232,41 @@ function TabContrato({
         </Field>
       </div>
 
-      <SectionTitle>Desligamento</SectionTitle>
+      <SectionTitle>{t("Desligamento")}</SectionTitle>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Data de demissão">
           <Input type="date" value={f.data_demissao ?? ""} onChange={e => set("data_demissao", e.target.value)} />
         </Field>
         <Field label="Motivo de desligamento">
           <Select value={f.motivo_demissao ?? ""} onValueChange={v => set("motivo_demissao", v)}>
-            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="pedido_demissao">Pedido de demissão</SelectItem>
-              <SelectItem value="dispensa_sem_justa_causa">Dispensa sem justa causa</SelectItem>
-              <SelectItem value="dispensa_com_justa_causa">Dispensa com justa causa</SelectItem>
-              <SelectItem value="fim_contrato">Fim de contrato</SelectItem>
-              <SelectItem value="aposentadoria">Aposentadoria</SelectItem>
-              <SelectItem value="falecimento">Falecimento</SelectItem>
-              <SelectItem value="outro">Outro</SelectItem>
+              <SelectItem value="pedido_demissao">{t("Pedido de demissão")}</SelectItem>
+              <SelectItem value="dispensa_sem_justa_causa">{t("Dispensa sem justa causa")}</SelectItem>
+              <SelectItem value="dispensa_com_justa_causa">{t("Dispensa com justa causa")}</SelectItem>
+              <SelectItem value="fim_contrato">{t("Fim de contrato")}</SelectItem>
+              <SelectItem value="aposentadoria">{t("Aposentadoria")}</SelectItem>
+              <SelectItem value="falecimento">{t("Falecimento")}</SelectItem>
+              <SelectItem value="outro">{t("Outro")}</SelectItem>
             </SelectContent>
           </Select>
         </Field>
       </div>
 
-      <SectionTitle>Observações gerais</SectionTitle>
+      <SectionTitle>{t("Observações gerais")}</SectionTitle>
       <Field label="">
         <textarea
           className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
           value={f.observacoes ?? ""}
           onChange={e => set("observacoes", e.target.value)}
-          placeholder="Informações adicionais sobre o contrato..."
+          placeholder={t("Informações adicionais sobre o contrato...")}
         />
       </Field>
 
       <div className="pt-4">
         <Button onClick={() => onSave(f)} disabled={saving} className="w-full">
           <Save className="h-4 w-4 mr-2" />
-          {saving ? "Salvando..." : "Salvar dados do contrato"}
+          {saving ? t("Salvando...") : t("Salvar dados do contrato")}
         </Button>
       </div>
     </div>
@@ -272,16 +277,17 @@ function TabContrato({
 function TabFinanceiro({
   dados, saving, onSave,
 }: { dados: DadosRh; saving: boolean; onSave: (d: DadosRh) => void }) {
+  const { t, money } = useI18n()
   const [f, setF] = useState<DadosRh>(dados)
   useEffect(() => setF(dados), [dados])
   const set = (k: keyof DadosRh, v: any) => setF(p => ({ ...p, [k]: v }))
 
   return (
     <div className="space-y-2 pb-6">
-      <SectionTitle>Dados bancários</SectionTitle>
+      <SectionTitle>{t("Dados bancários")}</SectionTitle>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Banco">
-          <Input value={f.banco ?? ""} onChange={e => set("banco", e.target.value)} placeholder="Ex: Bradesco, Itaú, Nubank" />
+          <Input value={f.banco ?? ""} onChange={e => set("banco", e.target.value)} placeholder={t("Ex: Bradesco, Itaú, Nubank")} />
         </Field>
         <Field label="Agência">
           <Input value={f.agencia ?? ""} onChange={e => set("agencia", e.target.value)} placeholder="0000" />
@@ -291,19 +297,19 @@ function TabFinanceiro({
         </Field>
         <Field label="Tipo de conta">
           <Select value={f.tipo_conta ?? ""} onValueChange={v => set("tipo_conta", v)}>
-            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="corrente">Corrente</SelectItem>
-              <SelectItem value="poupanca">Poupança</SelectItem>
+              <SelectItem value="corrente">{t("Corrente")}</SelectItem>
+              <SelectItem value="poupanca">{t("Poupança")}</SelectItem>
             </SelectContent>
           </Select>
         </Field>
         <Field label="Chave PIX">
-          <Input value={f.pix ?? ""} onChange={e => set("pix", e.target.value)} placeholder="CPF, e-mail, celular ou chave aleatória" className="col-span-2" />
+          <Input value={f.pix ?? ""} onChange={e => set("pix", e.target.value)} placeholder={t("CPF, e-mail, celular ou chave aleatória")} className="col-span-2" />
         </Field>
       </div>
 
-      <SectionTitle>Benefícios</SectionTitle>
+      <SectionTitle>{t("Benefícios")}</SectionTitle>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Vale alimentação (R$/mês)">
           <Input
@@ -326,8 +332,8 @@ function TabFinanceiro({
       <div className="grid grid-cols-2 gap-3 mt-2">
         <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
           <div>
-            <p className="text-sm font-medium">Plano de saúde</p>
-            <p className="text-xs text-muted-foreground">Convênio médico</p>
+            <p className="text-sm font-medium">{t("Plano de saúde")}</p>
+            <p className="text-xs text-muted-foreground">{t("Convênio médico")}</p>
           </div>
           <Switch
             checked={f.plano_saude ?? false}
@@ -336,8 +342,8 @@ function TabFinanceiro({
         </div>
         <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
           <div>
-            <p className="text-sm font-medium">Plano odontológico</p>
-            <p className="text-xs text-muted-foreground">Convênio dental</p>
+            <p className="text-sm font-medium">{t("Plano odontológico")}</p>
+            <p className="text-xs text-muted-foreground">{t("Convênio dental")}</p>
           </div>
           <Switch
             checked={f.plano_odonto ?? false}
@@ -349,33 +355,33 @@ function TabFinanceiro({
       {/* Resumo */}
       {(f.salario_base || f.vale_alimentacao || f.vale_transporte) && (
         <div className="mt-4 rounded-lg bg-muted/40 border border-border/50 p-3 space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Custo total estimado/mês</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("Custo total estimado/mês")}</p>
           {f.salario_base && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Salário base</span>
-              <span className="font-medium">R$ {Number(f.salario_base).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+              <span className="text-muted-foreground">{t("Salário base")}</span>
+              <span className="font-medium">{money(Number(f.salario_base))}</span>
             </div>
           )}
           {f.vale_alimentacao && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Vale alimentação</span>
-              <span>R$ {Number(f.vale_alimentacao).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+              <span className="text-muted-foreground">{t("Vale alimentação")}</span>
+              <span>{money(Number(f.vale_alimentacao))}</span>
             </div>
           )}
           {f.vale_transporte && (
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Vale transporte</span>
-              <span>R$ {Number(f.vale_transporte).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+              <span className="text-muted-foreground">{t("Vale transporte")}</span>
+              <span>{money(Number(f.vale_transporte))}</span>
             </div>
           )}
           <Separator className="my-1" />
           <div className="flex justify-between text-sm font-semibold">
-            <span>Total</span>
-            <span>R$ {(
+            <span>{t("Total")}</span>
+            <span>{money(
               Number(f.salario_base ?? 0) +
               Number(f.vale_alimentacao ?? 0) +
               Number(f.vale_transporte ?? 0)
-            ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+            )}</span>
           </div>
         </div>
       )}
@@ -383,7 +389,7 @@ function TabFinanceiro({
       <div className="pt-4">
         <Button onClick={() => onSave(f)} disabled={saving} className="w-full">
           <Save className="h-4 w-4 mr-2" />
-          {saving ? "Salvando..." : "Salvar dados financeiros"}
+          {saving ? t("Salvando...") : t("Salvar dados financeiros")}
         </Button>
       </div>
     </div>
@@ -400,6 +406,7 @@ function TabDocumentos({
   onAdd: (d: Omit<Documento, "id">) => void
   onRemove: (id: string) => void
 }) {
+  const { t, date } = useI18n()
   const [form, setForm] = useState<Omit<Documento, "id">>({
     tipo: "", descricao: "", arquivo_url: "", data_emissao: "", data_vencimento: "",
   })
@@ -416,37 +423,37 @@ function TabDocumentos({
   const vencBadge = (d?: string | null) => {
     const dias = diasParaVencer(d)
     if (dias === null) return null
-    if (dias < 0)  return <Badge className="bg-red-100 text-red-700 border-0 text-[10px]">Vencido {fmt(d)}</Badge>
-    if (dias <= 30) return <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px]">Vence em {dias}d</Badge>
-    return <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">Válido até {fmt(d)}</Badge>
+    if (dias < 0)  return <Badge className="bg-red-100 text-red-700 border-0 text-[10px]">{t("Vencido")} {fmt(d, date)}</Badge>
+    if (dias <= 30) return <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px]">{t("Vence em")} {dias}{t("d")}</Badge>
+    return <Badge className="bg-green-100 text-green-700 border-0 text-[10px]">{t("Válido até")} {fmt(d, date)}</Badge>
   }
 
   return (
     <div className="space-y-3 pb-6">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {documentos.length} documento{documentos.length !== 1 ? "s" : ""}
+          {documentos.length} {t("documento")}{documentos.length !== 1 ? "s" : ""}
         </p>
         <Button size="sm" variant="outline" onClick={() => setShowForm(v => !v)}>
           <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Adicionar
+          {t("Adicionar")}
         </Button>
       </div>
 
       {showForm && (
         <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-3">
-          <p className="text-sm font-medium">Novo documento</p>
+          <p className="text-sm font-medium">{t("Novo documento")}</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Tipo *">
               <Select value={form.tipo} onValueChange={v => set("tipo", v)}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("Selecione")} /></SelectTrigger>
                 <SelectContent>
                   {docTipos.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
             </Field>
             <Field label="Descrição">
-              <Input value={form.descricao ?? ""} onChange={e => set("descricao", e.target.value)} placeholder="Descrição breve" />
+              <Input value={form.descricao ?? ""} onChange={e => set("descricao", e.target.value)} placeholder={t("Descrição breve")} />
             </Field>
             <Field label="Data de emissão">
               <Input type="date" value={form.data_emissao ?? ""} onChange={e => set("data_emissao", e.target.value)} />
@@ -455,13 +462,13 @@ function TabDocumentos({
               <Input type="date" value={form.data_vencimento ?? ""} onChange={e => set("data_vencimento", e.target.value)} />
             </Field>
             <Field label="URL do arquivo">
-              <Input value={form.arquivo_url ?? ""} onChange={e => set("arquivo_url", e.target.value)} placeholder="https://..." className="col-span-2" />
+              <Input value={form.arquivo_url ?? ""} onChange={e => set("arquivo_url", e.target.value)} placeholder={t("https://...")} className="col-span-2" />
             </Field>
           </div>
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancelar</Button>
+            <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>{t("Cancelar")}</Button>
             <Button size="sm" onClick={handleAdd} disabled={!form.tipo || saving}>
-              {saving ? "Salvando..." : "Adicionar"}
+              {saving ? t("Salvando...") : t("Adicionar")}
             </Button>
           </div>
         </div>
@@ -470,7 +477,7 @@ function TabDocumentos({
       {documentos.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <FileText className="h-10 w-10 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">Nenhum documento cadastrado</p>
+          <p className="text-sm">{t("Nenhum documento cadastrado")}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -495,11 +502,11 @@ function TabDocumentos({
                     {(expirado || aVencer) && <AlertTriangle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />}
                   </div>
                   {doc.data_emissao && (
-                    <p className="text-xs text-muted-foreground mt-0.5">Emitido: {fmt(doc.data_emissao)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("Emitido:")} {fmt(doc.data_emissao, date)}</p>
                   )}
                 </div>
                 {doc.arquivo_url && (
-                  <a href={doc.arquivo_url} target="_blank" rel="noopener noreferrer" title="Abrir arquivo">
+                  <a href={doc.arquivo_url} target="_blank" rel="noopener noreferrer" title={t("Abrir arquivo")}>
                     <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                   </a>
                 )}
@@ -529,6 +536,7 @@ function TabFerias({
   onAdd: (f: Omit<FeriasAusencia, "id">) => void
   onRemove: (id: string) => void
 }) {
+  const { t, date } = useI18n()
   const [form, setForm] = useState<Omit<FeriasAusencia, "id">>({
     tipo: "ferias", data_inicio: "", data_fim: "", motivo: "", observacoes: "",
   })
@@ -555,17 +563,17 @@ function TabFerias({
     <div className="space-y-3 pb-6">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {ferias.length} registro{ferias.length !== 1 ? "s" : ""}
+          {ferias.length} {t("registro")}{ferias.length !== 1 ? "s" : ""}
         </p>
         <Button size="sm" variant="outline" onClick={() => setShowForm(v => !v)}>
           <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Adicionar
+          {t("Adicionar")}
         </Button>
       </div>
 
       {showForm && (
         <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-3">
-          <p className="text-sm font-medium">Novo registro</p>
+          <p className="text-sm font-medium">{t("Novo registro")}</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Tipo *">
               <Select value={form.tipo} onValueChange={v => set("tipo", v)}>
@@ -585,7 +593,7 @@ function TabFerias({
             </Field>
             {form.tipo === "afastamento" || form.tipo === "licenca_medica" ? (
               <Field label="CID">
-                <Input value={form.cid ?? ""} onChange={e => set("cid", e.target.value)} placeholder="Ex: M54" />
+                <Input value={form.cid ?? ""} onChange={e => set("cid", e.target.value)} placeholder={t("Ex: M54")} />
               </Field>
             ) : null}
             {form.tipo === "ferias" && (
@@ -603,9 +611,9 @@ function TabFerias({
             </Field>
           </div>
           <div className="flex gap-2 justify-end">
-            <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancelar</Button>
+            <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>{t("Cancelar")}</Button>
             <Button size="sm" onClick={handleAdd} disabled={!form.tipo || !form.data_inicio || saving}>
-              {saving ? "Salvando..." : "Adicionar"}
+              {saving ? t("Salvando...") : t("Adicionar")}
             </Button>
           </div>
         </div>
@@ -614,7 +622,7 @@ function TabFerias({
       {ferias.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <CalendarDays className="h-10 w-10 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">Nenhum registro de férias ou ausência</p>
+          <p className="text-sm">{t("Nenhum registro de férias ou ausência")}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -625,14 +633,14 @@ function TabFerias({
                   <Badge className={`${tipoCor[f.tipo] ?? "bg-slate-100 text-slate-600"} border-0 text-[10px]`}>
                     {feriasTipos[f.tipo] ?? f.tipo}
                   </Badge>
-                  <span className="text-sm font-medium">{fmt(f.data_inicio)}</span>
-                  {f.data_fim && <span className="text-xs text-muted-foreground">→ {fmt(f.data_fim)}</span>}
-                  {f.cid && <span className="text-xs text-muted-foreground">CID: {f.cid}</span>}
+                  <span className="text-sm font-medium">{fmt(f.data_inicio, date)}</span>
+                  {f.data_fim && <span className="text-xs text-muted-foreground">→ {fmt(f.data_fim, date)}</span>}
+                  {f.cid && <span className="text-xs text-muted-foreground">{t("CID:")} {f.cid}</span>}
                 </div>
                 {f.motivo && <p className="text-xs text-muted-foreground mt-0.5">{f.motivo}</p>}
                 {f.periodo_aquisitivo_inicio && (
                   <p className="text-xs text-muted-foreground">
-                    P. aquis.: {fmt(f.periodo_aquisitivo_inicio)} → {fmt(f.periodo_aquisitivo_fim)}
+                    {t("P. aquis.:")} {fmt(f.periodo_aquisitivo_inicio, date)} → {fmt(f.periodo_aquisitivo_fim, date)}
                   </p>
                 )}
               </div>
@@ -669,27 +677,29 @@ interface SmsResumo {
 }
 
 function TabSms({ resumo }: { resumo: SmsResumo | null }) {
-  if (!resumo) return <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">Resumo SMS ainda não disponível. Execute a integração do banco.</div>
+  const { t, date } = useI18n()
+  if (!resumo) return <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{t("Resumo SMS ainda não disponível. Execute a integração do banco.")}</div>
   const asoVencido = resumo.aso_vencimento && resumo.aso_vencimento < new Date().toISOString().slice(0, 10)
   return <div className="space-y-4">
     <div className={`rounded-lg border p-4 ${resumo.aso_aptidao === 'inapto' || asoVencido ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'}`}>
-      <p className="text-xs font-medium text-muted-foreground">Aptidão ocupacional</p>
-      <p className="mt-1 font-semibold capitalize">{resumo.aso_aptidao?.replaceAll('_', ' ') ?? 'Sem ASO registrado'}</p>
-      <p className="text-xs text-muted-foreground">Vencimento: {fmt(resumo.aso_vencimento)}</p>
+      <p className="text-xs font-medium text-muted-foreground">{t("Aptidão ocupacional")}</p>
+      <p className="mt-1 font-semibold capitalize">{resumo.aso_aptidao?.replaceAll('_', ' ') ?? t("Sem ASO registrado")}</p>
+      <p className="text-xs text-muted-foreground">{t("Vencimento:")} {fmt(resumo.aso_vencimento, date)}</p>
     </div>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {[
-        ['Treinamentos vencidos', resumo.treinamentos_vencidos],
-        ['EPIs sob responsabilidade', resumo.epis_em_responsabilidade],
-        ['Participações em DDS', resumo.dds_participacoes],
-        ['Participações em APR', resumo.apr_participacoes],
-        ['Acidentes vinculados', resumo.acidentes],
+        [t("Treinamentos vencidos"), resumo.treinamentos_vencidos],
+        [t("EPIs sob responsabilidade"), resumo.epis_em_responsabilidade],
+        [t("Participações em DDS"), resumo.dds_participacoes],
+        [t("Participações em APR"), resumo.apr_participacoes],
+        [t("Acidentes vinculados"), resumo.acidentes],
       ].map(([label, value]) => <div key={String(label)} className="rounded-lg border p-3"><p className="text-xl font-bold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>)}
     </div>
   </div>
 }
 
 export function PerfilRhSheet({ open, onOpenChange, employee }: Props) {
+  const { t } = useI18n();
   const { loading, saving, dadosRh, documentos, ferias, documentosVencendo,
           saveDadosRh, addDocumento, removeDocumento, addFerias, removeFerias,
   } = useEmployeeRh(open && employee ? employee.id : null)
@@ -715,7 +725,7 @@ export function PerfilRhSheet({ open, onOpenChange, employee }: Props) {
         {/* Header do funcionário */}
         <div className="sticky top-0 z-10 bg-background border-b border-border/60 px-6 py-4">
           <SheetHeader>
-            <SheetTitle className="text-left">Perfil RH</SheetTitle>
+            <SheetTitle className="text-left">{t("Perfil RH")}</SheetTitle>
           </SheetHeader>
           <div className="flex items-center gap-3 mt-3">
             <Avatar className="h-10 w-10">
@@ -729,7 +739,7 @@ export function PerfilRhSheet({ open, onOpenChange, employee }: Props) {
             {documentosVencendo.length > 0 && (
               <Badge className="bg-amber-100 text-amber-800 border-0 text-xs flex-shrink-0">
                 <AlertTriangle className="h-3 w-3 mr-1" />
-                {documentosVencendo.length} doc. a vencer
+                {documentosVencendo.length} {t("doc. a vencer")}
               </Badge>
             )}
           </div>
@@ -738,26 +748,26 @@ export function PerfilRhSheet({ open, onOpenChange, employee }: Props) {
         <div className="px-6 py-4">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">
-              Carregando dados de RH...
+              {t("Carregando dados de RH...")}
             </div>
           ) : (
             <Tabs defaultValue="pessoal" className="w-full">
               <TabsList className="grid grid-cols-6 w-full mb-4">
                 <TabsTrigger value="pessoal" className="text-xs px-1">
                   <User className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Pessoal</span>
+                  <span className="hidden sm:inline">{t("Pessoal")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="contrato" className="text-xs px-1">
                   <Briefcase className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Contrato</span>
+                  <span className="hidden sm:inline">{t("Contrato")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="financeiro" className="text-xs px-1">
                   <Landmark className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Financeiro</span>
+                  <span className="hidden sm:inline">{t("Financeiro")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="documentos" className="text-xs px-1 relative">
                   <FileText className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Documentos</span>
+                  <span className="hidden sm:inline">{t("Documentos")}</span>
                   {documentosVencendo.length > 0 && (
                     <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-amber-500 text-white text-[8px] flex items-center justify-center font-bold">
                       {documentosVencendo.length}
@@ -766,11 +776,11 @@ export function PerfilRhSheet({ open, onOpenChange, employee }: Props) {
                 </TabsTrigger>
                 <TabsTrigger value="ferias" className="text-xs px-1">
                   <CalendarDays className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Férias</span>
+                  <span className="hidden sm:inline">{t("Férias")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="sms" className="text-xs px-1">
                   <ShieldCheck className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">SMS</span>
+                  <span className="hidden sm:inline">{t("SMS")}</span>
                 </TabsTrigger>
               </TabsList>
 

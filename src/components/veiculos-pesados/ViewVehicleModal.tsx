@@ -2,10 +2,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { getVehicleStatusSoftClass, getVehicleStatusText } from "@/lib/statusHelpers";
 import type { Database } from "@/integrations/supabase/types";
+import { useI18n } from "@/i18n";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type Employee = Database['public']['Tables']['employees']['Row'];
@@ -26,6 +25,8 @@ export function ViewVehicleModal({
   employees, 
   rentalCompanies 
 }: ViewVehicleModalProps) {
+  const { t, number, date } = useI18n();
+
   if (!vehicle) return null;
 
   const responsavel = employees.find(e => e.id === vehicle.responsavel_id);
@@ -36,7 +37,7 @@ export function ViewVehicleModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Detalhes do Veículo Pesado - {vehicle.placa}
+            {t("Detalhes do Veículo Pesado -")} {vehicle.placa}
           </DialogTitle>
         </DialogHeader>
 
@@ -44,16 +45,16 @@ export function ViewVehicleModal({
           {/* Informações Básicas */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Informações Básicas</CardTitle>
+              <CardTitle className="text-lg">{t("Informações Básicas")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Placa</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Placa")}</label>
                   <p className="font-medium">{vehicle.placa}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Status</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Status")}</label>
                   <div className="mt-1">
                     <Badge className={getVehicleStatusSoftClass(vehicle.status || 'disponivel')}>
                       {getVehicleStatusText(vehicle.status || 'disponivel')}
@@ -64,23 +65,23 @@ export function ViewVehicleModal({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Marca</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Marca")}</label>
                   <p className="font-medium">{vehicle.marca}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Modelo</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Modelo")}</label>
                   <p className="font-medium">{vehicle.modelo}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Ano</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Ano")}</label>
                   <p className="font-medium">{vehicle.ano}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Cor</label>
-                  <p className="font-medium">{vehicle.cor || 'Não informado'}</p>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Cor")}</label>
+                  <p className="font-medium">{vehicle.cor || t("Não informado")}</p>
                 </div>
               </div>
             </CardContent>
@@ -89,17 +90,17 @@ export function ViewVehicleModal({
           {/* Quilometragem */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Quilometragem</CardTitle>
+              <CardTitle className="text-lg">{t("Quilometragem")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Quilometragem Atual</label>
-                  <p className="font-medium">{vehicle.quilometragem_atual?.toLocaleString() || 0} km</p>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Quilometragem Atual")}</label>
+                  <p className="font-medium">{number(vehicle.quilometragem_atual ?? 0)} km</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Limite Mensal</label>
-                  <p className="font-medium">{vehicle.quilometragem_maxima_mensal?.toLocaleString() || 2000} km</p>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Limite Mensal")}</label>
+                  <p className="font-medium">{number(vehicle.quilometragem_maxima_mensal ?? 2000)} km</p>
                 </div>
               </div>
             </CardContent>
@@ -109,7 +110,7 @@ export function ViewVehicleModal({
           {responsavel && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Responsável</CardTitle>
+                <CardTitle className="text-lg">{t("Responsável")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -127,19 +128,19 @@ export function ViewVehicleModal({
           {vehicle.tipo_propriedade === 'alugado' && rentalCompany && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Locadora</CardTitle>
+                <CardTitle className="text-lg">{t("Locadora")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   <p className="font-medium">{rentalCompany.nome}</p>
                   {rentalCompany.cnpj && (
-                    <p className="text-sm text-muted-foreground">CNPJ: {rentalCompany.cnpj}</p>
+                    <p className="text-sm text-muted-foreground">{t("CNPJ:")} {rentalCompany.cnpj}</p>
                   )}
                   {rentalCompany.telefone && (
-                    <p className="text-sm text-muted-foreground">Telefone: {rentalCompany.telefone}</p>
+                    <p className="text-sm text-muted-foreground">{t("Telefone:")} {rentalCompany.telefone}</p>
                   )}
                   {rentalCompany.email && (
-                    <p className="text-sm text-muted-foreground">Email: {rentalCompany.email}</p>
+                    <p className="text-sm text-muted-foreground">{t("Email:")} {rentalCompany.email}</p>
                   )}
                 </div>
               </CardContent>
@@ -149,28 +150,28 @@ export function ViewVehicleModal({
           {/* Informações Adicionais */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Informações Adicionais</CardTitle>
+              <CardTitle className="text-lg">{t("Informações Adicionais")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Tipo de Propriedade</label>
+                <label className="text-sm font-medium text-muted-foreground">{t("Tipo de Propriedade")}</label>
                 <p className="font-medium">
-                  {vehicle.tipo_propriedade === 'proprio' ? 'Próprio' : 'Alugado'}
+                  {vehicle.tipo_propriedade === 'proprio' ? t("Próprio") : t("Alugado")}
                 </p>
               </div>
 
               {vehicle.data_ultima_revisao && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Última Revisão</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Última Revisão")}</label>
                   <p className="font-medium">
-                    {format(new Date(vehicle.data_ultima_revisao), "dd/MM/yyyy", { locale: ptBR })}
+                    {date(vehicle.data_ultima_revisao)}
                   </p>
                 </div>
               )}
 
               {vehicle.observacoes && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Observações</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t("Observações")}</label>
                   <p className="font-medium">{vehicle.observacoes}</p>
                 </div>
               )}
