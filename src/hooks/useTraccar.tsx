@@ -23,11 +23,19 @@ export interface TraccarDevice {
   attributes: Record<string, any>;
 }
 
+/**
+ * Unidades da API Traccar: velocidade em **nós** e distância em metros.
+ * Use `knotsToKmh` antes de exibir ou comparar com limite em km/h.
+ */
+export const KNOTS_TO_KMH = 1.852;
+export const knotsToKmh = (knots: number) => knots * KNOTS_TO_KMH;
+
 export interface TraccarPosition {
   id: number;
   deviceId: number;
   latitude: number;
   longitude: number;
+  /** Nós — converta com `knotsToKmh`. */
   speed: number;
   course: number;
   address: string | null;
@@ -45,8 +53,11 @@ export interface TraccarPosition {
 export interface TraccarSummary {
   deviceId: number;
   deviceName: string;
+  /** Metros. */
   distance: number;
+  /** Nós — converta com `knotsToKmh`. */
   averageSpeed: number;
+  /** Nós — converta com `knotsToKmh`. */
   maxSpeed: number;
   engineHours: number;
   spentFuel: number;

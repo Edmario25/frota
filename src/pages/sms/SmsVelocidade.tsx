@@ -16,6 +16,7 @@ import {
 import {
   Gauge, RefreshCw, MapPin, Radio, AlertTriangle, CheckCircle2,
   Plus, Wifi, WifiOff, ExternalLink, Copy, Loader2, ShieldAlert, Search, Eye, Wrench,
+  Route, Satellite, Power,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useObras } from "@/hooks/useObras";
@@ -45,6 +46,25 @@ type Checkpoint = {
   obras: { nome: string } | null;
 };
 
+type Zona = {
+  id: string;
+  obra_id: string;
+  nome: string;
+  descricao: string | null;
+  tipo: "corredor" | "poligono";
+  limite_velocidade_kmh: number;
+  tolerancia_kmh: number;
+  buffer_metros: number;
+  amostras_minimas: number;
+  duracao_minima_seg: number;
+  modo_operacao: "observacao" | "autuacao";
+  horario_inicio: string | null;
+  horario_fim: string | null;
+  ativo: boolean;
+  obras: { nome: string } | null;
+  sms_zona_vertices: { count: number }[];
+};
+
 type Infracao = {
   id: string;
   passagem_id: string;
@@ -65,6 +85,7 @@ type Infracao = {
   vehicles: { placa: string; marca: string; modelo: string } | null;
   employees: { nome: string } | null;
   sms_checkpoints: { nome: string } | null;
+  sms_zonas_velocidade: { nome: string } | null;
   obras: { nome: string } | null;
 };
 
@@ -76,8 +97,10 @@ type Passagem = {
   sentido: string | null;
   origem: string;
   detectado_em: string;
+  amostras: unknown[] | null;
   vehicles: { placa: string } | null;
   sms_checkpoints: { nome: string } | null;
+  sms_zonas_velocidade: { nome: string } | null;
 };
 
 type TagRfid = {
@@ -102,6 +125,19 @@ const STATUS_LABEL: Record<string, string> = {
   aberta: "Aberta", em_tratativa: "Em tratativa", notificada: "Notificada",
   encerrada: "Encerrada", cancelada: "Cancelada",
 };
+
+/** Radar e rastreador convivem: a origem é o que o usuário precisa ver primeiro. */
+function OrigemBadge({ zona, compacto = false }: { zona: string | null | undefined; compacto?: boolean }) {
+  return zona ? (
+    <Badge variant="outline" className="gap-1 border-sky-300 bg-sky-50 text-[10px] text-sky-700">
+      <Satellite className="h-3 w-3" />{compacto ? "GPS" : "Rastreador"}
+    </Badge>
+  ) : (
+    <Badge variant="outline" className="gap-1 border-violet-300 bg-violet-50 text-[10px] text-violet-700">
+      <Radio className="h-3 w-3" />{compacto ? "Radar" : "Radar fixo"}
+    </Badge>
+  );
+}
 
 function dateTime(value: string) {
   return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -129,6 +165,7 @@ export default function SmsVelocidade() {
   const { employees } = useEmployees();
 
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [zonas, setZonas]             = useState<Zona[]>([]);
   const [infracoes, setInfracoes]     = useState<Infracao[]>([]);
   const [passagens, setPassagens]     = useState<Passagem[]>([]);
   const [tags, setTags]               = useState<TagRfid[]>([]);
@@ -137,6 +174,9 @@ export default function SmsVelocidade() {
 
   // Modais
   const [novoCheckpointOpen, setNovoCheckpointOpen] = useState(false);
+  const [novaZonaOpen, setNovaZonaOpen]             = useState(false);
+  const [zonaEditando, setZonaEditando]             = useState<Zona | null>(null);
+  const [rastroPassagem, setRastroPassagem]         = useState<Passagem | null>(null);
   const [novaTagOpen, setNovaTagOpen]               = useState(false);
   const [registroManualOpen, setRegistroManualOpen] = useState(false);
   const [infracaoSelecionada, setInfracaoSelecionada] = useState<Infracao | null>(null);
@@ -148,24 +188,27 @@ export default function SmsVelocidade() {
   // ── Carregamento ──────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
-    const [cp, inf, pas, tg] = await Promise.all([
+    const [cp, zn, inf, pas, tg] = await Promise.all([
       (supabase as any).from("sms_checkpoints")
         .select("id,obra_id,nome,descricao,limite_velocidade_kmh,tolerancia_kmh,latitude,longitude,device_token_hint,device_ultimo_contato,heartbeat_intervalo_seg,calibracao_valida_ate,numero_serie,modo,ativo,obras(nome)").order("nome"),
+      (supabase as any).from("sms_zonas_velocidade")
+        .select("id,obra_id,nome,descricao,tipo,limite_velocidade_kmh,tolerancia_kmh,buffer_metros,amostras_minimas,duracao_minima_seg,modo_operacao,horario_inicio,horario_fim,ativo,obras(nome),sms_zona_vertices(count)").order("nome"),
       (supabase as any).from("sms_infracoes_velocidade")
-        .select("id,passagem_id,velocidade_kmh,limite_kmh,excesso_kmh,excesso_percentual,gravidade,status,desvio_id,notificada_em,ciente_em,tratativa,causa,acao_corretiva,tratado_em,created_at,vehicles(placa,marca,modelo),employees(nome),sms_checkpoints(nome),obras(nome)")
+        .select("id,passagem_id,velocidade_kmh,limite_kmh,excesso_kmh,excesso_percentual,gravidade,status,desvio_id,notificada_em,ciente_em,tratativa,causa,acao_corretiva,tratado_em,created_at,vehicles(placa,marca,modelo),employees(nome),sms_checkpoints(nome),sms_zonas_velocidade(nome),obras(nome)")
         .order("created_at", { ascending: false }).limit(200),
       (supabase as any).from("sms_checkpoint_passagens")
-        .select("id,velocidade_kmh,limite_no_momento,tag_epc,sentido,origem,detectado_em,vehicles(placa),sms_checkpoints(nome)")
+        .select("id,velocidade_kmh,limite_no_momento,tag_epc,sentido,origem,detectado_em,amostras,vehicles(placa),sms_checkpoints(nome),sms_zonas_velocidade(nome)")
         .order("detectado_em", { ascending: false }).limit(200),
       (supabase as any).from("sms_veiculos_rfid")
         .select("id,tag_epc,ativa,data_vinculo,observacoes,vehicles(placa,marca,modelo)")
         .order("data_vinculo", { ascending: false }),
     ]);
 
-    const failure = [cp, inf, pas, tg].find(r => r.error)?.error;
+    const failure = [cp, zn, inf, pas, tg].find(r => r.error)?.error;
     if (failure) toast.error(`Não foi possível carregar os dados: ${failure.message}`);
 
     setCheckpoints((cp.data ?? []) as Checkpoint[]);
+    setZonas((zn.data ?? []) as Zona[]);
     setInfracoes((inf.data ?? []) as Infracao[]);
     setPassagens((pas.data ?? []) as Passagem[]);
     setTags((tg.data ?? []) as TagRfid[]);
@@ -194,7 +237,8 @@ export default function SmsVelocidade() {
       if (gravidadeFiltro !== "todas" && item.gravidade !== gravidadeFiltro) return false;
       if (!termo) return true;
       return [item.vehicles?.placa, item.vehicles?.marca, item.vehicles?.modelo,
-        item.employees?.nome, item.sms_checkpoints?.nome, item.obras?.nome]
+        item.employees?.nome, item.sms_checkpoints?.nome,
+        item.sms_zonas_velocidade?.nome, item.obras?.nome]
         .some(valor => valor?.toLocaleLowerCase("pt-BR").includes(termo));
     });
   }, [busca, gravidadeFiltro, infracoes, statusFiltro]);
@@ -223,6 +267,51 @@ export default function SmsVelocidade() {
     setBusy(null);
     if (error) return toast.error(`Não foi possível gerar o desvio: ${error.message}`);
     toast.success("Desvio criado no módulo SMS e vinculado à infração.");
+    load();
+  }
+
+  async function toggleZona(z: Zona) {
+    setBusy(z.id);
+    const { error } = await (supabase as any)
+      .from("sms_zonas_velocidade").update({ ativo: !z.ativo }).eq("id", z.id);
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success(z.ativo ? "Zona desativada." : "Zona ativada.");
+    load();
+  }
+
+  /** Observação mede e registra; autuação passa a gerar infração. */
+  async function alternarModoZona(z: Zona) {
+    const novo = z.modo_operacao === "autuacao" ? "observacao" : "autuacao";
+    if (novo === "autuacao" && !window.confirm(
+      `A zona "${z.nome}" passará a gerar infração automaticamente. ` +
+      "Confirme que o buffer e a tolerância já foram calibrados em observação."
+    )) return;
+
+    setBusy(z.id);
+    const { error } = await (supabase as any)
+      .from("sms_zonas_velocidade").update({ modo_operacao: novo }).eq("id", z.id);
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success(novo === "autuacao"
+      ? "Zona em autuação: excesso vira infração."
+      : "Zona em observação: mede e registra, sem gerar infração.");
+    load();
+  }
+
+  async function excluirZona(z: Zona) {
+    if (!window.confirm(
+      `Excluir a zona "${z.nome}"?\n\n` +
+      "As passagens e infrações registradas por ela também somem — o histórico vai junto. " +
+      "Para tirar a zona de operação sem perder registro, use Desativar."
+    )) return;
+
+    setBusy(z.id);
+    const { error } = await (supabase as any)
+      .from("sms_zonas_velocidade").delete().eq("id", z.id);
+    setBusy(null);
+    if (error) return toast.error(`Não foi possível excluir: ${error.message}`);
+    toast.success("Zona excluída.");
     load();
   }
 
@@ -273,9 +362,10 @@ export default function SmsVelocidade() {
 
         {/* Abas */}
         <Tabs defaultValue="infracoes" className="rounded-xl border bg-card p-4">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="infracoes">Infrações</TabsTrigger>
             <TabsTrigger value="passagens">Passagens</TabsTrigger>
+            <TabsTrigger value="zonas">Zonas GPS</TabsTrigger>
             <TabsTrigger value="checkpoints">Checkpoints</TabsTrigger>
             <TabsTrigger value="tags">Tags RFID</TabsTrigger>
           </TabsList>
@@ -331,7 +421,7 @@ export default function SmsVelocidade() {
                         </Badge>
                       ) : null}
                       <span className="text-xs text-muted-foreground">
-                        {item.sms_checkpoints?.nome ?? "Checkpoint"} · {item.obras?.nome ?? "Obra"} · {dateTime(item.created_at)}
+                        {item.sms_zonas_velocidade?.nome ?? item.sms_checkpoints?.nome ?? "—"} · {item.obras?.nome ?? "Obra"} · {dateTime(item.created_at)}
                       </span>
                     </div>
                     <p className="font-medium">
@@ -401,17 +491,146 @@ export default function SmsVelocidade() {
                           {Number(p.velocidade_kmh).toFixed(0)} km/h
                         </span>
                         <span className="text-xs text-muted-foreground">/ {p.limite_no_momento} km/h</span>
-                        {p.origem === "manual" && <Badge variant="outline" className="text-[10px]">Manual</Badge>}
+                        {p.origem === "manual"
+                          ? <Badge variant="outline" className="text-[10px]">Manual</Badge>
+                          : <OrigemBadge zona={p.sms_zonas_velocidade?.nome} compacto />}
+                        {p.amostras?.length ? (
+                          <button
+                            type="button"
+                            className="text-[10px] text-primary underline-offset-2 hover:underline"
+                            onClick={() => setRastroPassagem(p)}
+                          >
+                            {p.amostras.length} amostras
+                          </button>
+                        ) : null}
                       </div>
                       <p className="truncate text-sm text-muted-foreground">
                         {p.vehicles?.placa ?? (p.tag_epc ? `Tag ${p.tag_epc}` : "Não identificado")}
-                        {" · "}{p.sms_checkpoints?.nome ?? "—"}
+                        {" · "}{p.sms_zonas_velocidade?.nome ?? p.sms_checkpoints?.nome ?? "—"}
                         {p.sentido && p.sentido !== "indefinido" ? ` · ${p.sentido}` : ""}
                       </p>
                     </div>
                     <span className="whitespace-nowrap text-xs text-muted-foreground">
                       {dateTime(p.detectado_em)}
                     </span>
+                  </div>
+                );
+              })}
+            </div>
+          </TabsContent>
+
+          {/* Rastro de uma passagem por GPS */}
+          <RastroDialog passagem={rastroPassagem} onOpenChange={() => setRastroPassagem(null)} />
+
+          {/* ── Zonas GPS ────────────────────────────────────────── */}
+          <TabsContent value="zonas" className="mt-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-2xl text-xs text-muted-foreground">
+                A zona mede o trecho inteiro pelo rastreador que o veículo já tem — sem poste, leitor
+                ou 4G novo. Não enxerga veículo de terceiro e não é medição aferida como a do radar:
+                serve para gestão de comportamento.
+              </p>
+              <ZonaDialog
+                open={novaZonaOpen}
+                onOpenChange={setNovaZonaOpen}
+                obras={obras}
+                onSaved={load}
+              />
+              {zonaEditando && (
+                <ZonaDialog
+                  open
+                  onOpenChange={o => { if (!o) setZonaEditando(null); }}
+                  obras={obras}
+                  zona={zonaEditando}
+                  onSaved={() => { setZonaEditando(null); load(); }}
+                />
+              )}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {!loading && !zonas.length && (
+                <div className="md:col-span-2">
+                  <Empty text="Nenhuma zona cadastrada. Crie o primeiro trecho com limite de velocidade." icon={Route} />
+                </div>
+              )}
+              {zonas.map(z => {
+                const vertices = z.sms_zona_vertices?.[0]?.count ?? 0;
+                const semGeometria = z.tipo === "corredor" ? vertices < 2 : vertices < 3;
+                return (
+                  <div key={z.id} className={`rounded-xl border p-4 ${z.ativo ? "bg-card" : "bg-muted/40 opacity-70"}`}>
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{z.nome}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {z.obras?.nome ?? "—"}{z.descricao ? ` · ${z.descricao}` : ""}
+                        </p>
+                      </div>
+                      <Badge className={z.modo_operacao === "autuacao"
+                        ? "gap-1 border-0 bg-red-100 text-red-700"
+                        : "gap-1 border-0 bg-amber-100 text-amber-800"}>
+                        {z.modo_operacao === "autuacao" ? "Autuando" : "Observação"}
+                      </Badge>
+                    </div>
+
+                    <div className="mb-3 flex flex-wrap gap-4 text-sm">
+                      <div>
+                        <p className="text-lg font-bold leading-none">{z.limite_velocidade_kmh}<span className="text-xs font-normal"> km/h</span></p>
+                        <p className="text-[11px] text-muted-foreground">limite do trecho</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold leading-none">+{z.tolerancia_kmh}<span className="text-xs font-normal"> km/h</span></p>
+                        <p className="text-[11px] text-muted-foreground">tolerância</p>
+                      </div>
+                      {z.tipo === "corredor" && (
+                        <div>
+                          <p className="text-lg font-bold leading-none">{z.buffer_metros}<span className="text-xs font-normal"> m</span></p>
+                          <p className="text-[11px] text-muted-foreground">faixa da via</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-lg font-bold leading-none">{vertices}</p>
+                        <p className="text-[11px] text-muted-foreground">{z.tipo === "corredor" ? "pontos da linha" : "vértices"}</p>
+                      </div>
+                    </div>
+
+                    <p className="mb-3 text-xs text-muted-foreground">
+                      Fecha infração com {z.amostras_minimas} amostra(s) consecutiva(s) e {z.duracao_minima_seg}s
+                      {z.horario_inicio ? ` · vale das ${z.horario_inicio.slice(0, 5)} às ${z.horario_fim?.slice(0, 5)}` : " · vale o dia inteiro"}
+                    </p>
+
+                    {semGeometria && (
+                      <p className="mb-3 flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-800">
+                        <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+                        Sem geometria suficiente: a zona não detecta nada até receber
+                        {z.tipo === "corredor" ? " 2 pontos" : " 3 vértices"}.
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" disabled={busy === z.id} onClick={() => toggleZona(z)}>
+                        <Power className="mr-1 h-3.5 w-3.5" />{z.ativo ? "Desativar" : "Ativar"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={z.modo_operacao === "autuacao" ? "secondary" : "default"}
+                        disabled={busy === z.id || semGeometria}
+                        onClick={() => alternarModoZona(z)}
+                      >
+                        {z.modo_operacao === "autuacao" ? "Voltar a observar" : "Passar a autuar"}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setZonaEditando(z)}>
+                        <Wrench className="mr-1 h-3.5 w-3.5" />Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        disabled={busy === z.id}
+                        onClick={() => excluirZona(z)}
+                      >
+                        Excluir
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
@@ -666,7 +885,8 @@ function TratativaInfracaoDialog({ item, vehicles, employees, onOpenChange, onSa
           <div><span className="text-muted-foreground">Veículo</span><p className="font-medium">{item.vehicles?.placa ?? "Não identificado"}</p></div>
           <div><span className="text-muted-foreground">Motorista</span><p className="font-medium">{item.employees?.nome ?? "Não identificado"}</p></div>
           <div><span className="text-muted-foreground">Medição</span><p className="font-medium">{item.velocidade_kmh} km/h (limite {item.limite_kmh})</p></div>
-          <div><span className="text-muted-foreground">Local e data</span><p className="font-medium">{item.sms_checkpoints?.nome ?? "—"} · {dateTime(item.created_at)}</p></div>
+          <div><span className="text-muted-foreground">Local e data</span><p className="font-medium">{item.sms_zonas_velocidade?.nome ?? item.sms_checkpoints?.nome ?? "—"} · {dateTime(item.created_at)}</p></div>
+          <div><span className="text-muted-foreground">Origem da medição</span><p className="font-medium"><OrigemBadge zona={item.sms_zonas_velocidade?.nome} /></p></div>
         </div>
         {!item.vehicles && <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
           <p className="text-sm font-semibold text-amber-900">Identificar passagem desconhecida</p>
@@ -694,6 +914,348 @@ function TratativaInfracaoDialog({ item, vehicles, employees, onOpenChange, onSa
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
           {!encerrada && <><Button variant="secondary" disabled={saving} onClick={() => salvar("em_tratativa")}>Salvar andamento</Button>
             <Button disabled={saving} onClick={() => salvar("encerrada")}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Encerrar tratativa</Button></>}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Diálogo: rastro de uma passagem por GPS ─────────────────────────
+// É a evidência equivalente à foto do radar: sem ela, o motorista contesta e
+// não há o que mostrar.
+
+function RastroDialog({ passagem, onOpenChange }: {
+  passagem: Passagem | null; onOpenChange: () => void;
+}) {
+  if (!passagem) return null;
+  const amostras = (passagem.amostras ?? []) as any[];
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            Rastro da passagem — {passagem.vehicles?.placa ?? "veículo"} ·{" "}
+            {Number(passagem.velocidade_kmh).toFixed(0)} km/h
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-xs text-muted-foreground">
+          {passagem.sms_zonas_velocidade?.nome ?? "—"} · limite {passagem.limite_no_momento} km/h ·{" "}
+          {dateTime(passagem.detectado_em)}
+        </p>
+
+        <div className="divide-y rounded-lg border">
+          {amostras.map((a, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+              <span className="font-mono">{a.t ? dateTime(a.t) : "—"}</span>
+              <span className={Number(a.kmh) > passagem.limite_no_momento ? "font-semibold text-destructive" : ""}>
+                {Number(a.kmh).toFixed(1)} km/h
+              </span>
+              <span className="text-muted-foreground">
+                {a.sat != null ? `${a.sat} sat` : "sat —"} · {a.hdop != null ? `hdop ${a.hdop}` : "hdop —"}
+              </span>
+              <a
+                className="inline-flex items-center gap-1 text-primary hover:underline"
+                href={`https://www.google.com/maps?q=${a.lat},${a.lng}&z=17`}
+                target="_blank" rel="noreferrer"
+              >
+                <MapPin className="h-3 w-3" />mapa
+              </a>
+            </div>
+          ))}
+          {!amostras.length && <p className="px-3 py-4 text-xs text-muted-foreground">Sem amostras registradas.</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onOpenChange}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Diálogo: nova zona GPS ──────────────────────────────────────────
+
+/** Aceita "lat, lng" ou "lat lng" por linha; ignora linha vazia e comentário. */
+function lerCoordenadas(texto: string): { lat: number; lng: number }[] {
+  const pontos: { lat: number; lng: number }[] = [];
+  for (const linha of texto.split("\n")) {
+    const limpa = linha.split("#")[0].trim();
+    if (!limpa) continue;
+    const [lat, lng] = limpa.split(/[,;\s]+/).map(Number);
+    if (Number.isFinite(lat) && Number.isFinite(lng)
+        && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      pontos.push({ lat, lng });
+    }
+  }
+  return pontos;
+}
+
+const ZONA_VAZIA = {
+  obra_id: "", nome: "", descricao: "", tipo: "corredor",
+  limite_velocidade_kmh: "40", tolerancia_kmh: "5", buffer_metros: "30",
+  amostras_minimas: "2", duracao_minima_seg: "3",
+  horario_inicio: "", horario_fim: "",
+};
+
+function ZonaDialog({ open, onOpenChange, obras, zona, onSaved }: {
+  open: boolean; onOpenChange: (o: boolean) => void; obras: any[];
+  zona?: Zona | null; onSaved: () => void;
+}) {
+  const [form, setForm] = useState({ ...ZONA_VAZIA });
+  const [coordenadas, setCoordenadas] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+
+  const editando = Boolean(zona);
+  const pontos = useMemo(() => lerCoordenadas(coordenadas), [coordenadas]);
+  const minimo = form.tipo === "corredor" ? 2 : 3;
+
+  // Abrir para editar traz os valores e o traçado atual.
+  useEffect(() => {
+    if (!open) return;
+    if (!zona) {
+      setForm({ ...ZONA_VAZIA });
+      setCoordenadas("");
+      return;
+    }
+    setForm({
+      obra_id: zona.obra_id,
+      nome: zona.nome,
+      descricao: zona.descricao ?? "",
+      tipo: zona.tipo,
+      limite_velocidade_kmh: String(zona.limite_velocidade_kmh),
+      tolerancia_kmh: String(zona.tolerancia_kmh),
+      buffer_metros: String(zona.buffer_metros),
+      amostras_minimas: String(zona.amostras_minimas),
+      duracao_minima_seg: String(zona.duracao_minima_seg),
+      horario_inicio: zona.horario_inicio?.slice(0, 5) ?? "",
+      horario_fim: zona.horario_fim?.slice(0, 5) ?? "",
+    });
+    setCarregando(true);
+    (supabase as any)
+      .from("sms_zona_vertices")
+      .select("latitude,longitude")
+      .eq("zona_id", zona.id)
+      .order("ordem")
+      .then(({ data, error }: any) => {
+        setCarregando(false);
+        if (error) return toast.error(`Não foi possível ler o traçado: ${error.message}`);
+        setCoordenadas((data ?? []).map((v: any) => `${v.latitude}, ${v.longitude}`).join("\n"));
+      });
+  }, [open, zona]);
+
+  async function salvar() {
+    if (!form.obra_id || !form.nome.trim()) {
+      return toast.error("Informe a obra e o nome da zona.");
+    }
+    if (pontos.length < minimo) {
+      return toast.error(
+        `${form.tipo === "corredor" ? "Corredor" : "Polígono"} exige ao menos ${minimo} pontos; ` +
+        `foram lidos ${pontos.length}.`
+      );
+    }
+    if ((form.horario_inicio && !form.horario_fim) || (!form.horario_inicio && form.horario_fim)) {
+      return toast.error("Informe os dois horários ou deixe ambos em branco.");
+    }
+
+    const valores = {
+      obra_id: form.obra_id,
+      nome: form.nome.trim(),
+      descricao: form.descricao.trim() || null,
+      tipo: form.tipo,
+      limite_velocidade_kmh: Number(form.limite_velocidade_kmh),
+      tolerancia_kmh: Number(form.tolerancia_kmh),
+      buffer_metros: Number(form.buffer_metros),
+      amostras_minimas: Number(form.amostras_minimas),
+      duracao_minima_seg: Number(form.duracao_minima_seg),
+      horario_inicio: form.horario_inicio || null,
+      horario_fim: form.horario_fim || null,
+    };
+
+    setSaving(true);
+    const { data: salva, error } = editando
+      ? await (supabase as any).from("sms_zonas_velocidade")
+          .update(valores).eq("id", zona!.id).select("id").single()
+      : await (supabase as any).from("sms_zonas_velocidade")
+          .insert(valores).select("id").single();
+
+    if (error || !salva) {
+      setSaving(false);
+      return toast.error(
+        `Não foi possível ${editando ? "salvar" : "criar"} a zona: ${error?.message ?? "erro desconhecido"}`
+      );
+    }
+
+    // Traçado é substituído inteiro — delete + insert, como nas demais tabelas
+    // de ordem do sistema. Evita vértice órfão de uma versão anterior.
+    if (editando) {
+      const { error: erroLimpeza } = await (supabase as any)
+        .from("sms_zona_vertices").delete().eq("zona_id", salva.id);
+      if (erroLimpeza) {
+        setSaving(false);
+        return toast.error(`Não foi possível substituir o traçado: ${erroLimpeza.message}`);
+      }
+    }
+
+    const { error: erroVertices } = await (supabase as any)
+      .from("sms_zona_vertices")
+      .insert(pontos.map((p, i) => ({
+        zona_id: salva.id, ordem: i, latitude: p.lat, longitude: p.lng,
+      })));
+    setSaving(false);
+
+    if (erroVertices) {
+      // Zona sem geometria não detecta nada: avisa em vez de deixar meia gravada.
+      return toast.error(
+        `Zona ${editando ? "salva" : "criada"}, mas as coordenadas falharam: ${erroVertices.message}. ` +
+        "Corrija o traçado antes de usar a zona."
+      );
+    }
+
+    toast.success(editando
+      ? "Zona atualizada. O novo traçado vale a partir da próxima amostra."
+      : "Zona criada em modo observação: mede e registra, sem gerar infração.");
+    setForm({ ...ZONA_VAZIA });
+    setCoordenadas("");
+    onOpenChange(false);
+    onSaved();
+  }
+
+  const campo = (k: keyof typeof form) => (e: any) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {!editando && (
+        <DialogTrigger asChild>
+          <Button><Plus className="mr-2 h-4 w-4" />Nova zona</Button>
+        </DialogTrigger>
+      )}
+      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editando ? `Editar zona — ${zona!.nome}` : "Nova zona de velocidade"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Obra *</Label>
+              <Select value={form.obra_id} onValueChange={v => setForm(f => ({ ...f, obra_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione a obra" /></SelectTrigger>
+                <SelectContent>
+                  {obras.map((o: any) => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Nome *</Label>
+              <Input value={form.nome} onChange={campo("nome")} placeholder="Ex.: Acesso principal — portaria ao AG-07" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Descrição</Label>
+            <Input value={form.descricao} onChange={campo("descricao")} placeholder="Referência do trecho, se ajudar a identificar" />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label>Tipo</Label>
+              <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="corredor">Corredor (estrada)</SelectItem>
+                  <SelectItem value="poligono">Polígono (área)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Limite (km/h)</Label>
+              <Input type="number" min={5} max={200} value={form.limite_velocidade_kmh} onChange={campo("limite_velocidade_kmh")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tolerância (km/h)</Label>
+              <Input type="number" min={0} max={30} value={form.tolerancia_kmh} onChange={campo("tolerancia_kmh")} />
+            </div>
+            {form.tipo === "corredor" && (
+              <div className="space-y-1.5">
+                <Label>Faixa da via (m)</Label>
+                <Input type="number" min={10} max={200} value={form.buffer_metros} onChange={campo("buffer_metros")} />
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label>Amostras mínimas</Label>
+              <Input type="number" min={1} max={10} value={form.amostras_minimas} onChange={campo("amostras_minimas")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Duração mínima (s)</Label>
+              <Input type="number" min={0} max={120} value={form.duracao_minima_seg} onChange={campo("duracao_minima_seg")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Vale a partir de</Label>
+              <Input type="time" value={form.horario_inicio} onChange={campo("horario_inicio")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Até</Label>
+              <Input type="time" value={form.horario_fim} onChange={campo("horario_fim")} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Coordenadas do trecho *</Label>
+            <Textarea
+              rows={6}
+              className="font-mono text-xs"
+              value={coordenadas}
+              onChange={e => setCoordenadas(e.target.value)}
+              placeholder={"-8.0500000, -35.0000000\n-8.0500000, -34.9950000"}
+            />
+            <p className="text-xs text-muted-foreground">
+              Uma coordenada por linha, na ordem do trecho. {form.tipo === "corredor"
+                ? "O corredor segue o leito da estrada; a faixa acima cobre o erro do GPS."
+                : "O polígono fecha sozinho entre o último ponto e o primeiro."}
+              {" "}Capture dirigindo com o celular, exporte do GPS ou copie do Google Maps.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <span className={pontos.length >= minimo ? "text-emerald-600" : "text-amber-700"}>
+                {pontos.length} ponto(s) lido(s) · mínimo {minimo}
+              </span>
+              {pontos.length > 0 && (
+                <a
+                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                  href={`https://www.google.com/maps?q=${pontos[0].lat},${pontos[0].lng}&z=16`}
+                  target="_blank" rel="noreferrer"
+                >
+                  <ExternalLink className="h-3 w-3" />conferir o primeiro ponto no mapa
+                </a>
+              )}
+            </div>
+          </div>
+
+          {editando ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              Alterar limite, tolerância ou traçado vale <strong>da próxima amostra em diante</strong>.
+              Passagens e infrações já registradas guardam o limite do momento e não mudam.
+            </p>
+          ) : (
+            <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+              A zona nasce em <strong>observação</strong>: registra a passagem e não gera infração.
+              Deixe assim por uma ou duas semanas, confira as passagens e a faixa da via, e só então
+              passe para autuação.
+            </p>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button disabled={saving || carregando} onClick={salvar}>
+            {(saving || carregando) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {editando ? "Salvar alterações" : "Criar zona"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

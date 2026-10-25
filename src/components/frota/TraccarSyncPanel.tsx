@@ -8,12 +8,7 @@ import { useI18n } from "@/i18n";
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  useTraccar,
-  loadTraccarConfig,
-  type TraccarConfig,
-  type TraccarDevice,
-} from "@/hooks/useTraccar";
+import { useTraccar, loadTraccarConfig, type TraccarConfig, type TraccarDevice, knotsToKmh } from "@/hooks/useTraccar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -297,6 +292,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
       }
 
       const { latitude, longitude, speed, fixTime } = positions[0];
+      const velocidadeKmh = knotsToKmh(speed);
 
       // Atualiza coordenadas no estado
       setVehicles(prev =>
@@ -312,7 +308,7 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
       window.open(mapsUrl, "_blank");
 
       toast.success(t("{plate} localizado", { plate: v.placa }), {
-        description: `${speed > 0 ? `${number(Math.round(speed))} km/h` : t("Parado")} • ${date(new Date(fixTime), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`,
+        description: `${velocidadeKmh > 0 ? `${number(Math.round(velocidadeKmh))} km/h` : t("Parado")} • ${date(new Date(fixTime), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`,
       });
     } catch (e: any) {
       toast.error(t("Erro ao localizar veículo"), { description: e.message });
