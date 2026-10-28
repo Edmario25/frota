@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Filter, Edit, Archive, Eye, Download, QrCode, Wrench, LogOut, ArrowLeftRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { 
   Table,
   TableBody,
@@ -38,6 +39,7 @@ import { T } from "@/i18n";
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
 const Frota = () => {
+  const navigate = useNavigate();
   const { vehicles, loading, error: vehiclesError, accessMessage, createVehicle, updateVehicle, deleteVehicle, getVehicleStats, refetchVehicles } = useVehicles();
   const { employees } = useEmployees();
   const { rentalCompanies, createRentalCompany } = useRentalCompanies();
@@ -147,6 +149,10 @@ const Frota = () => {
             <p className="text-sm text-muted-foreground mt-0.5"><T>Gerencie sua frota de veículos leves</T></p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/manutencao")}>
+              <Wrench className="h-4 w-4 mr-1" />
+              <T>Manutenção da Frota</T>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setIsRentalCompanyModalOpen(true)}>
               Gerenciar Locadoras
             </Button>

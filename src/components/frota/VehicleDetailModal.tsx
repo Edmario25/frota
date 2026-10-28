@@ -38,6 +38,8 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { WashRecordFormModal } from "@/components/lavagem/WashRecordFormModal";
 import { FuelLogFormModal } from "@/components/combustivel/FuelLogFormModal";
 import { MaintenanceFormModal } from "@/components/manutencao/MaintenanceFormModal";
+import { VencimentosVeiculo } from "@/components/manutencao/VencimentosVeiculo";
+import { OrdemServicoDialog } from "@/components/manutencao/OrdemServicoDialog";
 import { MaintenanceDetailModal } from "@/components/manutencao/MaintenanceDetailModal";
 import { VehicleAccessoryFormModal } from "@/components/acessorios/VehicleAccessoryFormModal";
 import { VehicleAccessoryDetailModal } from "@/components/acessorios/VehicleAccessoryDetailModal";
@@ -106,6 +108,9 @@ export function VehicleDetailModal({
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
   const [isMaintenanceDetailModalOpen, setIsMaintenanceDetailModalOpen] = useState(false);
   const [selectedMaintenance, setSelectedMaintenance] = useState<any>(null);
+  const [osManutencao, setOsManutencao] = useState<any>(null);
+  // Recarrega os vencimentos depois de agendar/concluir sem remontar a ficha inteira.
+  const [vencimentosKey, setVencimentosKey] = useState(0);
   
   const [isAccessoryFormModalOpen, setIsAccessoryFormModalOpen] = useState(false);
   const [isAccessoryDetailModalOpen, setIsAccessoryDetailModalOpen] = useState(false);
@@ -390,6 +395,13 @@ export function VehicleDetailModal({
             </Button>
           </div>
         )}
+
+        <VencimentosVeiculo
+          key={vencimentosKey}
+          vehicleId={vehicle.id}
+          podeEditar={!isEmployeeMode}
+          onAgendado={() => setVencimentosKey((n) => n + 1)}
+        />
         <Table>
           <TableHeader>
             <TableRow>
@@ -449,6 +461,9 @@ export function VehicleDetailModal({
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { setSelectedMaintenance(record); setIsMaintenanceModalOpen(true); }}>
                           <Edit className="h-4 w-4 mr-2" />{t("Editar")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setOsManutencao(record)}>
+                          <ClipboardCheck className="h-4 w-4 mr-2" />{t("Ordem de serviço")}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => deleteMaintenanceRecord(record.id)} className="text-destructive">
@@ -1114,6 +1129,13 @@ export function VehicleDetailModal({
       </Dialog>
 
       {/* Sub-modals */}
+      {osManutencao && (
+        <OrdemServicoDialog
+          maintenanceId={osManutencao.id}
+          onClose={() => setOsManutencao(null)}
+          onSaved={() => setVencimentosKey((n) => n + 1)}
+        />
+      )}
       <MaintenanceFormModal
         isOpen={isMaintenanceModalOpen}
         onClose={() => setIsMaintenanceModalOpen(false)}

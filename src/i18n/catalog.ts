@@ -101,6 +101,7 @@ export const catalog: Record<string, readonly [string, string]> = {
   "Frota Total": ["Total fleet", "Flota total"],
   "SMS · Segurança": ["HSE · Safety", "SSMA · Seguridad"],
   "Manutenção": ["Maintenance", "Mantenimiento"],
+  "Ordem de serviço": ["Work order", "Orden de trabajo"],
   "Manutenções": ["Maintenance", "Mantenimientos"],
   "Agendadas": ["Scheduled", "Programados"],
   "Todos em dia ✅": ["All up to date ✅", "Todo al día ✅"],
