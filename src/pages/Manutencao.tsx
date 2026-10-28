@@ -27,6 +27,10 @@ import { MaintenanceFormModal } from "@/components/manutencao/MaintenanceFormMod
 import { DamageReportModal } from "@/components/manutencao/DamageReportModal";
 import { WashRecordModal } from "@/components/manutencao/WashRecordModal";
 import { HistoryModal } from "@/components/manutencao/HistoryModal";
+import { PlanosManutencao } from "@/components/manutencao/PlanosManutencao";
+import { VencimentosFrota } from "@/components/manutencao/VencimentosFrota";
+import { OrdemServicoDialog } from "@/components/manutencao/OrdemServicoDialog";
+import { IndicadoresManutencao } from "@/components/manutencao/IndicadoresManutencao";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getMaintenanceStatusColor, getMaintenanceStatusText } from "@/lib/statusHelpers";
@@ -38,6 +42,7 @@ export default function Manutencao() {
   const [showDamageModal, setShowDamageModal] = useState(false);
   const [showWashModal, setShowWashModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [osAberta, setOsAberta] = useState<string | null>(null);
   const [selectedMaintenance, setSelectedMaintenance] = useState(null);
   
   const { maintenanceRecords, loading, getMaintenanceStats } = useMaintenance();
@@ -133,6 +138,13 @@ export default function Manutencao() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => setOsAberta(record.id)}
+                    >
+                      OS
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
                         setSelectedMaintenance(record);
                         setShowMaintenanceModal(true);
@@ -213,6 +225,9 @@ export default function Manutencao() {
               <TabsTrigger value="agendadas">Agendadas</TabsTrigger>
               <TabsTrigger value="em_andamento">Em Andamento</TabsTrigger>
               <TabsTrigger value="concluidas">Concluídas</TabsTrigger>
+              <TabsTrigger value="vencimentos">Vencimentos</TabsTrigger>
+              <TabsTrigger value="planos">Planos</TabsTrigger>
+              <TabsTrigger value="indicadores">Indicadores</TabsTrigger>
             </TabsList>
 
             <div className="flex gap-2">
@@ -259,6 +274,18 @@ export default function Manutencao() {
           <TabsContent value="concluidas" className="space-y-4">
             {renderMaintenanceList(getFilteredRecordsByStatus('concluida'), "Manutenções Concluídas")}
           </TabsContent>
+
+          <TabsContent value="vencimentos" className="space-y-4">
+            <VencimentosFrota podeEditar={!isFuncionario} />
+          </TabsContent>
+
+          <TabsContent value="planos" className="space-y-4">
+            <PlanosManutencao podeEditar={!isFuncionario} />
+          </TabsContent>
+
+          <TabsContent value="indicadores" className="space-y-4">
+            <IndicadoresManutencao />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -285,6 +312,14 @@ export default function Manutencao() {
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
       />
+
+      {osAberta && (
+        <OrdemServicoDialog
+          maintenanceId={osAberta}
+          onClose={() => setOsAberta(null)}
+          onSaved={() => { /* a lista relê pelo hook ao reabrir */ }}
+        />
+      )}
     </Layout>
   );
 }

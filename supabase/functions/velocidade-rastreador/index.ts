@@ -91,6 +91,35 @@ function paraAmostra(posicao: any) {
   };
 }
 
+// ─── Medição: km e horas percorridos na janela ───────────────────────────────
+// O Traccar acumula distância (metros) e horas de motor (ms) por dispositivo.
+// Interessa o quanto andou DENTRO da janela já processada — a diferença entre a
+// primeira e a última posição. Delta evita herdar o acumulado de um rastreador
+// que veio de outro veículo.
+
+function medicaoDaJanela(posicoes: any[]) {
+  const dist = posicoes
+    .map((p) => p.attributes?.totalDistance)
+    .filter((v) => typeof v === "number");
+  const horas = posicoes
+    .map((p) => p.attributes?.hours)
+    .filter((v) => typeof v === "number");
+  const odometro = posicoes
+    .map((p) => p.attributes?.odometer)
+    .filter((v) => typeof v === "number" && v > 0);
+
+  const delta = (v: number[]) => (v.length >= 2 ? v[v.length - 1] - v[0] : 0);
+  const km = delta(dist) / 1000;
+  const h = delta(horas) / 3_600_000;
+
+  return {
+    km_delta: km > 0 ? Number(km.toFixed(1)) : null,
+    horas_delta: h > 0 ? Number(h.toFixed(2)) : null,
+    // `odometer` é o painel do veículo, quando o equipamento reporta.
+    km_absoluto: odometro.length ? Math.round(odometro[odometro.length - 1] / 1000) : null,
+  };
+}
+
 // ─── Porta 1: varredura ──────────────────────────────────────────────────────
 
 async function varredura(minutos: number) {
@@ -138,7 +167,23 @@ async function varredura(minutos: number) {
       });
 
       if (erroRpc) throw new Error(erroRpc.message);
-      resultado.push({ placa: v.placa, ...resposta });
+
+      // Mesma varredura alimenta o gatilho do plano de manutenção: sem isso, km
+      // e horímetro só mudam quando alguém digita.
+      const medicao = medicaoDaJanela(posicoes);
+      let medicaoAplicada: any = null;
+      if (medicao.km_delta || medicao.horas_delta || medicao.km_absoluto) {
+        const { data: med, error: erroMed } = await db.rpc("frota_atualizar_medicao", {
+          p_device_id: v.traccar_device_id,
+          p_km_delta: medicao.km_delta,
+          p_horas_delta: medicao.horas_delta,
+          p_km_absoluto: medicao.km_absoluto,
+        });
+        // Falha na medição não invalida as amostras de velocidade já gravadas.
+        medicaoAplicada = erroMed ? { erro: erroMed.message } : med;
+      }
+
+      resultado.push({ placa: v.placa, ...resposta, medicao: medicaoAplicada });
     } catch (e: any) {
       // Um veículo com problema não pode derrubar a varredura dos outros.
       resultado.push({ placa: v.placa, erro: e.message });

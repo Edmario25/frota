@@ -2204,4 +2204,7 @@ export const catalog: Record<string, readonly [string, string]> = {
   "Preview": ["Preview", "Vista previa"],
   "Tirar foto / Galeria": ["Take a photo / gallery", "Tomar foto / galería"],
   "Clique em “Carregar Dispositivos” para ver os rastreadores cadastrados no Traccar. O ID de cada dispositivo é usado para vincular ao veículo.": ["Click “Load devices” to see the trackers registered in Traccar. The ID of each device is used to link it to the vehicle.", "Haga clic en “Cargar dispositivos” para ver los rastreadores registrados en Traccar. El ID de cada dispositivo se usa para vincularlo al vehículo."],
+  // Manutenção por horímetro: o plano por hora depende desta medição.
+  "Horas no momento do serviço": ["Hours at the time of service", "Horas al momento del servicio"],
+  "É o que faz o plano por hora recomeçar o ciclo.": ["This is what restarts the cycle of an hour-based plan.", "Es lo que hace que el plan por hora reinicie el ciclo."],
 };

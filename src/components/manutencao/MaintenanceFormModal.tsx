@@ -38,6 +38,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
     data_agendada: new Date(),
     data_realizada: null as Date | null,
     quilometragem: "",
+    horimetro: "",
     custo: "",
     responsavel: "",
     oficina: "",
@@ -76,6 +77,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
         data_agendada: new Date(maintenance.data_agendada),
         data_realizada: maintenance.data_realizada ? new Date(maintenance.data_realizada) : null,
         quilometragem: maintenance.quilometragem?.toString() || "",
+        horimetro: maintenance.horimetro?.toString() || "",
         custo: maintenance.custo?.toString() || "",
         responsavel: maintenance.responsavel || "",
         oficina: maintenance.oficina || "",
@@ -95,6 +97,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
         data_agendada: new Date(),
         data_realizada: null,
         quilometragem: defaultVehicle?.quilometragem_atual?.toString() || "",
+        horimetro: (defaultVehicle as any)?.horimetro_atual?.toString() || "",
         custo: "",
         responsavel: "",
         oficina: "",
@@ -111,7 +114,11 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
     if (maintenance) return;
     const selected = vehicles.find(v => v.id === formData.vehicle_id);
     if (selected) {
-      setFormData(prev => ({ ...prev, quilometragem: selected.quilometragem_atual?.toString() || "" }));
+      setFormData(prev => ({
+        ...prev,
+        quilometragem: selected.quilometragem_atual?.toString() || "",
+        horimetro: (selected as any).horimetro_atual?.toString() || "",
+      }));
     }
   }, [formData.vehicle_id, vehicles, maintenance]);
 
@@ -163,6 +170,7 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
         data_agendada: formData.data_agendada.toISOString().split('T')[0],
         data_realizada: formData.data_realizada?.toISOString().split('T')[0] || null,
         quilometragem: formData.quilometragem ? parseInt(formData.quilometragem) : null,
+        horimetro: formData.horimetro ? parseFloat(formData.horimetro) : null,
         custo: formData.custo ? parseFloat(formData.custo) : null,
         responsavel: formData.responsavel,
         oficina: formData.oficina,
@@ -346,6 +354,23 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
               />
               <p className="text-xs text-muted-foreground">{t("Preenchido automaticamente pelo sistema")}</p>
             </div>
+
+            {(vehicles.find(v => v.id === formData.vehicle_id) as any)?.tipo_medicao === "horimetro" && (
+              <div className="space-y-2">
+                <Label htmlFor="horimetro">{t("Horímetro Atual")}</Label>
+                <Input
+                  id="horimetro"
+                  type="number"
+                  step="0.1"
+                  value={formData.horimetro}
+                  onChange={(e) => setFormData(prev => ({ ...prev, horimetro: e.target.value }))}
+                  placeholder={t("Horas no momento do serviço")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("É o que faz o plano por hora recomeçar o ciclo.")}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="custo">{t("Valor do Serviço (R$)")}</Label>
