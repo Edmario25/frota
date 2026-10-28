@@ -87,6 +87,8 @@ const menuGroups = [
     items: [
       { title: "Veículos Leves",   icon: Car,   url: "/frota",            roles: OBRA_ACCESS, perm: "acesso_frota" as PermKey },
       { title: "Veículos Pesados", icon: Truck, url: "/veiculos-pesados", roles: OBRA_ACCESS, perm: "acesso_frota" as PermKey },
+      // A rota existia desde antes sem item de menu: quem não soubesse a URL não chegava nela.
+      { title: "Manutenção",       icon: Wrench, url: "/manutencao",      roles: OBRA_ACCESS, perm: "acesso_frota" as PermKey },
     ]
   },
   {
