@@ -242,6 +242,16 @@ SELECT placa, tipo_medicao, custo, km_rodado, custo_por_km,
 FROM public.manutencao_indicadores_veiculo(current_date - 90, current_date);
 ```
 
+### Vencimentos da frota no painel principal
+
+O dashboard mostrava só os vencimentos de RH. Agora os dois cartões ficam lado
+a lado: pessoas de um lado, frota do outro — manutenção vencida e documento de
+veículo, com o item crítico marcado e link para a tela de Manutenção.
+
+O detalhe de cada linha fala **na unidade do gatilho que vence primeiro**:
+dizer "faltam 15 dias" de um item que vence por quilometragem confunde quem
+agenda a oficina.
+
 ## O que ainda falta
 
 - **Ciclo de horímetro só conta a partir de agora.** O custo por hora fica

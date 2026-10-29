@@ -6,6 +6,7 @@ import { KilometrageChart } from "@/components/dashboard/KilometrageChart";
 import { ObrasSummaryCard } from "@/components/dashboard/ObrasSummaryCard";
 import { UpcomingLeavesCard } from "@/components/dashboard/UpcomingLeavesCard";
 import { VencimentosCard } from "@/components/dashboard/VencimentosCard";
+import { VencimentosFrotaCard } from "@/components/dashboard/VencimentosFrotaCard";
 import { MyVehicleCard } from "@/components/employee/MyVehicleCard";
 import { MyScheduleCard } from "@/components/employee/MyScheduleCard";
 import { MyMaintenanceCard } from "@/components/employee/MyMaintenanceCard";
@@ -353,8 +354,12 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Vencimentos: treinamentos + documentos */}
-            <VencimentosCard diasJanela={60} maxItens={10} />
+            {/* Vencimentos lado a lado: pessoas de um lado, frota do outro.
+                Antes o painel só mostrava os de RH. */}
+            <div className="grid gap-5 lg:grid-cols-2">
+              <VencimentosCard diasJanela={60} maxItens={8} />
+              <VencimentosFrotaCard diasJanela={60} maxItens={8} />
+            </div>
 
             {/* Linha inferior: Obras + Escalas */}
             <div className="grid gap-5 lg:grid-cols-2">
