@@ -53,11 +53,12 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
             .in("vehicle_id", vehicleIds)
             .eq("tipo", "corretiva")
             .neq("status", "cancelada"),
-          supabase
-            .from("vehicle_documents")
-            .select("vehicle_id, data_vencimento")
-            .in("vehicle_id", vehicleIds)
-            .lt("data_vencimento", new Date().toISOString().slice(0, 10)),
+          // Fonte única desde 20261029000001: a tela de Vencimentos cadastra
+          // aqui, e sem isso documento vencido avisava sem bloquear nada.
+          (supabase as any)
+            .from("v_documentos_vencidos")
+            .select("vehicle_id")
+            .in("vehicle_id", vehicleIds),
         ])
 
         if (error || cancelled) return

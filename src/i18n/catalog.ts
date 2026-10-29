@@ -103,6 +103,7 @@ export const catalog: Record<string, readonly [string, string]> = {
   "Manutenção": ["Maintenance", "Mantenimiento"],
   "Ordem de serviço": ["Work order", "Orden de trabajo"],
   "Plano de manutenção": ["Maintenance plan", "Plan de mantenimiento"],
+  "Equipamento por horímetro vence por hora de motor, não por quilômetro.": ["Hour-metered equipment is due by engine hours, not by distance.", "El equipo con horómetro vence por hora de motor, no por kilómetro."],
   "Selecione o plano": ["Select the plan", "Seleccione el plan"],
   "Sem plano — intervalo único": ["No plan — single interval", "Sin plan — intervalo único"],
   "Trocar o plano recomeça a contagem a partir da medição atual.": ["Changing the plan restarts the count from the current reading.", "Cambiar el plan reinicia el conteo desde la medición actual."],

@@ -87,12 +87,14 @@ export const VeiculosPesados: React.FC = () => {
     vehicle.marca.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Devolve o id para o formulário aplicar o plano de manutenção ao veículo salvo.
   const handleVehicleSubmit = async (vehicleData: any) => {
     if (selectedVehicle) {
       await updateVehicle(selectedVehicle.id, vehicleData);
-    } else {
-      await createVehicle(vehicleData);
+      return selectedVehicle.id as string;
     }
+    const criado: any = await createVehicle(vehicleData);
+    return criado?.id as string | undefined;
   };
 
   const handleDeleteVehicle = async (motivo?: string) => {

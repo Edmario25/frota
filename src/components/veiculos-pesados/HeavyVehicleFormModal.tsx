@@ -20,6 +20,7 @@ import * as z from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import { useFornecedores } from "@/hooks/useFornecedores";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type VehicleInsert = Database['public']['Tables']['vehicles']['Insert'];
@@ -39,6 +40,7 @@ const heavyVehicleFormSchema = z.object({
   valor_aluguel_mensal: z.number().min(0).optional(),
   status: z.enum(['disponivel', 'em_uso', 'manutencao']).optional(),
   observacoes: z.string().optional(),
+  traccar_device_id: z.string().optional(),   // ID numérico como string para o Input
   tipo_propriedade: z.enum(['proprio', 'alugado']),
   fornecedor_id: z.string().optional(),
   numero_contrato_locacao: z.string().optional(),
@@ -58,13 +60,68 @@ interface HeavyVehicleFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vehicle?: Vehicle;
-  onSubmit: (data: VehicleInsert) => Promise<void>;
+  /** Devolve o id do veículo salvo, que o plano de manutenção precisa para se aplicar. */
+  onSubmit: (data: VehicleInsert) => Promise<string | void>;
   employees?: Array<{id: string, nome: string}>;
 }
 
 export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employees = [] }: HeavyVehicleFormModalProps) => {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Plano de manutenção não é coluna de vehicles: é vínculo com linha de base
+  // própria, aplicado depois de salvar para herdar a medição desta tela.
+  const [planos, setPlanos] = useState<Array<{ id: string; nome: string }>>([]);
+  const [planoId, setPlanoId] = useState<string>("none");
+  const [planoOriginal, setPlanoOriginal] = useState<string>("none");
+
+  useEffect(() => {
+    if (!open) return;
+    const carregarPlanos = async () => {
+      const { data: lista } = await (supabase as any)
+        .from("manutencao_planos").select("id, nome").eq("ativo", true).order("nome");
+      setPlanos((lista as any[]) ?? []);
+
+      if (vehicle?.id) {
+        const { data: aplicado } = await (supabase as any)
+          .from("manutencao_plano_veiculos").select("plano_id")
+          .eq("vehicle_id", vehicle.id).maybeSingle();
+        const atual = (aplicado as any)?.plano_id ?? "none";
+        setPlanoId(atual);
+        setPlanoOriginal(atual);
+      } else {
+        setPlanoId("none");
+        setPlanoOriginal("none");
+      }
+    };
+    void carregarPlanos();
+  }, [open, vehicle?.id]);
+
+  const sincronizarPlano = async (vehicleId: string) => {
+    if (planoId === planoOriginal) return;
+
+    if (planoOriginal !== "none") {
+      await (supabase as any).from("manutencao_plano_veiculos")
+        .delete().eq("vehicle_id", vehicleId).eq("plano_id", planoOriginal);
+    }
+
+    if (planoId !== "none") {
+      const { data: user } = await supabase.auth.getUser();
+      const { error } = await (supabase as any).from("manutencao_plano_veiculos")
+        .insert({ plano_id: planoId, vehicle_id: vehicleId, aplicado_por: user?.user?.id });
+      if (error) {
+        toast({ title: "Veículo salvo, plano não aplicado", description: error.message, variant: "destructive" });
+        return;
+      }
+    }
+
+    toast({
+      title: planoId === "none" ? "Plano removido" : "Plano aplicado",
+      description: planoId === "none"
+        ? "O veículo volta ao intervalo único das Configurações."
+        : "Os vencimentos passam a contar da medição atual deste equipamento.",
+    });
+  };
   const [obras, setObras] = useState<any[]>([]);
   const [setores, setSetores] = useState<any[]>([]);
   const { fornecedores } = useFornecedores();
@@ -86,6 +143,7 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
       valor_aluguel_mensal: 0,
       status: "disponivel",
       observacoes: "",
+      traccar_device_id: "",
       tipo_propriedade: "proprio",
       fornecedor_id: "",
       numero_contrato_locacao: "",
@@ -159,6 +217,9 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
         valor_aluguel_mensal: (vehicle as any).valor_aluguel_mensal || 0,
         status: vehicle.status as "disponivel" | "em_uso" | "manutencao",
         observacoes: vehicle.observacoes || "",
+        traccar_device_id: (vehicle as any).traccar_device_id != null
+          ? String((vehicle as any).traccar_device_id)
+          : "",
         tipo_propriedade: (vehicle.tipo_propriedade as "proprio" | "alugado") || "proprio",
         fornecedor_id: (vehicle as any).fornecedor_id || "",
         numero_contrato_locacao: (vehicle as any).numero_contrato_locacao || "",
@@ -189,6 +250,7 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
         valor_aluguel_mensal: 0,
         status: "disponivel",
         observacoes: "",
+        traccar_device_id: "",
         tipo_propriedade: "proprio",
         fornecedor_id: "",
         numero_contrato_locacao: "",
@@ -240,6 +302,12 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
         valor_aluguel_mensal: values.valor_aluguel_mensal || 0,
         status: values.status || 'disponivel',
         observacoes: values.observacoes || null,
+        // Sem o vínculo, a medição automática do rastreador não chega ao
+        // equipamento — justamente quem mais depende do gatilho por hora.
+        traccar_device_id: (() => {
+          const id = values.traccar_device_id?.trim() ? parseInt(values.traccar_device_id, 10) : null;
+          return id != null && !isNaN(id) ? id : null;
+        })(),
         tipo_propriedade: values.tipo_propriedade!,
         fornecedor_id: values.fornecedor_id || null,
         numero_contrato_locacao: values.numero_contrato_locacao?.trim() || null,
@@ -255,7 +323,8 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
         setor_id: values.setor_id === "none" ? null : values.setor_id || null,
       };
       
-      await onSubmit(vehicleData);
+      const savedId = (await onSubmit(vehicleData)) || vehicle?.id;
+      if (savedId) await sincronizarPlano(savedId);
       onOpenChange(false);
       form.reset();
     } catch (error) {
@@ -460,6 +529,47 @@ export const HeavyVehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, e
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="traccar_device_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("ID do Dispositivo Traccar")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t("Ex: 42  (veja em Configurações → GPS / Traccar)")}
+                        {...field}
+                        className="font-mono"
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      {t("Deixe em branco se o veículo não possui rastreador.")}
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormItem>
+                <FormLabel>{t("Plano de manutenção")}</FormLabel>
+                <Select value={planoId} onValueChange={setPlanoId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("Selecione o plano")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("Sem plano — intervalo único")}</SelectItem>
+                    {planos.map((plano) => (
+                      <SelectItem key={plano.id} value={plano.id}>{plano.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {planoId !== planoOriginal && planoOriginal !== "none"
+                    ? t("Trocar o plano recomeça a contagem a partir da medição atual.")
+                    : t("Equipamento por horímetro vence por hora de motor, não por quilômetro.")}
+                </p>
+              </FormItem>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
