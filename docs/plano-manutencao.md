@@ -177,7 +177,7 @@ FROM public.vehicles WHERE traccar_device_id IS NOT NULL ORDER BY updated_at DES
 Quem ainda não implantou a varredura continua digitando a medição no cadastro —
 nada do que existia deixou de funcionar.
 
-## Revisão de cobertura da frota (29/10/2026)
+## Revisão de cobertura da frota (28/10/2026)
 
 Migrations `20261029000001_manutencao_ajustes_frota.sql` e
 `20261029000002_horimetro_ciclos_custo_hora.sql`.

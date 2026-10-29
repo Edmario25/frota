@@ -182,7 +182,7 @@ COMMENT ON TABLE public.vehicle_documentos IS 'Documentos do veículo. Fonte ún
 DO $$
 BEGIN
   IF to_regclass('public.vehicle_documents') IS NOT NULL THEN
-    EXECUTE 'COMMENT ON TABLE public.vehicle_documents IS ''OBSOLETA desde 2026-10-29: use vehicle_documentos. Mantida para histórico de arquivos; a liberação de veículo não a consulta mais.''';
+    EXECUTE 'COMMENT ON TABLE public.vehicle_documents IS ''OBSOLETA desde 2026-10-28: use vehicle_documentos. Mantida para histórico de arquivos; a liberação de veículo não a consulta mais.''';
   END IF;
 END $$;
 
