@@ -34,12 +34,16 @@ import { AvariaRapidaDialog } from "@/components/frota/AvariaRapidaDialog";
 import { DevolverVeiculoModal } from "@/components/frota/DevolverVeiculoModal";
 import { TransferirVeiculoModal } from "@/components/frota/TransferirVeiculoModal";
 import type { Database } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
 import { T } from "@/i18n";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
 const Frota = () => {
   const navigate = useNavigate();
+  // Manutenção vencida é o número que o pessoal de frota olha de manhã; estava
+  // só dentro da tela de Manutenção, longe de quem opera a frota.
+  const [vencidas, setVencidas] = useState(0);
   const { vehicles, loading, error: vehiclesError, accessMessage, createVehicle, updateVehicle, deleteVehicle, getVehicleStats, refetchVehicles } = useVehicles();
   const { employees } = useEmployees();
   const { rentalCompanies, createRentalCompany } = useRentalCompanies();
@@ -84,6 +88,22 @@ const Frota = () => {
 
   // Single batch query for all light vehicle km cycles (replaces N individual RPC calls)
   const kmCyclesMap = useKmCyclesBatch(lightVehicles.map(v => v.id));
+
+  // Veículos com item de plano vencido — um por veículo, não por serviço.
+  const idsLeves = lightVehicles.map(v => v.id).sort().join(",");
+  useEffect(() => {
+    if (!idsLeves) { setVencidas(0); return; }
+    let cancelado = false;
+    void (async () => {
+      const { data } = await (supabase as any)
+        .from("v_manutencao_vencimentos")
+        .select("vehicle_id")
+        .in("vehicle_id", idsLeves.split(","))
+        .eq("situacao", "vencida");
+      if (!cancelado) setVencidas(new Set((data ?? []).map((d: any) => d.vehicle_id)).size);
+    })();
+    return () => { cancelado = true; };
+  }, [idsLeves]);
 
   // Batch liberation status — one query for all light vehicles
   const { liberacaoMap } = useVehicleLiberacao(lightVehicles.map(v => v.id));
@@ -197,7 +217,7 @@ const Frota = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
           {[
             { label: "Disponíveis", value: stats.disponivel, color: "text-emerald-600" },
             { label: "Em Uso", value: stats.em_uso, color: "text-primary" },
@@ -209,6 +229,16 @@ const Frota = () => {
               <p className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</p>
             </div>
           ))}
+          <button
+            type="button"
+            onClick={() => navigate("/manutencao")}
+            className="rounded-lg border border-border/50 bg-card px-4 py-3 text-left shadow-card transition-colors hover:bg-accent"
+          >
+            <p className={`text-2xl font-extrabold ${vencidas > 0 ? "text-destructive" : "text-emerald-600"}`}>
+              {vencidas}
+            </p>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5"><T>Manutenção vencida</T></p>
+          </button>
         </div>
 
         {/* Search */}

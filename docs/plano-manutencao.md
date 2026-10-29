@@ -177,14 +177,79 @@ FROM public.vehicles WHERE traccar_device_id IS NOT NULL ORDER BY updated_at DES
 Quem ainda não implantou a varredura continua digitando a medição no cadastro —
 nada do que existia deixou de funcionar.
 
+## Revisão de cobertura da frota (29/10/2026)
+
+Migrations `20261029000001_manutencao_ajustes_frota.sql` e
+`20261029000002_horimetro_ciclos_custo_hora.sql`.
+
+### Dois defeitos corrigidos
+
+- **Veículo baixado não vence mais nada.** `baixar_veiculo` marca
+  `status='inativo'`, mas a view não filtrava: um caminhão devolvido à locadora
+  aparecia como vencido todo dia e ainda entrava em `vencidas_hoje`. A view foi
+  reescrita idêntica, com uma linha a mais.
+- **Documento vencido passa a bloquear.** Havia duas tabelas:
+  `vehicle_documents` (antiga, só arquivo, sem tela) e `vehicle_documentos` (com
+  tela, histórico e alerta). A liberação consultava a antiga, então o documento
+  cadastrado na tela nova avisava mas não bloqueava — sensação de controle sem
+  controle. Os registros com vencimento foram migrados (vencido entra como
+  histórico, não como vigente, para não gerar alarme falso no primeiro dia), a
+  antiga ficou marcada como obsoleta e a liberação lê `v_documentos_vencidos`.
+
+### O veículo pesado entrou no plano
+
+Leve e pesado dividem a tabela `vehicles` (`tipo='pesado'`), então o cálculo já
+os cobria — mas as telas, não. Agora a ficha do pesado tem o bloco de
+vencimentos e a ação de OS, e o cadastro tem o campo de plano e o **ID do
+dispositivo Traccar**, que só existia no leve. Sem esse campo, a medição
+automática não alcançava justamente quem mede por horímetro.
+
+### Preventiva crítica bloqueia a saída
+
+`useVehicleLiberacao` já exigia nova liberação por corretiva posterior, item
+reprovado e documento vencido. Agora inclui item do plano marcado como
+`bloqueia_veiculo` **e já vencido**. Item vencido não crítico não bloqueia:
+bloquear tudo é o caminho mais curto para o gestor aprender a ignorar o
+bloqueio.
+
+### Custo por hora, e a separação das unidades
+
+`vehicle_horimetro_cycles` espelha `vehicle_km_cycles`: horas de motor por mês,
+mantidas por **trigger** em `vehicles.horimetro_atual`. Trigger, e não chamada
+no aplicativo, porque o horímetro entra por três portas (cadastro, OS e
+rastreador) e depender de cada uma lembrar de atualizar o ciclo é a forma
+garantida de a série ficar furada.
+
+Com a série existindo, os indicadores passam a separar:
+
+| Indicador | Conta quais veículos | Divide por |
+|---|---|---|
+| Custo por km | `tipo_medicao <> 'horimetro'` | km dos ciclos de quilometragem |
+| Custo por hora | `tipo_medicao = 'horimetro'` | horas dos ciclos de horímetro |
+
+Cada um divide pelo custo da **sua própria turma**. Misturar é o erro comum:
+uma escavadeira que roda 20 km e trabalha 180 horas no mês destruiria o custo
+por km da frota inteira.
+
+O primeiro ciclo de cada equipamento nasce zerado na migration: conta daqui
+para frente, não retroage — não há como inventar as horas do mês passado.
+
+```sql
+SELECT public.frota_fechar_ciclos_horimetro();   -- na virada do mês
+
+SELECT placa, tipo_medicao, custo, km_rodado, custo_por_km,
+       horas_rodadas, custo_por_hora, vencidas
+FROM public.manutencao_indicadores_veiculo(current_date - 90, current_date);
+```
+
 ## O que ainda falta
 
-- **Card no painel principal**: hoje os vencimentos aparecem só dentro de
-  Manutenção; o dashboard continua mostrando apenas vencimentos de RH
-- **Custo por hora** para equipamento medido por horímetro: falta série histórica
-  de horas por período, equivalente aos ciclos de quilometragem
-- **Meta por frota**: as faixas de cor são fixas no código; o natural é virarem
-  configuração quando houver série suficiente para definir a meta do parque
+- **Ciclo de horímetro só conta a partir de agora.** O custo por hora fica
+  pobre no primeiro mês e ganha sentido a partir do segundo.
+- **Meta por frota**: as faixas de cor dos indicadores continuam fixas no
+  código.
+- **`fleet_config` ainda existe** como padrão de quem não tem plano. Só faz
+  sentido aposentá-lo quando toda a frota tiver plano.
 
 ## Decisões de modelagem
 

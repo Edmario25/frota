@@ -1,11 +1,13 @@
 // ─── Hook: Status de liberação permanente por veículo ────────────────────────
 // A liberacao continua valida ate surgir um evento que exija nova verificacao:
-// manutencao corretiva posterior, item nao conforme ou documento vencido.
+// manutencao corretiva posterior, item nao conforme, documento vencido ou
+// preventiva critica do plano vencida.
 //
 // Lógica:
 //   "aguardando" → nunca teve checklist de liberação aprovado
 //   "liberado"   → último checklist aprovado (sem itens reprovados) — válido indefinidamente
-//   "bloqueado"  → último checklist tem itens reprovados (veículo em manutenção/problema)
+//   "bloqueado"  → itens reprovados, documento vencido, ou item do plano marcado
+//                  como crítico (bloqueia_veiculo) já vencido
 //   "vencido"    → reservado: checklist aprovado mas veículo entrou em manutenção corretiva
 //                  depois da última liberação (quando houver integração com manutenção)
 
@@ -40,7 +42,7 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
     ;(async () => {
       try {
         // Busca o checklist de liberação mais recente de cada veículo
-        const [{ data, error }, { data: manutencoes }, { data: documentos }] = await Promise.all([
+        const [{ data, error }, { data: manutencoes }, { data: documentos }, { data: criticas }] = await Promise.all([
           (supabase as any)
             .from("inspection_checklists")
             .select("id, vehicle_id, data_inspecao, responsavel_checklist, inspection_items(status)")
@@ -59,6 +61,15 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
             .from("v_documentos_vencidos")
             .select("vehicle_id")
             .in("vehicle_id", vehicleIds),
+          // Preventiva crítica vencida: o item que o plano marcou como de
+          // segurança (correia, freio, inspeção). Item vencido não crítico
+          // não bloqueia — bloquear tudo faria o gestor ignorar o bloqueio.
+          (supabase as any)
+            .from("v_manutencao_vencimentos")
+            .select("vehicle_id, servico")
+            .in("vehicle_id", vehicleIds)
+            .eq("situacao", "vencida")
+            .eq("bloqueia_veiculo", true),
         ])
 
         if (error || cancelled) return
@@ -70,6 +81,7 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
           if (!atual || dataEvento > atual) manutencaoPosterior.set(m.vehicle_id, dataEvento)
         }
         const documentoVencido = new Set((documentos ?? []).map(d => d.vehicle_id))
+        const preventivaCritica = new Set((criticas ?? []).map((m: any) => m.vehicle_id))
 
         // Para cada veículo, pega o registro mais recente (results já vem ordenados desc)
         const result: Record<string, VehicleLiberacaoInfo> = {}
@@ -83,7 +95,7 @@ export function useVehicleLiberacao(vehicleIds: string[]) {
 
           let status: LiberacaoStatus
           if (itens.length === 0) status = "aguardando"
-          else if (nc > 0 || documentoVencido.has(row.vehicle_id)) status = "bloqueado"
+          else if (nc > 0 || documentoVencido.has(row.vehicle_id) || preventivaCritica.has(row.vehicle_id)) status = "bloqueado"
           else if (exigeNovaLiberacao) status = "vencido"
           else status = "liberado"
 

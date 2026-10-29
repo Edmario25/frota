@@ -28,6 +28,8 @@ import { useVehicleLiberacao } from "@/hooks/useVehicleLiberacao";
 import { getVehicleStatusColor, getVehicleStatusText } from "@/lib/statusHelpers";
 import type { Database } from "@/integrations/supabase/types";
 import { T } from "@/i18n";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
@@ -51,12 +53,30 @@ export const VeiculosPesados: React.FC = () => {
   const [isTransferirOpen, setIsTransferirOpen] = useState(false);
   const [transferirVehicle, setTransferirVehicle] = useState<Vehicle | null>(null);
   
+  const navigate = useNavigate();
+  const [vencidas, setVencidas] = useState(0);
   const [stats, setStats] = useState({
     disponivel: 0,
     em_uso: 0,
     manutencao: 0,
     total_inspecoes: 0,
   });
+
+  // Veículos com item de plano vencido — um por veículo, não por serviço.
+  const idsPesados = vehicles.filter(v => v.tipo === 'pesado').map(v => v.id).sort().join(",");
+  useEffect(() => {
+    if (!idsPesados) { setVencidas(0); return; }
+    let cancelado = false;
+    void (async () => {
+      const { data } = await (supabase as any)
+        .from("v_manutencao_vencimentos")
+        .select("vehicle_id")
+        .in("vehicle_id", idsPesados.split(","))
+        .eq("situacao", "vencida");
+      if (!cancelado) setVencidas(new Set((data ?? []).map((d: any) => d.vehicle_id)).size);
+    })();
+    return () => { cancelado = true; };
+  }, [idsPesados]);
 
   const loadStats = () => {
     const heavyVehicles = vehicles.filter(vehicle => vehicle.tipo === 'pesado');
@@ -147,7 +167,7 @@ export const VeiculosPesados: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
           {[
             { label: "Disponíveis",  value: stats.disponivel,     color: "text-emerald-600" },
             { label: "Em Uso",       value: stats.em_uso,         color: "text-primary" },
@@ -159,6 +179,16 @@ export const VeiculosPesados: React.FC = () => {
               <p className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</p>
             </div>
           ))}
+          <button
+            type="button"
+            onClick={() => navigate("/manutencao")}
+            className="rounded-lg border border-border/50 bg-card px-4 py-3 text-left shadow-card transition-colors hover:bg-accent"
+          >
+            <p className={`text-2xl font-extrabold ${vencidas > 0 ? "text-destructive" : "text-emerald-600"}`}>
+              {vencidas}
+            </p>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5"><T>Manutenção vencida</T></p>
+          </button>
         </div>
 
         {/* Search */}

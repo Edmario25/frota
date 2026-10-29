@@ -36,7 +36,11 @@ type Indicadores = {
   ordens_preventivas: number;
   ordens_corretivas: number;
   km_rodado: number;
+  custo_km_frota: number;
   custo_por_km: number | null;
+  horas_rodadas: number;
+  custo_hora_frota: number;
+  custo_por_hora: number | null;
   horas_parado: number;
   veiculos: number;
   disponibilidade_pct: number | null;
@@ -47,11 +51,14 @@ type PorVeiculo = {
   placa: string;
   marca: string;
   modelo: string;
+  tipo_medicao: string;
   ordens: number;
   corretivas: number;
   custo: number;
   km_rodado: number;
   custo_por_km: number | null;
+  horas_rodadas: number;
+  custo_por_hora: number | null;
   horas_parado: number;
   vencidas: number;
 };
@@ -121,7 +128,7 @@ export function IndicadoresManutencao() {
     );
   }
 
-  const semMedicao = !dados || dados.km_rodado === 0;
+  const semMedicao = !dados || (dados.km_rodado === 0 && dados.horas_rodadas === 0);
   const semOficina = !dados || dados.horas_parado === 0;
 
   return (
@@ -176,17 +183,23 @@ export function IndicadoresManutencao() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Custo por km</CardTitle>
+            <CardTitle className="text-sm font-medium">Custo por km e por hora</CardTitle>
             <Gauge className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{brl(dados?.custo_por_km ?? null)}</div>
             <p className="text-xs text-muted-foreground">
-              {brl(dados?.custo_total ?? 0)} em {num(dados?.km_rodado ?? 0)} km
+              {brl(dados?.custo_km_frota ?? 0)} em {num(dados?.km_rodado ?? 0)} km
             </p>
+            <div className="mt-2 border-t pt-2">
+              <div className="text-lg font-bold">{brl(dados?.custo_por_hora ?? null)}<span className="ml-1 text-xs font-normal text-muted-foreground">/h</span></div>
+              <p className="text-xs text-muted-foreground">
+                {brl(dados?.custo_hora_frota ?? 0)} em {num(dados?.horas_rodadas ?? 0, 1)} h de equipamento
+              </p>
+            </div>
             {semMedicao && (
               <p className="mt-2 text-xs text-amber-600">
-                Sem km no período: o ciclo de quilometragem precisa estar aberto para o veículo.
+                Sem medição no período: o ciclo do veículo precisa estar aberto.
               </p>
             )}
           </CardContent>
@@ -251,8 +264,8 @@ export function IndicadoresManutencao() {
                     <th className="py-2 pr-3 text-right">OS</th>
                     <th className="py-2 pr-3 text-right">Corretivas</th>
                     <th className="py-2 pr-3 text-right">Custo</th>
-                    <th className="py-2 pr-3 text-right">Km</th>
-                    <th className="py-2 pr-3 text-right">R$/km</th>
+                    <th className="py-2 pr-3 text-right">Rodagem</th>
+                    <th className="py-2 pr-3 text-right">Custo unit.</th>
                     <th className="py-2 pr-3 text-right">H parado</th>
                     <th className="py-2 text-right">Vencidas</th>
                   </tr>
@@ -269,8 +282,16 @@ export function IndicadoresManutencao() {
                         {v.corretivas > 0 ? <span className="text-amber-600">{num(v.corretivas)}</span> : "—"}
                       </td>
                       <td className="py-2 pr-3 text-right">{brl(v.custo)}</td>
-                      <td className="py-2 pr-3 text-right">{v.km_rodado > 0 ? num(v.km_rodado) : "—"}</td>
-                      <td className="py-2 pr-3 text-right">{brl(v.custo_por_km)}</td>
+                      <td className="py-2 pr-3 text-right">
+                        {v.tipo_medicao === "horimetro"
+                          ? (v.horas_rodadas > 0 ? `${num(v.horas_rodadas, 1)} h` : "—")
+                          : (v.km_rodado > 0 ? `${num(v.km_rodado)} km` : "—")}
+                      </td>
+                      <td className="py-2 pr-3 text-right">
+                        {v.tipo_medicao === "horimetro"
+                          ? (v.custo_por_hora != null ? `${brl(v.custo_por_hora)}/h` : "—")
+                          : (v.custo_por_km != null ? `${brl(v.custo_por_km)}/km` : "—")}
+                      </td>
                       <td className="py-2 pr-3 text-right">{v.horas_parado > 0 ? num(v.horas_parado, 1) : "—"}</td>
                       <td className="py-2 text-right">
                         {v.vencidas > 0 ? (
@@ -290,8 +311,10 @@ export function IndicadoresManutencao() {
 
       <p className="text-xs text-muted-foreground">
         Aderência conta só manutenção nascida de plano, comparando a data realizada com a agendada.
-        Custo por km soma as manutenções concluídas no período e divide pelo km dos ciclos de
-        quilometragem. Disponibilidade usa as horas de oficina das OS sobre a frota ativa.
+        Custo por km conta só veículo medido em quilômetro, e custo por hora só equipamento com
+        horímetro — cada um dividido pelo custo da sua própria turma, porque uma escavadeira que
+        roda 20 km e trabalha 180 h destruiria o custo por km da frota. Disponibilidade usa as
+        horas de oficina das OS sobre a frota ativa.
       </p>
     </div>
   );
