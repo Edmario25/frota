@@ -21,6 +21,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { useFornecedores } from "@/hooks/useFornecedores";
 import { useState as useStateHook } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type VehicleInsert = Database['public']['Tables']['vehicles']['Insert'];
@@ -56,14 +57,21 @@ interface VehicleFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vehicle?: Vehicle;
-  onSubmit: (data: VehicleInsert) => Promise<void>;
+  /** Devolve o id do veículo salvo, que o plano de manutenção precisa para se aplicar. */
+  onSubmit: (data: VehicleInsert) => Promise<string | void>;
   employees?: Array<{id: string, nome: string}>;
 }
 
 export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employees = [] }: VehicleFormModalProps) => {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [obras, setObras] = useState<any[]>([]);
+  // Plano de manutenção: vive fora do formulário porque não é coluna de vehicles,
+  // é um vínculo com linha de base própria (a medição do veículo no momento).
+  const [planos, setPlanos] = useState<Array<{ id: string; nome: string }>>([]);
+  const [planoId, setPlanoId] = useState<string>("none");
+  const [planoOriginal, setPlanoOriginal] = useState<string>("none");
   const [setores, setSetores] = useState<any[]>([]);
   const { fornecedores } = useFornecedores();
 
@@ -106,6 +114,72 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
   const mapFormTypeToDbType = (formType: string): "leve" | "pesado" => {
     // All new form types map to 'leve' since heavy vehicles are managed separately
     return 'leve';
+  };
+
+  // Planos ativos e o plano já aplicado a este veículo.
+  useEffect(() => {
+    if (!open) return;
+    const carregarPlanos = async () => {
+      const { data: lista } = await (supabase as any)
+        .from("manutencao_planos")
+        .select("id, nome")
+        .eq("ativo", true)
+        .order("nome");
+      setPlanos((lista as any[]) ?? []);
+
+      if (vehicle?.id) {
+        const { data: aplicado } = await (supabase as any)
+          .from("manutencao_plano_veiculos")
+          .select("plano_id")
+          .eq("vehicle_id", vehicle.id)
+          .maybeSingle();
+        const atual = (aplicado as any)?.plano_id ?? "none";
+        setPlanoId(atual);
+        setPlanoOriginal(atual);
+      } else {
+        setPlanoId("none");
+        setPlanoOriginal("none");
+      }
+    };
+    void carregarPlanos();
+  }, [open, vehicle?.id]);
+
+  /**
+   * Aplica (ou troca) o plano depois que o veículo foi salvo — a linha de base
+   * vem da medição recém-gravada, e não da que estava na tela ao abrir.
+   */
+  const sincronizarPlano = async (vehicleId: string) => {
+    if (planoId === planoOriginal) return;
+
+    if (planoOriginal !== "none") {
+      await (supabase as any)
+        .from("manutencao_plano_veiculos")
+        .delete()
+        .eq("vehicle_id", vehicleId)
+        .eq("plano_id", planoOriginal);
+    }
+
+    if (planoId !== "none") {
+      const { data: user } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from("manutencao_plano_veiculos")
+        .insert({ plano_id: planoId, vehicle_id: vehicleId, aplicado_por: user?.user?.id });
+      if (error) {
+        toast({
+          title: "Veículo salvo, plano não aplicado",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    toast({
+      title: planoId === "none" ? "Plano removido" : "Plano aplicado",
+      description: planoId === "none"
+        ? "O veículo volta ao intervalo único das Configurações."
+        : "Os vencimentos passam a contar da medição atual deste veículo.",
+    });
   };
 
   // Carregar obras para seleção e vinculação atual do veículo
@@ -269,7 +343,8 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
         
       console.log('Dados finais do veículo para envio:', submitData);
       
-      await onSubmit(submitData);
+      const savedId = (await onSubmit(submitData)) || vehicle?.id;
+      if (savedId) await sincronizarPlano(savedId);
       onOpenChange(false);
       form.reset();
     } catch (error) {
@@ -450,6 +525,28 @@ export const VehicleFormModal = ({ open, onOpenChange, vehicle, onSubmit, employ
                   </FormItem>
                 )}
               />
+
+              {/* Não é coluna de vehicles: o plano é um vínculo, aplicado depois
+                  que o veículo foi salvo, com a medição desta tela como base. */}
+              <FormItem>
+                <FormLabel>{t("Plano de manutenção")}</FormLabel>
+                <Select value={planoId} onValueChange={setPlanoId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("Selecione o plano")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t("Sem plano — intervalo único")}</SelectItem>
+                    {planos.map((plano) => (
+                      <SelectItem key={plano.id} value={plano.id}>{plano.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {planoId !== planoOriginal && planoOriginal !== "none"
+                    ? t("Trocar o plano recomeça a contagem a partir da medição atual.")
+                    : t("Os vencimentos contam a partir da quilometragem informada acima.")}
+                </p>
+              </FormItem>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

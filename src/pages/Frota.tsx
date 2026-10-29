@@ -95,13 +95,16 @@ const Frota = () => {
   );
 
   // Vehicle handlers
+  // Devolve o id para o formulário aplicar o plano de manutenção ao veículo salvo.
   const handleCreateVehicle = async (data: any) => {
-    await createVehicle(data);
+    const criado: any = await createVehicle(data);
+    return criado?.id as string | undefined;
   };
 
   const handleUpdateVehicle = async (data: any) => {
     if (selectedVehicle) {
       await updateVehicle(selectedVehicle.id, data);
+      return selectedVehicle.id as string;
     }
   };
 
