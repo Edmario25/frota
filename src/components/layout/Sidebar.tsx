@@ -85,6 +85,7 @@ const menuGroups = [
   {
     group: "Frota",
     items: [
+      { title: "Painel da Frota",  icon: Gauge, url: "/frota/painel",     roles: OBRA_ACCESS, perm: "acesso_frota" as PermKey },
       { title: "Veículos Leves",   icon: Car,   url: "/frota",            roles: OBRA_ACCESS, perm: "acesso_frota" as PermKey },
       { title: "Veículos Pesados", icon: Truck, url: "/veiculos-pesados", roles: OBRA_ACCESS, perm: "acesso_frota" as PermKey },
     ]

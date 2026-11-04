@@ -21,6 +21,7 @@ const routeLabels: Record<string, string> = {
   "/escalas": "Escalas",
   "/frota": "Veículos Leves",
   "/veiculos-pesados": "Veículos Pesados",
+  "/frota/painel": "Painel da Frota",
   "/manutencao": "Manutenção",
   "/obras": "Obras",
   "/fornecedores": "Fornecedores",

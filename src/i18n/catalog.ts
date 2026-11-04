@@ -16,6 +16,7 @@ export const catalog: Record<string, readonly [string, string]> = {
   "Veículos": ["Vehicles", "Vehículos"],
   "Veículos Leves": ["Light vehicles", "Vehículos ligeros"],
   "Veículos Pesados": ["Heavy vehicles", "Vehículos pesados"],
+  "Painel da Frota": ["Fleet dashboard", "Panel de la flota"],
   "Projetos": ["Projects", "Proyectos"],
   "Obras": ["Construction sites", "Obras"],
   "Fornecedores": ["Suppliers", "Proveedores"],

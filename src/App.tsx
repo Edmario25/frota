@@ -50,6 +50,7 @@ const Index = lazy(() => import("./pages/Index"));
 const Funcionarios = lazy(() => import("./pages/Funcionarios"));
 const Cargos = lazy(() => import("./pages/Cargos"));
 const Frota = lazy(() => import("./pages/Frota"));
+const FrotaDashboard = lazy(() => import("./pages/FrotaDashboard"));
 const Manutencao = lazy(() => import("./pages/Manutencao"));
 const Escalas = lazy(() => import("./pages/Escalas"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -165,6 +166,13 @@ const App = () => (
               <ProtectedRoute>
                 <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota']}>
                   <Cargos />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/frota/painel" element={
+              <ProtectedRoute>
+                <RoleProtectedRoute allowedRoles={['gestor_contrato', 'admin', 'gestor_frota', 'gestor_obra']}>
+                  <FrotaDashboard />
                 </RoleProtectedRoute>
               </ProtectedRoute>
             } />
