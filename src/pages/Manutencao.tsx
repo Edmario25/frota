@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getMaintenanceStatusColor, getMaintenanceStatusText } from "@/lib/statusHelpers";
 import { downloadCsv } from "@/lib/exportCsv";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Manutencao() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -58,7 +59,29 @@ export default function Manutencao() {
     return vehicles.filter(v => v.responsavel_id === employee.id).length;
   };
 
-  const vehicleCount = isFuncionario ? getEmployeeVehicleCount() : vehicles.length;
+  // Veículo baixado não entra na conta: ele não gera manutenção nem vencimento.
+  // Contar 4 aqui enquanto o painel da frota conta 3 faz o gestor desconfiar dos dois.
+  const vehicleCount = isFuncionario
+    ? getEmployeeVehicleCount()
+    : vehicles.filter(v => v.status !== "inativo").length;
+
+  // "Alertas críticos" era um 2 escrito no código — número fixo que nunca mediu
+  // nada. Agora é o que de fato para veículo: item de plano crítico vencido.
+  const [alertasCriticos, setAlertasCriticos] = useState<number | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    (supabase as any)
+      .from("v_manutencao_vencimentos")
+      .select("vehicle_id")
+      .eq("situacao", "vencida")
+      .eq("bloqueia_veiculo", true)
+      .then(({ data, error }: any) => {
+        if (!vivo) return;
+        if (error) return setAlertasCriticos(null);
+        setAlertasCriticos(new Set((data ?? []).map((r: any) => r.vehicle_id)).size);
+      });
+    return () => { vivo = false; };
+  }, []);
 
   const getVehiclePlate = (vehicleId: string) => {
     const vehicle = vehicles.find(v => v.id === vehicleId);
@@ -205,12 +228,12 @@ export default function Manutencao() {
 
         {/* Stats */}
         <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-          {[
+          {([
             { label: isFuncionario ? "Atribuídos a você" : "Veículos", value: vehicleCount, color: "text-primary" },
             { label: "Em Andamento", value: stats.em_andamento, color: "text-amber-600" },
             { label: "Concluídas", value: stats.concluida, color: "text-emerald-600" },
-            { label: "Alertas Críticos", value: 2, color: "text-destructive" },
-          ].map(s => (
+            { label: "Alertas Críticos", value: alertasCriticos ?? "—", color: "text-destructive" },
+          ] as { label: string; value: number | string; color: string }[]).map(s => (
             <div key={s.label} className="rounded-lg border border-border/50 bg-card px-4 py-3 shadow-card">
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</p>

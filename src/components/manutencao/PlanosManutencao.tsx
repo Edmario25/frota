@@ -66,7 +66,7 @@ const MODELOS_PRONTOS: Record<string, ItemPlano[]> = {
   "Veículo leve": [
     { ...ITEM_VAZIO, servico: "Troca de óleo e filtro de óleo", intervalo_km: "10000", intervalo_dias: "180" },
     { ...ITEM_VAZIO, servico: "Filtro de ar e de combustível", intervalo_km: "20000", intervalo_dias: "365" },
-    { ...ITEM_VAZIO, servico: "Revisão de freios", intervalo_km: "20000", intervalo_dias: "365" },
+    { ...ITEM_VAZIO, servico: "Revisão de freios", intervalo_km: "20000", intervalo_dias: "365", bloqueia_veiculo: true },
     { ...ITEM_VAZIO, servico: "Alinhamento e balanceamento", intervalo_km: "10000" },
     { ...ITEM_VAZIO, servico: "Correia dentada", intervalo_km: "60000", intervalo_dias: "1460", bloqueia_veiculo: true },
   ],
@@ -290,12 +290,50 @@ function EditorPlano({ plano, onClose, onSaved }: {
 
   const numero = (v: string) => v.trim() === "" ? null : Number(v);
 
+  /**
+   * Antecedência maior que o intervalo é alarme permanente; mais de metade do
+   * intervalo já é ruído. Quem vê "a vencer" todo dia para de olhar o painel.
+   */
+  function antecedenciaExagerada(item: ItemPlano): boolean {
+    const pares: [string, string][] = [
+      [item.intervalo_km, item.antecedencia_km],
+      [item.intervalo_horas, item.antecedencia_horas],
+      [item.intervalo_dias, item.antecedencia_dias],
+    ];
+    return pares.some(([ciclo, aviso]) => {
+      const c = Number(ciclo), a = Number(aviso);
+      return c > 0 && a > 0 && a > c / 2;
+    });
+  }
+
+  /** Antecedência >= intervalo é erro de fato: o item nasceria vencido. */
+  function antecedenciaInvalida(item: ItemPlano): string | null {
+    const pares: [string, string, string][] = [
+      [item.intervalo_km, item.antecedencia_km, "km"],
+      [item.intervalo_horas, item.antecedencia_horas, "horas"],
+      [item.intervalo_dias, item.antecedencia_dias, "dias"],
+    ];
+    for (const [ciclo, aviso, unidade] of pares) {
+      const c = Number(ciclo), a = Number(aviso);
+      if (c > 0 && a >= c) {
+        return `${item.servico.trim() || "Serviço sem nome"}: avisar faltando ${a} ${unidade} ` +
+          `num ciclo de ${c} ${unidade} faz o serviço nascer avisando e nunca sair do alerta.`;
+      }
+    }
+    return null;
+  }
+
   async function salvar() {
     if (!nome.trim()) return toast.error("Dê um nome ao plano.");
 
     const validos = itens.filter(i => i.servico.trim());
     if (!validos.length) return toast.error("Inclua ao menos um serviço.");
     if (semGatilho) return toast.error("Todo serviço precisa de pelo menos um gatilho: km, horas ou dias.");
+
+    for (const item of validos) {
+      const erroAviso = antecedenciaInvalida(item);
+      if (erroAviso) return toast.error(erroAviso);
+    }
 
     setSalvando(true);
     const valores = { nome: nome.trim(), descricao: descricao.trim() || null, fonte: fonte.trim() || null };
@@ -309,22 +347,32 @@ function EditorPlano({ plano, onClose, onSaved }: {
       return toast.error(`Não foi possível salvar o plano: ${error?.message ?? "erro desconhecido"}`);
     }
 
-    // Substitui a lista inteira de serviços — mantém a ordem da tela e evita
-    // item órfão de uma versão anterior do plano.
+    // Antes isto apagava todos os itens e recriava. Como maintenance_records
+    // aponta para o item com ON DELETE SET NULL, corrigir uma vírgula no nome de
+    // um serviço zerava o vínculo de TODO o histórico de cumprimento do plano:
+    // os contadores voltavam à linha de base e a aderência caía para zero.
+    // Agora o item mantém o id — só some do banco o que o usuário removeu da tela.
     if (plano) {
-      const { error: erroLimpeza } = await (supabase as any)
+      const mantidos = validos.map(i => i.id).filter(Boolean) as string[];
+      let limpeza = (supabase as any)
         .from("manutencao_plano_itens").delete().eq("plano_id", salvo.id);
+      if (mantidos.length) limpeza = limpeza.not("id", "in", `(${mantidos.join(",")})`);
+      const { error: erroLimpeza } = await limpeza;
       if (erroLimpeza) {
         setSalvando(false);
-        return toast.error(`Não foi possível substituir os serviços: ${erroLimpeza.message}`);
+        return toast.error(`Não foi possível remover os serviços excluídos: ${erroLimpeza.message}`);
       }
     }
 
     const { error: erroItens } = await (supabase as any)
       .from("manutencao_plano_itens")
-      .insert(validos.map((item, i) => ({
+      .upsert(validos.map((item, i) => ({
+        // id sempre presente: o PostgREST uniformiza as colunas pelo conjunto de
+        // chaves do lote, e um objeto sem id faria o lote mandar id null.
+        id: item.id ?? crypto.randomUUID(),
         plano_id: salvo.id,
         ordem: i,
+        ativo: true,
         servico: item.servico.trim(),
         descricao: item.descricao.trim() || null,
         intervalo_km: numero(item.intervalo_km),
@@ -432,19 +480,27 @@ function EditorPlano({ plano, onClose, onSaved }: {
                     </div>
                   </div>
 
+                  {antecedenciaExagerada(item) && (
+                    <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                      A antecedência cobre mais da metade do ciclo: o serviço vai nascer
+                      "a vencer" e ficar assim quase o tempo todo. "Avisar faltando" é a
+                      ponta final do ciclo — num ciclo de 10.000 km, algo como 500 km.
+                    </p>
+                  )}
+
                   <div className="mt-2 grid gap-2 sm:grid-cols-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Avisar com (km)</Label>
+                      <Label className="text-xs">Avisar faltando (km)</Label>
                       <Input type="number" min={0} value={item.antecedencia_km}
                         onChange={e => alterar(idx, "antecedencia_km", e.target.value)} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Avisar com (horas)</Label>
+                      <Label className="text-xs">Avisar faltando (horas)</Label>
                       <Input type="number" min={0} value={item.antecedencia_horas}
                         onChange={e => alterar(idx, "antecedencia_horas", e.target.value)} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Avisar com (dias)</Label>
+                      <Label className="text-xs">Avisar faltando (dias)</Label>
                       <Input type="number" min={0} value={item.antecedencia_dias}
                         onChange={e => alterar(idx, "antecedencia_dias", e.target.value)} />
                     </div>

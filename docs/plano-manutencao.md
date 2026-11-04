@@ -273,3 +273,61 @@ agenda a oficina.
   no fluxo de avaria.
 - **`fleet_config` continua existindo** como padrão de quem não tem plano. Só
   faz sentido aposentá-lo quando toda a frota tiver plano.
+
+## Revisão da frota no ar — 04/11/2026
+
+Análise feita no sistema publicado, com dados reais (3 veículos ativos, 1 baixado,
+um plano "UTILITARIO" com 5 serviços aplicado a um veículo).
+
+### Defeitos corrigidos
+
+**1. O ciclo de km nunca funcionou.** `get_current_km_cycle` retornava erro 42702
+(`column reference "km_rodados" is ambiguous`): o nome existia ao mesmo tempo como
+coluna de retorno do `RETURNS TABLE` e como coluna da tabela no `UPDATE ... RETURNING`.
+O frontend engolia o erro num `console.error` e exibia "Nenhum ciclo ativo". Sem ciclo,
+`frota_km_rodado()` devolvia 0, o custo por km ficava eternamente em "—" e o limite
+mensal de km da locadora não era fiscalizado. Migração `20261104000001`.
+
+**2. "Alertas Críticos: 2" era um número escrito no código.** Literal `value: 2` em
+`Manutencao.tsx`. Mostrava 2 com a base zerada, enquanto a aba Vencimentos, ao lado,
+mostrava 0 itens críticos vencidos. Agora conta veículos distintos com item de plano
+crítico vencido.
+
+**3. Editar um plano apagava o histórico de cumprimento.** O salvamento fazia
+`DELETE` de todos os itens e `INSERT` de novo. Como `maintenance_records.plano_item_id`
+é `ON DELETE SET NULL`, corrigir uma vírgula no nome de um serviço desligava o vínculo
+de todo o histórico: os contadores voltavam à linha de base e a aderência ao plano caía
+a zero. Agora é upsert por id; só sai do banco o que o usuário removeu da tela.
+
+**4. Contagem de veículos divergente.** O KPI de Manutenção contava o veículo baixado
+(4) enquanto o Painel da Frota e os indicadores contavam 3. Dois painéis lado a lado
+com números diferentes custam a confiança nos dois.
+
+### Preenchimento do plano — o rótulo induziu ao erro
+
+No plano real, dois dos cinco serviços têm antecedência quase igual ao ciclo:
+troca de óleo avisa faltando 9.000 km num ciclo de 10.000; filtro de ar avisa faltando
+360 dias num ciclo de 365. O item nasce "a vencer" e fica assim o ano inteiro — é por
+isso que o painel mostra "Filtro de ar — faltam 359 dias" como alerta.
+
+A causa é o rótulo: "Avisar com (km)" foi lido como "avisar depois de X km rodados".
+O campo é o oposto: quanto falta para vencer. Renomeado para **"Avisar faltando (km)"**,
+com aviso em tela quando a antecedência passa de metade do ciclo e bloqueio ao salvar
+quando ela é maior ou igual ao ciclo.
+
+Também: "Revisão de freios" no modelo pronto não parava o veículo. Freio é item de
+segurança — passou a vir com "Parar o veículo se vencer" marcado.
+
+### O que depende do usuário, não do código
+
+- **Corrigir as antecedências do plano UTILITARIO** (óleo: 9.000 → ~500; filtro de ar:
+  1.990 → ~1.000 e 360 → ~30 dias). Enquanto não corrigir, o alerta continua permanente.
+- **Aplicar plano ao caminhão Accelo.** Ele tem 100.000 km e nenhum plano: o painel
+  mostra "manutenção vencida 0" para ele porque não há nada a vencer, não porque está em dia.
+- **Alimentar o odômetro.** Quatro dos cinco serviços do plano estão vencendo por *dias*,
+  não por km, porque o km do veículo não avança desde o cadastro. Sem a função
+  `velocidade-rastreador` publicada e agendada no Coolify, o plano por quilometragem
+  nunca dispara — vira calendário.
+- **Nenhum equipamento por horímetro na base.** Toda a infraestrutura de horas e custo
+  por hora está correta e sem uso. O Accelo está cadastrado como medido em km, o que é
+  adequado para caminhão de estrada.
