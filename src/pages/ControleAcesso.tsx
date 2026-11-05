@@ -34,10 +34,31 @@ export default function ControleAcesso(){
   const [delegationOpen,setDelegationOpen]=useState(false); const [delegateFrom,setDelegateFrom]=useState(""); const [delegateTo,setDelegateTo]=useState(""); const [delegateProfile,setDelegateProfile]=useState(""); const [delegateStart,setDelegateStart]=useState(""); const [delegateEnd,setDelegateEnd]=useState(""); const [delegateReason,setDelegateReason]=useState("");
   const [limitOpen,setLimitOpen]=useState(false); const [limitProfile,setLimitProfile]=useState(""); const [limitModule,setLimitModule]=useState("financeiro"); const [limitValue,setLimitValue]=useState("");
   const {data,isLoading}=useQuery({queryKey:["access-control"],queryFn:async()=>{
+    // O PostgREST corta cada consulta em 1.000 linhas. Os vínculos de permissão
+    // passam disso com facilidade: só o Administrador do Sistema tem 264, e são
+    // quinze perfis. Sem paginar, os perfis que ficavam fora do corte apareciam
+    // com "0 permissões" — e, pior, abrir um deles para editar trazia as caixas
+    // desmarcadas: salvar ali apagaria as permissões de verdade.
+    const buscarVinculos=async()=>{
+      const passo=1000; const saida:{profile_id:string;permission_id:string}[]=[];
+      for(let de=0;;de+=passo){
+        const {data,error}=await (supabase as any)
+          .from("access_profile_permissions")
+          .select("profile_id,permission_id")
+          .eq("permitido",true)
+          .order("profile_id",{ascending:true}).order("permission_id",{ascending:true})
+          .range(de,de+passo-1);
+        if(error) throw error;
+        saida.push(...(data??[]));
+        if(!data||data.length<passo) break;
+      }
+      return saida;
+    };
+
     const [p,pr,link,u,a,d,o,s,dg,lm]=await Promise.all([
       (supabase as any).from("access_profiles").select("*").order("nome"),
       (supabase as any).from("access_permissions").select("*").order("modulo").order("acao"),
-      (supabase as any).from("access_profile_permissions").select("profile_id,permission_id").eq("permitido",true),
+      buscarVinculos(),
       (supabase as any).rpc("listar_usuarios_controle_acesso"),
       (supabase as any).from("employee_access_profiles").select("*,access_profiles(nome)").is("revogado_em",null).order("created_at",{ascending:false}),
       (supabase as any).from("departamentos").select("id,nome").order("nome"),
@@ -46,16 +67,34 @@ export default function ControleAcesso(){
       (supabase as any).from("access_delegations").select("*,access_profiles(nome)").order("created_at",{ascending:false}),
       (supabase as any).from("access_approval_limits").select("*,access_profiles(nome)").order("modulo"),
     ]);
-    const error=[p,pr,link,u,a,d,o,s,dg,lm].find(x=>x.error)?.error; if(error) throw error;
-    return {profiles:p.data as Profile[],permissions:pr.data as Permission[],links:link.data as {profile_id:string;permission_id:string}[],users:u.data as User[],assignments:a.data as Assignment[],departments:d.data as ScopeOption[],obras:o.data as ScopeOption[],sectors:s.data as ScopeOption[],delegations:dg.data as Delegation[],limits:lm.data as ApprovalLimit[]};
+    const error=[p,pr,u,a,d,o,s,dg,lm].find(x=>x.error)?.error; if(error) throw error;
+    return {profiles:p.data as Profile[],permissions:pr.data as Permission[],links:link,users:u.data as User[],assignments:a.data as Assignment[],departments:d.data as ScopeOption[],obras:o.data as ScopeOption[],sectors:s.data as ScopeOption[],delegations:dg.data as Delegation[],limits:lm.data as ApprovalLimit[]};
   }});
   useEffect(()=>{if(!profileOpen){setEditing(null);setName("");setDescription("");setSelected(new Set());}},[profileOpen]);
   const modules=useMemo(()=>Object.entries((data?.permissions??[]).reduce((acc:Record<string,Permission[]>,p)=>{(acc[p.modulo]??=[]).push(p);return acc;},{})),[data?.permissions]);
   const openEdit=(p:Profile)=>{setEditing(p);setName(p.nome);setDescription(p.descricao??"");setSelected(new Set((data?.links??[]).filter(x=>x.profile_id===p.id).map(x=>x.permission_id)));setProfileOpen(true)};
   const saveProfile=async()=>{try{if(!name.trim()) throw new Error("Informe o nome do perfil"); let id=editing?.id;
+    // Salvar apaga tudo e reinsere o que está marcado. Esvaziar um perfil que
+    // tinha permissões é legítimo, mas quase sempre é engano — basta a lista
+    // ter chegado incompleta para o salvamento zerar o acesso de todo mundo
+    // que usa o perfil. Então isso se pede por escrito.
+    const tinha=editing?(data?.links??[]).filter(x=>x.profile_id===editing.id).length:0;
+    if(id&&tinha>0&&selected.size===0&&!window.confirm(
+      `Este perfil tem ${tinha} permissão(ões) e nenhuma está marcada.
+
+`+
+      `Salvar assim remove todas, e quem usa o perfil perde o acesso imediatamente.
+
+Continuar?`
+    )) return;
+
     if(id){const {error}=await (supabase as any).from("access_profiles").update({nome:name.trim(),descricao:description.trim()||null,updated_at:new Date().toISOString()}).eq("id",id);if(error)throw error;await (supabase as any).from("access_profile_permissions").delete().eq("profile_id",id);}
     else {const {data:created,error}=await (supabase as any).from("access_profiles").insert({nome:name.trim(),descricao:description.trim()||null}).select("id").single();if(error)throw error;id=created.id;}
-    if(selected.size){const {error}=await (supabase as any).from("access_profile_permissions").insert([...selected].map(permission_id=>({profile_id:id,permission_id,permitido:true})));if(error)throw error;}
+    if(selected.size){const {error}=await (supabase as any).from("access_profile_permissions").insert([...selected].map(permission_id=>({profile_id:id,permission_id,permitido:true})));
+      // O apagar e o inserir não são uma transação só: se o insert falhar depois
+      // do delete, o perfil fica sem nenhuma permissão. Melhor dizer isso com
+      // todas as letras do que mostrar "erro ao salvar" e deixar o perfil vazio.
+      if(error) throw new Error(`As permissões não foram gravadas e o perfil ficou SEM nenhuma: ${error.message}. Reabra o perfil e marque novamente antes de usá-lo.`);}
     toast.success("Perfil salvo com sucesso");setProfileOpen(false);qc.invalidateQueries({queryKey:["access-control"]});
   }catch(e:any){toast.error(e.message??"Não foi possível salvar")}};
   const saveAssignment=async()=>{try{if(!userId||!profileId)throw new Error("Selecione o usuário e o perfil");if(!["empresa","proprio","equipe"].includes(scope)&&!scopeId)throw new Error("Selecione onde o acesso será válido");if(!justification.trim())throw new Error("Informe o motivo da concessão");const {error}=await (supabase as any).from("employee_access_profiles").insert({user_id:userId,profile_id:profileId,scope_type:scope,scope_id:scopeId||null,valido_ate:expires?new Date(expires+"T23:59:59").toISOString():null,justificativa:justification.trim()});if(error)throw error;toast.success("Acesso atribuído");setAssignmentOpen(false);setUserId("");setProfileId("");setScopeId("");setExpires("");setJustification("");qc.invalidateQueries({queryKey:["access-control"]});}catch(e:any){toast.error(e.message??"Não foi possível atribuir")}};
