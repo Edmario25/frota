@@ -93,18 +93,32 @@ const Index = () => {
   // O menu lateral sempre usou as permissões, e por isso acertava: quem tem
   // frota e fundo fixo via os dois no menu e nenhum dos dois no painel.
   // Aqui passa a valer a mesma fonte do menu.
+  // As chaves são as do modelo novo, as mesmas de src/lib/accessMap.ts que o
+  // menu lateral usa. As do tipo PermKey ("acesso_frota" e companhia) são
+  // rótulos antigos de cargo: o próprio usePermissions avisa que elas não dão
+  // acesso, e canAction() devolve false para todas — foi o que apagou o painel
+  // de quem via tudo.
   const { canAction, loading: loadingPerms } = usePermissions();
-  const verFrota        = canAction("acesso_frota");
-  const verManutencao   = canAction("acesso_manutencao") || verFrota;
-  const verPessoas      = canAction("acesso_colaboradores");
-  const verEscalas      = canAction("acesso_escalas");
-  const verSms          = canAction("acesso_sms_dashboard");
-  const verTreinamentos = canAction("acesso_sms_treinamentos");
-  const verFundoFixo    = canAction("acesso_fundo_fixo");
-  const verRelatorios   = canAction("acesso_relatorios");
+  //
+  // hasFullAccess entra em cada linha como rede: gestor de contrato, admin e
+  // gestor de frota continuam vendo o painel inteiro mesmo que o perfil novo
+  // ainda não tenha sido atribuído a eles. Sem isso, "temGestao" poderia ser
+  // verdadeiro e nenhum bloco renderizar — tela vazia outra vez.
+  const verFrota        = canAction("frota.visualizar") || hasFullAccess;
+  const verManutencao   = canAction("manutencao.visualizar") || verFrota;
+  const verPessoas      = canAction("colaboradores.visualizar") || hasFullAccess;
+  const verObras        = canAction("obras.visualizar") || hasFullAccess;
+  const verEscalas      = canAction("escalas.visualizar") || hasFullAccess;
+  const verSms          = canAction("sms_dashboard.visualizar") || hasFullAccess;
+  const verTreinamentos = canAction("sms_treinamentos.visualizar") || hasFullAccess;
+  const verFundoFixo    = canAction("fundo_fixo.visualizar") || hasFullAccess;
+  const verRelatorios   = canAction("relatorios.visualizar") || hasFullAccess;
 
-  const temGestao = verFrota || verManutencao || verPessoas || verEscalas
-    || verSms || verTreinamentos || verFundoFixo || verRelatorios;
+  const temGestao = verFrota || verManutencao || verPessoas || verObras || verEscalas
+    || verSms || verTreinamentos || verFundoFixo || verRelatorios
+    // Rede de segurança: quem o modelo antigo reconhece como gestor continua
+    // vendo o painel mesmo que o perfil novo ainda não tenha sido atribuído.
+    || hasFullAccess || isGestorObra;
 
   // Cartões do próprio registro: para quem não administra nada. Um gestor de
   // frota não precisa do "Meu Veículo" ocupando o topo do painel dele.
@@ -203,7 +217,7 @@ const Index = () => {
   // Números da faixa de saudação: só entram os que a pessoa tem direito de ver.
   // Antes era tudo-ou-nada pelo papel, e um gestor de frota não via número algum.
   const resumoTopo: [React.ElementType, number, string][] = [
-    ...(verPessoas ? [[HardHat, obraStats.em_andamento, "Obras"] as [React.ElementType, number, string]] : []),
+    ...(verObras ? [[HardHat, obraStats.em_andamento, "Obras"] as [React.ElementType, number, string]] : []),
     ...(verPessoas ? [[Users, empAtivos, "Pessoas"] as [React.ElementType, number, string]] : []),
     ...(verFrota ? [[Activity, vehicles.length, "Veículos"] as [React.ElementType, number, string]] : []),
   ];
@@ -248,7 +262,7 @@ const Index = () => {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
               {/* Obras */}
-              {verPessoas && <KpiCard
+              {verObras && <KpiCard
                 icon={HardHat} iconBg="bg-violet-500" label={t("Obras Ativas")}
                 value={obraStats.em_andamento}
                 sub={t("{count} cadastradas", { count: obraStats.total })}
@@ -365,7 +379,7 @@ const Index = () => {
                     <p className="text-sm font-semibold text-foreground">{t("Acesso Rápido")}</p>
                   </div>
                   <div className="px-1 py-2 divide-y divide-border/30">
-                    {verPessoas && <QuickLink to="/obras"            icon={HardHat}     color="bg-violet-500"  label={t("Obras")}              sub={t("{count} em andamento", { count: obraStats.em_andamento })} />}
+                    {verObras && <QuickLink to="/obras"            icon={HardHat}     color="bg-violet-500"  label={t("Obras")}              sub={t("{count} em andamento", { count: obraStats.em_andamento })} />}
                     {verFrota && <QuickLink to="/frota"            icon={Car}         color="bg-blue-500"    label={t("Veículos Leves")}      sub={t("{count} veículos", { count: veicLeves })} />}
                     {verFrota && <QuickLink to="/veiculos-pesados" icon={Truck}       color="bg-emerald-500" label={t("Veículos Pesados")}    sub={t("{count} veículos", { count: veicPesados })} />}
                     {verManutencao && <QuickLink to="/manutencao"       icon={Wrench}      color="bg-amber-500"   label={t("Manutenção")}          sub={t("{count} agendadas", { count: manutAgend })} />}
@@ -434,7 +448,7 @@ const Index = () => {
 
             {/* Linha inferior: Obras + Escalas */}
             <div className="grid gap-5 lg:grid-cols-2">
-              {verPessoas && <ObrasSummaryCard />}
+              {verObras && <ObrasSummaryCard />}
               {verEscalas && <UpcomingLeavesCard />}
             </div>
 
