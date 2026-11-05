@@ -19,6 +19,7 @@ import {
   Fuel, Route, TrendingUp, WifiOff, Settings, MapPin,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { mensagemDeErro } from "@/lib/erros";
 
 // ─── Tipos ───────────────────────────────────────────────────────────
 
@@ -245,11 +246,11 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
             : x
         )
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       setVehicles(prev =>
         prev.map(x =>
           x.id === v.id
-            ? { ...x, syncing: false, syncError: e.message }
+            ? { ...x, syncing: false, syncError: mensagemDeErro(e) }
             : x
         )
       );
@@ -265,9 +266,9 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
         await syncVehicle(v);
       }
       toast.success(t("Sincronização concluída!"));
-    } catch (err: any) {
-      console.error("[TraccarSync] Erro inesperado no syncAll:", err?.message);
-      toast.error(t("Erro na sincronização"), { description: err?.message });
+    } catch (err: unknown) {
+      console.error("[TraccarSync] Erro inesperado no syncAll:", mensagemDeErro(err));
+      toast.error(t("Erro na sincronização"), { description: mensagemDeErro(err) });
     } finally {
       setSyncingAll(false);
     }
@@ -310,8 +311,8 @@ export function TraccarSyncPanel({ onKmUpdate }: TraccarSyncPanelProps = {}) {
       toast.success(t("{plate} localizado", { plate: v.placa }), {
         description: `${velocidadeKmh > 0 ? `${number(Math.round(velocidadeKmh))} km/h` : t("Parado")} • ${date(new Date(fixTime), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}`,
       });
-    } catch (e: any) {
-      toast.error(t("Erro ao localizar veículo"), { description: e.message });
+    } catch (e: unknown) {
+      toast.error(t("Erro ao localizar veículo"), { description: mensagemDeErro(e) });
     } finally {
       setVehicles(prev =>
         prev.map(x => x.id === v.id ? { ...x, locating: false } : x)

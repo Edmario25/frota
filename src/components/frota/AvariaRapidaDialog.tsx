@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { AlertTriangle, Wrench, CheckCircle2 } from "lucide-react"
 import { useI18n } from "@/i18n"
+import { mensagemDeErro } from "@/lib/erros";
 
 // ─── Tipos de problema ────────────────────────────────────────────────────────
 const TIPOS_PROBLEMA = [
@@ -87,8 +88,8 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
       onStatusChanged()
       onOpenChange(false)
       setDescricao("")
-    } catch (e: any) {
-      toast({ title: t("Erro ao reportar avaria"), description: e.message, variant: "destructive" })
+    } catch (e: unknown) {
+      toast({ title: t("Erro ao reportar avaria"), description: mensagemDeErro(e), variant: "destructive" })
     } finally {
       setSaving(false)
     }
@@ -120,8 +121,8 @@ export function AvariaRapidaDialog({ open, onOpenChange, vehicle, onStatusChange
       })
       onStatusChanged()
       onOpenChange(false)
-    } catch (e: any) {
-      toast({ title: t("Erro ao retornar veículo"), description: e.message, variant: "destructive" })
+    } catch (e: unknown) {
+      toast({ title: t("Erro ao retornar veículo"), description: mensagemDeErro(e), variant: "destructive" })
     } finally {
       setSaving(false)
     }

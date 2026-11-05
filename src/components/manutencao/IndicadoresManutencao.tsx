@@ -22,6 +22,7 @@ import {
   Activity, AlertTriangle, CalendarRange, Gauge, Loader2, RefreshCw, TrendingDown, Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
+import { mensagemDeErro } from "@/lib/erros";
 
 type Indicadores = {
   previstas: number;
@@ -113,8 +114,8 @@ export function IndicadoresManutencao() {
       // então o retorno já chega tipado.
       setDados((geral.data ?? [])[0] ?? null);
       setVeiculos(porVeiculo.data ?? []);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Não foi possível calcular os indicadores");
+    } catch (e: unknown) {
+      toast.error(mensagemDeErro(e, "Não foi possível calcular os indicadores"));
     } finally {
       setCarregando(false);
     }

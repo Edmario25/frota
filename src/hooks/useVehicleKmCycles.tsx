@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { mensagemDeErro } from "@/lib/erros";
 
 type VehicleKmCycle = Database['public']['Tables']['vehicle_km_cycles']['Row'];
 
@@ -45,7 +46,7 @@ export const useVehicleKmCycles = () => {
       }
       
       return null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching current cycle:', error);
       return null;
     }
@@ -57,11 +58,11 @@ export const useVehicleKmCycles = () => {
       setLoading(true);
       const result = await getCurrentCycleSilent(vehicleId);
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching current cycle:', error);
       toast({
         title: "Erro ao buscar ciclo de KM",
-        description: error.message,
+        description: mensagemDeErro(error),
         variant: "destructive",
       });
       return null;
@@ -82,10 +83,10 @@ export const useVehicleKmCycles = () => {
       if (error) throw error;
       setCycles(data || []);
       return data || [];
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Erro ao carregar ciclos de KM",
-        description: error.message,
+        description: mensagemDeErro(error),
         variant: "destructive",
       });
       return [];
@@ -113,7 +114,7 @@ export const useVehicleKmCycles = () => {
         });
       }
       return created;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Erro ao renovar ciclos de KM:", error);
       return 0;
     }
@@ -137,11 +138,11 @@ export const useVehicleKmCycles = () => {
       }
       
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error closing expired cycles:', error);
       toast({
         title: "Erro ao fechar ciclos expirados",
-        description: error.message,
+        description: mensagemDeErro(error),
         variant: "destructive",
       });
       return 0;

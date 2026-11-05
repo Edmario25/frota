@@ -20,6 +20,7 @@ import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { FornecedorSelect } from "@/components/ui/FornecedorSelect";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 import { useI18n } from "@/i18n";
+import { mensagemDeErro } from "@/lib/erros";
 
 interface MaintenanceFormModalProps {
   isOpen: boolean;
@@ -187,11 +188,11 @@ export function MaintenanceFormModal({ isOpen, onClose, maintenance, vehicleType
       }
 
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao salvar manutenção:', error);
       
       // Mostrar mensagem de erro mais específica
-      const errorMessage = error.message || 'Erro desconhecido ao salvar manutenção';
+      const errorMessage = mensagemDeErro(error, 'Erro desconhecido ao salvar manutenção');
       alert(`Erro ao salvar manutenção: ${errorMessage}`);
     } finally {
       setLoading(false);
