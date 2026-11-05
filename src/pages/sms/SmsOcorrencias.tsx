@@ -88,7 +88,7 @@ export default function SmsOcorrencias() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {[["Quase-acidentes abertos", totals.nearMiss, AlertTriangle], ["Acidentes registrados", totals.acidentes, Siren], ["CAT pendente", totals.catPendente, ShieldAlert], ["PTs abertas", totals.pts, CheckCircle2]].map(([label, value, Icon]) => (
+          {([["Quase-acidentes abertos", totals.nearMiss, AlertTriangle], ["Acidentes registrados", totals.acidentes, Siren], ["CAT pendente", totals.catPendente, ShieldAlert], ["PTs abertas", totals.pts, CheckCircle2]] as [string, number, React.ElementType][]).map(([label, value, Icon]) => (
             <div key={String(label)} className="rounded-xl border bg-card p-4"><Icon className="mb-3 h-5 w-5 text-primary" /><p className="text-2xl font-bold">{String(value)}</p><p className="text-xs text-muted-foreground">{String(label)}</p></div>
           ))}
         </div>

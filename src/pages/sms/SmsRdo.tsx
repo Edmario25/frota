@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   FileText, Plus, Search, RefreshCw, Trash2,
-  Sun, Cloud, CloudRain, CloudLightning, PartlyCloudyIcon,
+  Sun, Cloud, CloudRain, CloudLightning,
   Users, Wrench, ClipboardList, AlertTriangle,
   CheckCircle2, BookOpen, FileWarning, AlertOctagon,
   MapPin, Calendar, Hash, Eye, Send, ShieldCheck, Undo2, Printer,

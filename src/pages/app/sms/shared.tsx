@@ -138,7 +138,10 @@ export const textareaCls = `${inputCls} resize-none`
 export function ChipGroup<T extends string>({
   options, value, onChange,
 }: {
-  options: { value: T; label: string; color?: string }[]
+  // readonly: as listas de opções são declaradas com "as const" nas telas,
+  // o que as torna imutáveis. Exigir array mutável aqui obrigava a copiar
+  // a lista só para satisfazer o tipo.
+  options: readonly { value: T; label: string; color?: string }[]
   value: T
   onChange: (v: T) => void
 }) {

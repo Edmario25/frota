@@ -1416,7 +1416,7 @@ export function normalizarTag(valor: string, formato: FormatoTag): string | null
 
   try {
     if (formato === "wiegand") {
-      const m = s.match(/^(\d{1,3})[,;.\/-](\d{1,5})$/);
+      const m = s.match(/^(\d{1,3})[,;./-](\d{1,5})$/);
       if (!m) return null;
       return montar(BigInt(m[1]), BigInt(m[2]));
     }

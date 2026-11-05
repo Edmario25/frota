@@ -17,7 +17,7 @@ export const useFuelLogs = () => {
     queryKey: QK,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('vehicle_fuel_logs' as any)
+        .from('vehicle_fuel_logs')
         .select('*')
         .order('data_abastecimento', { ascending: false });
       if (error) throw error;
@@ -35,7 +35,7 @@ export const useFuelLogs = () => {
           ? parseFloat((d.litros * d.valor_litro).toFixed(2))
           : null,
       };
-      const { data, error } = await supabase.from('vehicle_fuel_logs' as any).insert([dataToInsert]).select().single();
+      const { data, error } = await supabase.from('vehicle_fuel_logs').insert([dataToInsert]).select().single();
       if (error) throw error;
       return data as FuelLog;
     },
@@ -52,7 +52,7 @@ export const useFuelLogs = () => {
         ...d,
         ...(d.litros && d.valor_litro ? { valor_total: parseFloat((d.litros * d.valor_litro).toFixed(2)) } : {}),
       };
-      const { data, error } = await supabase.from('vehicle_fuel_logs' as any).update(dataToUpdate).eq('id', id).select().single();
+      const { data, error } = await supabase.from('vehicle_fuel_logs').update(dataToUpdate).eq('id', id).select().single();
       if (error) throw error;
       return data as FuelLog;
     },
@@ -65,7 +65,7 @@ export const useFuelLogs = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('vehicle_fuel_logs' as any).delete().eq('id', id);
+      const { error } = await supabase.from('vehicle_fuel_logs').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

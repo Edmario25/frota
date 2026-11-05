@@ -29,7 +29,7 @@ type FormValues=z.infer<typeof schema>;
 const vazio=():FormValues=>({nome:"",cpf:"",data_nascimento:"",telefone:"",email:"",matricula:"",cargo_id:"",departamento_id:"",tipo_contrato:"clt",data_admissao:"",status:"ativo",obra_id:"none",escala_tipo_id:"none",setor_id:"none",controla_jornada:true,motivo_dispensa_ponto:""});
 // Step titles are the Portuguese catalog keys; they are translated when rendered.
 const etapas=[{titulo:"Identificação",ajuda:"Dados essenciais",icon:User},{titulo:"Vínculo",ajuda:"Contrato e função",icon:Briefcase},{titulo:"Lotação",ajuda:"Obra e jornada",icon:Building2}];
-interface Props{open:boolean;onOpenChange:(open:boolean)=>void;employee?:Employee;onSubmit:(data:EmployeeInsert)=>Promise<Employee|void>}
+interface Props{open:boolean;onOpenChange:(open:boolean)=>void;employee?:Employee;onSubmit:(data:EmployeeInsert)=>Promise<unknown>}
 
 export const EmployeeFormModal=({open,onOpenChange,employee,onSubmit}:Props)=>{
   const { t } = useI18n();

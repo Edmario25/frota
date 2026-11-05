@@ -174,7 +174,11 @@ export const useEmployees = () => {
       if (!(data as any)?.success) throw new Error('Não foi possível concluir o desligamento.');
       return id;
     },
-    onSuccess: (_, id) => {
+    // O segundo argumento do onSuccess são as VARIÁVEIS da mutation, não o
+    // retorno: aqui chega { id, date, reason }. Comparar o objeto inteiro com
+    // e.id dava sempre falso e a atualização otimista nunca acontecia — só o
+    // invalidate() logo abaixo escondia o defeito, com um piscar na lista.
+    onSuccess: (_, { id }) => {
       updateEmployeeCaches((old) =>
         old.map(e => e.id === id ? { ...e, status: 'inativo' } : e),
       );

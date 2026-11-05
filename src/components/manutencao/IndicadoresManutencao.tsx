@@ -109,8 +109,10 @@ export function IndicadoresManutencao() {
       if (geral.error) throw geral.error;
       if (porVeiculo.error) throw porVeiculo.error;
 
-      setDados(((geral.data as Indicadores[]) ?? [])[0] ?? null);
-      setVeiculos((porVeiculo.data as PorVeiculo[]) ?? []);
+      // Sem cast: as duas funções agora estão declaradas em supabase/types.ts,
+      // então o retorno já chega tipado.
+      setDados((geral.data ?? [])[0] ?? null);
+      setVeiculos(porVeiculo.data ?? []);
     } catch (e: any) {
       toast.error(e?.message ?? "Não foi possível calcular os indicadores");
     } finally {

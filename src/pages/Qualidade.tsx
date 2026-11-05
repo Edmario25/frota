@@ -73,13 +73,13 @@ export default function Qualidade() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {[
+        {([
           ["NCs abertas", abertas.length, FileWarning, "text-blue-600", "bg-blue-50"],
           ["Atrasadas", atrasadas.length, AlertTriangle, "text-red-600", "bg-red-50"],
           ["Críticas", criticas.length, ShieldCheck, "text-orange-600", "bg-orange-50"],
           ["Encerradas", encerradas.length, CheckCircle2, "text-emerald-600", "bg-emerald-50"],
           ["Taxa de conclusão", `${taxaConclusao}%`, BarChart3, "text-violet-600", "bg-violet-50"],
-        ].map(([label, value, Icon, color, bg]) => <Card key={String(label)}><CardContent className="p-4"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${bg}`}><Icon className={`h-4 w-4 ${color}`}/></div><p className="text-2xl font-bold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></CardContent></Card>)}
+        ] as [string, string | number, React.ElementType, string, string][]).map(([label, value, Icon, color, bg]) => <Card key={String(label)}><CardContent className="p-4"><div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${bg}`}><Icon className={`h-4 w-4 ${color}`}/></div><p className="text-2xl font-bold">{value}</p><p className="text-xs text-muted-foreground">{label}</p></CardContent></Card>)}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">

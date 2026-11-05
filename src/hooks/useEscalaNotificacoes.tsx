@@ -56,8 +56,10 @@ export function useEscalaNotificacoes() {
     queryKey: ["escalaNotifs", employeeId],
     enabled: !!employeeId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("escala_notificacoes" as any)
+      // escala_notificacoes ainda não está em supabase/types.ts; com o cliente
+      // tipado o retorno vira SelectQueryError e o cast abaixo não compila.
+      const { data, error } = await (supabase as any)
+        .from("escala_notificacoes")
         .select("*")
         .eq("employee_id", employeeId!)
         .eq("lida", false)

@@ -42,7 +42,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cargo?: Cargo;
-  onSubmit: (data: CargoInsert) => Promise<void>;
+  /** Devolve o cargo salvo quando a mutation o entrega; o modal não usa o valor. */
+  onSubmit: (data: CargoInsert) => Promise<unknown>;
 }
 
 export const CargoFormModal = ({ open, onOpenChange, cargo, onSubmit }: Props) => {

@@ -592,6 +592,7 @@ export type Database = {
           id: string
           km_atual: number | null
           observacoes: string | null
+          fotos_checklist: string | null
           responsavel_checklist: string | null
           tipo_servico: string
           updated_at: string
@@ -606,6 +607,7 @@ export type Database = {
           id?: string
           km_atual?: number | null
           observacoes?: string | null
+          fotos_checklist?: string | null
           responsavel_checklist?: string | null
           tipo_servico: string
           updated_at?: string
@@ -620,6 +622,7 @@ export type Database = {
           id?: string
           km_atual?: number | null
           observacoes?: string | null
+          fotos_checklist?: string | null
           responsavel_checklist?: string | null
           tipo_servico?: string
           updated_at?: string
@@ -1697,6 +1700,53 @@ export type Database = {
     }
     Functions: {
       can_manage_employee: { Args: { employee_id: string }; Returns: boolean }
+      // Indicadores de manutenção (migrações 20261028000002 e 20261029000002).
+      // Declarados à mão: este arquivo não é regenerado desde antes do módulo
+      // de manutenção, e sem a declaração supabase.rpc() rejeita a chamada.
+      manutencao_indicadores: {
+        Args: { p_inicio: string; p_fim: string; p_obra_id?: string | null }
+        Returns: {
+          previstas: number
+          concluidas: number
+          concluidas_no_prazo: number
+          aderencia_pct: number | null
+          vencidas_hoje: number
+          custo_total: number
+          custo_preventiva: number
+          custo_corretiva: number
+          corretiva_pct_custo: number | null
+          ordens_preventivas: number
+          ordens_corretivas: number
+          km_rodado: number
+          custo_km_frota: number
+          custo_por_km: number | null
+          horas_rodadas: number
+          custo_hora_frota: number
+          custo_por_hora: number | null
+          horas_parado: number
+          veiculos: number
+          disponibilidade_pct: number | null
+        }[]
+      }
+      manutencao_indicadores_veiculo: {
+        Args: { p_inicio: string; p_fim: string }
+        Returns: {
+          vehicle_id: string
+          placa: string
+          marca: string
+          modelo: string
+          tipo_medicao: string
+          ordens: number
+          corretivas: number
+          custo: number
+          km_rodado: number
+          custo_por_km: number | null
+          horas_rodadas: number
+          custo_por_hora: number | null
+          horas_parado: number
+          vencidas: number
+        }[]
+      }
       close_expired_km_cycles: { Args: never; Returns: number }
       get_current_km_cycle: {
         Args: { p_vehicle_id: string }
@@ -1730,7 +1780,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "gestor_frota" | "funcionario" | "gestor_obra" | "gestor_contrato"
+      app_role:
+        | "admin"
+        | "gestor_frota"
+        | "funcionario"
+        | "gestor_obra"
+        | "gestor_contrato"
+        | "tecnico_sms"
       employee_status: "ativo" | "inativo" | "ferias" | "licenca"
       maintenance_status:
         | "agendada"
@@ -1870,7 +1926,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "gestor_frota", "funcionario", "gestor_obra", "gestor_contrato"],
+      app_role: ["admin", "gestor_frota", "funcionario", "gestor_obra", "gestor_contrato", "tecnico_sms"],
       employee_status: ["ativo", "inativo", "ferias", "licenca"],
       maintenance_status: [
         "agendada",

@@ -60,7 +60,7 @@ export function InspecaoForm({ employee, obraId, obras, veiculos = [], equipamen
   const usandoCatalogo = catalogoInspecoes.length > 0
   const itensDoTipo: ItemCatalogo[] = usandoCatalogo
     ? itensCatalogo.filter(i => i.catalogo_id === tipo)
-    : (ITENS_PADRAO[tipo] ?? []).map((item, idx) => ({ id: `${tipo}-${idx}`, item, criterio: null }))
+    : (ITENS_PADRAO[tipo] ?? []).map((item, idx) => ({ id: `${tipo}-${idx}`, catalogo_id: tipo, item, criterio: null }))
 
   const setResposta = (id: string, v: Resp) => setResp(p => ({ ...p, [id]: v }))
   const adicionarEvidencia = (itemId: string, file?: File) => {

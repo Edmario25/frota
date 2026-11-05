@@ -86,6 +86,9 @@ interface Movimentacao {
   fornecedor: string | null;
   observacoes: string | null;
   obra_destino_id: string | null;
+  // Entrega ligada à ficha do colaborador (migração 20260816000001). A coluna
+  // existe e o código grava nela; só a interface não declarava.
+  colaborador_epi_id: string | null;
   obras: { nome: string } | null;
   destino: { nome: string } | null;
   sms_epis_catalogo: { nome: string } | null;

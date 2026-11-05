@@ -60,7 +60,9 @@ interface ReqItem {
   _mat?: Material;
 }
 interface Requisicao {
-  id: string; numero_req: string | null; material_id: string; quantidade: number;
+  // obra_id vem no select("*") e é usado para abrir a ordem de compra na obra
+  // certa; faltava só na declaração.
+  id: string; obra_id: string; numero_req: string | null; material_id: string; quantidade: number;
   urgencia: string; status: string; justificativa: string | null;
   motivo_rejeicao: string | null; observacoes_aprovador: string | null;
   data_solicitacao: string; data_necessidade: string | null;
@@ -417,7 +419,7 @@ function EstoqueTab({ obras, obraId, setObraId, materiais, fornecedores }: {
 
   function exportCSV() {
     const obraNome = obras.find(o => o.id === obraId)?.nome ?? obraId;
-    const rows = [["Material", "Categoria", "Unidade", "Quantidade", "Mínimo", "Localização", "Status"].map(t).join(",")].concat(
+    const rows = [["Material", "Categoria", "Unidade", "Quantidade", "Mínimo", "Localização", "Status"].map(s => t(s)).join(",")].concat(
       filtered.map(e => {
         const s = e.quantidade === 0 ? "Zerado" : e.quantidade <= e.quantidade_minima && e.quantidade_minima > 0 ? "Alerta" : "OK";
         return `"${e.materiais_catalogo.nome}","${t(e.materiais_catalogo.categoria ?? "")}","${e.materiais_catalogo.unidade}",${e.quantidade},${e.quantidade_minima},"${e.localizacao ?? ""}","${t(s)}"`;

@@ -148,8 +148,11 @@ export function useChatMotorista(motoristaId: string | undefined) {
         (payload) => setConversa(payload.new as ChatConversa)
       )
       .subscribe((status) => {
-        if (status === "SUBSCRIPTION_ERROR") {
-          console.warn("Realtime chat motorista: erro na subscription");
+        // "SUBSCRIPTION_ERROR" não existe no supabase-js — os estados de falha
+        // são CHANNEL_ERROR e TIMED_OUT. A comparação antiga nunca era
+        // verdadeira, então a queda do tempo real passava sem nenhum aviso.
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn(`Realtime chat motorista: ${status} — mensagens novas podem não chegar sozinhas`);
         }
       });
 

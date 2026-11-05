@@ -153,7 +153,7 @@ const Funcionarios = () => {
               variant="outline"
               size="sm"
               onClick={() => {
-                const headers = ['Nome', 'CPF', 'Email', 'Telefone', 'Cargo', 'Departamento', 'Status', 'Data Admissão', 'Conta do sistema'].map(t);
+                const headers = ['Nome', 'CPF', 'Email', 'Telefone', 'Cargo', 'Departamento', 'Status', 'Data Admissão', 'Conta do sistema'].map(s => t(s));
                 const rows = filteredEmployees.map(e => [
                   e.nome,
                   canAccessSensitiveRh ? e.cpf : maskCpf(e.cpf),
