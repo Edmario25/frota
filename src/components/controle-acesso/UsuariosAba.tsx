@@ -220,8 +220,14 @@ export function UsuariosAba() {
       const userId = r.user_id as string;
 
       if (funcionarioId) {
-        const { error: e } = await (supabase as any).from("employees").update({ user_id: userId }).eq("id", funcionarioId);
+        const { data: vinculado, error: e } = await (supabase as any)
+          .from("employees").update({ user_id: userId }).eq("id", funcionarioId).select("id");
         if (e) throw e;
+        // O usuário foi criado; só o vínculo falhou. Dizer isso é melhor do que
+        // deixar a pessoa achar que o cadastro ficou completo.
+        if (!vinculado?.length) {
+          throw new Error(t("Usuário criado, mas o funcionário não pôde ser vinculado: seu acesso não permite alterar esse cadastro. Vincule pela tela de Acessos."));
+        }
       }
 
       const origem = data?.usuarios.find(u => u.user_id === copiarDe);
@@ -258,21 +264,43 @@ export function UsuariosAba() {
   const revogar = async (a: Atribuicao) => {
     if (!confirm(t("Revogar “{profile}” ({scope})? Fica registrado no histórico.", { profile: a.access_profiles?.nome ?? "", scope: nomeAlvo(a) }))) return;
     const { data: auth } = await supabase.auth.getUser();
-    const { error } = await (supabase as any).from("employee_access_profiles")
-      .update({ revogado_em: new Date().toISOString(), revogado_por: auth.user?.id ?? null }).eq("id", a.id);
+    const { data: revogados, error } = await (supabase as any).from("employee_access_profiles")
+      .update({ revogado_em: new Date().toISOString(), revogado_por: auth.user?.id ?? null })
+      .eq("id", a.id).select("id");
     if (error) { toast.error(error.message); return; }
+    // Anunciar "revogado" quando o acesso continua de pé é pior do que falhar:
+    // a pessoa sai da tela confiando que fechou uma porta que segue aberta.
+    if (!revogados?.length) {
+      toast.error(t("O acesso NÃO foi revogado: seu perfil não permite revogar esta concessão. Ela continua valendo."));
+      return;
+    }
     toast.success(t("Acesso revogado")); recarregar();
   };
 
   const vincularFuncionario = async (userId: string, novoId: string) => {
+    // Um UPDATE barrado pela RLS não devolve erro: ele simplesmente não atinge
+    // linha nenhuma, e o supabase-js responde sucesso com uma lista vazia. Era
+    // por isso que a tela dizia "Funcionário vinculado" e o campo voltava para
+    // "Sem vínculo" — a gravação nunca aconteceu. O .select() é o que permite
+    // contar as linhas afetadas e dizer a verdade.
     const atual = funcionarioDe(userId);
     if (atual && atual.id !== novoId) {
-      const { error } = await (supabase as any).from("employees").update({ user_id: null }).eq("id", atual.id);
+      const { data, error } = await (supabase as any)
+        .from("employees").update({ user_id: null }).eq("id", atual.id).select("id");
       if (error) { toast.error(error.message); return; }
+      if (!data?.length) {
+        toast.error(t("Não foi possível desfazer o vínculo anterior: seu acesso não permite alterar esse funcionário."));
+        return;
+      }
     }
     if (novoId) {
-      const { error } = await (supabase as any).from("employees").update({ user_id: userId }).eq("id", novoId);
+      const { data, error } = await (supabase as any)
+        .from("employees").update({ user_id: userId }).eq("id", novoId).select("id");
       if (error) { toast.error(error.message); return; }
+      if (!data?.length) {
+        toast.error(t("O vínculo não foi gravado: seu acesso não permite alterar esse funcionário. Fale com quem administra o controle de acesso."));
+        return;
+      }
     }
     toast.success(t("Funcionário vinculado")); recarregar();
   };
