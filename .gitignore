@@ -33,3 +33,4 @@ android/
 *.njsproj
 *.sln
 *.sw?
+*.ts.bak

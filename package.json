@@ -10,6 +10,7 @@
     "audit:i18n": "node scripts/audit-i18n.mjs",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
+    "types:gen": "node scripts/gerar-types.mjs",
     "test:e2e": "playwright test",
     "test:security": "playwright test --config=playwright.security.config.ts",
     "check": "npm run lint && npm run typecheck && npm run test:e2e && npm run build",
