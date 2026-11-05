@@ -29,19 +29,50 @@ function perguntarSenha() {
   const pelaVariavel = process.env.SUPABASE_DB_PASSWORD;
   if (pelaVariavel) return Promise.resolve(pelaVariavel);
 
+  // Sob "npm run" o stdin do processo filho costuma não ser um TTY: o prompt
+  // não aparece e o script fica esperando uma tecla que ninguém vê como digitar.
+  // Era exatamente o que parecia um travamento.
+  if (!process.stdin.isTTY) {
+    console.error(
+      "Este script precisa de um terminal interativo.\n\n" +
+      "Rode direto, sem o npm:\n" +
+      "  node scripts/gerar-types.mjs\n\n" +
+      "Ou passe a senha pelo ambiente:\n" +
+      "  $env:SUPABASE_DB_PASSWORD = \"...\" ; npm run types:gen",
+    );
+    process.exit(1);
+  }
+
+  // Leitura em modo cru: cada tecla é tratada à mão, nada é ecoado na tela.
   return new Promise(resolve => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
     process.stdout.write(`Senha do banco (${USUARIO}@${HOST}): `);
-    // Sem eco: a senha não aparece na tela nem em gravação de sessão.
-    const aoDigitar = () => process.stdout.write("");
-    process.stdin.on("data", aoDigitar);
-    rl.question("", resposta => {
-      process.stdin.off("data", aoDigitar);
-      process.stdout.write("\n");
-      rl.close();
-      resolve(resposta.trim());
-    });
-    rl._writeToOutput = () => {};
+    const stdin = process.stdin;
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.setEncoding("utf8");
+
+    let senha = "";
+    const aoTeclar = tecla => {
+      if (tecla === "\r" || tecla === "\n" || tecla === "\u0004") {
+        stdin.setRawMode(false);
+        stdin.pause();
+        stdin.off("data", aoTeclar);
+        process.stdout.write("\n");
+        resolve(senha.trim());
+        return;
+      }
+      if (tecla === "\u0003") {                      // Ctrl+C
+        stdin.setRawMode(false);
+        process.stdout.write("\n");
+        process.exit(130);
+      }
+      if (tecla === "\u007f" || tecla === "\b") {    // Backspace
+        senha = senha.slice(0, -1);
+        return;
+      }
+      senha += tecla;
+    };
+    stdin.on("data", aoTeclar);
   });
 }
 
