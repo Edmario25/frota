@@ -96,14 +96,22 @@ const Index = () => {
   const [smsStats, setSmsStats] = useState({ nearMissSemana: 0, desviosAbertos: 0, inspecoesHoje: 0 });
   const [trStats, setTrStats]   = useState({ vencidos: 0, aVencer: 0 });
 
-  // Apenas funcionários puros (cargo funcionario) são redirecionados ao /app
-  // Usuários com acesso_app_motorista podem usar ambas as interfaces
+  // Funcionário vai para o /app — mas só quem tem o App do Motorista liberado.
+  //
+  // Sem essa condição, nasce um pingue-pongue: o Index manda o funcionário para
+  // /app, o MobileApp vê acesso_app_motorista falso e manda de volta para /, e
+  // assim por diante. A tela fica em branco e o endereço pisca entre as duas
+  // rotas — que é exatamente o que acontece com quem é cadastrado como
+  // funcionário sem marcar o aplicativo.
+  //
+  // Quem não tem o app fica aqui mesmo: o bloco "Vista do funcionário" logo
+  // abaixo já mostra veículo, escala e manutenção dessa pessoa.
   useEffect(() => {
-    if (loadingRole) return;
-    if (isFuncionario) {
+    if (loadingRole || loadingEmployee) return;
+    if (isFuncionario && employee?.acesso_app_motorista === true) {
       navigate("/app", { replace: true });
     }
-  }, [loadingRole, isFuncionario, navigate]);
+  }, [loadingRole, loadingEmployee, isFuncionario, employee?.acesso_app_motorista, navigate]);
 
   useEffect(() => {
     if (vehicles.length > 0) {
@@ -387,6 +395,23 @@ const Index = () => {
             </div>
             <KilometrageChart />
           </>
+        )}
+
+        {/* ── Nenhuma das visões acima se aplica ────────────────────── */}
+        {/* Os três blocos cobrem gestor de contrato, gestor de obra e
+            funcionário. Um papel fora dessa lista — ou um usuário ainda sem
+            perfil atribuído — não renderizava nada e via a página em branco,
+            sem saber se o sistema quebrou ou se ele não tem acesso. */}
+        {!loadingRole && !hasFullAccess && !isGestorObra && !isFuncionario && (
+          <div className="rounded-2xl border border-border/60 bg-card p-8 text-center">
+            <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-500" />
+            <p className="text-base font-semibold text-foreground">
+              {t("Seu usuário ainda não tem um perfil de acesso")}
+            </p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              {t("Os menus que aparecem ao lado já funcionam. Esta página reúne indicadores por perfil — peça ao gestor para atribuir o seu em Controle de Acesso.")}
+            </p>
+          </div>
         )}
 
       </div>
