@@ -58,7 +58,15 @@ export const useVehicles = () => {
 
   const vincularFornecedorLocacao = async (obraId?: string | null, fornecedorId?: string | null, valor?: number | null) => {
     if (!obraId || !fornecedorId) return;
-    const { error } = await (supabase as any).from('obra_fornecedores').upsert({
+    // Não dá para usar ON CONFLICT (obra_id, fornecedor_id) aqui: a restrição
+    // única da tabela é um índice PARCIAL — só vale enquanto status = true, para
+    // permitir religar um fornecedor que já foi encerrado na mesma obra. O
+    // Postgres não casa ON CONFLICT com índice parcial sem repetir o predicado,
+    // e o PostgREST não tem como enviá-lo. Daí o erro 42P10.
+    //
+    // Inserir e tratar a violação de unicidade cobre inclusive duas telas
+    // gravando ao mesmo tempo — o índice continua sendo o árbitro.
+    const { error } = await (supabase as any).from('obra_fornecedores').insert({
       obra_id: obraId,
       fornecedor_id: fornecedorId,
       data_inicio: new Date().toISOString().slice(0, 10),
@@ -66,8 +74,13 @@ export const useVehicles = () => {
       valor_contrato: valor || null,
       status: true,
       observacoes: 'Vínculo criado automaticamente a partir da locação de veículo.',
-    }, { onConflict: 'obra_id,fornecedor_id', ignoreDuplicates: true });
-    if (error) throw new Error(`Veículo cadastrado, mas não foi possível vincular o fornecedor à obra: ${error.message}`);
+    });
+
+    // 23505 = unique_violation: o vínculo ativo já existe, que é o estado
+    // desejado. Era o que o ignoreDuplicates pretendia.
+    if (error && error.code !== '23505') {
+      throw new Error(`Veículo cadastrado, mas não foi possível vincular o fornecedor à obra: ${error.message}`);
+    }
   };
 
   const configurarOperacao = async (vehicleId: string, data: any) => {
