@@ -13,6 +13,7 @@ import { MyMaintenanceCard } from "@/components/employee/MyMaintenanceCard";
 import { ObraEmployeesList } from "@/components/dashboard/ObraEmployeesList";
 import { ObraMaintenanceCard } from "@/components/dashboard/ObraMaintenanceCard";
 import { useUserRole } from "@/hooks/useUserRole";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useEmployees } from "@/hooks/useEmployees";
@@ -24,7 +25,7 @@ import {
   Users, Car, Wrench, HardHat, Truck, AlertTriangle,
   ArrowRight, BarChart3, ShieldAlert, ClipboardCheck, TriangleAlert,
   GraduationCap,
-  Sparkles, Activity,
+  Sparkles, Activity, Wallet,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -87,6 +88,27 @@ const Index = () => {
   const navigate = useNavigate();
   const { isFuncionario, hasAdminAccess, shouldFilterByObra, isGestorObra, hasFullAccess, loading: loadingRole } = useUserRole();
   const { employee, loading: loadingEmployee } = useCurrentEmployee();
+
+  // O dashboard escolhia o conteúdo pelo PAPEL — um rótulo único por pessoa.
+  // O menu lateral sempre usou as permissões, e por isso acertava: quem tem
+  // frota e fundo fixo via os dois no menu e nenhum dos dois no painel.
+  // Aqui passa a valer a mesma fonte do menu.
+  const { canAction, loading: loadingPerms } = usePermissions();
+  const verFrota        = canAction("acesso_frota");
+  const verManutencao   = canAction("acesso_manutencao") || verFrota;
+  const verPessoas      = canAction("acesso_colaboradores");
+  const verEscalas      = canAction("acesso_escalas");
+  const verSms          = canAction("acesso_sms_dashboard");
+  const verTreinamentos = canAction("acesso_sms_treinamentos");
+  const verFundoFixo    = canAction("acesso_fundo_fixo");
+  const verRelatorios   = canAction("acesso_relatorios");
+
+  const temGestao = verFrota || verManutencao || verPessoas || verEscalas
+    || verSms || verTreinamentos || verFundoFixo || verRelatorios;
+
+  // Cartões do próprio registro: para quem não administra nada. Um gestor de
+  // frota não precisa do "Meu Veículo" ocupando o topo do painel dele.
+  const verPessoais = !temGestao;
   const { vehicles, getVehicleStats } = useVehicles();
   const { employees } = useEmployees();
   const { obras, getObraStats } = useObras();
@@ -95,6 +117,7 @@ const Index = () => {
   const [vehicleStats, setVehicleStats] = useState({ disponivel: 0, em_uso: 0, manutencao: 0, alertas_km: 0 });
   const [smsStats, setSmsStats] = useState({ nearMissSemana: 0, desviosAbertos: 0, inspecoesHoje: 0 });
   const [trStats, setTrStats]   = useState({ vencidos: 0, aVencer: 0 });
+  const [fundoFixoStats, setFundoFixoStats] = useState({ pendentes: 0 });
 
   // Funcionário vai para o /app — mas só quem tem o App do Motorista liberado.
   //
@@ -151,6 +174,22 @@ const Index = () => {
     ]).then(([v, a]) => setTrStats({ vencidos: v.count ?? 0, aVencer: a.count ?? 0 }))
   }, []);
 
+  // Fundo fixo: despesas lançadas que ainda não passaram pela conferência.
+  // É o número que faz alguém abrir a tela; saldo sem contexto não faz.
+  useEffect(() => {
+    if (!verFundoFixo) return;
+    let vivo = true;
+    (supabase as any)
+      .from("fundo_fixo_lancamentos")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pendente")
+      .then(({ count, error }: any) => {
+        if (!vivo || error) return;
+        setFundoFixoStats({ pendentes: count ?? 0 });
+      });
+    return () => { vivo = false; };
+  }, [verFundoFixo]);
+
   const hour        = new Date().getHours();
   const greeting    = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
   const firstName   = user?.user_metadata?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || t("usuário");
@@ -161,6 +200,14 @@ const Index = () => {
   const empAtivos   = employees.filter(e => e.status === "ativo").length;
   const smsTotal    = smsStats.nearMissSemana + smsStats.desviosAbertos;
 
+  // Números da faixa de saudação: só entram os que a pessoa tem direito de ver.
+  // Antes era tudo-ou-nada pelo papel, e um gestor de frota não via número algum.
+  const resumoTopo: [React.ElementType, number, string][] = [
+    ...(verPessoas ? [[HardHat, obraStats.em_andamento, "Obras"] as [React.ElementType, number, string]] : []),
+    ...(verPessoas ? [[Users, empAtivos, "Pessoas"] as [React.ElementType, number, string]] : []),
+    ...(verFrota ? [[Activity, vehicles.length, "Veículos"] as [React.ElementType, number, string]] : []),
+  ];
+
   return (
     <Layout>
       <div className="space-y-6 max-w-[1440px] mx-auto">
@@ -169,13 +216,13 @@ const Index = () => {
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-blue-950 to-primary px-6 py-6 text-white shadow-lg md:px-8 md:py-7">
           <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-blue-400/15 blur-3xl"/><div className="absolute bottom-0 right-1/3 h-28 w-28 rounded-full bg-violet-400/10 blur-2xl"/>
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div><div className="mb-3 flex items-center gap-2 text-blue-200"><Sparkles className="h-4 w-4"/><p className="text-xs font-bold uppercase tracking-[.16em]">{date(new Date(), { weekday: "long", day: "numeric", month: "long" })}</p></div><h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{t(greeting)}, {firstName}</h1><p className="mt-1 text-sm text-slate-300">{t(isFuncionario ? "Acompanhe seu veículo e suas atividades" : "Visão executiva da operação, obras, pessoas e segurança")}</p></div>
-            {hasFullAccess&&<div className="grid grid-cols-3 gap-2 sm:gap-3">{[[HardHat,obraStats.em_andamento,"Obras"],[Users,empAtivos,"Pessoas"],[Activity,vehicles.length,"Veículos"]].map(([Icon,value,label])=><div key={String(label)} className="min-w-24 rounded-xl border border-white/10 bg-white/10 px-3 py-3 backdrop-blur-sm"><div className="flex items-center gap-2"><Icon className="h-4 w-4 text-blue-200"/><strong className="text-lg">{String(value)}</strong></div><p className="mt-1 text-[10px] uppercase tracking-wide text-slate-300">{t(String(label))}</p></div>)}</div>}
+            <div><div className="mb-3 flex items-center gap-2 text-blue-200"><Sparkles className="h-4 w-4"/><p className="text-xs font-bold uppercase tracking-[.16em]">{date(new Date(), { weekday: "long", day: "numeric", month: "long" })}</p></div><h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{t(greeting)}, {firstName}</h1><p className="mt-1 text-sm text-slate-300">{t(temGestao ? "Visão executiva da operação, obras, pessoas e segurança" : "Acompanhe seu veículo e suas atividades")}</p></div>
+            {resumoTopo.length>0&&<div className="grid grid-cols-3 gap-2 sm:gap-3">{resumoTopo.map(([Icon,value,label])=><div key={String(label)} className="min-w-24 rounded-xl border border-white/10 bg-white/10 px-3 py-3 backdrop-blur-sm"><div className="flex items-center gap-2"><Icon className="h-4 w-4 text-blue-200"/><strong className="text-lg">{String(value)}</strong></div><p className="mt-1 text-[10px] uppercase tracking-wide text-slate-300">{t(String(label))}</p></div>)}</div>}
           </div>
         </div>
 
-        {/* ── Vista do funcionário ─────────────────────────────────── */}
-        {isFuncionario && (
+        {/* ── Meus próprios registros ──────────────────────────────── */}
+        {verPessoais && (
           <div className="space-y-5">
             <div className="grid gap-5 md:grid-cols-2">
               <MyVehicleCard />
@@ -193,15 +240,15 @@ const Index = () => {
           </div>
         )}
 
-        {/* ── Dashboard completo (admin / gestor_contrato) ─────────── */}
-        {hasFullAccess && (
+        {/* ── Indicadores, um por permissão ────────────────────────── */}
+        {temGestao && (
           <>
             <div className="flex items-end justify-between"><div><h2 className="text-lg font-bold">{t("Indicadores principais")}</h2><p className="text-xs text-muted-foreground">{t("Situação consolidada da operação neste momento")}</p></div><span className="hidden text-xs text-muted-foreground sm:block">{t("Atualização automática")}</span></div>
             {/* 5 KPIs principais */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
               {/* Obras */}
-              <KpiCard
+              {verPessoas && <KpiCard
                 icon={HardHat} iconBg="bg-violet-500" label={t("Obras Ativas")}
                 value={obraStats.em_andamento}
                 sub={t("{count} cadastradas", { count: obraStats.total })}
@@ -211,10 +258,10 @@ const Index = () => {
                     <span>{t("{count} funcionários ativos", { count: empAtivos })}</span>
                   </div>
                 }
-              />
+              />}
 
               {/* Frota */}
-              <KpiCard
+              {verFrota && <KpiCard
                 icon={Car} iconBg="bg-emerald-500" label={t("Frota Total")}
                 value={vehicles.length}
                 sub={t("{used} em uso · {available} disponíveis", { used: vehicleStats.em_uso, available: vehicleStats.disponivel })}
@@ -236,10 +283,10 @@ const Index = () => {
                     )}
                   </div>
                 }
-              />
+              />}
 
               {/* SMS / Segurança */}
-              <KpiCard
+              {verSms && <KpiCard
                 icon={ShieldAlert}
                 iconBg={smsStats.nearMissSemana > 0 ? "bg-orange-500" : "bg-teal-500"}
                 label={t("SMS · Segurança")}
@@ -252,20 +299,35 @@ const Index = () => {
                     <span>{t("{count} inspeções hoje", { count: smsStats.inspecoesHoje })}</span>
                   </div>
                 }
-              />
+              />}
 
               {/* Manutenções */}
-              <KpiCard
+              {verManutencao && <KpiCard
                 icon={Wrench}
                 iconBg={manutAgend > 5 ? "bg-red-500" : "bg-amber-500"}
                 label={t("Manutenções")}
                 value={manutAgend}
                 sub={t("Agendadas")}
                 subColor={manutAgend > 5 ? "text-red-600" : "text-amber-600"}
-              />
+              />}
+
+              {/* Fundo fixo — tinha acesso pelo menu e nunca apareceu aqui */}
+              {verFundoFixo && <KpiCard
+                icon={Wallet} iconBg="bg-sky-500" label={t("Fundo Fixo")}
+                value={fundoFixoStats.pendentes}
+                sub={fundoFixoStats.pendentes > 0
+                  ? t("despesas aguardando conferência")
+                  : t("Nada aguardando conferência")}
+                subColor={fundoFixoStats.pendentes > 0 ? "text-sky-600" : "text-emerald-600"}
+                footer={
+                  <Link to="/fundo-fixo" className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline">
+                    {t("Abrir fundo fixo")} <ArrowRight className="h-3 w-3" />
+                  </Link>
+                }
+              />}
 
               {/* Treinamentos */}
-              <KpiCard
+              {verTreinamentos && <KpiCard
                 icon={GraduationCap}
                 iconBg={trStats.vencidos > 0 ? "bg-red-500" : trStats.aVencer > 0 ? "bg-amber-500" : "bg-emerald-500"}
                 label={t("Treinamentos")}
@@ -281,7 +343,7 @@ const Index = () => {
                     {t("Ver matriz")} <ArrowRight className="h-3 w-3" />
                   </Link>
                 }
-              />
+              />}
 
             </div>
 
@@ -290,8 +352,8 @@ const Index = () => {
 
               {/* Gráficos — 2/3 */}
               <div className="xl:col-span-2 space-y-5">
-                <VehicleStatusChart />
-                <VehicleTypeChart />
+                {verFrota && <VehicleStatusChart />}
+                {verFrota && <VehicleTypeChart />}
               </div>
 
               {/* Sidebar direita — 1/3 */}
@@ -303,17 +365,18 @@ const Index = () => {
                     <p className="text-sm font-semibold text-foreground">{t("Acesso Rápido")}</p>
                   </div>
                   <div className="px-1 py-2 divide-y divide-border/30">
-                    <QuickLink to="/obras"            icon={HardHat}     color="bg-violet-500"  label={t("Obras")}              sub={t("{count} em andamento", { count: obraStats.em_andamento })} />
-                    <QuickLink to="/frota"            icon={Car}         color="bg-blue-500"    label={t("Veículos Leves")}      sub={t("{count} veículos", { count: veicLeves })} />
-                    <QuickLink to="/veiculos-pesados" icon={Truck}       color="bg-emerald-500" label={t("Veículos Pesados")}    sub={t("{count} veículos", { count: veicPesados })} />
-                    <QuickLink to="/manutencao"       icon={Wrench}      color="bg-amber-500"   label={t("Manutenção")}          sub={t("{count} agendadas", { count: manutAgend })} />
-                    <QuickLink to="/funcionarios"     icon={Users}       color="bg-indigo-500"  label={t("Funcionários")}        sub={t("{count} ativos", { count: empAtivos })} />
-                    <QuickLink to="/relatorios"       icon={BarChart3}   color="bg-slate-500"   label={t("Relatórios")}          sub={t("Custo de frota")} />
+                    {verPessoas && <QuickLink to="/obras"            icon={HardHat}     color="bg-violet-500"  label={t("Obras")}              sub={t("{count} em andamento", { count: obraStats.em_andamento })} />}
+                    {verFrota && <QuickLink to="/frota"            icon={Car}         color="bg-blue-500"    label={t("Veículos Leves")}      sub={t("{count} veículos", { count: veicLeves })} />}
+                    {verFrota && <QuickLink to="/veiculos-pesados" icon={Truck}       color="bg-emerald-500" label={t("Veículos Pesados")}    sub={t("{count} veículos", { count: veicPesados })} />}
+                    {verManutencao && <QuickLink to="/manutencao"       icon={Wrench}      color="bg-amber-500"   label={t("Manutenção")}          sub={t("{count} agendadas", { count: manutAgend })} />}
+                    {verPessoas && <QuickLink to="/funcionarios"     icon={Users}       color="bg-indigo-500"  label={t("Funcionários")}        sub={t("{count} ativos", { count: empAtivos })} />}
+                    {verFundoFixo && <QuickLink to="/fundo-fixo"      icon={Wallet}      color="bg-sky-500"     label={t("Fundo Fixo")}          sub={t("{count} aguardando conferência", { count: fundoFixoStats.pendentes })} />}
+                    {verRelatorios && <QuickLink to="/relatorios"       icon={BarChart3}   color="bg-slate-500"   label={t("Relatórios")}          sub={t("Custo de frota")} />}
                   </div>
                 </div>
 
                 {/* Alertas de KM */}
-                {vehicleStats.alertas_km > 0 && (
+                {verFrota && vehicleStats.alertas_km > 0 && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -332,7 +395,7 @@ const Index = () => {
                 )}
 
                 {/* Manutenções urgentes */}
-                {manutAgend > 0 && (
+                {verManutencao && manutAgend > 0 && (
                   <div className={cn(
                     "rounded-xl border p-4",
                     manutAgend > 5
@@ -365,18 +428,18 @@ const Index = () => {
             {/* Vencimentos lado a lado: pessoas de um lado, frota do outro.
                 Antes o painel só mostrava os de RH. */}
             <div className="grid gap-5 lg:grid-cols-2">
-              <VencimentosCard diasJanela={60} maxItens={8} />
-              <VencimentosFrotaCard diasJanela={60} maxItens={8} />
+              {verPessoas && <VencimentosCard diasJanela={60} maxItens={8} />}
+              {verFrota && <VencimentosFrotaCard diasJanela={60} maxItens={8} />}
             </div>
 
             {/* Linha inferior: Obras + Escalas */}
             <div className="grid gap-5 lg:grid-cols-2">
-              <ObrasSummaryCard />
-              <UpcomingLeavesCard />
+              {verPessoas && <ObrasSummaryCard />}
+              {verEscalas && <UpcomingLeavesCard />}
             </div>
 
             {/* KM Chart — linha completa */}
-            <KilometrageChart />
+            {verFrota && <KilometrageChart />}
           </>
         )}
 
@@ -402,7 +465,7 @@ const Index = () => {
             funcionário. Um papel fora dessa lista — ou um usuário ainda sem
             perfil atribuído — não renderizava nada e via a página em branco,
             sem saber se o sistema quebrou ou se ele não tem acesso. */}
-        {!loadingRole && !hasFullAccess && !isGestorObra && !isFuncionario && (
+        {!loadingRole && !loadingPerms && !temGestao && !verPessoais && !isGestorObra && (
           <div className="rounded-2xl border border-border/60 bg-card p-8 text-center">
             <ShieldAlert className="mx-auto mb-3 h-10 w-10 text-amber-500" />
             <p className="text-base font-semibold text-foreground">
