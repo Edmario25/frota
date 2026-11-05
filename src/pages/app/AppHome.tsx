@@ -2,6 +2,7 @@ import { Car, Fuel, Wrench, Gauge, AlertCircle, RefreshCw } from "lucide-react";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useTraccarVehicleSync } from "@/hooks/useTraccarVehicleSync";
 import { MinhasInfracoesCard } from "@/components/employee/MinhasInfracoesCard";
+import { ManutencaoVeiculoCard } from "@/components/employee/ManutencaoVeiculoCard";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useEscalas } from "@/hooks/useEscalas";
 import { useEffect } from "react";
@@ -131,6 +132,10 @@ export function AppHome({ onNavigate }: { onNavigate: (tab: Tab, subType?: strin
       <div className="px-4 -mt-4 space-y-4 pb-6">
         {/* Infrações aguardando ciência — some sozinho quando não há nenhuma */}
         <MinhasInfracoesCard />
+
+        {/* Manutenção e liberação: vem antes do card do veículo porque é o que
+            decide se o motorista pode dar a partida. */}
+        <ManutencaoVeiculoCard vehicleId={vehicle?.id} placa={vehicle?.placa} />
 
         {/* Veículo card */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm overflow-hidden">

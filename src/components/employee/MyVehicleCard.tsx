@@ -19,22 +19,7 @@ import {
 import { getVehicleStatusBadge, getVehicleStatusText } from "@/lib/statusHelpers";
 import { useEmployeeVehicle } from "@/hooks/useEmployeeVehicle";
 import { useI18n } from "@/i18n";
-
-// ─── Push notification helper ─────────────────────────────────────────────────
-// Mostra uma notificação de sistema (apenas uma vez por sessão por tag)
-async function sendPushNotification(title: string, body: string, tag: string) {
-  if (!("Notification" in window)) return;
-  if (sessionStorage.getItem(`notif_${tag}`)) return; // já enviada nesta sessão
-
-  let perm = Notification.permission;
-  if (perm === "default") {
-    perm = await Notification.requestPermission();
-  }
-  if (perm === "granted") {
-    new Notification(title, { body, tag, icon: "/favicon.ico" });
-    sessionStorage.setItem(`notif_${tag}`, "1");
-  }
-}
+import { notificarMotorista } from "@/lib/notificar";
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
@@ -99,7 +84,7 @@ export const MyVehicleCard = () => {
     if (!vehicle || loading) return;
 
     if (isOverLimit) {
-      sendPushNotification(
+      void notificarMotorista(
         t("⚠️ Limite de KM Excedido"),
         t("{plate} — {km} km acima do limite mensal", {
           plate: vehicle.placa,
@@ -108,7 +93,7 @@ export const MyVehicleCard = () => {
         `km_over_${vehicle.id}`
       );
     } else if (isNearLimit) {
-      sendPushNotification(
+      void notificarMotorista(
         t("🔶 Atenção: KM Mensal"),
         t("{plate} — {percent}% do limite mensal utilizado", {
           plate: vehicle.placa,
@@ -119,7 +104,7 @@ export const MyVehicleCard = () => {
     }
 
     if (maintOverdueKm || maintOverdueDays) {
-      sendPushNotification(
+      void notificarMotorista(
         t("🔧 Manutenção Preventiva Vencida"),
         t("{plate} — agende a manutenção preventiva imediatamente", { plate: vehicle.placa }),
         `maint_overdue_${vehicle.id}`
@@ -129,7 +114,7 @@ export const MyVehicleCard = () => {
         kmUntilMaint !== null && !maintOverdueKm
           ? t("{km} km", { km: number(kmUntilMaint) })
           : t("{days} dias", { days: daysUntilMaint });
-      sendPushNotification(
+      void notificarMotorista(
         t("🔧 Manutenção Preventiva Próxima"),
         t("{plate} — faltam {hint} para a próxima manutenção", { plate: vehicle.placa, hint }),
         `maint_near_${vehicle.id}`

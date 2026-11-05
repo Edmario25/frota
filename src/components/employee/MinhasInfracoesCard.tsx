@@ -5,6 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { useMinhasInfracoes } from "@/hooks/useMinhasInfracoes";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
+import { notificarMotorista } from "@/lib/notificar";
 
 // Labels are the Portuguese catalog keys; they are translated when rendered.
 const GRAVIDADE: Record<string, { label: string; badge: string; barra: string }> = {
@@ -13,18 +14,6 @@ const GRAVIDADE: Record<string, { label: string; badge: string; barra: string }>
   grave:      { label: "Grave",      badge: "bg-red-100 text-red-700",       barra: "bg-red-500" },
   gravissima: { label: "Gravíssima", badge: "bg-red-200 text-red-900",       barra: "bg-red-600" },
 };
-
-/** Avisa uma vez por infração, mesmo que o app seja reaberto na mesma sessão. */
-async function avisar(titulo: string, corpo: string, tag: string) {
-  if (!("Notification" in window)) return;
-  if (sessionStorage.getItem(`notif_${tag}`)) return;
-  let permissao = Notification.permission;
-  if (permissao === "default") permissao = await Notification.requestPermission();
-  if (permissao === "granted") {
-    new Notification(titulo, { body: corpo, tag, icon: "/favicon.ico" });
-    sessionStorage.setItem(`notif_${tag}`, "1");
-  }
-}
 
 export function MinhasInfracoesCard() {
   const { t, date } = useI18n();
@@ -35,7 +24,7 @@ export function MinhasInfracoesCard() {
     for (const i of pendentes) {
       const g = GRAVIDADE[i.gravidade]?.label ?? i.gravidade;
       const local = i.checkpoint_nome ? t(" no {place}", { place: i.checkpoint_nome }) : "";
-      avisar(
+      void notificarMotorista(
         t("Excesso de velocidade — {severity}", { severity: t(g) }),
         t("{speed} km/h em zona de {limit} km/h{place}. Abra o app para dar ciência.", {
           speed: Math.round(i.velocidade_kmh),
