@@ -5,14 +5,15 @@
 -- a língua do modelo de acesso ANTIGO:
 --
 --   can_access_fornecedores()  → get_user_role()='admin' OU cargo.acesso_fornecedores
+--                                (esta segunda coluna já nem existe mais no banco)
 --   can_manage_obra_data(obra) → get_user_role() em (admin, gestor_contrato,
 --                                gestor_frota) ou gestor_obra daquela obra
 --
 -- Só que get_user_role() foi reescrito para ler APENAS employee_access_profiles.
 -- Quem usa o sistema por exceção ou delegação — sem perfil atribuído — tem
 -- get_user_role() nulo. O resultado é o pior tipo de inconsistência: a pessoa
--- enxerga a tela (o cargo ainda libera o SELECT), preenche o formulário inteiro
--- e só descobre no botão Vincular que nunca teve o direito de gravar.
+-- enxerga a tela de fornecedores, preenche o formulário inteiro e só descobre
+-- no botão Vincular que nunca teve o direito de gravar.
 --
 -- As chaves fornecedores.visualizar e fornecedores.editar já existem no
 -- catálogo desde a criação do modelo novo. Faltava a tabela usá-las.
@@ -40,14 +41,14 @@ AS $$
     -- de um cadastro: ele se concederia a permissão em dois cliques de qualquer
     -- forma, e o bloqueio só produz suporte.
     OR public.access_is_admin()
-    -- Modelo antigo, enquanto os módulos não terminam de migrar
-    OR public.get_user_role(auth.uid()) = 'admin'
-    OR EXISTS (
-      SELECT 1 FROM public.employees employee
-      JOIN public.cargos cargo ON cargo.id = employee.cargo_id
-      WHERE employee.user_id = auth.uid()
-        AND cargo.acesso_fornecedores = true
-    );
+    -- Modelo antigo, enquanto os módulos não terminam de migrar.
+    --
+    -- O ramo por cargo.acesso_fornecedores, que a versão de 20260823 tinha,
+    -- saiu daqui: a coluna não existe mais no banco. Ela foi removida fora
+    -- deste repositório, então a função antiga já falhava ou dependia do
+    -- curto-circuito dos OR anteriores. Ninguém perde acesso com a saída —
+    -- um ramo que referencia coluna inexistente não autoriza ninguém.
+    OR public.get_user_role(auth.uid()) = 'admin';
 $$;
 
 REVOKE ALL ON FUNCTION public.can_access_fornecedores() FROM PUBLIC, anon;
