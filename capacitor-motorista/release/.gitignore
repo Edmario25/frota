@@ -1,0 +1,5 @@
+# A chave de assinatura e a senha NUNCA entram no git.
+# Perder este arquivo significa não conseguir mais atualizar o app instalado.
+*
+!.gitignore
+!LEIA-ME.md

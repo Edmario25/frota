@@ -1,0 +1,76 @@
+apply plugin: 'com.android.application'
+
+// Credenciais de assinatura ficam em ../release/keystore.properties, fora do
+// git. Sem o arquivo, o build de release continua funcionando — sai sem
+// assinatura, em vez de quebrar na máquina de quem não tem a chave.
+def chaveProps = new Properties()
+def chaveArquivo = rootProject.file('../release/keystore.properties')
+if (chaveArquivo.exists()) {
+    chaveArquivo.withInputStream { chaveProps.load(it) }
+}
+
+android {
+    namespace "br.com.apicesystem.motorista"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "br.com.apicesystem.motorista"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 2
+        versionName "1.1"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (chaveProps['storeFile']) {
+                storeFile     rootProject.file(chaveProps['storeFile'])
+                storePassword chaveProps['storePassword']
+                keyAlias      chaveProps['keyAlias']
+                keyPassword   chaveProps['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (chaveProps['storeFile']) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
