@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import vm from 'node:vm';
 import ts from 'typescript';
 const cache = new Map();
@@ -127,11 +129,46 @@ const fleetFiles = [
   'components/employee/UpdateKmModal.tsx',
   'components/fundo-fixo/FundoFixoLancamentoModal.tsx',
 ];
-for (const file of fleetFiles) {
+// ─── Todo o src/, não só a lista acima ──────────────────────────────────────
+//
+// A lista `fleetFiles` é escrita à mão, então arquivo novo nasce fora da
+// verificação. Foi assim que textos de src/components/dashboard e de
+// src/pages/Index.tsx entraram sem tradução: o teste passava e o inglês e o
+// espanhol caíam em português, sem ninguém notar.
+//
+// A regra "toda chave usada em t() precisa existir no catálogo" vale para o
+// projeto inteiro e não depende de a tela estar internacionalizada — por isso
+// ela varre tudo. A verificação mais dura, a de texto solto no JSX, continua
+// restrita à lista, porque há telas que ainda usam português literal de
+// propósito e quebrariam o teste sem ganho nenhum.
+const raizSrc = fileURLToPath(new URL('../src', import.meta.url));
+function todosOsFontes(dir = raizSrc) {
+  const achados = [];
+  for (const entrada of readdirSync(dir, { withFileTypes: true })) {
+    const completo = path.join(dir, entrada.name);
+    if (entrada.isDirectory()) {
+      achados.push(...todosOsFontes(completo));
+    } else if (/\.(ts|tsx)$/.test(entrada.name) && !entrada.name.endsWith('.d.ts')) {
+      achados.push(path.relative(raizSrc, completo).split(path.sep).join('/'));
+    }
+  }
+  return achados;
+}
+
+const faltantes = [];
+const exigir = (condicao, mensagem) => { if (!condicao) faltantes.push(mensagem); };
+
+const arquivosDeFrota = new Set(fleetFiles);
+// O próprio catálogo e o motor de tradução ficam de fora: lá as strings são o dado.
+const ignorados = new Set(['i18n/catalog.ts', 'i18n/core.ts', 'i18n/index.tsx', 'integrations/supabase/types.ts']);
+
+for (const file of todosOsFontes()) {
+  if (ignorados.has(file)) continue;
+  const verificaJsx = arquivosDeFrota.has(file);
   const source = readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   function check(node) {
-    if (ts.isJsxText(node) && node.text.trim()) {
+    if (verificaJsx && ts.isJsxText(node) && node.text.trim()) {
       const text = node.text.trim();
       // Punctuation, units and values stay as they are; <T>...</T> carries its own catalog key.
       const neutralText = new Set(['SUV', 'Sedan', '-', '•', '—', '·', 'km', 'L', 'km/L', '(', ')', ')?', '?', '/', '0', ':', '*', '%', '→', '‹', '›', 'R$', 'R$/L', 'ÁPICE', 'GESTÃO', 'x', 'h', 'd']);
@@ -140,24 +177,32 @@ for (const file of fleetFiles) {
       const parent = node.parent;
       const insideT = parent && ts.isJsxElement(parent) && parent.openingElement.tagName.getText(ast) === 'T';
       if (insideT) {
-        assert.ok(Object.hasOwn(catalog, text), `Missing fleet translation: ${text}`);
+        exigir(Object.hasOwn(catalog, text), `Sem tradução (<T>) em ${file}: ${text}`);
       } else {
-        assert.ok(neutralText.has(text) || symbolOnly, `Untranslated fleet text in ${file}: ${text}`);
+        exigir(neutralText.has(text) || symbolOnly, `Texto solto no JSX em ${file}: ${text}`);
       }
     }
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 't'
       && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) {
-      assert.ok(Object.hasOwn(catalog, node.arguments[0].text), `Missing fleet translation: ${node.arguments[0].text}`);
+      exigir(Object.hasOwn(catalog, node.arguments[0].text), `Sem tradução (t) em ${file}: ${node.arguments[0].text}`);
     }
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
       && ['min', 'max'].includes(node.expression.name.text) && node.arguments[1] && ts.isStringLiteral(node.arguments[1])) {
-      assert.ok(Object.hasOwn(catalog, node.arguments[1].text), `Missing schema translation: ${node.arguments[1].text}`);
+      exigir(Object.hasOwn(catalog, node.arguments[1].text), `Sem tradução (schema) em ${file}: ${node.arguments[1].text}`);
     }
     if (ts.isPropertyAssignment(node) && node.name.getText(ast) === 'message' && ts.isStringLiteral(node.initializer)) {
-      assert.ok(Object.hasOwn(catalog, node.initializer.text), `Missing validation translation: ${node.initializer.text}`);
+      exigir(Object.hasOwn(catalog, node.initializer.text), `Sem tradução (validação) em ${file}: ${node.initializer.text}`);
     }
     ts.forEachChild(node, check);
   }
   check(ast);
 }
+if (faltantes.length) {
+  const unicos = [...new Set(faltantes)];
+  console.error(`\n${unicos.length} texto(s) sem tradução:\n`);
+  for (const f of unicos) console.error(`  • ${f}`);
+  console.error('\nAdicione cada um em src/i18n/catalog.ts como "PT": ["EN", "ES"].\n');
+  process.exit(1);
+}
+
 console.log(`OK: ${Object.keys(catalog).length} textos em três idiomas; parâmetros, fallback, datas, números e moeda preservada.`);
