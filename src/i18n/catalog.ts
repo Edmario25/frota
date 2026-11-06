@@ -17,6 +17,8 @@ export const catalog: Record<string, readonly [string, string]> = {
   "Veículos Leves": ["Light vehicles", "Vehículos ligeros"],
   "Veículos Pesados": ["Heavy vehicles", "Vehículos pesados"],
   "Painel da Frota": ["Fleet dashboard", "Panel de la flota"],
+  "Vínculo desfeito": ["Link removed", "Vínculo deshecho"],
+  "Não foi possível vincular o funcionário.": ["The employee could not be linked.", "No se pudo vincular al empleado."],
   "Não foi possível desfazer o vínculo anterior: seu acesso não permite alterar esse funcionário.": ["The previous link could not be removed: your access does not allow changing that employee.", "No se pudo deshacer el vínculo anterior: tu acceso no permite modificar a ese empleado."],
   "O vínculo não foi gravado: seu acesso não permite alterar esse funcionário. Fale com quem administra o controle de acesso.": ["The link was not saved: your access does not allow changing that employee. Talk to whoever manages access control.", "El vínculo no se guardó: tu acceso no permite modificar a ese empleado. Habla con quien administra el control de acceso."],
   "Usuário criado, mas o funcionário não pôde ser vinculado: seu acesso não permite alterar esse cadastro. Vincule pela tela de Acessos.": ["User created, but the employee could not be linked: your access does not allow changing that record. Link it from the Access screen.", "Usuario creado, pero no se pudo vincular al empleado: tu acceso no permite modificar ese registro. Vincúlalo desde la pantalla de Accesos."],

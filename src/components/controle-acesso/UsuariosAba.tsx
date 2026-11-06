@@ -278,31 +278,21 @@ export function UsuariosAba() {
   };
 
   const vincularFuncionario = async (userId: string, novoId: string) => {
-    // Um UPDATE barrado pela RLS não devolve erro: ele simplesmente não atinge
-    // linha nenhuma, e o supabase-js responde sucesso com uma lista vazia. Era
-    // por isso que a tela dizia "Funcionário vinculado" e o campo voltava para
-    // "Sem vínculo" — a gravação nunca aconteceu. O .select() é o que permite
-    // contar as linhas afetadas e dizer a verdade.
-    const atual = funcionarioDe(userId);
-    if (atual && atual.id !== novoId) {
-      const { data, error } = await (supabase as any)
-        .from("employees").update({ user_id: null }).eq("id", atual.id).select("id");
-      if (error) { toast.error(error.message); return; }
-      if (!data?.length) {
-        toast.error(t("Não foi possível desfazer o vínculo anterior: seu acesso não permite alterar esse funcionário."));
-        return;
-      }
+    // Pela RPC, não por UPDATE direto: a RLS de employees só autoriza gestor de
+    // obra da mesma obra, e quem administra acessos não passa por ela. Afrouxar
+    // aquela política abriria a tabela que guarda salário e documentos; a função
+    // faz só o vínculo, confere a permissão e devolve o motivo quando recusa.
+    const { data, error } = await (supabase as any).rpc("vincular_usuario_funcionario", {
+      p_user_id: userId,
+      p_employee_id: novoId || null,
+    });
+    if (error) { toast.error(error.message); return; }
+    if (!data?.success) {
+      toast.error(data?.error ?? t("Não foi possível vincular o funcionário."));
+      return;
     }
-    if (novoId) {
-      const { data, error } = await (supabase as any)
-        .from("employees").update({ user_id: userId }).eq("id", novoId).select("id");
-      if (error) { toast.error(error.message); return; }
-      if (!data?.length) {
-        toast.error(t("O vínculo não foi gravado: seu acesso não permite alterar esse funcionário. Fale com quem administra o controle de acesso."));
-        return;
-      }
-    }
-    toast.success(t("Funcionário vinculado")); recarregar();
+    toast.success(novoId ? t("Funcionário vinculado") : t("Vínculo desfeito"));
+    recarregar();
   };
 
   const alterarAplicativo = async (funcionarioId: string, aplicativo: string, permitir: boolean) => {
