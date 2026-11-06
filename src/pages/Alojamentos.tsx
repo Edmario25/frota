@@ -32,6 +32,7 @@ import { ChamadosAba } from "@/components/alojamentos/ChamadosAba";
 import { AlojadosAba } from "@/components/alojamentos/AlojadosAba";
 import { PainelGestao } from "@/components/alojamentos/PainelGestao";
 import { CustosAba } from "@/components/alojamentos/CustosAba";
+import { ContratosAba } from "@/components/alojamentos/ContratosAba";
 import { RelatoriosAlojamento } from "@/components/alojamentos/RelatoriosAlojamento";
 
 type Modal =
@@ -362,6 +363,7 @@ export default function Alojamentos() {
               <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
               <TabsTrigger value="mapa">Mapa de leitos</TabsTrigger>
               <TabsTrigger value="custos">Custos</TabsTrigger>
+              <TabsTrigger value="contratos">Contratos</TabsTrigger>
               <TabsTrigger value="alojados">Alojados</TabsTrigger>
               <TabsTrigger value="patrimonio">Patrimônio</TabsTrigger>
               <TabsTrigger value="chamados">Chamados{kpi.chamados ? ` (${kpi.chamados})` : ""}</TabsTrigger>
@@ -383,6 +385,13 @@ export default function Alojamentos() {
             <TabsContent value="custos" forceMount className="data-[state=inactive]:hidden">
               <CustosAba complexos={complexoId === "todos" ? complexosEscopo : complexosEscopo.filter(c => c.id === complexoId)}
                 unidades={unidades} abrirNovo={pedidoLancamento} onMudou={() => setVersaoCustos(v => v + 1)} />
+            </TabsContent>
+
+            <TabsContent value="contratos">
+              <ContratosAba
+                complexos={complexoId === "todos" ? complexosEscopo : complexosEscopo.filter(c => c.id === complexoId)}
+                unidades={unidades}
+                onMudou={() => setVersaoCustos(v => v + 1)} />
             </TabsContent>
 
             <TabsContent value="mapa">
