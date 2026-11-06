@@ -78,15 +78,50 @@ FROM alvo
 
 UNION ALL
 
--- 5. O funcionário está vinculado a este usuário?
+-- 5. O funcionário está vinculado a este usuário, e em que obras?
+-- employees não tem obra_id: a lotação vive em employee_obra_assignments.
 SELECT
   '5. FUNCIONARIO VINCULADO',
   e.nome,
-  COALESCE(o.nome, 'sem obra'),
+  COALESCE(
+    (SELECT string_agg(o.nome, ', ' ORDER BY o.nome)
+     FROM public.employee_obra_assignments eoa
+     JOIN public.obras o ON o.id = eoa.obra_id
+     WHERE eoa.employee_id = e.id),
+    'nenhuma obra vinculada'),
   e.status::text,
   ''
 FROM alvo a
 JOIN public.employees e ON e.user_id = a.user_id
-LEFT JOIN public.obras o ON o.id = e.obra_id
+
+UNION ALL
+
+-- 6. Obras que o motor considera do usuário (o escopo efetivo dele)
+SELECT
+  '6. OBRAS DO USUARIO (motor)',
+  'get_user_obra_ids',
+  COALESCE(
+    (SELECT string_agg(o.nome, ', ' ORDER BY o.nome)
+     FROM public.obras o
+     WHERE o.id = ANY(COALESCE(
+       (SELECT array_agg(eap.scope_id) FROM public.employee_access_profiles eap
+        WHERE eap.user_id = (SELECT user_id FROM alvo)
+          AND eap.scope_type = 'obra' AND eap.scope_id IS NOT NULL
+          AND eap.revogado_em IS NULL), ARRAY[]::uuid[]))),
+    'nenhuma'),
+  '',
+  ''
+FROM alvo
+
+UNION ALL
+
+-- 7. A permissão vale NAQUELA obra? É a pergunta que a tela realmente faz.
+SELECT
+  '7. PODE NA OBRA',
+  o.nome,
+  public.pode_u((SELECT user_id FROM alvo), 'frota.visualizar', o.id)::text,
+  '',
+  ''
+FROM public.obras o
 
 ORDER BY 1, 2;
