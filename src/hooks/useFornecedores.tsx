@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUserObra } from "@/hooks/useUserObra";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getFornecedorIdsByObra } from "@/utils/obraFilters";
 import { useCallback } from "react";
 
@@ -46,23 +47,40 @@ export type FornecedorUpdate = Partial<FornecedorInsert>;
 export const useFornecedores = () => {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { shouldFilterByObra, loading: loadingRole } = useUserRole();
+  const { role, shouldFilterByObra, loading: loadingRole } = useUserRole();
   const { obraId, loading: loadingObra } = useUserObra();
 
-  const QK = ['fornecedores', shouldFilterByObra, obraId] as const;
+  // O escopo vinha só de useUserObra, que procura a lotação do funcionário em
+  // obra_funcionarios. Quem recebe o perfil aplicado a uma obra pelo Controle
+  // de Acesso não está necessariamente lotado lá — e aí obraId ficava nulo e a
+  // tela abria vazia, mesmo com a permissão certa e fornecedores na obra.
+  //
+  // A obra do perfil é a fonte principal; a lotação continua valendo como
+  // segunda via, para quem ainda depende do modelo antigo. É o mesmo arranjo
+  // que useVehicles já usa.
+  const { obrasCom, loading: loadingPermissions } = usePermissions();
+  const acessoFornecedores = obrasCom('fornecedores.visualizar');
+  const obrasPermitidas = acessoFornecedores.ids.length
+    ? acessoFornecedores.ids
+    : (shouldFilterByObra && obraId ? [obraId] : []);
+  const acessoEmpresa = acessoFornecedores.todas
+    || role === 'admin' || role === 'gestor_contrato' || role === 'gestor_frota';
+
+  const QK = ['fornecedores', acessoEmpresa, obrasPermitidas.join(',')] as const;
 
   const query = useQuery({
     queryKey: QK,
     queryFn: async () => {
-      if (shouldFilterByObra && obraId) {
-        const ids = await getFornecedorIdsByObra(obraId);
+      if (!acessoEmpresa && obrasPermitidas.length) {
+        const porObra = await Promise.all(obrasPermitidas.map(getFornecedorIdsByObra));
+        const ids = [...new Set(porObra.flat())];
         if (!ids.length) return [];
         const { data, error } = await supabase
           .from("fornecedores").select("*").in('id', ids).order("nome", { ascending: true });
         if (error) throw error;
         return (data ?? []) as Fornecedor[];
       }
-      if (!shouldFilterByObra) {
+      if (acessoEmpresa) {
         const { data, error } = await supabase
           .from("fornecedores").select("*").order("nome", { ascending: true });
         if (error) throw error;
@@ -70,7 +88,9 @@ export const useFornecedores = () => {
       }
       return [];
     },
-    enabled: !loadingRole && !loadingObra,
+    // Sem esperar as permissões, a primeira busca sai com escopo vazio e o
+    // resultado vazio fica em cache até alguém recarregar a página.
+    enabled: !loadingRole && !loadingObra && !loadingPermissions,
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['fornecedores'] });
