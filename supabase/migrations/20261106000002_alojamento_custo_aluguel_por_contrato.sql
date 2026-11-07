@@ -24,6 +24,9 @@
 -- Idempotente. Rodar depois de 20261106000001.
 -- ============================================================================
 
+-- Os ::numeric(14,2) abaixo não são enfeite: CREATE OR REPLACE VIEW recusa
+-- mudar o tipo de uma coluna existente, e round() devolve numeric sem
+-- precisão. Sem o cast, o Postgres responde 42P16 e nada é aplicado.
 CREATE OR REPLACE VIEW public.v_alojamento_custos_obra WITH (security_invoker = true) AS
 
 -- Despesas lançadas à mão (água, energia, limpeza…)
@@ -32,7 +35,9 @@ SELECT
   c.obra_id,
   d.competencia                AS data_lancamento,
   COALESCE(d.descricao, initcap(replace(d.categoria, '_', ' '))) AS descricao,
-  d.valor,
+  -- O alias é explícito porque o primeiro SELECT nomeia as colunas da view,
+  -- e um cast sem alias deixa o nome por conta do Postgres.
+  d.valor::numeric(14,2)       AS valor,
   d.fornecedor,
   d.documento                  AS nota_fiscal,
   'despesa'::text              AS origem
@@ -45,7 +50,7 @@ UNION ALL
 SELECT
   ch.id, a.obra_id, ch.concluido_em::date,
   'Manutenção do alojamento: ' || ch.titulo,
-  ch.custo, NULL, NULL, 'manutencao'
+  ch.custo::numeric(14,2), NULL, NULL, 'manutencao'
 FROM public.alojamento_chamados ch
 JOIN public.alojamentos a ON a.id = ch.alojamento_id
 WHERE ch.status = 'concluido' AND ch.custo > 0
@@ -83,7 +88,7 @@ SELECT
         + 1
       )::numeric
     / EXTRACT(day FROM (m + interval '1 month' - interval '1 day'))::numeric
-  , 2),
+  , 2)::numeric(14,2),
   COALESCE(f.nome, ct.nome_locador),
   ct.numero,
   'aluguel'
